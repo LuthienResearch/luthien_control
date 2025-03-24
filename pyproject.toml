@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "luthien-control"
+version = "0.1.0"
+description = "AI Control Framework - A proxy server for monitoring and controlling AI model API interactions"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "luthien_control"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.109.0"
+uvicorn = "^0.27.0"
+httpx = "^0.26.0"
+pydantic = "^2.6.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+black = "^24.1.0"
+isort = "^5.13.0"
+mypy = "^1.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api" 

@@ -1,0 +1,49 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Always maintain development tracking files.
+
+Refer to dev/ProjectGoal.md and dev/ProjectPlan.md for project goal and overall plan, respectively.
+
+After each significant change or command:
+<post_change_steps>
+1. Update DEVELOPMENT_LOG.md with:
+<dev_log_update_components>
+ - Current status
+ - Where we are in the plan (see dev/ProjectPlan.md)
+ - Commands run
+ - Any errors encountered
+ - Next steps planned
+ </dev_log_update_components>
+
+2. Update CURSOR_CONTEXT.md with:
+<context_components>
+ - Which section of the guide we're implementing
+ - What's working
+ - What's broken
+ - Current blockers
+ - Database/model state
+ </context_components>
+Overwriting existing CURSOR_CONTEXT.md content is allowed and encouraged; this file should be a succinct description of the current working context state, not a historical log of previous context.
+
+---
+
+When starting a new session:
+<new_session_steps>
+1. Read CURSOR_CONTEXT.md first
+2. Acknowledge the current state
+3. Reference relevant sections from the guide
+4. Continue from last documented point
+</new_session_steps>
+
+
+Format for updates:
+<update_formatting_guidelines>
+ -  Use timestamps for each entry
+ -  Include all commands run
+ -  Document both successes and failures
+ -  List any pending tasks
+ -  Reference line numbers from guide when relevant
+</update_formatting_guidelines>

@@ -1,0 +1,22 @@
+---
+description: Guidelines for making changes to the codebase
+globs: 
+alwaysApply: true
+---
+When making changes to the codebase:
+<change_guidelines>
+1. Never remove existing functionality without explicit user request
+2. When refactoring or simplifying code:
+   - Document what functionality exists before making changes
+   - Make changes incrementally, testing after each change
+   - If removing code, explain why it's safe to remove
+   - If unsure about functionality, ask the user
+3. When cleaning up code:
+   - Focus on removing unused code only
+   - Keep core functionality intact
+   - Don't "simplify" working code unless specifically requested
+4. When making changes across multiple files:
+   - Document the scope of changes
+   - Test each file's functionality after changes
+   - Ensure changes don't break existing features
+</change_guidelines> 

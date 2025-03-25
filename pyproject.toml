@@ -12,12 +12,17 @@ fastapi = "^0.109.0"
 uvicorn = "^0.27.0"
 httpx = "^0.26.0"
 pydantic = "^2.6.0"
+python-dotenv = "^1.0.0"
+requests = "^2.32.3"
+brotli = "^1.1.0"
+openai = "^1.68.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
 black = "^24.1.0"
 isort = "^5.13.0"
 mypy = "^1.8.0"
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core"]

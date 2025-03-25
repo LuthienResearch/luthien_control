@@ -1,0 +1,18 @@
+# Poetry Package Management
+
+Always use Poetry for dependency and environment management:
+
+1. Installing/adding packages:
+```bash
+poetry install            # install all dependencies
+poetry add package-name   # add new package
+poetry add -D package-name  # add dev dependency
+```
+
+2. Running code:
+```bash
+poetry run python script.py
+poetry shell  # activate environment
+```
+
+3. Never use pip directly - always use Poetry to manage dependencies. 

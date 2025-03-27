@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import httpx
 
+TARGET_URL = "https://luthien-control.fly.dev"
+
 def test_direct_sdk():
     """Test direct OpenAI SDK usage."""
     print("\n=== Testing Direct SDK Call ===")
@@ -31,7 +33,9 @@ def test_proxied_sdk():
     """Test SDK usage through our proxy."""
     print("\n=== Testing Proxied SDK ===")
     
-    proxy_url = f"http://{os.getenv('LUTHIEN_HOST', 'localhost')}:{os.getenv('LUTHIEN_PORT', '8000')}/v1"
+    # proxy_url = f"http://{os.getenv('LUTHIEN_HOST', 'localhost')}:{os.getenv('LUTHIEN_PORT', '8000')}/v1"
+    # proxy_url = "https://luthien.dev:8000/v1"
+    proxy_url = TARGET_URL + "/v1"
     print(f"Configuring SDK with base_url: {proxy_url}")
     
     # Create a custom transport that allows HTTP
@@ -95,9 +99,11 @@ def main():
         return
     
     # Test health endpoint first
-    proxy_url = f"http://{os.getenv('LUTHIEN_HOST', 'localhost')}:{os.getenv('LUTHIEN_PORT', '8000')}"
+    # proxy_url = f"http://{os.getenv('LUTHIEN_HOST', 'localhost')}:{os.getenv('LUTHIEN_PORT', '8000')}"
+    # proxy_url = "https://luthien.dev:8000"
+    proxy_url = TARGET_URL
     try:
-        health_response = httpx.get(f"{proxy_url}/health")
+        health_response = httpx.get(f"{proxy_url}/health", verify=False)
         if health_response.status_code != 200:
             print("❌ Proxy server health check failed")
             return

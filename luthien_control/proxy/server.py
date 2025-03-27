@@ -107,11 +107,12 @@ async def proxy_request(request: Request, path: str):
                 body=content
             )
 
-            # we need to remove "br" from the content-encoding header
+            # Handle content-encoding header safely
             headers_dict = dict(response.headers)
             content_encoding = headers_dict.get("content-encoding", None)
-            content_encoding = content_encoding.replace("br", "")
-            headers_dict["content-encoding"] = content_encoding
+            if content_encoding:
+                content_encoding = content_encoding.replace("br", "")
+                headers_dict["content-encoding"] = content_encoding.strip()
             
             # Return response with original headers and content
             return Response(

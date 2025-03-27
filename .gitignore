@@ -44,3 +44,6 @@ htmlcov/
 logs/ 
 
 .DS_Store
+
+# Certs
+certs/

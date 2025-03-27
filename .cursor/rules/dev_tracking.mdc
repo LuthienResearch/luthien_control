@@ -1,48 +1,67 @@
 ---
-description: 
+description: MANDATORY tracking file update procedures
 globs: 
 alwaysApply: true
 ---
-Always maintain development tracking files.
+## MANDATORY: Update tracking files after EVERY change
 
-Refer to dev/ProjectGoal.md and dev/ProjectPlan.md for project goal and overall plan, respectively.
+After EACH of the following (without exception):
+- Creating or modifying any file
+- Running any command that changes system state
+- Completing a deployment step
+- Encountering or resolving any error
+- Before moving to a new task
 
-After each significant change or command:
-<post_change_steps>
-1. Update DEVELOPMENT_LOG.md with:
-<dev_log_update_components>
- - Current status
- - Where we are in the plan (see dev/ProjectPlan.md)
- - Commands run
- - Any errors encountered
- - Next steps planned
- </dev_log_update_components>
+You MUST:
 
-2. Update CURSOR_CONTEXT.md with:
-<context_components>
- - Which section of the guide we're implementing
- - What's working
- - What's broken
- - Current blockers
- - Database/model state
- </context_components>
-Overwriting existing CURSOR_CONTEXT.md content is allowed and encouraged; this file should be a succinct description of the current working context state, not a historical log of previous context.
+### 1. Update dev/DEVELOPMENT_LOG.md - Historical Record
+```markdown
+## [YYYY-MM-DD HH:MM] - Brief Action Title
 
----
+### Changes Made
+- Specific file changes or commands executed
+- Include exact commands with outputs if relevant
 
-When starting a new session:
-<new_session_steps>
-1. Read CURSOR_CONTEXT.md first
-2. Acknowledge the current state
-3. Reference relevant sections from the guide
-4. Continue from last documented point
-</new_session_steps>
+### Current Status
+- What's currently working
+- What's currently broken
+- Any errors encountered (with exact error messages)
 
-Format for updates:
-<update_formatting_guidelines>
- -  Use timestamps for each entry
- -  Include all commands run
- -  Document both successes and failures
- -  List any pending tasks
- -  Reference line numbers from guide when relevant
-</update_formatting_guidelines>
+### Next Steps
+- Clear, actionable next steps
+```
+
+### 2. Update dev/CURSOR_CONTEXT.md - Current State Snapshot
+```markdown
+# Current Working Context
+[Replace entire file with current state - this is NOT a log]
+
+## Implementation Phase
+- Current project phase (reference ProjectPlan.md)
+- Specific component being worked on
+
+## Working State
+- What is currently working (specific features)
+- What is not working/incomplete
+- Recent changes made
+
+## Current Blockers
+- Active issues preventing progress
+- Questions requiring answers
+- Missing dependencies or configurations
+
+## Next Steps
+1. Next immediate action
+2. Subsequent planned actions
+3. Outstanding issues to address
+```
+
+## IMPORTANT GUIDELINES
+
+1. **Update First**: Always update tracking files BEFORE moving to a new task
+2. **Be Specific**: Include specific file names, commands, and error messages
+3. **Complete Replacement**: For dev/CURSOR_CONTEXT.md, replace the entire file with current state
+4. **Timestamps**: Always include timestamps in dev/DEVELOPMENT_LOG.md entries
+5. **No Skipping**: These updates are mandatory for ALL changes, no matter how small
+
+IMPORTANT: This is not optional. Every change requires tracking file updates.

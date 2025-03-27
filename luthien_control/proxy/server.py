@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from fastapi.datastructures import Headers
 
 from ..logging.api_logger import APILogger
+from ..policies.manager import PolicyManager
 
 # Load environment variables from .env file
 env_path = Path(__file__).parent.parent.parent / '.env'
@@ -22,6 +23,9 @@ load_dotenv(env_path)
 
 # Set up API logger
 api_logger = APILogger(log_file="logs/api.log")
+
+# Create policy manager
+policy_manager = PolicyManager()
 
 # Create FastAPI app
 app = FastAPI(title="Luthien Control Framework")
@@ -72,7 +76,7 @@ async def proxy_request(request: Request, path: str):
     target_url = f"{config.target_url}/{path}"
     
     # Get headers
-    headers = get_headers(request)
+    headers = dict(get_headers(request))
     
     # Forward body if present
     body = await request.body() if request.method in ["POST", "PUT"] else None
@@ -81,12 +85,25 @@ async def proxy_request(request: Request, path: str):
     api_logger.log_request(
         method=request.method,
         url=target_url,
-        headers=dict(headers),
+        headers=headers,
         body=body,
         query_params=dict(request.query_params)
     )
     
     try:
+        # Apply request policies
+        processed_request = await policy_manager.apply_request_policies(
+            request, 
+            target_url, 
+            headers, 
+            body
+        )
+        
+        # Use the processed request data
+        target_url = processed_request['target_url']
+        headers = processed_request['headers']
+        body = processed_request['body']
+        
         # Forward request
         async with httpx.AsyncClient() as client:
             response = await client.request(
@@ -107,17 +124,28 @@ async def proxy_request(request: Request, path: str):
                 body=content
             )
 
+            # Apply response policies
+            processed_response = await policy_manager.apply_response_policies(
+                request,
+                response,
+                content
+            )
+            
+            # Use the processed response data
+            status_code = processed_response['status_code']
+            headers_dict = processed_response['headers']
+            content = processed_response['content']
+
             # Handle content-encoding header safely
-            headers_dict = dict(response.headers)
             content_encoding = headers_dict.get("content-encoding", None)
             if content_encoding:
                 content_encoding = content_encoding.replace("br", "")
                 headers_dict["content-encoding"] = content_encoding.strip()
             
-            # Return response with original headers and content
+            # Return response with processed headers and content
             return Response(
                 content=content,
-                status_code=response.status_code,
+                status_code=status_code,
                 headers=headers_dict
             )
     except httpx.RequestError as e:

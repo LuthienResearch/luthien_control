@@ -191,4 +191,29 @@ logger.add_relationship(
 4. Consider adding:
    - Query methods for common use cases
    - Async support if needed
-   - UI/API for exploring logged communications 
+   - UI/API for exploring logged communications
+
+## [2024-03-25 12:38] - Implemented Test Suite for Communications Logging
+
+### Changes Made
+- Added pytest and related dependencies (pytest-asyncio, pytest-cov)
+- Created comprehensive test suite for models and database logger
+- Fixed SQLAlchemy naming conflict (renamed metadata to meta_info)
+- Added test configuration in pyproject.toml
+
+### Current Status
+- Test coverage for core components:
+  - Database models (Comm, CommRelationship)
+  - Database logger (DBLogger)
+  - Relationship tracking and navigation
+- Tests verify:
+  - Basic CRUD operations
+  - Relationship creation and querying
+  - Complex relationship chains
+  - Data integrity
+
+### Next Steps
+1. Add integration tests with proxy server
+2. Add performance tests for database operations
+3. Fix api_logger tests
+4. Add more edge case tests 

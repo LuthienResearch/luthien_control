@@ -43,14 +43,14 @@ class DBLogger:
         from_comm: Comm,
         to_comm: Comm,
         relationship_type: str,
-        metadata: Optional[Dict] = None
+        meta_info: Optional[Dict] = None
     ) -> CommRelationship:
         """Create a relationship between two communications."""
         rel = CommRelationship(
             from_comm_id=from_comm.id,
             to_comm_id=to_comm.id,
             relationship_type=relationship_type,
-            metadata=metadata or {}
+            meta_info=meta_info or {}
         )
         
         self.session.add(rel)

@@ -45,7 +45,7 @@ class CommRelationship(Base):
     from_comm_id = Column(UUID(as_uuid=True), ForeignKey("comms.id"), nullable=False)
     to_comm_id = Column(UUID(as_uuid=True), ForeignKey("comms.id"), nullable=False)
     relationship_type = Column(Text, nullable=False)
-    metadata = Column(JSONB, nullable=False, default=dict)
+    meta_info = Column(JSONB, nullable=False, default=dict)
 
     # Relationships
     from_comm = relationship(

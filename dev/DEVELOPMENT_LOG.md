@@ -116,4 +116,79 @@ fly secrets set OPENAI_API_KEY="<redacted>"
 - Design basic indexes
 - Plan query patterns
 - Design API for logging/querying
-- Plan minimal UI requirements 
+- Plan minimal UI requirements
+
+## [2024-03-25 12:30] - Implemented Communications Logging System
+
+### Changes Made
+- Added SQLAlchemy and asyncpg dependencies via poetry
+- Created database models for communications and relationships
+- Implemented simplified DBLogger for tracking communications
+
+### Current Status
+- Basic communication logging is implemented with:
+  - Source/destination tracking
+  - Request/response type tracking
+  - Content storage as JSONB
+  - Flexible relationship tracking between communications
+  - Simple query interface for related communications
+
+### Implementation Details
+```python
+# Core data model:
+Comm:
+  - id: UUID
+  - source: Text
+  - destination: Text
+  - type: Enum("REQUEST", "RESPONSE")
+  - content: JSONB
+  - endpoint: Text
+  - arguments: JSONB
+  - trigger: JSONB  # For control-server originated comms
+
+CommRelationship:
+  - id: UUID
+  - from_comm_id: UUID
+  - to_comm_id: UUID
+  - relationship_type: Text
+  - metadata: JSONB
+```
+
+### Usage Example
+```python
+logger = DBLogger(session)
+
+# Log a request
+request_comm = logger.log_comm(
+    source="client",
+    destination="proxy",
+    comm_type="REQUEST",
+    content={"body": request.json()},
+    endpoint=request.url,
+    arguments=request.query_params
+)
+
+# Log and link a related communication
+response_comm = logger.log_comm(
+    source="proxy",
+    destination="client",
+    comm_type="RESPONSE",
+    content={"body": response.json()}
+)
+
+# Create relationship
+logger.add_relationship(
+    request_comm,
+    response_comm,
+    "request_response"
+)
+```
+
+### Next Steps
+1. Create database migration scripts
+2. Add basic test suite
+3. Implement proxy integration
+4. Consider adding:
+   - Query methods for common use cases
+   - Async support if needed
+   - UI/API for exploring logged communications 

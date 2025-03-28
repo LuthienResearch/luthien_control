@@ -33,7 +33,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-testpaths = ["luthien_control"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "--cov=luthien_control --cov-report=term-missing"
 filterwarnings = [

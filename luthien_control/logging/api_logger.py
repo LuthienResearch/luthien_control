@@ -15,7 +15,17 @@ class APILogger:
     def _parse_json(self, data: Union[str, bytes]) -> Any:
         """Parse data as JSON if possible, otherwise return as string."""
         if isinstance(data, bytes):
-            data = data.decode()
+            # Try common encodings
+            encodings = ['utf-8', 'utf-16', 'utf-32', 'ascii']
+            for encoding in encodings:
+                try:
+                    data = data.decode(encoding)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                # If all decodings fail, return raw bytes as string
+                return str(data)
         
         try:
             return json.loads(data)

@@ -14,6 +14,7 @@ class FileLogManager:
     def __init__(self, base_dir: Path):
         """Initialize with base directory for logs."""
         self.base_dir = base_dir
+        self._open_files = []
     
     def ensure_log_dir(self, subdir: Optional[str] = None) -> Path:
         """Ensure log directory exists and return its path."""
@@ -36,6 +37,7 @@ class FileLogManager:
         path = self.base_dir / filename
         path.parent.mkdir(parents=True, exist_ok=True)
         file_obj = open(path, 'a')
+        self._open_files.append(file_obj)
         
         def write_json_line(data: Dict[str, Any]) -> None:
             """Write a JSON line to the file."""
@@ -43,4 +45,12 @@ class FileLogManager:
             file_obj.write('\n')
             file_obj.flush()
         
-        return APILogger(write_json_line) 
+        return APILogger(write_json_line)
+    
+    def __del__(self):
+        """Clean up any open files when the manager is destroyed."""
+        for file_obj in self._open_files:
+            try:
+                file_obj.close()
+            except:
+                pass  # Best effort cleanup 

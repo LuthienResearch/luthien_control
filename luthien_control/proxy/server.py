@@ -15,14 +15,16 @@ from dotenv import load_dotenv
 from fastapi.datastructures import Headers
 
 from ..logging.api_logger import APILogger
+from ..logging.file_logging import FileLogManager
 from ..policies.manager import PolicyManager
 
 # Load environment variables from .env file
 env_path = Path(__file__).parent.parent.parent / '.env'
 load_dotenv(env_path)
 
-# Set up API logger
-api_logger = APILogger(log_file="logs/api.log")
+# Set up logging
+log_manager = FileLogManager(Path("logs"))
+api_logger = log_manager.create_logger("api.log")
 
 # Create policy manager
 policy_manager = PolicyManager()

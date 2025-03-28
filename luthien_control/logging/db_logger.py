@@ -69,8 +69,9 @@ class DBLogger:
             (CommRelationship.to_comm_id == Comm.id) |
             (CommRelationship.from_comm_id == Comm.id)
         ).filter(
-            (CommRelationship.from_comm_id == comm.id) |
-            (CommRelationship.to_comm_id == comm.id)
+            ((CommRelationship.from_comm_id == comm.id) |
+            (CommRelationship.to_comm_id == comm.id)) &
+            (Comm.id != comm.id)  # Exclude the original communication
         )
         
         if relationship_type:

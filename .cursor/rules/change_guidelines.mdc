@@ -19,4 +19,9 @@ When making changes to the codebase:
    - Document the scope of changes
    - Test each file's functionality after changes
    - Ensure changes don't break existing features
+5. Package management:
+   - Always use Poetry for dependency management
+   - Run tests using `poetry run pytest`
+   - Install dependencies using `poetry install`
+   - Add new dependencies using `poetry add`
 </change_guidelines> 

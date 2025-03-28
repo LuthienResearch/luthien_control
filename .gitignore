@@ -35,9 +35,11 @@ ENV/
 
 # Testing
 .coverage
+.coverage*
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+
 
 # Logs
 *.log

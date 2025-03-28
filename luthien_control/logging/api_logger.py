@@ -1,39 +1,31 @@
 """
-Simple API request/response logger using JSON format.
+API request/response log data structuring.
 """
 import json
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, Callable
 
 class APILogger:
-    """Simple logger for API requests and responses."""
+    """Formats API requests and responses into structured log data."""
     
-    def __init__(self, log_file: str = "logs/api.log"):
-        """Initialize logger with log file path."""
-        self.log_file = Path(log_file)
-        self.log_file.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(self, log_handler: Callable[[Dict[str, Any]], None]):
+        """Initialize with a function that handles the structured log data."""
+        self.log_handler = log_handler
     
     def _parse_json(self, data: Union[str, bytes]) -> Any:
-        """Parse data as JSON if possible, otherwise return as is."""
+        """Parse data as JSON if possible, otherwise return as string."""
         if isinstance(data, bytes):
-            try:
-                data = data.decode()
-            except UnicodeDecodeError:
-                return "[BINARY_DATA]"
+            data = data.decode()
         
         try:
             return json.loads(data)
         except json.JSONDecodeError:
             return data
     
-    def _write_log(self, data: Dict[str, Any]) -> None:
-        """Write a log entry in JSON format."""
+    def _prepare_log_entry(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Prepare a log entry with common fields."""
         data["timestamp"] = datetime.utcnow().isoformat()
-        
-        with self.log_file.open("a") as f:
-            json.dump(data, f, indent=2)
-            f.write("\n")
+        return data
     
     def log_request(
         self,
@@ -43,7 +35,7 @@ class APILogger:
         body: Optional[Union[str, bytes]] = None,
         query_params: Optional[Dict[str, Any]] = None
     ) -> None:
-        """Log an API request."""
+        """Format and log an API request."""
         # Redact sensitive headers
         safe_headers = {
             k: "[REDACTED]" if k.lower() in {"authorization", "cookie", "api-key"} else v
@@ -63,7 +55,7 @@ class APILogger:
         if body:
             log_data["body"] = self._parse_json(body)
                 
-        self._write_log(log_data)
+        self.log_handler(self._prepare_log_entry(log_data))
     
     def log_response(
         self,
@@ -71,7 +63,7 @@ class APILogger:
         headers: Dict[str, str],
         body: Optional[Union[str, bytes]] = None
     ) -> None:
-        """Log an API response."""
+        """Format and log an API response."""
         # Redact sensitive headers
         safe_headers = {
             k: "[REDACTED]" if k.lower() in {"authorization", "cookie", "api-key"} else v
@@ -87,4 +79,4 @@ class APILogger:
         if body:
             log_data["body"] = self._parse_json(body)
                 
-        self._write_log(log_data) 
+        self.log_handler(self._prepare_log_entry(log_data)) 

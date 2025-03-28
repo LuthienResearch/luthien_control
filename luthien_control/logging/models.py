@@ -5,8 +5,8 @@ from datetime import datetime
 import uuid
 from typing import Dict, Any, Optional
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, String, Text, JSON
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
@@ -20,10 +20,10 @@ class Comm(Base):
     destination = Column(Text, nullable=False)
     type = Column(Enum("REQUEST", "RESPONSE", name="comm_type"), nullable=False)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
-    content = Column(JSONB)
+    content = Column(JSON)
     endpoint = Column(Text)
-    arguments = Column(JSONB)
-    trigger = Column(JSONB)  # For control-server originated comms
+    arguments = Column(JSON)
+    trigger = Column(JSON)  # For control-server originated comms
 
     # Relationships
     outgoing_relationships = relationship(
@@ -45,7 +45,7 @@ class CommRelationship(Base):
     from_comm_id = Column(UUID(as_uuid=True), ForeignKey("comms.id"), nullable=False)
     to_comm_id = Column(UUID(as_uuid=True), ForeignKey("comms.id"), nullable=False)
     relationship_type = Column(Text, nullable=False)
-    meta_info = Column(JSONB, nullable=False, default=dict)
+    meta_info = Column(JSON, nullable=False, default=dict)
 
     # Relationships
     from_comm = relationship(

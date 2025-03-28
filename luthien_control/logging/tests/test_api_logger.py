@@ -67,9 +67,4 @@ def test_non_json_body(logger, log_entries):
     
     assert len(log_entries) == 1
     log = log_entries[0]
-    assert log["body"] == "Hello, world!"
-
-if __name__ == "__main__":
-    test_log_request()
-    test_log_response()
-    test_non_json_body() 
+    assert log["body"] == "Hello, world!" 

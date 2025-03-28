@@ -217,3 +217,26 @@ logger.add_relationship(
 2. Add performance tests for database operations
 3. Fix api_logger tests
 4. Add more edge case tests 
+
+## [2024-03-27 15:30] - Integration Test Environment Configuration
+
+### Changes Made
+- Added `--env` command line option to control test environment selection
+- Removed redundant `RUN_DEPLOYED_TESTS` environment variable
+- Updated test configuration to support local, deployed, or both environments
+- Added comprehensive documentation for test environment usage
+- Modified `test_invalid_api_key` to skip automatically for deployed instance
+
+### Current Status
+- Working:
+  - Local server tests (all passing)
+  - Deployed server tests (5 passing, 1 skipped)
+  - Environment selection via `--env` option
+  - Test documentation and usage instructions
+- Not Working:
+  - N/A - All functionality working as intended
+
+### Next Steps
+- Consider adding more integration tests for other endpoints
+- Consider adding performance/load testing scenarios
+- Consider adding test coverage for error conditions 

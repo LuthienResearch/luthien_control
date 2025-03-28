@@ -54,13 +54,17 @@ config = ProxyConfig(
 
 def get_headers(request: Request) -> Headers:
     """Get headers for the proxy request."""
-    # Create a Headers instance from the request headers (excluding any headers with the key "authorization")
-    header_dict = {
-        k: v for k, v in request.headers.items() if k.lower() != "authorization"
-    }
-    header_dict["Authorization"] = f"Bearer {config.api_key}"
+    # Create a Headers instance from the request headers
+    header_dict = dict(request.headers)
+    
+    # Remove headers we don't want to forward
     header_dict.pop("host", None)
     header_dict.pop("content-length", None)
+    
+    # If no authorization header provided, use the server's API key
+    if "authorization" not in {k.lower() for k in header_dict}:
+        header_dict["Authorization"] = f"Bearer {config.api_key}"
+    
     headers = Headers(header_dict)
     return headers
 

@@ -62,6 +62,10 @@ class PolicyManager:
                 request_data['headers'], 
                 request_data['body']
             )
+            # Merge headers instead of overwriting
+            if 'headers' in policy_result:
+                request_data['headers'] = {**request_data['headers'], **policy_result['headers']}
+                del policy_result['headers']
             request_data.update(policy_result)
         
         return request_data
@@ -87,6 +91,10 @@ class PolicyManager:
         
         for policy in self._policies:
             policy_result = await policy.process_response(request, response, response_data['content'])
+            # Merge headers instead of overwriting
+            if 'headers' in policy_result:
+                response_data['headers'] = {**response_data['headers'], **policy_result['headers']}
+                del policy_result['headers']
             response_data.update(policy_result)
         
         return response_data 

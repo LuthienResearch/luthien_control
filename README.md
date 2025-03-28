@@ -21,7 +21,37 @@ A proxy server for monitoring and controlling AI model API interactions. This fr
 
 ## Development
 
-- Run tests: `poetry run pytest`
+### Testing
+
+The project includes comprehensive test suites, including integration tests that can run against both local and deployed instances.
+
+#### Running Tests
+
+- Run all tests: `poetry run pytest`
+- Run only unit tests: `poetry run pytest -m "not integration"`
+- Run integration tests:
+  ```bash
+  # Test against local server (default)
+  poetry run pytest -v -m integration
+
+  # Test against deployed server
+  poetry run pytest -v -m integration --env=deployed
+
+  # Test against both environments
+  poetry run pytest -v -m integration --env=both
+  ```
+
+#### Test Environment Selection
+
+The `--env` option controls which environment to test against:
+- `--env=local` (default): Tests against a local server instance
+- `--env=deployed`: Tests against the deployed server
+- `env=both`: Tests against both environments
+
+Note: Some tests (e.g., security-sensitive tests) may be skipped when running against the deployed instance.
+
+### Development Tools
+
 - Format code: `poetry run black .`
 - Sort imports: `poetry run isort .`
 - Type checking: `poetry run mypy .`

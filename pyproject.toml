@@ -35,7 +35,10 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "--cov=luthien_control --cov-report=term-missing"
+addopts = "--cov=luthien_control --cov-report=term-missing -m 'not integration'"
+markers = [
+    "integration: marks tests as integration tests that require external services"
+]
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",

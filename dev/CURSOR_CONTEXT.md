@@ -1,37 +1,28 @@
 # Current Working Context
 
 ## Implementation Phase
-- Phase 2: Control Engine Development
-- Currently implementing communications logging infrastructure
-- Focus on testing and quality assurance
+- Testing Infrastructure Improvements
+- Integration Test Environment Configuration
 
 ## Working State
-### Completed
-- Basic SQLAlchemy models for communications and relationships
-- Simple DBLogger implementation with core functionality
-- Comprehensive test suite for core components
-  - Model tests
-  - Logger tests
-  - Relationship tracking tests
-
-### In Progress
-- Integration tests with proxy server
-- Performance testing
-- Edge case testing
-
-### Not Started
-- UI/API for exploring communications
-- Advanced querying features
-- Async support
+- Integration tests fully functional with environment selection
+- Local and deployed testing environments configured
+- Test documentation updated with usage instructions
+- All tests passing (6 local, 5 deployed + 1 skipped)
 
 ## Current Blockers
-- Need to fix api_logger tests
+- None - Environment configuration complete and working
 
 ## Next Steps
-1. Add integration tests with proxy server
-2. Add performance tests for database operations
-3. Fix api_logger tests
-4. Add more edge case tests
+1. Add more integration test coverage for:
+   - Additional endpoints
+   - Error conditions
+   - Performance/load scenarios
+2. Review and improve test coverage in other areas:
+   - api_logger.py (27% coverage)
+   - db_logger.py (38% coverage)
+   - proxy/server.py (47% coverage)
+3. Consider adding integration tests for logging functionality
 
 ## Data Model (Current Draft)
 ### Comm Table

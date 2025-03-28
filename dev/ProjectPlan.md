@@ -3,7 +3,8 @@ description:
 globs: 
 alwaysApply: true
 ---
-# AI Control Framework Implementation Plan (MVP)
+# AI Control Framework Implementation Plan
+
 
 ## Phase 0: Setup
  - Initialize git
@@ -20,5 +21,15 @@ alwaysApply: true
 
 ## Phase 2: Control Engine Development
 - Implement a framework to implement arbitrary policies on requests/responses (these policies may, on any given request/response, pass it through, block it, or change it)
+- Implement request/response analysis infrastructure:
+  - Persistent storage and data model for communications and their relationships
+  - API and UI for exploring traffic and policy decisions
+  - Full-text search on message content and metadata
 - Create test suite with sample policies for common scenarios
 - Implement request/response transformation capabilities
+
+## Phase 3: Advanced Control Features
+- Multi-proxy chain deployment support
+- Policy development and testing tools
+- Pattern detection and analysis
+- Real-time monitoring and metrics

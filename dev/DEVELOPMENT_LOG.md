@@ -93,4 +93,27 @@ fly secrets set OPENAI_API_KEY="<redacted>"
 ### Next Steps
 - Implement specific control policies as needed
 - Add tests for the policy framework
-- Consider adding configuration options for enabling/disabling policies 
+- Consider adding configuration options for enabling/disabling policies
+
+## [2024-03-19 Current Time] - Planning Request/Response Exploration System
+
+### Changes Made
+- Developed initial data model for tracking proxy communications
+- Established terminology: using "Comm" as base unit
+- Designed preliminary schema for Comm and CommRelationship tables
+
+### Current Status
+- Working: N/A (Planning Phase)
+- Design Decisions Made:
+  - Using PostgreSQL for storage
+  - Two-table design (Comm + CommRelationship)
+  - Flexible relationship modeling with string types
+  - JSON fields for content and metadata
+  - No constraints on relationships initially
+
+### Next Steps
+- Research standard HTTP/networking terms for source/destination
+- Design basic indexes
+- Plan query patterns
+- Design API for logging/querying
+- Plan minimal UI requirements 

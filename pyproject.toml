@@ -48,14 +48,16 @@ filterwarnings = [
 
 # Ruff configuration
 [tool.ruff]
+# Configuration specific to the 'ruff' command itself, if any, can go here.
+# Note: Most configuration now lives under lint or format.
+
+[tool.ruff.lint]
 # Enable Pyflakes, pycodestyle error rules, and isort rules.
 select = ["E", "F", "I"]
 # Assume Python 3.9+ features.
 # Adjust this to match your project's minimum Python version if needed.
 target-version = "py39"
 line-length = 120
-
-[tool.ruff.lint]
 # Add any specific rules you want to ignore or modify here later
 
 [tool.ruff.format]

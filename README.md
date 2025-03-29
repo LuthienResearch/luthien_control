@@ -54,7 +54,7 @@ Note: Some tests (e.g., security-sensitive tests) may be skipped when running ag
 
 This project uses `ruff`, `bandit`, `mypy`, and `pre-commit` to ensure code quality, security, and consistency.
 
-**Setup:**
+**Setup Pre-Commit Hooks:**
 
 After cloning the repository and running `poetry install`, activate the pre-commit hooks:
 
@@ -64,11 +64,18 @@ poetry run pre-commit install
 
 This will automatically run checks on your code whenever you make a commit.
 
+**Commit Workflow:**
+
+- Pre-commit hooks now primarily focus on *checking* your code (linting with `ruff`, security checks with `bandit`, type checking with `mypy`).
+- **Formatting:** Major code formatting (handled previously by `ruff-format`) is **no longer performed** by the pre-commit hooks. Developers are responsible for formatting their code *before* staging files (`git add`). You can format the entire project manually using `poetry run ruff format .` or configure your IDE to format on save.
+- **Minor Fixes:** The `ruff` *linter* hook is configured with `--fix`. It may automatically fix minor issues like unused imports or import order. If `ruff` makes fixes, the commit will be halted. You will need to stage the changes (`git add .`) and then commit again.
+- This updated workflow makes the commit process faster and more predictable by avoiding conflicts caused by automatic formatting during the commit.
+
 **Manual Checks:**
 
 You can also run the checks manually:
 
-- **Format code:** `poetry run ruff format .`
+- **Format code (Required before staging):** `poetry run ruff format .`
 - **Lint & fix code:** `poetry run ruff check . --fix`
 - **Type check:** `poetry run mypy luthien_control/ tests/`
 - **Security scan:** `poetry run bandit -c pyproject.toml` (uses config from pyproject.toml)
@@ -76,7 +83,7 @@ You can also run the checks manually:
 **Configuration:**
 
 - Code formatting, linting (`ruff`), security (`bandit`), and type checking (`mypy`) are configured in `pyproject.toml`.
-- Pre-commit hooks are defined in `.pre-commit-config.yaml`.
+- The active pre-commit hooks are defined in `.pre-commit-config.yaml`.
 - The project uses a maximum line length of 120 characters.
 
 ## Deployment

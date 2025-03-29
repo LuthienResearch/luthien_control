@@ -369,3 +369,25 @@ logger.add_relationship(
 
 ### Next Steps
 - Run the full test suite again: `poetry run pytest | cat`.
+
+## [2024-03-29 11:00] - Revised Pre-Commit Workflow
+
+### Changes Made
+- Modified `.pre-commit-config.yaml`:
+    - Removed `ruff-format` hook.
+    - Removed `trailing-whitespace` hook.
+    - Kept `ruff check --fix`, `bandit`, and `mypy` for linting, security, and type checking.
+- Modified `README.md`:
+    - Updated the "Development Tools" section to explain the new workflow.
+    - Clarified that developers are now responsible for code formatting (`poetry run ruff format .`) *before* staging files (`git add`).
+    - Explained that `ruff check --fix` will still run and may require re-staging if it makes minor fixes.
+
+### Current Status
+- Pre-commit configuration updated to separate code modification (formatting) from code checking.
+- Documentation updated to reflect the new developer workflow.
+- Goal is to achieve a smoother, faster, and more predictable commit process by eliminating conflicts caused by auto-formatting hooks modifying files during the commit stash/unstash cycle.
+
+### Next Steps
+- Monitor the effectiveness of the new workflow.
+- Test the commit process with the updated hooks.
+- Update `dev/CURSOR_CONTEXT.md`.

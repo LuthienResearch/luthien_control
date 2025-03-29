@@ -24,4 +24,5 @@ When making changes to the codebase:
    - Run tests using `poetry run pytest`
    - Install dependencies using `poetry install`
    - Add new dependencies using `poetry add`
+- **Import Style**: Avoid using relative imports (e.g., `from ..module import Class`). Always prefer absolute imports starting from the project root directory (e.g., `from luthien_control.module import Class`).
 </change_guidelines>

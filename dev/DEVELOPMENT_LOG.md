@@ -284,3 +284,88 @@ logger.add_relationship(
 1. Configure and run static analysis tools (e.g., linters, security scanners).
 2. Update `dev/CURSOR_CONTEXT.md` to reflect current state and plan.
 3. Begin implementation and testing of the Policy Engine (`policies/`).
+
+## [YYYY-MM-DD HH:MM] - Complete Proxy Refactor & Fix Tests
+
+### Changes Made
+- Refactored `luthien_control/proxy/server.py` (split `proxy_request`, loaded config from env `TARGET_URL` & `OPENAI_API_KEY`, added docs).
+- Ran `poetry run pytest`, encountered failures related to refactoring and a state mutation bug.
+- Modified `tests/logging/test_file_logging.py`: Updated mock `open` assertion to include `encoding`.
+- Modified `tests/proxy/test_server.py`:
+    - Fixed import error for `_prepare_request_headers`.
+    - Updated tests using `_prepare_request_headers` to use explicit `Headers` objects.
+    - Corrected expected status code in `test_proxy_request_request_error` from 500 to 502.
+    - Corrected assertion key case in `test_get_headers_removes_unwanted` (`Authorization`).
+- Modified `luthien_control/policies/manager.py`:
+    - Refactored `apply_request_policies` to correctly handle state between policy calls, avoiding in-loop mutation by creating `next_data` based on `current_data` and `policy_result`.
+- Modified `tests/policies/test_manager.py`:
+    - Updated `test_apply_request_policies_single` and `test_apply_request_policies_multiple` to use individual argument assertions (`assert_called_once()`, `mock.call_args`) to correctly verify the state passed to each policy mock.
+- Ran `poetry run pytest` again - All 61 tests passed.
+
+### Current Status
+- `luthien_control/proxy/` module reviewed and refactored.
+- All unit tests are passing.
+- Core proxy logic is cleaner and more configurable.
+- Identified and fixed a state mutation bug in `PolicyManager.apply_request_policies`.
+
+### Next Steps
+- Review the `luthien_control/policies/` directory for code smells and potential improvements.
+- Update `dev/CURSOR_CONTEXT.md`.
+
+## [YYYY-MM-DD HH:MM] - Add Concurrency Test for TokenCounterPolicy
+
+### Changes Made
+- Created `luthien_control/policies/examples/tests/test_token_counter.py`.
+- Added `test_concurrent_counting_accuracy` using `asyncio` and `unittest.mock`.
+- The test verifies token counting accuracy under simulated concurrent load by mocking `tiktoken`.
+
+### Current Status
+- `TokenCounterPolicy` exists.
+- A basic concurrency test (`test_concurrent_counting_accuracy`) has been added.
+- Test needs to be run to confirm functionality.
+
+### Next Steps
+- Run the new test using `poetry run pytest luthien_control/policies/examples/tests/test_token_counter.py::test_concurrent_counting_accuracy`.
+- Add more tests for `TokenCounterPolicy` edge cases (e.g., non-JSON bodies, different content types, errors during processing).
+
+## [YYYY-MM-DD HH:MM] - Relocate Tests and Update Rules
+
+### Changes Made
+- Moved `luthien_control/policies/examples/tests/test_token_counter.py` to `tests/policies/examples/test_token_counter.py`.
+- Updated `.cursor/rules/project_organization.mdc` to specify that tests should reside in a top-level `tests/` directory mirroring the main package structure.
+
+### Current Status
+- Test file relocated to `tests/` directory structure.
+- Project organization rule updated.
+- Previous test run failed due to import errors, expected to be resolved by the move.
+
+### Next Steps
+- Re-run the test from its new location: `poetry run pytest tests/policies/examples/test_token_counter.py::test_concurrent_counting_accuracy`.
+
+## [YYYY-MM-DD HH:MM] - Add Error Handling Tests for TokenCounterPolicy
+
+### Changes Made
+- Added `test_process_request_invalid_json` to `tests/policies/examples/test_token_counter.py` to cover the request JSON error handling path.
+- Added `test_process_response_invalid_json` to `tests/policies/examples/test_token_counter.py` to cover the response JSON error handling path.
+- Used `unittest.mock.patch` to mock `logging.error` and verify it's called during exceptions.
+
+### Current Status
+- New tests for error handling paths added.
+- Overall coverage expected to increase for `token_counter.py`.
+
+### Next Steps
+- Run the full test suite again to confirm the new tests pass and check updated coverage: `poetry run pytest | cat`.
+
+## [YYYY-MM-DD HH:MM] - Add Test for 'name' Key in TokenCounterPolicy
+
+### Changes Made
+- Identified that line 42 (`num_tokens -= 1`) in `_count_tokens_in_messages` was the remaining missed line.
+- Added `test_process_request_with_name_key` to `tests/policies/examples/test_token_counter.py`.
+- This test uses mock data containing a message with a `name` key to ensure the specific code path for handling it is executed and tested.
+
+### Current Status
+- New test added to cover the `name` key scenario.
+- Coverage for `token_counter.py` expected to reach 100%.
+
+### Next Steps
+- Run the full test suite again: `poetry run pytest | cat`.

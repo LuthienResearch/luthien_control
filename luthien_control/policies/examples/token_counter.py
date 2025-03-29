@@ -35,12 +35,12 @@ class TokenCounterPolicy(ControlPolicy):
         """Count tokens in a messages array for chat completions."""
         num_tokens = 0
         for message in messages:
-            num_tokens += 4  # Every message follows <im_start>{role/name}\n{content}<im_end>\n
+            num_tokens += 4
             for key, value in message.items():
                 num_tokens += len(self.encoding.encode(str(value)))
-                if key == "name":  # If there's a name, the role is omitted
-                    num_tokens -= 1  # Role is always required and always 1 token
-        num_tokens += 2  # Every reply is primed with <im_start>assistant
+                if key == "name":
+                    num_tokens -= 1
+        num_tokens += 2
         return num_tokens
 
     async def process_request(
@@ -56,14 +56,11 @@ class TokenCounterPolicy(ControlPolicy):
                     token_count = self._count_tokens_in_messages(data["messages"])
                     self.counts["requests"] += token_count
                     self.counts["total"] += token_count
-
-                    # Add token count to headers for debugging/logging
                     headers["X-Request-Token-Count"] = str(token_count)
             except Exception as e:
                 logging.error(f"Error processing request tokens: {e}")
                 pass
 
-        # Return unchanged request components
         return {"target_url": target_url, "headers": headers, "body": body}
 
     async def process_response(self, request: Request, response: httpx.Response, content: bytes) -> Dict[str, Any]:
@@ -73,22 +70,21 @@ class TokenCounterPolicy(ControlPolicy):
         if content and "chat/completions" in response.url.path:
             try:
                 data = json.loads(content)
+
                 if "choices" in data and data["choices"]:
                     message = data["choices"][0].get("message", {})
                     if "content" in message:
                         token_count = len(self.encoding.encode(message["content"]))
                         self.counts["responses"] += token_count
                         self.counts["total"] += token_count
+                        response_headers = dict(response.headers)
+                        response_headers["X-Response-Token-Count"] = str(token_count)
+                        return {"status_code": response.status_code, "headers": response_headers, "content": content}
 
-                        # Add token count to headers for debugging/logging
-                        headers = dict(response.headers)
-                        headers["X-Response-Token-Count"] = str(token_count)
-                        return {"status_code": response.status_code, "headers": headers, "content": content}
             except Exception as e:
                 logging.error(f"Error processing response tokens: {e}")
                 pass
 
-        # Return unchanged response components
         return {"status_code": response.status_code, "headers": dict(response.headers), "content": content}
 
     def get_token_counts(self):

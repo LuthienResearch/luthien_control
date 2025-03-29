@@ -34,6 +34,8 @@ async def test_process_request(mock_request):
     assert result["target_url"] == test_url
     assert result["headers"] == test_headers
     assert result["body"] == test_body
+    # Explicitly check all keys
+    assert list(result.keys()) == ['target_url', 'headers', 'body']
 
 @pytest.mark.asyncio
 async def test_process_response(mock_request, mock_response):
@@ -52,6 +54,8 @@ async def test_process_response(mock_request, mock_response):
     assert result["status_code"] == mock_response.status_code
     assert result["headers"] == dict(mock_response.headers)
     assert result["content"] == test_content
+    # Explicitly check all keys
+    assert list(result.keys()) == ['status_code', 'headers', 'content']
 
 @pytest.mark.asyncio
 async def test_process_request_with_none_body(mock_request):

@@ -240,3 +240,28 @@ logger.add_relationship(
 - Consider adding more integration tests for other endpoints
 - Consider adding performance/load testing scenarios
 - Consider adding test coverage for error conditions 
+
+## [2024-03-27 11:37] - Added Unit Tests for Proxy Server and Fixed Bug
+
+### Changes Made
+- Created `tests/proxy/test_server.py` with comprehensive unit tests for `luthien_control/proxy/server.py`.
+- Added tests covering:
+  - `get_headers` function (header cleaning, API key injection, auth preservation).
+  - `health_check` endpoint.
+  - `proxy_request` function (success path, policy mocks, error handling).
+- Identified and fixed a bug in `luthien_control/proxy/server.py` related to handling the `content-encoding` header when 'br' was present. Updated logic to correctly parse and remove 'br' encoding.
+- Added a specific test case (`test_proxy_request_only_br_content_encoding`) to ensure 100% coverage of the fixed logic.
+- Ran `poetry run pytest tests/proxy/test_server.py -v --cov=luthien_control.proxy.server --cov-report=term-missing`. All 8 tests passed, achieving 100% coverage for `luthien_control/proxy/server.py`.
+
+### Current Status
+- Working:
+  - Unit tests for `luthien_control/proxy/server.py` are passing.
+  - `luthien_control/proxy/server.py` has 100% unit test coverage.
+  - The `content-encoding` bug is fixed.
+- Not Working/Incomplete:
+  - Overall project test coverage needs further improvement (currently 62% according to the last full run).
+  - Several other modules still have low or no coverage (e.g., `__main__.py`, `api_logger.py`, `db_logger.py`, `file_logging.py`, `manager.py`, `run.py`).
+
+### Next Steps
+- Evaluate coverage for other modules and prioritize adding unit tests for core functionality (e.g., logging, policy management).
+- Address the 82% coverage in `luthien_control/policies/base.py`. 

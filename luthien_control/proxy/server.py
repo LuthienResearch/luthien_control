@@ -145,8 +145,13 @@ async def proxy_request(request: Request, path: str):
             # Handle content-encoding header safely
             content_encoding = headers_dict.get("content-encoding", None)
             if content_encoding:
-                content_encoding = content_encoding.replace("br", "")
-                headers_dict["content-encoding"] = content_encoding.strip()
+                # Split by comma, filter out 'br', strip whitespace, and rejoin
+                encodings = [enc.strip() for enc in content_encoding.split(',') if enc.strip().lower() != 'br']
+                if encodings:
+                    headers_dict["content-encoding"] = ", ".join(encodings)
+                else:
+                    # If only 'br' was present, remove the header entirely
+                    headers_dict.pop("content-encoding", None)
             
             # Return response with processed headers and content
             return Response(

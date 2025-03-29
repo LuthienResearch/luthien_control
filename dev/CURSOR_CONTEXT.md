@@ -1,28 +1,31 @@
 # Current Working Context
 
 ## Implementation Phase
-- Testing Infrastructure Improvements
-- Integration Test Environment Configuration
+- Project Phase: Testing and Refinement (focused on improving test coverage)
+- Specific Component: Unit Testing for `luthien_control/proxy/server.py`
 
 ## Working State
-- Integration tests fully functional with environment selection
-- Local and deployed testing environments configured
-- Test documentation updated with usage instructions
-- All tests passing (6 local, 5 deployed + 1 skipped)
+- What is currently working:
+  - Proxy server core functionality (request/response handling, header processing).
+  - `luthien_control/proxy/server.py` has 100% unit test coverage.
+  - Integration tests for proxy server (`tests/integration/test_proxy_server.py`) are passing (locally).
+  - Basic logging infrastructure (file, API, DB) is functional.
+  - Basic policy management framework is in place.
+- What is not working/incomplete:
+  - Unit test coverage for many modules is low or non-existent.
+  - Overall project test coverage is around 62%.
+- Recent changes made:
+  - Added comprehensive unit tests for `luthien_control/proxy/server.py`.
+  - Fixed a bug in `content-encoding` handling within the proxy server.
+  - Updated `dev/DEVELOPMENT_LOG.md`.
 
 ## Current Blockers
-- None - Environment configuration complete and working
+- None currently.
 
 ## Next Steps
-1. Add more integration test coverage for:
-   - Additional endpoints
-   - Error conditions
-   - Performance/load scenarios
-2. Review and improve test coverage in other areas:
-   - api_logger.py (27% coverage)
-   - db_logger.py (38% coverage)
-   - proxy/server.py (47% coverage)
-3. Consider adding integration tests for logging functionality
+1. Assess and prioritize improving unit test coverage for other modules (e.g., logging, policy management, base policy).
+2. Add unit tests for `luthien_control/policies/base.py` to improve its 82% coverage.
+3. Continue adding tests to increase overall project coverage.
 
 ## Data Model (Current Draft)
 ### Comm Table

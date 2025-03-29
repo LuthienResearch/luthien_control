@@ -48,7 +48,7 @@ class APILogger:
         """Format and log an API request."""
         # Redact sensitive headers
         safe_headers = {
-            k: "[REDACTED]" if k.lower() in {"authorization", "cookie", "api-key"} else v
+            k: "[REDACTED]" if k.lower() in {"authorization", "cookie", "api-key", "set-cookie"} else v
             for k, v in headers.items()
         }
         
@@ -76,7 +76,7 @@ class APILogger:
         """Format and log an API response."""
         # Redact sensitive headers
         safe_headers = {
-            k: "[REDACTED]" if k.lower() in {"authorization", "cookie", "api-key"} else v
+            k: "[REDACTED]" if k.lower() in {"authorization", "cookie", "api-key", "set-cookie"} else v
             for k, v in headers.items()
         }
         

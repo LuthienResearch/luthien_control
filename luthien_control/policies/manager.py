@@ -2,12 +2,20 @@
 Manager for control policies in the Luthien Control Framework.
 """
 
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any, Dict, List, Optional, TypedDict
 
 import httpx
 from fastapi import Request
 
 from .base import ControlPolicy
+
+
+# Define the structure for request data
+class RequestData(TypedDict):
+    target_url: str
+    headers: Dict[str, str]
+    body: Optional[bytes]
 
 
 class PolicyManager:
@@ -40,7 +48,7 @@ class PolicyManager:
 
     async def apply_request_policies(
         self, request: Request, target_url: str, headers: Dict[str, str], body: Optional[bytes]
-    ) -> Dict[str, Any]:
+    ) -> RequestData:
         """
         Apply all request policies in sequence.
 
@@ -53,17 +61,34 @@ class PolicyManager:
         Returns:
             Dict containing potentially modified request components
         """
-        request_data = {"target_url": target_url, "headers": headers, "body": body}
+        # Use the TypedDict for initialization
+        request_data: RequestData = {"target_url": target_url, "headers": headers, "body": body}
 
         for policy in self._policies:
-            policy_result = await policy.process_request(
+            # Access is now type-checked against RequestData for arguments
+            policy_result: Dict[str, Any] = await policy.process_request(
                 request, request_data["target_url"], request_data["headers"], request_data["body"]
             )
-            # Merge headers instead of overwriting
-            if "headers" in policy_result:
-                request_data["headers"] = {**request_data["headers"], **policy_result["headers"]}
-                del policy_result["headers"]
-            request_data.update(policy_result)
+
+            # Handle header merging carefully
+            policy_headers = policy_result.pop("headers", None)  # Use pop to remove
+            if isinstance(policy_headers, dict):
+                # Simple update, assumes compatible types from policy for now
+                request_data["headers"].update(policy_headers)
+            elif policy_headers is not None:
+                logging.warning(f"Policy {policy.__class__.__name__} returned non-dict headers: {policy_headers}")
+
+            # Update remaining fields from policy_result
+            # This assumes policy_result keys match RequestData structure if they exist
+            # More robust checking could be added here if needed
+            for key, value in policy_result.items():
+                if key in RequestData.__required_keys__ or key in RequestData.__optional_keys__:
+                    # Perform basic type check before assigning if possible, or use ignore
+                    # This assignment might still cause issues if policy returns wrong type
+                    request_data[key] = value  # type: ignore
+                else:
+                    # If policies can add extra keys, handle them or ignore them
+                    pass
 
         return request_data
 

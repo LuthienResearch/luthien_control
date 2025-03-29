@@ -6,7 +6,7 @@ import contextlib
 import json
 import logging
 from pathlib import Path
-from typing import Any, ContextManager, Dict, Iterator, Optional, TextIO
+from typing import Any, Dict, Iterator, Optional, TextIO, cast
 
 from .api_logger import APILogger
 
@@ -32,7 +32,8 @@ class FileLogManager:
         """Open a log file, ensuring its directory exists."""
         path = self.base_dir / filename
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, mode) as f:
+        with open(path, mode, encoding="utf-8") as f_untyped:
+            f = cast(TextIO, f_untyped)
             yield f
 
     def create_logger(self, filename: str) -> APILogger:

@@ -5,9 +5,10 @@ from unittest.mock import AsyncMock, Mock, patch
 import httpx
 import pytest
 from fastapi import HTTPException, Request
+from fastapi.datastructures import Headers
 from fastapi.testclient import TestClient
 
-from luthien_control.proxy.server import app, get_headers
+from luthien_control.proxy.server import _prepare_request_headers, app
 
 
 @pytest.fixture
@@ -42,20 +43,52 @@ def mock_request_with_auth():
     return Request(scope)
 
 
-def test_get_headers_removes_unwanted(mock_request):
-    """Test that get_headers removes host and content-length headers."""
-    headers = get_headers(mock_request)
+def test_get_headers_removes_unwanted():
+    """Test that _prepare_request_headers removes unwanted headers and adds auth."""
+    # Provide a dummy API key for testing the auth addition logic
+    dummy_api_key = "test-api-key"
+    # Create Headers object directly from raw data for this test
+    raw_headers = [
+        (b"host", b"test.com"),
+        (b"content-length", b"100"),
+        (b"content-type", b"application/json"),
+        (b"x-custom-header", b"value"),
+    ]
+    input_headers = Headers(raw=raw_headers)
+
+    headers = _prepare_request_headers(input_headers, dummy_api_key)
+
+    assert isinstance(headers, dict)  # Ensure it returns a dict
     assert "host" not in headers
     assert "content-length" not in headers
     assert headers["content-type"] == "application/json"
     assert headers["x-custom-header"] == "value"
-    assert headers["authorization"].startswith("Bearer ")
+    # Check that the dummy API key was added (using the capitalized key)
+    assert "Authorization" in headers
+    assert headers["Authorization"] == f"Bearer {dummy_api_key}"
 
 
-def test_get_headers_preserves_auth(mock_request_with_auth):
-    """Test that get_headers preserves existing authorization header."""
-    headers = get_headers(mock_request_with_auth)
+def test_get_headers_preserves_auth():
+    """Test that _prepare_request_headers preserves existing authorization header."""
+    # API key should not be used if auth header already exists
+    dummy_api_key = "test-api-key"
+    # Create Headers object directly from raw data for this test
+    raw_headers = [
+        (b"host", b"test.com"),
+        (b"content-length", b"100"),
+        (b"authorization", b"Bearer custom_token"),
+        (b"content-type", b"application/json"),
+    ]
+    input_headers = Headers(raw=raw_headers)
+
+    headers = _prepare_request_headers(input_headers, dummy_api_key)
+
+    assert isinstance(headers, dict)  # Ensure it returns a dict
     assert headers["authorization"] == "Bearer custom_token"
+    # Check other headers are still present/absent as expected
+    assert "host" not in headers
+    assert "content-length" not in headers
+    assert headers["content-type"] == "application/json"
 
 
 def test_health_check(test_client):
@@ -212,8 +245,9 @@ async def test_proxy_request_request_error():
         with pytest.raises(HTTPException) as exc_info:
             await proxy_request(mock_request, "test")
 
-        assert exc_info.value.status_code == 500
-        assert "Error forwarding request" in str(exc_info.value.detail)
+        # Expect 502 (Bad Gateway) for proxy errors
+        assert exc_info.value.status_code == 502
+        assert "Error forwarding request" in exc_info.value.detail
 
 
 @pytest.mark.asyncio

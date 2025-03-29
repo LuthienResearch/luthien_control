@@ -82,8 +82,8 @@ def test_open_log_file(mock_open_func, log_manager_mocked, mock_path):
     mock_path.__truediv__.assert_called_with(file_path)
     # Check parent directory was created
     mock_path.parent.mkdir.assert_called_once_with(parents=True, exist_ok=True)
-    # Check file was opened with mocked open
-    mock_open_func.assert_called_once_with(mock_path, "a")
+    # Check file was opened with mocked open, including encoding
+    mock_open_func.assert_called_once_with(mock_path.__truediv__.return_value, "a", encoding="utf-8")
     # Check data was written
     mock_open_func().write.assert_called_once_with("test data")
 

@@ -61,36 +61,47 @@ class PolicyManager:
         Returns:
             Dict containing potentially modified request components
         """
-        # Use the TypedDict for initialization
-        request_data: RequestData = {"target_url": target_url, "headers": headers, "body": body}
+        # Initialize current state - Use the RequestData type for clarity
+        current_data: RequestData = {"target_url": target_url, "headers": headers.copy(), "body": body}
 
         for policy in self._policies:
-            # Access is now type-checked against RequestData for arguments
+            # Call policy with the current state (passing a copy of headers for safety)
             policy_result: Dict[str, Any] = await policy.process_request(
-                request, request_data["target_url"], request_data["headers"], request_data["body"]
+                request,
+                current_data["target_url"],
+                current_data["headers"].copy(),  # Pass a copy of current headers
+                current_data["body"],
             )
 
-            # Handle header merging carefully
-            policy_headers = policy_result.pop("headers", None)  # Use pop to remove
+            # Prepare the data for the *next* policy based on the current result
+            next_data: RequestData = current_data.copy()  # Start with a copy of current state
+
+            # Merge headers from policy result into next_data
+            policy_headers = policy_result.pop("headers", None)
             if isinstance(policy_headers, dict):
-                # Simple update, assumes compatible types from policy for now
-                request_data["headers"].update(policy_headers)
+                # Create a new merged dictionary for headers
+                next_data["headers"] = {**current_data["headers"], **policy_headers}
             elif policy_headers is not None:
                 logging.warning(f"Policy {policy.__class__.__name__} returned non-dict headers: {policy_headers}")
+                # Keep previous headers if policy result was invalid
+                next_data["headers"] = current_data["headers"].copy()
+            else:
+                # No headers returned by policy, keep existing ones
+                next_data["headers"] = current_data["headers"].copy()
 
-            # Update remaining fields from policy_result
-            # This assumes policy_result keys match RequestData structure if they exist
-            # More robust checking could be added here if needed
+            # Update remaining fields in next_data from policy_result
             for key, value in policy_result.items():
                 if key in RequestData.__required_keys__ or key in RequestData.__optional_keys__:
-                    # Perform basic type check before assigning if possible, or use ignore
-                    # This assignment might still cause issues if policy returns wrong type
-                    request_data[key] = value  # type: ignore
+                    # Type checking might be needed here for robustness
+                    next_data[key] = value  # type: ignore
                 else:
-                    # If policies can add extra keys, handle them or ignore them
+                    # Policy returned an unexpected key, ignore it for now
                     pass
 
-        return request_data
+            # Update current_data for the next iteration
+            current_data = next_data
+
+        return current_data  # Return the final state after all policies
 
     async def apply_response_policies(
         self, request: Request, response: httpx.Response, content: bytes

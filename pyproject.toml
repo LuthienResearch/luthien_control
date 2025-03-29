@@ -18,6 +18,7 @@ brotli = "^1.1.0"
 openai = "^1.68.2"
 sqlalchemy = "^2.0.40"
 asyncpg = "^0.30.0"
+tiktoken = "^0.9.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
@@ -65,12 +66,10 @@ quote-style = "double"
 [tool.bandit]
 # Files/directories to scan
 targets = ["luthien_control"]
-# Files/directories to exclude
-# exclude_dirs = ["tests"] # Don't exclude tests entirely, just skip specific checks
+exclude_dirs = ["tests"]
 # Recursively scan targets
 recursive = true
 # Trust nosec comments
-skips = ["B104"] # We are intentionally using 0.0.0.0
 
 # Specific configuration for tests directory
 [tool.bandit.test]

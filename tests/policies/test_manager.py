@@ -125,12 +125,16 @@ async def test_apply_request_policies_single(manager, mock_request):
     # Now call the manager method
     result = await manager.apply_request_policies(mock_request, **initial_data)
 
-    # Assert the call to the mock
-    policy.request_mock.assert_called_once_with(
-        mock_request, initial_data["target_url"], initial_data["headers"], initial_data["body"]
-    )
+    # Assert the call to the mock, checking arguments individually
+    policy.request_mock.assert_called_once()
+    args, kwargs = policy.request_mock.call_args
+    assert args[0] is mock_request
+    assert args[1] == initial_data["target_url"]
+    assert args[2] == initial_data["headers"]  # Check headers passed were the initial ones
+    assert args[3] == initial_data["body"]
+    assert not kwargs
 
-    # Assert the final result
+    # Assert the final result includes the merged headers
     assert result == expected_data
 
 
@@ -185,15 +189,26 @@ async def test_apply_request_policies_multiple(manager, mock_request):
     # Now call the manager
     result = await manager.apply_request_policies(mock_request, **initial_data)
 
-    # Assert calls to mocks
-    policy1.request_mock.assert_called_once_with(
-        mock_request, initial_data["target_url"], initial_data["headers"], initial_data["body"]
-    )
-    policy2.request_mock.assert_called_once_with(
-        mock_request, p1_return_value["target_url"], expected_headers_after_p1, p1_return_value["body"]
-    )
+    # Assert calls to mocks, checking arguments individually
+    # --- Policy 1 ---
+    policy1.request_mock.assert_called_once()
+    args1, kwargs1 = policy1.request_mock.call_args
+    assert args1[0] is mock_request
+    assert args1[1] == initial_data["target_url"]
+    assert args1[2] == initial_data["headers"]  # Policy 1 receives initial headers
+    assert args1[3] == initial_data["body"]
+    assert not kwargs1
 
-    # Assert final result
+    # --- Policy 2 ---
+    policy2.request_mock.assert_called_once()
+    args2, kwargs2 = policy2.request_mock.call_args
+    assert args2[0] is mock_request
+    assert args2[1] == p1_return_value["target_url"]
+    assert args2[2] == expected_headers_after_p1  # Policy 2 receives headers after policy 1
+    assert args2[3] == p1_return_value["body"]
+    assert not kwargs2
+
+    # Assert final result matches the expected combination
     assert result == expected_data
 
 

@@ -1,6 +1,6 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: false
 ---
 # Poetry Package Management
@@ -20,4 +20,4 @@ poetry run python script.py
 poetry shell  # activate environment
 ```
 
-3. Never use pip directly - always use Poetry to manage dependencies. 
+3. Never use pip directly - always use Poetry to manage dependencies.

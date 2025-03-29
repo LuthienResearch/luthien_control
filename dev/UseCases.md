@@ -43,4 +43,4 @@ Multi-layer proxy setup for security testing
 2. Analysis Capabilities
    - Pattern detection across historical data
    - Policy effectiveness monitoring
-   - Integration with external analysis tools 
+   - Integration with external analysis tools

@@ -23,4 +23,4 @@ def initialize_server():
 
 
 # This can be called from an entry point script
-app = initialize_server()
+# app = initialize_server() # Removed redundant assignment causing F811

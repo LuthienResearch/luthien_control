@@ -43,7 +43,7 @@ htmlcov/
 
 # Logs
 *.log
-logs/ 
+logs/
 
 .DS_Store
 

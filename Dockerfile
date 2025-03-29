@@ -16,4 +16,4 @@ RUN poetry config virtualenvs.create false \
 EXPOSE 8000
 
 # Run the application using poetry run
-CMD ["poetry", "run", "python", "run.py"] 
+CMD ["poetry", "run", "python", "run.py"]

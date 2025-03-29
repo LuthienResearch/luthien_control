@@ -4,12 +4,19 @@ Database models for the communications logging system.
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import JSON, Column, DateTime, Enum, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import DeclarativeBase, relationship
 
-Base = declarative_base()
+# Create a Base class using DeclarativeBase for Mypy compatibility
+class Base(DeclarativeBase):
+    pass
+    # Optional: Define common types or metadata here
+    # type_annotation_map = {
+    #     dict[str, Any]: JSON
+    # }
 
 
 class Comm(Base):

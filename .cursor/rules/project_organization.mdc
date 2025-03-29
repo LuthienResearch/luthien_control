@@ -1,6 +1,6 @@
 ---
 description: Project structure and organization guidelines
-globs: 
+globs:
 alwaysApply: true
 ---
 <project_organization>
@@ -13,4 +13,4 @@ alwaysApply: true
 3. New features should be added as separate modules
 4. Tests should be placed in parallel test directories
 5. Documentation should be maintained in the docs/ directory
-</project_organization> 
+</project_organization>

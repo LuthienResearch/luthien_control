@@ -50,4 +50,4 @@
 - from_comm_id: uuid
 - to_comm_id: uuid
 - relationship_type: text
-- meta_info: jsonb  # Note: Renamed from metadata to avoid SQLAlchemy conflict 
+- meta_info: jsonb  # Note: Renamed from metadata to avoid SQLAlchemy conflict

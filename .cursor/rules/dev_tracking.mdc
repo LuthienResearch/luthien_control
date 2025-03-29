@@ -1,6 +1,6 @@
 ---
 description: MANDATORY tracking file update procedures
-globs: 
+globs:
 alwaysApply: true
 ---
 ## MANDATORY: Update tracking files after EVERY change

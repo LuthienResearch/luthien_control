@@ -1,6 +1,6 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: true
 ---
 # Luthien Control Framework - Project Goal
@@ -35,7 +35,7 @@ This project aims to develop an AI Control framework that implements a proxy ser
 
 ## Strategy
 1. **Intercept & Analyze**: Monitor all traffic between client applications and AI services through our proxy server
-2. **Apply Control Policies**: Implement configurable rule-based evaluations on every request and response 
+2. **Apply Control Policies**: Implement configurable rule-based evaluations on every request and response
 3. **Enforce Safety**: Filter, modify, or block potentially harmful interactions based on established safety protocols
 4. **Demonstrate Control**: Show practical applications with code assistants to prevent data exfiltration, backdoor code generation, and other risks
 

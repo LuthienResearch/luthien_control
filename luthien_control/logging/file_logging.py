@@ -6,7 +6,7 @@ import contextlib
 import json
 import logging
 from pathlib import Path
-from typing import Any, ContextManager, Dict, Optional, TextIO
+from typing import Any, ContextManager, Dict, Iterator, Optional, TextIO
 
 from .api_logger import APILogger
 
@@ -17,7 +17,7 @@ class FileLogManager:
     def __init__(self, base_dir: Path):
         """Initialize with base directory for logs."""
         self.base_dir = base_dir
-        self._open_files = []
+        self._open_files: list[TextIO] = []
 
     def ensure_log_dir(self, subdir: Optional[str] = None) -> Path:
         """Ensure log directory exists and return its path."""
@@ -28,7 +28,7 @@ class FileLogManager:
         return log_dir
 
     @contextlib.contextmanager
-    def open_log_file(self, filename: str, mode: str = "a") -> ContextManager[TextIO]:
+    def open_log_file(self, filename: str, mode: str = "a") -> Iterator[TextIO]:
         """Open a log file, ensuring its directory exists."""
         path = self.base_dir / filename
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -52,9 +52,32 @@ Note: Some tests (e.g., security-sensitive tests) may be skipped when running ag
 
 ### Development Tools
 
-- Format code: `poetry run black .`
-- Sort imports: `poetry run isort .`
-- Type checking: `poetry run mypy .`
+This project uses `ruff`, `bandit`, `mypy`, and `pre-commit` to ensure code quality, security, and consistency.
+
+**Setup:**
+
+After cloning the repository and running `poetry install`, activate the pre-commit hooks:
+
+```bash
+poetry run pre-commit install
+```
+
+This will automatically run checks on your code whenever you make a commit.
+
+**Manual Checks:**
+
+You can also run the checks manually:
+
+- **Format code:** `poetry run ruff format .`
+- **Lint & fix code:** `poetry run ruff check . --fix`
+- **Type check:** `poetry run mypy luthien_control/ tests/`
+- **Security scan:** `poetry run bandit -c pyproject.toml` (uses config from pyproject.toml)
+
+**Configuration:**
+
+- Code formatting, linting (`ruff`), security (`bandit`), and type checking (`mypy`) are configured in `pyproject.toml`.
+- Pre-commit hooks are defined in `.pre-commit-config.yaml`.
+- The project uses a maximum line length of 120 characters.
 
 ## Deployment
 
@@ -66,7 +89,7 @@ Luthien Control is configured for easy deployment to Fly.io. Follow these steps:
    ```bash
    # macOS
    brew install flyctl
-   
+
    # Linux
    curl -L https://fly.io/install.sh | sh
    ```
@@ -118,4 +141,4 @@ luthien_control/
 
 ## License
 
-[License information to be added] 
+[License information to be added]

@@ -168,7 +168,7 @@ def test_get_related_comms_with_type(db_logger, mock_session):
     mock_type_filter.all.assert_called_once()
 
     # Verify the specific relationship_type filter argument
-    type_filter_call_args = mock_rel_filter.filter.call_args
+    # type_filter_call_args = mock_rel_filter.filter.call_args # Removed unused variable causing F841
     # This assertion is tricky because the filter uses SQLAlchemy comparison objects
     # Let's just assert it was called, verifying the return value is sufficient here
 

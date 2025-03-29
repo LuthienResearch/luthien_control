@@ -21,14 +21,13 @@ asyncpg = "^0.30.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
-black = "^24.1.0"
-isort = "^5.13.0"
 mypy = "^1.8.0"
 ipykernel = "^6.29.5"
 pytest-asyncio = "^0.26.0"
 pytest-cov = "^6.0.0"
 bandit = "^1.8.3"
 ruff = "^0.11.2"
+pre-commit = "^4.2.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -60,4 +59,19 @@ line-length = 120
 
 [tool.ruff.format]
 # Like Black
-quote-style = "double" 
+quote-style = "double"
+
+# Bandit configuration
+[tool.bandit]
+# Files/directories to scan
+targets = ["luthien_control"]
+# Files/directories to exclude
+# exclude_dirs = ["tests"] # Don't exclude tests entirely, just skip specific checks
+# Recursively scan targets
+recursive = true
+# Trust nosec comments
+skips = ["B104"] # We are intentionally using 0.0.0.0
+
+# Specific configuration for tests directory
+[tool.bandit.test]
+skips = ["B101"] # Ignore assert_used warnings in test files

@@ -1,6 +1,6 @@
 ---
 description: Guidelines for making changes to the codebase
-globs: 
+globs:
 alwaysApply: true
 ---
 When making changes to the codebase:
@@ -24,4 +24,4 @@ When making changes to the codebase:
    - Run tests using `poetry run pytest`
    - Install dependencies using `poetry install`
    - Add new dependencies using `poetry add`
-</change_guidelines> 
+</change_guidelines>

@@ -1,22 +1,20 @@
 # Current Working Context
-[Updated March 29, 2024 11:00]
+[Updated March 29, 2024 17:59]
 
 ## Implementation Phase
-- Development Workflow Improvement
-- Specific component: Pre-commit hooks configuration (`.pre-commit-config.yaml`) and documentation (`README.md`).
+- Rule Management
+- Specific component: Creation of `git_commit_strategy.mdc` rule.
 
 ## Working State
-- **Pre-commit Hooks:** `ruff-format` and `trailing-whitespace` hooks removed from `.pre-commit-config.yaml`. Remaining hooks (`ruff check --fix`, `bandit`, `mypy`) focus on checking code quality, security, and types.
-- **Documentation:** `README.md` updated to reflect the new commit workflow, emphasizing developer responsibility for formatting code *before* staging (`git add`).
-- **Goal:** Smoother, faster commit process by eliminating conflicts from auto-formatting hooks modifying files during commit.
+- New rule `.cursor/rules/git_commit_strategy.mdc` created.
+- This rule defines a streamlined process for Git commits, including mandatory pre-commit updates to tracking files (`dev/DEVELOPMENT_LOG.md`, `dev/CURSOR_CONTEXT.md`).
+- The `dev/DEVELOPMENT_LOG.md` file was rotated due to length, and the new log file contains the entry for creating the commit rule.
 
 ## Current Blockers
-- None. The planned changes to pre-commit configuration and documentation are complete.
+- None.
 
 ## Next Steps
-1. **Test:** Attempt a commit with the new configuration to verify the workflow functions as expected (no formatting conflicts, checking hooks run correctly).
-2. **Monitor:** Observe the developer experience with this new workflow over time.
-3. **Address Future Issues:** If `ruff check --fix` causes similar modification conflicts, consider removing the `--fix` flag and making linting purely a checking step as well.
+1. **Commit:** Stage and commit the new rule file (`.cursor/rules/git_commit_strategy.mdc`) and the updated tracking files (`dev/DEVELOPMENT_LOG.md`, `dev/CURSOR_CONTEXT.md`).
 
 ## Data Model (Current Draft)
 ### Comm Table

@@ -1,18 +1,20 @@
 """
 Database models for the communications logging system.
 """
-from datetime import datetime
-import uuid
-from typing import Dict, Any, Optional
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, String, Text, JSON
+import uuid
+from datetime import datetime
+
+from sqlalchemy import JSON, Column, DateTime, Enum, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
+
 class Comm(Base):
     """A single communication unit representing any type of message."""
+
     __tablename__ = "comms"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -27,18 +29,16 @@ class Comm(Base):
 
     # Relationships
     outgoing_relationships = relationship(
-        "CommRelationship",
-        foreign_keys="CommRelationship.from_comm_id",
-        back_populates="from_comm"
+        "CommRelationship", foreign_keys="CommRelationship.from_comm_id", back_populates="from_comm"
     )
     incoming_relationships = relationship(
-        "CommRelationship",
-        foreign_keys="CommRelationship.to_comm_id",
-        back_populates="to_comm"
+        "CommRelationship", foreign_keys="CommRelationship.to_comm_id", back_populates="to_comm"
     )
+
 
 class CommRelationship(Base):
     """Represents a relationship between two communications."""
+
     __tablename__ = "comm_relationships"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -48,13 +48,5 @@ class CommRelationship(Base):
     meta_info = Column(JSON, nullable=False, default=dict)
 
     # Relationships
-    from_comm = relationship(
-        "Comm",
-        foreign_keys=[from_comm_id],
-        back_populates="outgoing_relationships"
-    )
-    to_comm = relationship(
-        "Comm",
-        foreign_keys=[to_comm_id],
-        back_populates="incoming_relationships"
-    ) 
+    from_comm = relationship("Comm", foreign_keys=[from_comm_id], back_populates="outgoing_relationships")
+    to_comm = relationship("Comm", foreign_keys=[to_comm_id], back_populates="incoming_relationships")

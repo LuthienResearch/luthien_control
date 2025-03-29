@@ -1,1 +1,1 @@
-"""Test suite for luthien_control.""" 
+"""Test suite for luthien_control."""

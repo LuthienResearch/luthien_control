@@ -1,9 +1,11 @@
 """Tests for database models."""
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from luthien_control.logging.models import Base, Comm, CommRelationship
+
 
 @pytest.fixture(scope="function")
 def engine():
@@ -12,12 +14,14 @@ def engine():
     Base.metadata.create_all(engine)
     return engine
 
+
 @pytest.fixture(scope="function")
 def session(engine):
     """Create a new database session for testing."""
     with Session(engine) as session:
         yield session
         session.rollback()
+
 
 def test_create_comm(session):
     """Test creating a communication record."""
@@ -27,7 +31,7 @@ def test_create_comm(session):
         type="REQUEST",
         content={"body": "test"},
         endpoint="/test",
-        arguments={"param": "value"}
+        arguments={"param": "value"},
     )
     session.add(comm)
     session.flush()
@@ -41,6 +45,7 @@ def test_create_comm(session):
     assert comm.arguments == {"param": "value"}
     assert comm.trigger is None
 
+
 def test_create_relationship(session):
     """Test creating a relationship between communications."""
     comm1 = Comm(source="client", destination="proxy", type="REQUEST")
@@ -49,10 +54,7 @@ def test_create_relationship(session):
     session.flush()
 
     rel = CommRelationship(
-        from_comm_id=comm1.id,
-        to_comm_id=comm2.id,
-        relationship_type="transformed",
-        meta_info={"changes": ["headers"]}
+        from_comm_id=comm1.id, to_comm_id=comm2.id, relationship_type="transformed", meta_info={"changes": ["headers"]}
     )
     session.add(rel)
     session.flush()
@@ -63,6 +65,7 @@ def test_create_relationship(session):
     assert rel.relationship_type == "transformed"
     assert rel.meta_info == {"changes": ["headers"]}
 
+
 def test_relationship_navigation(session):
     """Test navigating relationships between communications."""
     # Create a chain: client -> proxy -> api
@@ -70,27 +73,15 @@ def test_relationship_navigation(session):
     proxy_req = Comm(source="proxy", destination="api", type="REQUEST")
     api_resp = Comm(source="api", destination="proxy", type="RESPONSE")
     proxy_resp = Comm(source="proxy", destination="client", type="RESPONSE")
-    
+
     session.add_all([client_req, proxy_req, api_resp, proxy_resp])
     session.flush()
 
     # Create relationships
     rels = [
-        CommRelationship(
-            from_comm_id=client_req.id,
-            to_comm_id=proxy_req.id,
-            relationship_type="transformed"
-        ),
-        CommRelationship(
-            from_comm_id=proxy_req.id,
-            to_comm_id=api_resp.id,
-            relationship_type="request_response"
-        ),
-        CommRelationship(
-            from_comm_id=api_resp.id,
-            to_comm_id=proxy_resp.id,
-            relationship_type="transformed"
-        )
+        CommRelationship(from_comm_id=client_req.id, to_comm_id=proxy_req.id, relationship_type="transformed"),
+        CommRelationship(from_comm_id=proxy_req.id, to_comm_id=api_resp.id, relationship_type="request_response"),
+        CommRelationship(from_comm_id=api_resp.id, to_comm_id=proxy_resp.id, relationship_type="transformed"),
     ]
     session.add_all(rels)
     session.flush()
@@ -112,4 +103,4 @@ def test_relationship_navigation(session):
 
     assert len(proxy_resp.outgoing_relationships) == 0
     assert len(proxy_resp.incoming_relationships) == 1
-    assert proxy_resp.incoming_relationships[0].from_comm == api_resp 
+    assert proxy_resp.incoming_relationships[0].from_comm == api_resp

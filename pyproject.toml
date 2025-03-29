@@ -28,6 +28,7 @@ ipykernel = "^6.29.5"
 pytest-asyncio = "^0.26.0"
 pytest-cov = "^6.0.0"
 bandit = "^1.8.3"
+ruff = "^0.11.2"
 
 [build-system]
 requires = ["poetry-core"]
@@ -43,4 +44,20 @@ markers = [
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",
-] 
+]
+
+# Ruff configuration
+[tool.ruff]
+# Enable Pyflakes, pycodestyle error rules, and isort rules.
+select = ["E", "F", "I"]
+# Assume Python 3.9+ features.
+# Adjust this to match your project's minimum Python version if needed.
+target-version = "py39"
+line-length = 120
+
+[tool.ruff.lint]
+# Add any specific rules you want to ignore or modify here later
+
+[tool.ruff.format]
+# Like Black
+quote-style = "double" 

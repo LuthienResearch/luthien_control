@@ -1,5 +1,7 @@
 """Test the policies module initialization."""
-from luthien_control.policies import PolicyManager, ControlPolicy, NoopPolicy
+
+from luthien_control.policies import ControlPolicy, NoopPolicy, PolicyManager
+
 
 def test_policy_imports():
     """Test that policy classes are properly imported."""
@@ -7,4 +9,5 @@ def test_policy_imports():
     assert issubclass(NoopPolicy, ControlPolicy)
     # This verifies the __all__ list is working correctly
     from luthien_control.policies import __all__
-    assert set(__all__) == {'PolicyManager', 'ControlPolicy', 'NoopPolicy'} 
+
+    assert set(__all__) == {"PolicyManager", "ControlPolicy", "NoopPolicy"}

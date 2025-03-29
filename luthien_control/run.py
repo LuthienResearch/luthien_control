@@ -14,7 +14,7 @@ def main():
         load_dotenv(env_path)
     
     # Get configuration from environment variables
-    host = os.getenv("LUTHIEN_HOST", "0.0.0.0")
+    host = os.getenv("LUTHIEN_HOST", "0.0.0.0")  # nosec B104
     port = int(os.getenv("LUTHIEN_PORT", "8000"))
     reload = os.getenv("LUTHIEN_RELOAD", "true").lower() == "true"
     

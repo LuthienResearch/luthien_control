@@ -3,6 +3,7 @@ File-based logging configuration and utilities.
 """
 import contextlib
 import json
+import logging
 from pathlib import Path
 from typing import ContextManager, TextIO, Optional, Dict, Any
 
@@ -52,5 +53,6 @@ class FileLogManager:
         for file_obj in self._open_files:
             try:
                 file_obj.close()
-            except:
-                pass  # Best effort cleanup 
+            except Exception as e:
+                logging.error(f"Error closing log file {getattr(file_obj, 'name', 'unknown')}: {e}")
+                pass 

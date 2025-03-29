@@ -1,31 +1,37 @@
 # Current Working Context
 
 ## Implementation Phase
-- Project Phase: Testing and Refinement (focused on improving test coverage)
-- Specific Component: Unit Testing for `luthien_control/proxy/server.py`
+- Project Phase: Core Feature Development & Upkeep (Ref: ProjectPlan.md)
+- Specific Component: Preparing for Policy Engine Implementation
 
 ## Working State
 - What is currently working:
-  - Proxy server core functionality (request/response handling, header processing).
-  - `luthien_control/proxy/server.py` has 100% unit test coverage.
+  - Proxy server core functionality (`luthien_control/proxy/server.py`) with 100% unit test coverage.
   - Integration tests for proxy server (`tests/integration/test_proxy_server.py`) are passing (locally).
-  - Basic logging infrastructure (file, API, DB) is functional.
-  - Basic policy management framework is in place.
+  - Basic logging infrastructure (file, API, DB) skeleton exists.
+  - Basic policy management framework skeleton exists.
+  - Poetry environment and basic project structure are set up.
+  - Deployment via Fly.io is functional.
 - What is not working/incomplete:
-  - Unit test coverage for many modules is low or non-existent.
-  - Overall project test coverage is around 62%.
+  - Policy Engine (`policies/`) is not implemented beyond the basic framework.
+  - Logging (`logging/`) functionality needs implementation and testing.
+  - Authentication/Authorization is not implemented.
+  - Unit test coverage for modules other than `proxy/server.py` is low.
+  - Overall project test coverage needs improvement (last checked ~62%).
 - Recent changes made:
-  - Added comprehensive unit tests for `luthien_control/proxy/server.py`.
-  - Fixed a bug in `content-encoding` handling within the proxy server.
+  - Achieved 100% unit test coverage for `proxy/server.py`.
+  - Debugged test execution issues.
+  - Cleaned up unused files (`test_decode.py`, `CLAUDE.md`).
   - Updated `dev/DEVELOPMENT_LOG.md`.
 
 ## Current Blockers
 - None currently.
 
 ## Next Steps
-1. Assess and prioritize improving unit test coverage for other modules (e.g., logging, policy management, base policy).
-2. Add unit tests for `luthien_control/policies/base.py` to improve its 82% coverage.
-3. Continue adding tests to increase overall project coverage.
+1. **Configure and run static analysis tools** (e.g., linters like `ruff`, `mypy`; security scanner like `bandit`).
+2. **Begin implementation and testing of the Policy Engine** (`policies/`). Define policy structure, implement evaluation logic.
+3. Implement and test the **Logging module** (`logging/`) ensuring proper data handling.
+4. Incrementally improve **test coverage** across the project.
 
 ## Data Model (Current Draft)
 ### Comm Table

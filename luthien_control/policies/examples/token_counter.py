@@ -3,6 +3,7 @@ Example control policy that counts tokens in requests and responses.
 """
 from typing import Dict, Any, Optional
 import json
+import logging
 from fastapi import Request
 import httpx
 import tiktoken
@@ -58,7 +59,8 @@ class TokenCounterPolicy(ControlPolicy):
                     
                     # Add token count to headers for debugging/logging
                     headers["X-Request-Token-Count"] = str(token_count)
-            except Exception:
+            except Exception as e:
+                logging.error(f"Error processing request tokens: {e}")
                 pass
         
         # Return unchanged request components
@@ -91,7 +93,8 @@ class TokenCounterPolicy(ControlPolicy):
                             'headers': headers,
                             'content': content
                         }
-            except Exception:
+            except Exception as e:
+                logging.error(f"Error processing response tokens: {e}")
                 pass
         
         # Return unchanged response components

@@ -43,10 +43,9 @@ if [ "$CURRENT_LINES" -gt "$MAX_LINES" ]; then
         echo "Error: Failed to archive log file. Rotation aborted."
         exit 1
     fi
-else
-    # echo "Log file $LOG_FILE has $CURRENT_LINES lines. No rotation needed."
-    # Keep quiet if no rotation needed to avoid cluttering command output
-    :
 fi
+
+# print a timestamp
+echo $(date +%Y-%m-%d %H:%M")
 
 exit 0

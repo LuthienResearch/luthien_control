@@ -1,6 +1,6 @@
 # Development Log - Sun Mar 30 11:05:49 BST 2025
 
-## [2024-02-27 11:06] - Project Initialization and Setup
+## [2025-03-30 11:08] - Project Initialization and Setup
 
 ### Changes Made
 - Reorganized planning documents: Created `README.md`, `dev/ProjectPlan.md`, `dev/ToDo.md`; deleted `dev/ProjectPlanningOverview.md`.
@@ -23,7 +23,7 @@
 - Implement the core proxy endpoint in `luthien_control/main.py`.
 - Define and implement basic client authentication.
 
-## [YYYY-MM-DD HH:MM] - Initial Commit and Workflow Correction
+## [2025-03-30 11:18] - Initial Commit and Workflow Correction
 
 ### Changes Made
 - Ran `git add .` to stage initial project files (after removing dummy file and accounting for pre-commit hook changes).
@@ -39,7 +39,7 @@
 - Update `dev/current_context.md` to reflect the next development tasks (proxy endpoint, auth).
 - Begin implementation of the core proxy endpoint.
 
-## [2024-03-31 11:24] - Implement Core Proxy Forwarding Logic
+## [2025-03-30 11:30] - Implement Core Proxy Forwarding Logic
 
 ### Changes Made
 - Added dependencies `httpx` and `pydantic-settings` using `poetry add httpx pydantic-settings`.
@@ -73,7 +73,7 @@
 - Develop unit and integration tests for the proxy logic.
 - Consider more robust error handling and configuration options.
 
-## [2024-07-28 11:46] - Refine Development Workflow Rule
+## [2025-03-30 11:46] - Refine Development Workflow Rule
 
 ### Changes Made
 - Modified `.cursor/rules/development_workflow.mdc` to:
@@ -88,7 +88,7 @@
 - Commit the changes to `.cursor/rules/development_workflow.mdc`.
 - Proceed with the next development task.
 
-## [2024-07-28 11:58] - Refactor Development Tracking Rules
+## [2025-03-30 11:58] - Refactor Development Tracking Rules
 
 ### Changes Made
 - Modified `.cursor/rules/dev_tracking.mdc`: Removed trigger list, clarified it defines the *procedure* invoked by other rules.
@@ -103,7 +103,7 @@
 - Commit the rule changes.
 - Proceed with next development task.
 
-## [2024-07-28 12:24] - Implement Unit Tests for proxy/server.py
+## [2025-03-30 12:27] - Implement Unit Tests for proxy/server.py
 
 ### Changes Made
 - Created `tests/proxy/` directory structure.
@@ -127,7 +127,7 @@
 - Consider adding integration tests involving the proxy.
 - Await next development task.
 
-## [2024-07-28 13:10] - Implement Integration Tests for Proxy
+## [2025-03-30 13:15] - Implement Integration Tests for Proxy
 
 ### Changes Made
 - Updated `pyproject.toml` to define `integration` and `unit` pytest markers and exclude `integration` by default.
@@ -161,7 +161,7 @@
 - Proxy server correctly forwards requests with necessary header modifications (Host).
 - Test setup correctly isolates unit and integration test configurations and execution.
 
-## [2024-07-28 15:21] - Verify DB Test Setup & Resolve Settings Validation Issues
+## [2025-03-30 15:26] - Verify DB Test Setup & Resolve Settings Validation Issues
 
 ### Changes Made
 - Ran initial DB integration test (`tests/integration/test_db_basic.py::test_db_connection_and_schema`).

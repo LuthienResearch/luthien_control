@@ -242,3 +242,23 @@
 - Unit tests pass.
 - Real integration test passes (requires valid `OPENAI_API_KEY` and `BACKEND_URL` in `.env`).
 - Development tracking files updated.
+
+## [2025-03-30 17:04] - Add Compression Handling Utilities
+
+### Changes Made
+- Added `brotli` dependency via `poetry add brotli`.
+- Created `luthien_control/proxy/utils.py` with skeleton functions (`decompress_content`, `get_decompressed_request_body`, `get_decompressed_response_body`).
+- Created `tests/proxy/test_utils.py` with unit tests covering gzip, deflate, brotli, and no compression scenarios for the utility functions.
+- Ran tests to confirm failures (TDD step).
+- Implemented the logic within the functions in `luthien_control/proxy/utils.py`.
+- Ran tests again to confirm they pass.
+- Updated `luthien_control/proxy/server.py`:
+    - Imported compression utilities.
+    - Added comments indicating where decompression *would* be applied for requests and responses if inspection/logging was active, preserving streaming for now.
+- Ran all project tests (`poetry run pytest`) to ensure no regressions.
+
+### Current Status
+- Compression utility functions are implemented and unit-tested.
+- Proxy server logic is updated with imports and comments for future integration.
+- Streaming behavior for requests/responses is preserved.
+- All tests pass.

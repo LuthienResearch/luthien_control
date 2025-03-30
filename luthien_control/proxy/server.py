@@ -7,6 +7,7 @@ from starlette.responses import StreamingResponse
 
 from luthien_control.config.settings import Settings, get_settings
 from luthien_control.dependencies import get_http_client
+from luthien_control.proxy.utils import get_decompressed_request_body, get_decompressed_response_body
 
 
 router = APIRouter()
@@ -67,6 +68,10 @@ async def proxy_endpoint(
         url=backend_url,
         # Use the carefully constructed list of header tuples
         headers=backend_headers_list,
+        # Get the raw request body for forwarding
+        # If needed for logging/policy checks, decompress here:
+        # decompressed_body = await get_decompressed_request_body(request)
+        # For now, just forward the raw body
         content=await request.body(),
     )
 
@@ -86,6 +91,14 @@ async def proxy_endpoint(
         backend_response.raise_for_status()
 
         # Stream the backend response back to the client
+        # If logging/inspection were needed, we'd have to read the whole body,
+        # decompress it, and then potentially re-stream/re-compress:
+        # raw_body = await backend_response.aread()
+        # encoding = backend_response.headers.get("content-encoding")
+        # decompressed_response_body = decompress_content(raw_body, encoding)
+        # -- Log decompressed_response_body --
+        # Then, create a new Response/StreamingResponse with raw_body
+        # For now, stream directly to preserve encoding and efficiency
         return StreamingResponse(
             backend_response.aiter_raw(),
             status_code=backend_response.status_code,
@@ -95,7 +108,12 @@ async def proxy_endpoint(
 
     except httpx.HTTPStatusError as exc: # Catch 4xx/5xx errors from backend FIRST
         # Log the error details from the backend response before closing it
-        error_body = await exc.response.aread() # Read body if possible
+        # If logging/inspection were needed for error bodies, decompress here:
+        # error_body_raw = await exc.response.aread()
+        # error_encoding = exc.response.headers.get("content-encoding")
+        # error_body_decompressed = decompress_content(error_body_raw, error_encoding)
+        # print(f"Backend error body (decompressed): {error_body_decompressed.decode()}")
+        error_body = await exc.response.aread() # Read raw body for now
         await exc.response.aclose() # Ensure connection is closed
         print(f"Backend returned error status {exc.response.status_code}: Body: {error_body.decode() if error_body else '[empty body]'}")
         raise HTTPException(

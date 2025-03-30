@@ -21,7 +21,7 @@ To build an AI Control System (`luthien_control`) acting as an intelligent proxy
 - [ ] Basic client authentication mechanism (TBD - e.g., static API key).
 - [X] Unit tests for proxy logic.
 - [ ] Unit tests for database interaction/logging.
-- [ ] Basic integration tests for the end-to-end flow.
+- [X] Basic integration tests for the end-to-end flow.
 
 ## 3. Future Phases (High-Level)
 

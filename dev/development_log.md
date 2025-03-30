@@ -160,3 +160,22 @@
 - Integration tests (2) pass (`poetry run pytest -m integration`), verifying proxy against live OpenAI API and handling of bad API keys.
 - Proxy server correctly forwards requests with necessary header modifications (Host).
 - Test setup correctly isolates unit and integration test configurations and execution.
+
+## [2024-07-28 15:21] - Verify DB Test Setup & Resolve Settings Validation Issues
+
+### Changes Made
+- Ran initial DB integration test (`tests/integration/test_db_basic.py::test_db_connection_and_schema`).
+- Fixed `AttributeError: 'str' object has no attribute '__anext__'` in `test_db_connection_and_schema` by using the yielded DSN string directly instead of treating the fixture argument as a generator.
+- Ran all tests (`poetry run pytest -vs`) and encountered `pydantic_core.ValidationError` during setup for tests in `tests/proxy/test_server.py`.
+  - Cause: Recently added mandatory `POSTGRES_*` fields in `luthien_control/config/settings.py` were not present in the `.env.test` file used by proxy unit tests.
+- Modified `luthien_control/config/settings.py`:
+  - Made `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB` optional (`| None = Field(default=None)`).
+  - Added runtime `ValueError` checks within the DSN helper properties/methods (`admin_dsn`, `base_dsn`, `get_db_dsn`) to ensure settings are present when those methods are called.
+- Verified all unit tests pass (`poetry run pytest -vs`).
+- Verified all integration tests pass (`poetry run pytest -vs -m integration`).
+
+### Current Status
+- Basic database integration testing fixture (`test_db_session`) is confirmed working.
+- Settings validation issue affecting proxy unit tests is resolved by making DB settings optional in the Pydantic model while retaining runtime checks for DB operations.
+- All unit and integration tests are passing.
+- Ready to commit changes.

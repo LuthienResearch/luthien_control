@@ -16,7 +16,7 @@ This ensures the active log file remains manageable and archives older entries.
 ### 2. Update dev/development_log.md - Historical Record
 Append the new entry (starting with a newline if the file is not empty or was just created by the rotation script) to the current `dev/development_log.md` using the following format:
 ```markdown
-## [YYYY-MM-DD HH:MM] - Brief Action Title
+## [YYYY-MM-DD HH:MM] - [AI Chosen Title]
 
 ### Changes Made
 - Specific file changes or commands executed

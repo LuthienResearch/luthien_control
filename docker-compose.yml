@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:latest # Should automatically select ARM64 image for your Mac
+    restart: always
+    environment:
+      # Default credentials for local development ONLY.
+      # Consider using a .env file for more sensitive scenarios.
+      POSTGRES_USER: luthien_user
+      POSTGRES_PASSWORD: luthien_pass
+      POSTGRES_DB: luthien_dev_db
+    ports:
+      # Map host port 5432 to container port 5432
+      - "5432:5432"
+    volumes:
+      # Persist database data using a named volume
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Optional: Check if the database is ready
+      test: ["CMD-SHELL", "pg_isready -U luthien_user -d luthien_dev_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  # Define the named volume for data persistence
+  postgres_data: 

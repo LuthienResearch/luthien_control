@@ -5,33 +5,15 @@ import os
 from fastapi.testclient import TestClient
 from luthien_control.config.settings import Settings
 
-# Import the Settings type and the fixture
 from luthien_control.config.settings import Settings
 
-# No longer requires manually running the server
 # Requires .env file with BACKEND_URL=https://api.openai.com and valid OPENAI_API_KEY
 # Run with: poetry run pytest -m integration
 
 pytestmark = pytest.mark.integration
 
-# Remove BASE_URL constant
-# BASE_URL = "http://127.0.0.1:8000"
 PROXY_TIMEOUT = 30.0  # Increase timeout for potentially slower live API calls
 
-
-# The 'client' fixture is automatically available from tests/conftest.py
-# The 'integration_settings' fixture is also available from tests/conftest.py
-
-# This test uses the TestClient fixture now, remove app injection
-# @pytest.mark.asyncio
-# async def test_proxy_openai_chat_completions(app, integration_settings: Settings):
-# ... (Remove this function or adapt if needed separately)
-
-# This test uses the TestClient fixture now, remove app injection
-# @pytest.mark.asyncio
-# @pytest.mark.integration
-# async def test_proxy_openai_bad_api_key(app):
-# ... (Remove this function or adapt if needed separately)
 
 def test_proxy_openai_chat_completion_real(client: TestClient, integration_settings: Settings):
     """
@@ -42,16 +24,10 @@ def test_proxy_openai_chat_completion_real(client: TestClient, integration_setti
     api_key = integration_settings.OPENAI_API_KEY
     target_backend_host = integration_settings.BACKEND_URL.host
 
-    # Debug: Print loaded key prefix/suffix to verify
     if api_key:
         loaded_key_value = api_key.get_secret_value()
-        print(f"\n---> [DEBUG] Loaded API Key Prefix/Suffix: {loaded_key_value[:5]}...{loaded_key_value[-4:]} <---")
-    else:
-        print("\n---> [DEBUG] API Key loaded as None <---")
 
-    # Use os.getenv to check env var directly, as settings might load from .env
-    if not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("Skipping real API test: OPENAI_API_KEY environment variable not set.")
+    # The check below using the loaded settings is correct.
     if not api_key:
         pytest.skip("Skipping real API test: OPENAI_API_KEY not found in settings.")
     if not target_backend_host or "mock-backend.test" in target_backend_host:

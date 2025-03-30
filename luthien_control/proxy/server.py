@@ -5,21 +5,12 @@ from fastapi import Depends, APIRouter, HTTPException, Request, Response
 from starlette.background import BackgroundTask
 from starlette.responses import StreamingResponse
 
-from luthien_control.config.settings import Settings, get_settings
+from luthien_control.config.settings import Settings
 from luthien_control.dependencies import get_http_client
 from luthien_control.proxy.utils import get_decompressed_request_body, get_decompressed_response_body
 
 
 router = APIRouter()
-
-# Remove the global client instance
-# http_client = httpx.AsyncClient()
-
-# Remove the old shutdown handler function and registration
-# async def _close_http_client():
-#     """Close the httpx client gracefully."""
-#     await http_client.aclose()
-# app.add_event_handler("shutdown", _close_http_client)
 
 
 @router.api_route(
@@ -29,7 +20,7 @@ router = APIRouter()
 async def proxy_endpoint(
     request: Request,
     full_path: str,
-    current_settings: Settings = Depends(get_settings),
+    current_settings: Settings = Depends(Settings),
     client: httpx.AsyncClient = Depends(get_http_client)
 ):
     """
@@ -109,10 +100,6 @@ async def proxy_endpoint(
     except httpx.HTTPStatusError as exc: # Catch 4xx/5xx errors from backend FIRST
         # Log the error details from the backend response before closing it
         # If logging/inspection were needed for error bodies, decompress here:
-        # error_body_raw = await exc.response.aread()
-        # error_encoding = exc.response.headers.get("content-encoding")
-        # error_body_decompressed = decompress_content(error_body_raw, error_encoding)
-        # print(f"Backend error body (decompressed): {error_body_decompressed.decode()}")
         error_body = await exc.response.aread() # Read raw body for now
         await exc.response.aclose() # Ensure connection is closed
         print(f"Backend returned error status {exc.response.status_code}: Body: {error_body.decode() if error_body else '[empty body]'}")

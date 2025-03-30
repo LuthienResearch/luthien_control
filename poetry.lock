@@ -1029,28 +1029,12 @@ pytest = ">=4.6"
 testing = ["fields", "hunter", "process-tests", "pytest-xdist", "virtualenv"]
 
 [[package]]
-name = "pytest-dotenv"
-version = "0.5.2"
-description = "A py.test plugin that parses environment files before running tests"
-optional = false
-python-versions = "*"
-groups = ["dev"]
-files = [
-    {file = "pytest-dotenv-0.5.2.tar.gz", hash = "sha256:2dc6c3ac6d8764c71c6d2804e902d0ff810fa19692e95fe138aefc9b1aa73732"},
-    {file = "pytest_dotenv-0.5.2-py3-none-any.whl", hash = "sha256:40a2cece120a213898afaa5407673f6bd924b1fa7eafce6bda0e8abffe2f710f"},
-]
-
-[package.dependencies]
-pytest = ">=5.0.0"
-python-dotenv = ">=0.9.1"
-
-[[package]]
 name = "python-dotenv"
 version = "1.1.0"
 description = "Read key-value pairs from a .env file and set them as environment variables"
 optional = false
 python-versions = ">=3.9"
-groups = ["main", "dev"]
+groups = ["main"]
 files = [
     {file = "python_dotenv-1.1.0-py3-none-any.whl", hash = "sha256:d7c01d9e2293916c18baf562d95698754b0dbbb5e74d457c45d4f6561fb9d55d"},
     {file = "python_dotenv-1.1.0.tar.gz", hash = "sha256:41f90bc6f5f177fb41f53e87666db362025010eb28f60a01c9143bfa33a2b2d5"},
@@ -1544,4 +1528,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "93ae02e16ba1288908b82709d62f4c6cb07667e6cfb87ff82c65ee8fc5847cd0"
+content-hash = "0f5e0a417b45f427b01a298de01e9ae21d214b9b7cf1e953527f3c5c0a818d3b"

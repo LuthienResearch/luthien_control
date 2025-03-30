@@ -5,153 +5,111 @@ from pathlib import Path
 import asyncpg
 import psycopg2
 import pytest
-import pytest_asyncio  # Import pytest_asyncio
-from luthien_control.config.settings import Settings, get_settings
+import pytest_asyncio
+from luthien_control.config.settings import Settings
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from pydantic import HttpUrl # Added import
+from pydantic import HttpUrl, Field, SecretStr
+# Import SettingsConfigDict for overriding and TestSettings definition
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-@pytest.fixture(scope="session")
-def unit_settings() -> Settings:
-    """Fixture to load settings specifically for unit tests (.env.test)."""
-    # Temporarily set APP_ENV to ensure get_settings prioritizes .env.test
-    original_app_env = os.environ.get("APP_ENV")
-    original_backend_url = os.environ.get("BACKEND_URL") # Store original BACKEND_URL
-    os.environ["APP_ENV"] = "test"
-    # Explicitly override BACKEND_URL for unit tests, regardless of what pytest-dotenv loaded
-    mock_backend_url = "http://mock-backend.test:8001"
-    os.environ["BACKEND_URL"] = mock_backend_url
-    print(f"\n---> [DEBUG][unit_settings] Set BACKEND_URL to: {mock_backend_url} <---")
+# Remove monkeypatch_session fixture if no longer needed
+# @pytest.fixture(scope='session')
+# def monkeypatch_session():
+#     """Session-scoped monkeypatch."""
+#     from _pytest.monkeypatch import MonkeyPatch
+#     m = MonkeyPatch()
+#     yield m
+#     m.undo()
 
-    # Clear cache and get settings
-    get_settings.cache_clear()
-    settings = get_settings()
 
-    # Restore original environment variables
-    if original_app_env is not None:
-        os.environ["APP_ENV"] = original_app_env
-    else:
-        if "APP_ENV" in os.environ:
-            del os.environ["APP_ENV"]
-    if original_backend_url is not None:
-        os.environ["BACKEND_URL"] = original_backend_url
-    else:
-        if "BACKEND_URL" in os.environ:
-            del os.environ["BACKEND_URL"]
-    print("---> [DEBUG][unit_settings] Restored original env vars <---")
-
-    # Clear cache again
-    get_settings.cache_clear()
-
-    # Compare HttpUrl object against an HttpUrl object created from the mock string
-    assert settings.BACKEND_URL == HttpUrl(mock_backend_url), (
-        f"Unit tests should use the mock backend URL '{mock_backend_url}', but got '{settings.BACKEND_URL}'"
+# --- Define TestSettings inheriting from main Settings --- 
+class TestSettings(Settings):
+    """Test-specific settings loading ONLY from .env.test."""
+    
+    # Define model_config to ONLY load .env.test using absolute path
+    model_config = SettingsConfigDict(
+        env_file=str(Path(__file__).parent.parent / ".env.test"), 
+        extra='ignore'
     )
-    return settings
+    # Fields are inherited from the main Settings class
 
 
 @pytest.fixture(scope="session")
 def integration_settings() -> Settings:
-    """Fixture to load settings for integration tests (.env).
-    Skips tests if OPENAI_API_KEY is not found.
-    """
-    # Ensure APP_ENV is NOT test for integration tests
-    original_env = os.environ.get("APP_ENV")
-    if original_env == "test":
-        del os.environ["APP_ENV"]
+    """Fixture providing Settings loaded explicitly from .env."""
+    try:
+        config_override = SettingsConfigDict(env_file='.env', extra='ignore') # Be explicit
+        settings = Settings(_settings_config_override=config_override)
 
-    # Clear cache and get settings (should load from .env)
-    get_settings.cache_clear()
-    settings = get_settings()
-
-    # Restore original APP_ENV if needed
-    if original_env is not None:
-        os.environ["APP_ENV"] = original_env
-
-    # Clear cache again
-    get_settings.cache_clear()
-
-    if not settings.OPENAI_API_KEY:
-        pytest.skip("Skipping integration test: OPENAI_API_KEY not found in .env")
-
-    assert settings.BACKEND_URL.host != "127.0.0.1", (
-        "Integration tests should use the real backend URL from .env"
-    )
-    return settings
+        # Assert that the loaded URL is NOT the mock one
+        assert settings.BACKEND_URL.host != "mock-backend.test", (
+            f"Integration tests should load from .env, but BACKEND_URL is the mock URL: '{settings.BACKEND_URL}'"
+        )
+        return settings
+    except Exception as e:
+        pytest.fail(f"Failed to load integration_settings from .env: {e}")
 
 
-# Fixture to override settings dependency in FastAPI app for testing
-@pytest.fixture(autouse=True)  # Apply this automatically to relevant tests
+# Override the Settings class itself
+@pytest.fixture(autouse=True)
 def override_settings_dependency(request):
-    """Overrides the get_settings dependency based on test markers."""
-    # Import the main app directly within the fixture
+    """Overrides the Settings dependency based on test markers."""
     from luthien_control.main import app
+    settings_instance = None
 
     if request.node.get_closest_marker("integration"):
-        # Use integration settings for integration tests
-        print("\n[Fixture] Using integration_settings for test")
-        app.dependency_overrides[get_settings] = lambda: request.getfixturevalue(
-            "integration_settings"
-        )
-        yield
-        del app.dependency_overrides[get_settings]
-        print("[Fixture] Cleared settings override for integration_settings")
-    elif request.node.get_closest_marker("unit"):
-        # Use unit settings for unit tests
-        print("\n[Fixture] Using unit_settings for test (unit marker found)")
-        app.dependency_overrides[get_settings] = lambda: request.getfixturevalue(
-            "unit_settings"
-        )
-        yield
-        del app.dependency_overrides[get_settings]
-        print("[Fixture] Cleared settings override for unit_settings")
+        # For integration tests, get the correctly configured Settings instance
+        settings_instance = request.getfixturevalue("integration_settings")
     else:
-        # Default to unit settings if no specific marker is found
-        print("\n[Fixture] Using unit_settings for test (default/no marker)")
-        app.dependency_overrides[get_settings] = lambda: request.getfixturevalue(
-            "unit_settings"
-        )
-        yield
-        del app.dependency_overrides[get_settings]
-        print("[Fixture] Cleared settings override for unit_settings (default)")
+        # For unit tests, instantiate our TestSettings class directly
+        env_test_path = Path(__file__).parent.parent / ".env.test"
+        if not env_test_path.exists():
+            pytest.fail(f"Unit test setup failed: .env.test not found at {env_test_path}")
+        try:
+            settings_instance = TestSettings() 
+        except Exception as e:
+             pytest.fail(f"Failed to instantiate TestSettings for unit test: {e}")
 
+    # Ensure we actually got an instance before proceeding
+    if settings_instance is None:
+        pytest.fail("Failed to obtain settings instance in override_settings_dependency")
 
-# Add a unit marker definition implicitly if needed
-# Or rely on the absence of 'integration' marker
+    # Store original overrides if any (though likely none)
+    original_overrides = app.dependency_overrides.copy()
+
+    def get_override_settings(): 
+        # This function now just returns the instance we already created/fetched
+        return settings_instance
+
+    app.dependency_overrides[Settings] = get_override_settings # Override with our chosen instance
+    yield # Run the test
+    # Restore original overrides after test
+    app.dependency_overrides = original_overrides
 
 
 @pytest.fixture(scope="session")
 def db_settings() -> Settings:
-    """Fixture to load database settings from environment variables via get_settings."""
+    """Fixture providing database connection Settings loaded explicitly from .env."""
     try:
-        # Use the existing get_settings function, which handles .env loading
-        # Assume APP_ENV is not 'test' for db setup, relying on .env
-        original_env = os.getenv("APP_ENV")
-        if original_env == "test":
-            del os.environ["APP_ENV"]
+        # Explicitly load ONLY .env for database settings
+        config_override = SettingsConfigDict(env_file='.env', extra='ignore') # Be explicit
+        settings_loaded = Settings(_settings_config_override=config_override)
 
-        get_settings.cache_clear()  # Clear cache before getting settings
-        settings = get_settings()
-
-        # Restore original APP_ENV if needed
-        if original_env is not None:
-            os.environ["APP_ENV"] = original_env
-        get_settings.cache_clear()  # Clear cache after restoring
-
-        # Basic check to ensure critical settings are loaded
         assert all(
             [
-                settings.POSTGRES_USER,
-                settings.POSTGRES_PASSWORD,
-                settings.POSTGRES_HOST,
-                settings.POSTGRES_PORT,
-                settings.POSTGRES_DB,
+                settings_loaded.POSTGRES_USER,
+                settings_loaded.POSTGRES_PASSWORD,
+                settings_loaded.POSTGRES_HOST,
+                settings_loaded.POSTGRES_PORT,
+                settings_loaded.POSTGRES_DB,
             ]
-        )
-        return settings
+        ), "Database configuration settings missing. Ensure POSTGRES_* vars are in .env."
+        return settings_loaded
+
     except Exception as e:
         pytest.fail(
-            f"Failed to load database settings via get_settings: {e}. Ensure POSTGRES_* env vars are set or available in .env"
+            f"Failed to load db_settings from .env: {e}"
         )
 
 

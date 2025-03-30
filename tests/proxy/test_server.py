@@ -26,11 +26,16 @@ from luthien_control.main import app
 # Mark this explicitly as a unit test
 @pytest.mark.unit
 @respx.mock
-def test_proxy_get_success(client: TestClient, unit_settings: Settings):
+def test_proxy_get_success(client: TestClient):
     """Test successful GET request proxying."""
-    # Use settings from the fixture to build the mock URL
-    backend_host = unit_settings.BACKEND_URL.host
-    backend_port = unit_settings.BACKEND_URL.port
+    # Access settings via the client's app dependency override if needed, 
+    # otherwise Respx handles the mock based on the URL.
+    # Assuming the mock URL comes from .env.test loaded by TestSettings
+    # We need the host/port to construct the mock route.
+    # Access via the app used by the client:
+    app_settings = app.dependency_overrides.get(Settings, Settings)() 
+    backend_host = app_settings.BACKEND_URL.host
+    backend_port = app_settings.BACKEND_URL.port
     backend_url = f"http://{backend_host}:{backend_port}/test/path"
     route = respx.get(backend_url).mock(
         return_value=Response(200, json={"message": "Success"})
@@ -46,10 +51,11 @@ def test_proxy_get_success(client: TestClient, unit_settings: Settings):
 # Mark this explicitly as a unit test
 @pytest.mark.unit
 @respx.mock
-def test_proxy_post_success(client: TestClient, unit_settings: Settings):
+def test_proxy_post_success(client: TestClient):
     """Test successful POST request proxying with body."""
-    backend_host = unit_settings.BACKEND_URL.host
-    backend_port = unit_settings.BACKEND_URL.port
+    app_settings = app.dependency_overrides.get(Settings, Settings)() 
+    backend_host = app_settings.BACKEND_URL.host
+    backend_port = app_settings.BACKEND_URL.port
     backend_url = f"http://{backend_host}:{backend_port}/submit/data"
     route = respx.post(backend_url).mock(
         return_value=Response(201, json={"status": "Created"})
@@ -68,10 +74,11 @@ def test_proxy_post_success(client: TestClient, unit_settings: Settings):
 # Mark this explicitly as a unit test
 @pytest.mark.unit
 @respx.mock
-def test_proxy_forwards_query_params(client: TestClient, unit_settings: Settings):
+def test_proxy_forwards_query_params(client: TestClient):
     """Test that query parameters are correctly forwarded."""
-    backend_host = unit_settings.BACKEND_URL.host
-    backend_port = unit_settings.BACKEND_URL.port
+    app_settings = app.dependency_overrides.get(Settings, Settings)() 
+    backend_host = app_settings.BACKEND_URL.host
+    backend_port = app_settings.BACKEND_URL.port
     backend_url_pattern = f"http://{backend_host}:{backend_port}/search"
     route = respx.get(url__regex=f"^{backend_url_pattern}\\?.*").mock(
         return_value=Response(200, json={"results": []})
@@ -89,10 +96,11 @@ def test_proxy_forwards_query_params(client: TestClient, unit_settings: Settings
 # Mark this explicitly as a unit test
 @pytest.mark.unit
 @respx.mock
-def test_proxy_forwards_headers(client: TestClient, unit_settings: Settings):
+def test_proxy_forwards_headers(client: TestClient):
     """Test that specific headers are forwarded and backend headers are returned."""
-    backend_host = unit_settings.BACKEND_URL.host
-    backend_port = unit_settings.BACKEND_URL.port
+    app_settings = app.dependency_overrides.get(Settings, Settings)() 
+    backend_host = app_settings.BACKEND_URL.host
+    backend_port = app_settings.BACKEND_URL.port
     backend_url = f"http://{backend_host}:{backend_port}/headers/check"
     mock_response_headers = {
         "X-Backend-Header": "BackendValue",
@@ -122,10 +130,11 @@ def test_proxy_forwards_headers(client: TestClient, unit_settings: Settings):
 # Mark this explicitly as a unit test
 @pytest.mark.unit
 @respx.mock
-def test_proxy_backend_connection_error(client: TestClient, unit_settings: Settings):
+def test_proxy_backend_connection_error(client: TestClient):
     """Test handling of backend connection errors (e.g., timeout, DNS error)."""
-    backend_host = unit_settings.BACKEND_URL.host
-    backend_port = unit_settings.BACKEND_URL.port
+    app_settings = app.dependency_overrides.get(Settings, Settings)() 
+    backend_host = app_settings.BACKEND_URL.host
+    backend_port = app_settings.BACKEND_URL.port
     backend_url = f"http://{backend_host}:{backend_port}/error/path"
     route = respx.get(backend_url).mock(side_effect=RequestError("Connection failed"))
 

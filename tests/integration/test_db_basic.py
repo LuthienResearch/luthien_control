@@ -1,8 +1,8 @@
 import asyncpg
 import pytest
 
-# Mark all tests in this module as async
-pytestmark = pytest.mark.asyncio
+# Mark all tests in this module as async and integration
+pytestmark = [pytest.mark.asyncio, pytest.mark.integration]
 
 
 async def test_db_connection_and_schema(test_db_session):

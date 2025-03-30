@@ -19,7 +19,6 @@ env/
 
 # Poetry
 .poetry/
-poetry.lock
 
 # IDE / Editor specific
 .idea/

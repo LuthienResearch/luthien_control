@@ -38,3 +38,37 @@
 ### Next Steps
 - Update `dev/current_context.md` to reflect the next development tasks (proxy endpoint, auth).
 - Begin implementation of the core proxy endpoint.
+
+## [2024-03-31 11:24] - Implement Core Proxy Forwarding Logic
+
+### Changes Made
+- Added dependencies `httpx` and `pydantic-settings` using `poetry add httpx pydantic-settings`.
+- Created `luthien_control/config/` directory and `luthien_control/config/settings.py` for Pydantic settings.
+- Defined `Settings` class in `settings.py` to load `BACKEND_URL` from environment/.env file.
+- Modified `luthien_control/proxy/server.py`:
+  - Imported `httpx`, `StreamingResponse`, `BackgroundTask`, and `settings`.
+  - Initialized an `httpx.AsyncClient`.
+  - Added `_close_http_client` function and registered it with FastAPI's shutdown event.
+  - Updated `proxy_endpoint` to:
+    - Construct backend URL using `settings.BACKEND_URL` and incoming request path/query.
+    - Build backend request using `httpx.build_request`, preserving method, headers, and body.
+    - Send request to backend via `httpx.send` with streaming enabled.
+    - Added basic error handling for `httpx.RequestError` (returns 502).
+    - Return a `StreamingResponse` to stream the backend response to the client.
+- Created `.env.example` file with `BACKEND_URL`.
+- Confirmed `.env` is in `.gitignore`.
+- Ran `bash dev/scripts/rotate_dev_log.sh`.
+
+### Current Status
+- Basic proxy server structure is in place (`luthien_control/main.py` mounts `luthien_control/proxy/server.py`).
+- Configuration management for `BACKEND_URL` is set up via `pydantic-settings` in `luthien_control/config/settings.py`.
+- The core proxy endpoint (`/`) now forwards requests (method, headers, query, body) to the configured `BACKEND_URL`.
+- Response streaming from the backend to the client is implemented.
+- Basic connection error handling (returning 502) is added.
+- Requires a `.env` file with `BACKEND_URL` defined to run correctly.
+
+### Next Steps
+- Implement policy engine integration.
+- Add request/response logging.
+- Develop unit and integration tests for the proxy logic.
+- Consider more robust error handling and configuration options.

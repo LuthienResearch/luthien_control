@@ -3,16 +3,7 @@ description:
 globs: 
 alwaysApply: true
 ---
-## MANDATORY: Update tracking files after EVERY change
-
-After EACH of the following (without exception):
-- Creating or modifying any file
-- Running any command that changes system state
-- Completing a deployment step
-- Encountering or resolving any error
-- Before moving to a new task
-
-You MUST:
+Mandatory dev tracking updates prior to git commits
 
 ### 1. Rotate Log (If Necessary)
 
@@ -35,38 +26,20 @@ Append the new entry (starting with a newline if the file is not empty or was ju
 - What's currently working
 - What's currently broken
 - Any errors encountered (with exact error messages)
-
-### Next Steps
-- Clear, actionable next steps
 ```
 
 ### 3. Update dev/current_context.md - Current State Snapshot
 Replace the **entire** content of `dev/current_context.md` with the current state using this template:
 ```markdown
-# Current Working Context
-[Replace entire file with current state - this is NOT a log]
-
-## Implementation Phase
-- Current project phase (reference ProjectPlan.md)
-- Specific component being worked on
-
-## Working State
-- What is currently working (specific features)
-- What is not working/incomplete
-- Recent changes made
-
-## Current Blockers
-- Active issues preventing progress
-- Questions requiring answers
-- Missing dependencies or configurations
-
-## Next Steps
-1. Next immediate action
-2. Subsequent planned actions
-3. Outstanding issues to address
+# Current Task
+## Short Description of Current Task
+ - Status: Complete (or something else if not complete)
+ - Major changes made
+ - Follow-up tasks, if any
 ```
 
-**Important:** The `## Next Steps` section should list the *subsequent development actions* needed after the current changes are complete (and potentially committed). It should *not* list the act of committing the current changes itself, as the context file should represent the state *after* the commit.
+### 4. Update ProjectPlan.md (if relevant)
+Update when items from ProjectPlan.md are completed or the plan significantly changes.
 
 ## IMPORTANT GUIDELINES
 
@@ -76,6 +49,5 @@ Replace the **entire** content of `dev/current_context.md` with the current stat
 4.  **Be Specific**: Include specific file names, commands, and error messages in the log.
 5.  **Complete Replacement**: For `dev/current_context.md`, always replace the entire file content.
 6.  **Timestamps**: Use accurate timestamps in `dev/development_log.md` entries.
-7.  **No Skipping**: These updates (including running the rotation script first) are mandatory for ALL changes, no matter how small.
 
 IMPORTANT: This is not optional. Every change requires running the rotation script and subsequent tracking file updates.

@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: true
 ---
 
@@ -37,8 +37,8 @@ Follow these steps for each discrete task:
 8.  **Integration Testing:**
     *   Run existing integration tests to ensure no regressions were introduced elsewhere.
     *   If the change introduces significant new interactions or functionality, write new integration tests.
-9.  **Mandatory Tracking Update:** Once all tests pass and the unit of work is complete, **perform the full tracking update procedure** as defined in `dev_tracking.mdc` (run rotation script, update `development_log.md`, replace `current_context.md`) BEFORE proceeding to the next step.
-10. **Commit:** Follow the `git_commit_strategy.mdc` to stage the changes (including the updated tracking files) and propose a commit.
+9.  **Mandatory Tracking Update:** Once all tests pass and the unit of work is complete, **perform the full tracking update procedure** as defined in `dev_tracking` (run rotation script, update `development_log.md`, replace `current_context.md`) BEFORE proceeding to the next step.
+10. **Git commit:** Follow the `git_commit_strategy` to stage the changes (including the updated tracking files) and propose a commit.
 11. **Push:** After commit is accepted, push the changes (user action).
 
 ## Handling Out-of-Scope Issues (`dev/ToDo.md`)

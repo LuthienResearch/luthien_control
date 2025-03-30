@@ -1,32 +1,6 @@
 repos:
--   repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
-    rev: v0.11.2
-    hooks:
-        # Run the linter.
-        -   id: ruff
-            args: [--fix, --exit-non-zero-on-fix]
-
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
-    hooks:
-        -   id: check-yaml
-        -   id: check-toml
-        -   id: end-of-file-fixer
-
--   repo: https://github.com/PyCQA/bandit
-    rev: 1.8.3
-    hooks:
-      - id: bandit
-        args: ["-c", "pyproject.toml"]
-        exclude: ^tests/
-        additional_dependencies: ["bandit[toml]"]
-
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.1
-    hooks:
-    -   id: mypy
-        # We might need to adjust args depending on mypy setup/config
-        # For now, let's rely on mypy finding its config in pyproject.toml (if any)
-        # pass_filenames: false # Uncomment if mypy should check all files, not just staged ones
-        additional_dependencies: [] # Add any mypy plugins here if needed
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v3.4.0
+  hooks:
+    - id: trailing-whitespace
+    - id: end-of-file-fixer

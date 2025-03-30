@@ -87,3 +87,18 @@
 ### Next Steps
 - Commit the changes to `.cursor/rules/development_workflow.mdc`.
 - Proceed with the next development task.
+
+## [2024-07-28 11:58] - Refactor Development Tracking Rules
+
+### Changes Made
+- Modified `.cursor/rules/dev_tracking.mdc`: Removed trigger list, clarified it defines the *procedure* invoked by other rules.
+- Modified `.cursor/rules/development_workflow.mdc`: Updated Step 9 to explicitly mandate running the full tracking procedure (log rotation, log update, context update) after testing and before committing.
+- Modified `.cursor/rules/git_commit_strategy.mdc`: Refined Step 4 to clarify that tracking updates occur after work/testing and before staging, referencing `development_workflow.mdc`.
+
+### Current Status
+- Rule files updated to integrate tracking updates with the core development/commit workflow.
+- Changes ready to be committed.
+
+### Next Steps
+- Commit the rule changes.
+- Proceed with next development task.

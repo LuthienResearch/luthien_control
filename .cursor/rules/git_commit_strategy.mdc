@@ -8,9 +8,9 @@ alwaysApply: false
 1.  **Goal:** Maintain a clean Git history by committing logical units of work frequently. The commit should ideally contain the code changes *and* the updated tracking files documenting those changes.
 2.  **Trigger:** After completing a distinct sub-task, resolving a specific issue, or successfully implementing a requested feature/change, you (the AI assistant) should initiate the commit process.
 3.  **Identify Changes:** Identify the modified code/documentation files relevant to the completed work.
-4.  **MANDATORY Pre-Commit Tracking:**
-    *   **You MUST follow the procedures in the `dev_tracking` rule** to update `dev/development_log.md` and `dev/current_context.md`. This update should reflect the code changes that are about to be committed.
-    *   This step is not optional and must precede staging and committing.
+4.  **Perform Pre-Commit Tracking:**
+    *   As specified in `development_workflow.mdc` (Step 9), after the code changes are complete and tested, **you MUST follow the procedures defined in `dev_tracking.mdc`** to update `dev/development_log.md` and `dev/current_context.md`.
+    *   This tracking update reflects the state being committed and **must** be completed *before* proceeding to stage files (Step 5).
 5.  **Staging:** State which files you are staging (code/docs identified in step 3 + tracking files updated in step 4) and propose the `git add <files...>` command. If unsure about the files, ask the user *before* proposing the `git add` command.
 6.  **Commit Message:** Propose a concise, descriptive commit message **title** following conventional commit standards (e.g., `feat: ...`, `fix: ...`, `refactor: ...`, `docs: ...`, `chore: ...`).
     *   **Keep the title short and focused** on the primary change.

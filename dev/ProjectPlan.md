@@ -15,8 +15,8 @@ To build an AI Control System (`luthien_control`) acting as an intelligent proxy
 - [X] Configure target backend API endpoint (e.g., OpenAI) via environment variables.
 - [X] Implement request forwarding logic to the target backend.
 - [X] Implement response forwarding logic back to the client.
-- [ ] Define database schema for logging requests and responses.
-- [ ] Setup PostgreSQL connection using `asyncpg`.
+- [X] Define database schema for logging requests and responses.
+- [X] Setup PostgreSQL connection using `asyncpg`.
 - [ ] Implement asynchronous logging of request/response pairs to the database.
 - [ ] Basic client authentication mechanism (TBD - e.g., static API key).
 - [X] Unit tests for proxy logic.

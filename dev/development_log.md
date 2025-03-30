@@ -179,3 +179,18 @@
 - Settings validation issue affecting proxy unit tests is resolved by making DB settings optional in the Pydantic model while retaining runtime checks for DB operations.
 - All unit and integration tests are passing.
 - Ready to commit changes.
+
+## [2025-03-30 15:55] - Fix and Verify Database Logging Implementation
+
+### Changes Made
+- Corrected unit test failures in `tests/db/test_database.py` related to `asyncpg` pool/connection mocking (`mock_pool` fixture) and incorrect assertions (`test_create_db_pool_success`, `test_log_request_response_executes_insert`).
+- Corrected unit test setup failure in `tests/loggers/test_db_logger.py` (`create_mock_request_response`).
+- Added new integration test `test_db_log_insertion` to `tests/integration/test_db_basic.py` to verify database logging against a test DB.
+- Added `CREATE TABLE request_log` definition and indexes to `db/schema_v1.sql` to support logging functionality and fix integration test failure.
+- Ran `poetry run pytest` multiple times, confirming all 14 selected tests now pass.
+
+### Current Status
+- Core database logging functions (`luthien_control/db/database.py::log_request_response` and `luthien_control/logging/db_logger.py::log_db_entry`) are implemented.
+- Unit tests for database and logger modules are passing.
+- Integration test confirms `log_request_response` successfully inserts data into the `request_log` table in the test database environment.
+- Project item "Implement asynchronous logging of request/response pairs to the database" is largely complete, pending actual integration into the proxy request/response flow.

@@ -81,3 +81,22 @@ CREATE TABLE policy_evaluation_events (
     details JSONB
 );
 CREATE INDEX idx_policy_evaluation_events_policy_id ON policy_evaluation_events (policy_id);
+
+-- Logging table for requests and responses
+CREATE TABLE IF NOT EXISTS request_log (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    client_ip TEXT,
+    request_method TEXT NOT NULL,
+    request_url TEXT NOT NULL,
+    request_headers JSONB,
+    request_body TEXT,
+    response_status_code INTEGER,
+    response_headers JSONB,
+    response_body TEXT,
+    processing_time_ms INTEGER
+);
+
+-- Optional: Index frequently queried columns
+CREATE INDEX IF NOT EXISTS idx_request_log_timestamp ON request_log(timestamp);
+CREATE INDEX IF NOT EXISTS idx_request_log_request_url ON request_log(request_url);

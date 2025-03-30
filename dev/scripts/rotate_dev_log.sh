@@ -5,7 +5,7 @@
 LOG_DIR="dev"
 LOG_FILE="$LOG_DIR/development_log.md"
 ARCHIVE_DIR="$LOG_DIR/log_archive"
-MAX_LINES=1000 # Rotate when the log exceeds this many lines
+MAX_LINES=200 # Rotate when the log exceeds this many lines
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 ARCHIVE_FILE="$ARCHIVE_DIR/development_log_$TIMESTAMP.md.gz"
 

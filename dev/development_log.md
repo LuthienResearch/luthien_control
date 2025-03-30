@@ -126,3 +126,37 @@
 - Review tests for any missing edge cases or scenarios.
 - Consider adding integration tests involving the proxy.
 - Await next development task.
+
+## [2024-07-28 13:10] - Implement Integration Tests for Proxy
+
+### Changes Made
+- Updated `pyproject.toml` to define `integration` and `unit` pytest markers and exclude `integration` by default.
+- Created `tests/integration/` directory.
+- Updated `luthien_control/config/settings.py`:
+    - Added optional `OPENAI_API_KEY` field.
+    - Removed global settings instance creation.
+    - Added `get_settings()` factory function with `lru_cache` to load `.env` or `.env.test` based on `APP_ENV`.
+    - Removed `env_file` tuple from `model_config`.
+- Updated `.env.example` and `.env.test` with necessary variables (`BACKEND_URL`, `OPENAI_API_KEY` placeholder). Corrected mock URL in `.env.test` to `http://mock-backend.test:8001`.
+- Updated `luthien_control/proxy/server.py`:
+    - Changed `proxy_endpoint` to use FastAPI dependency injection (`Depends(get_settings)`) instead of global settings.
+    - Refined header forwarding to explicitly set `Host` header based on `BACKEND_URL` and preserve case of other headers.
+- Created `tests/conftest.py`:
+    - Defined `unit_settings` and `integration_settings` fixtures to load appropriate configurations.
+    - Defined `app` fixture to provide FastAPI app instance.
+    - Defined `override_settings_dependency` fixture (with `autouse=True`) to inject correct settings based on test markers.
+    - Fixed assertion in `unit_settings` to match mock host `mock-backend.test`.
+- Updated unit tests (`tests/proxy/test_server.py`):
+    - Marked module with `pytestmark = pytest.mark.unit`.
+    - Updated tests to use `unit_settings` fixture.
+    - Updated `client` fixture to depend on `app` fixture (removed explicit override dependency due to `autouse=True`).
+- Created integration tests (`tests/integration/test_proxy_integration.py`):
+    - Added `test_proxy_openai_chat_completions` to test successful proxying to live backend using valid key.
+    - Added `test_proxy_openai_bad_api_key` to test 401 error propagation with invalid key.
+    - Updated tests to run directly against the ASGI `app` using `httpx.ASGITransport` and FastAPI lifespan context manager, removing need for separate server process.
+
+### Current Status
+- Unit tests (5) pass (`poetry run pytest`).
+- Integration tests (2) pass (`poetry run pytest -m integration`), verifying proxy against live OpenAI API and handling of bad API keys.
+- Proxy server correctly forwards requests with necessary header modifications (Host).
+- Test setup correctly isolates unit and integration test configurations and execution.

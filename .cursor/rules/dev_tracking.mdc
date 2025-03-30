@@ -35,7 +35,7 @@ Replace the **entire** content of `dev/current_context.md` with the current stat
 ## Short Description of Current Task
  - Status: Complete (or something else if not complete)
  - Major changes made
- - Follow-up tasks, if any
+ - Follow-up tasks, if any (Excluding git commit/push/etc)
 ```
 
 ### 4. Update ProjectPlan.md (if relevant)

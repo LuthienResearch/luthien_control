@@ -31,3 +31,8 @@ respx = "^0.22.0"
 pythonpath = [
   "."
 ]
+markers = [
+    "integration: marks tests as integration tests (excluded by default)",
+    "unit: marks tests as unit tests (run by default)"
+]
+addopts = "-m 'not integration'"

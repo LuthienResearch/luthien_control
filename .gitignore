@@ -1,19 +1,36 @@
+# Environment variables
+.env
+
 # Python
 __pycache__/
-*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+develop-eggs/
+*.egg-info/
+*.egg
+venv/
+.venv/
+env/
+.env/
 
-# Virtual Environment
-.venv
+# Poetry
+.poetry/
+poetry.lock
 
-# IDE
+# IDE / Editor specific
+.idea/
 .vscode/
+*.swp
+*~
 
 # Testing
-.coverage
-.coverage*
 .pytest_cache/
-.mypy_cache/
-
+.coverage
+htmlcov/
 
 # Logs
 *.log

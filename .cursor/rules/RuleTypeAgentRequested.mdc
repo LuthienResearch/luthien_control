@@ -1,0 +1,6 @@
+---
+description: This is the description the AI always sees
+globs:
+alwaysApply: false
+---
+This is the content the AI only sees if they specifically request it

@@ -1,0 +1,6 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+This is the content the AI only sees if the rule is mentioned.

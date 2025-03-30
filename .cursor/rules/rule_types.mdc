@@ -1,0 +1,28 @@
+---
+description: Documentation of Cursor rule types and header configuration
+globs: []
+alwaysApply: false
+---
+## Rule Types and Header Configuration
+
+Rule visibility and activation are controlled by the YAML header (`--- ... ---`) in each `.mdc` file:
+
+1.  **Always:** The rule content is always included in the AI's context.
+    *   `description: <any text or empty>`
+    *   `globs: <empty>`
+    *   `alwaysApply: true`
+
+2.  **Agent Requested:** A short description is always visible to the AI. The AI can request the full rule content using the `fetch_rules` tool if needed.
+    *   `description: <Must contain the description text>`
+    *   `globs: <empty>`
+    *   `alwaysApply: false`
+
+3.  **Auto Attached:** The rule content is automatically included in the AI's context if a relevant file (matching the glob pattern) is attached or being actively edited.
+    *   `description: <any text or empty>`
+    *   `globs: <Must contain glob pattern(s), e.g., *.py>`
+    *   `alwaysApply: false`
+
+4.  **Manual:** The rule content is only included if the rule is explicitly mentioned by the user in their query.
+    *   `description: <empty>`
+    *   `globs: <empty>`
+    *   `alwaysApply: false`

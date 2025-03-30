@@ -1,5 +1,5 @@
 ---
-description: Guidelines for making changes to the codebase
+description:
 globs:
 alwaysApply: true
 ---

@@ -1,0 +1,25 @@
+---
+description: Security Best Practices
+globs:
+alwaysApply: true
+---
+# Security Best Practices
+
+1.  **Input Validation:**
+    *   Treat all external input as untrusted. This includes client HTTP requests, data loaded from configurations, and inputs to policies.
+    *   Use Pydantic models rigorously to validate the structure and types of incoming data.
+    *   Perform semantic validation where necessary (e.g., checking allowed values, lengths).
+
+2.  **Security Scanning:**
+    *   Run `bandit` regularly (e.g., before commits or as part of CI) to identify common security vulnerabilities: `poetry run bandit -r luthien_control/`
+    *   Address or explicitly acknowledge (with `# nosec` comments and justification) issues reported by `bandit`.
+
+3.  **Secrets Handling:**
+    *   Adhere strictly to the `config_and_secrets.mdc` rule.
+    *   Ensure logs do not inadvertently expose sensitive information. Consider redaction mechanisms if necessary.
+
+4.  **Dependency Security:**
+    *   Keep dependencies updated to patch known vulnerabilities.
+    *   Consider using tools like `pip-audit` or GitHub's Dependabot in the future.
+
+5.  **HTTPS:** Ensure all communication with external services (backend APIs) uses HTTPS.

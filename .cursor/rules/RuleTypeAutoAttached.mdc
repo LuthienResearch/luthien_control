@@ -1,0 +1,6 @@
+---
+description:
+globs: *.filenamepattern
+alwaysApply: false
+---
+This is the content the AI only sees if one of the files currently being worked on matched the filenamepattern.

@@ -5,7 +5,19 @@ alwaysApply: true
 ---
 # Development Workflow and Practices
 
+**Important Note:** Rule files (in `.cursor/rules/`) are the primary mechanism for defining persistent guidelines, plans, strategies, and context for our work. Verbal agreements or instructions **not codified in these rules may not persist across sessions.** Refer to these rules frequently. Modifying these rules is the **required method** for implementing lasting behavioral changes, following the process in `rule_management.mdc`.
+
 This outlines the standard workflow for implementing features or fixing bugs.
+
+## Starting a New Task (Pre-Cycle Steps)
+
+Before beginning the core development cycle for any new feature, bug fix, or unit of work:
+
+1.  **Validate Clean State:** Ensure the working directory is clean (`git status | cat`) and there are no uncommitted changes from previous work.
+2.  **Review Previous Context:** Check the content of `dev/current_context.md` to confirm the last task was completed or that starting a new task is appropriate.
+3.  **Set New Context:** **Replace** the entire content of `dev/current_context.md` with the details of the *new* task (goals, scope, initial plan). This MUST be done before any implementation.
+
+Only after these steps are completed should you proceed to the Core Development Cycle.
 
 ## Core Development Cycle
 

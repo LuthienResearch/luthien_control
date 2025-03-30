@@ -8,30 +8,23 @@ from httpx import AsyncClient, RequestError, Response
 # Import the Settings type for type hinting if needed, and the fixture
 from luthien_control.config.settings import Settings
 
-# Import the app, not the global settings instance
-from luthien_control.proxy.server import app
+# Import the MAIN app, not the proxy router directly
+from luthien_control.main import app
 
-# Mark all tests in this module as unit tests
-pytestmark = pytest.mark.unit
+# Mark all tests in this module as integration by default, individual tests can override
+# pytestmark = pytest.mark.unit - Removed this, will mark individually
 
 # Remove the conditional setting of BACKEND_URL
 # if not settings.BACKEND_URL:
 #     settings.BACKEND_URL = "http://mock-backend.test"
 
 
-@pytest.fixture(name="client")
-def client_fixture(app):  # Depends on the app fixture now
-    """Pytest fixture for the FastAPI TestClient.
-    The override_settings_dependency fixture runs automatically (autouse=True).
-    """
-    with TestClient(app) as test_client:
-        yield test_client
-
-
 # Test functions will go here
 
 
 # Use respx to mock the httpx client used by the app
+# Mark this explicitly as a unit test
+@pytest.mark.unit
 @respx.mock
 def test_proxy_get_success(client: TestClient, unit_settings: Settings):
     """Test successful GET request proxying."""
@@ -50,6 +43,8 @@ def test_proxy_get_success(client: TestClient, unit_settings: Settings):
     assert response.json() == {"message": "Success"}
 
 
+# Mark this explicitly as a unit test
+@pytest.mark.unit
 @respx.mock
 def test_proxy_post_success(client: TestClient, unit_settings: Settings):
     """Test successful POST request proxying with body."""
@@ -70,6 +65,8 @@ def test_proxy_post_success(client: TestClient, unit_settings: Settings):
     assert response.json() == {"status": "Created"}
 
 
+# Mark this explicitly as a unit test
+@pytest.mark.unit
 @respx.mock
 def test_proxy_forwards_query_params(client: TestClient, unit_settings: Settings):
     """Test that query parameters are correctly forwarded."""
@@ -89,6 +86,8 @@ def test_proxy_forwards_query_params(client: TestClient, unit_settings: Settings
     assert response.json() == {"results": []}
 
 
+# Mark this explicitly as a unit test
+@pytest.mark.unit
 @respx.mock
 def test_proxy_forwards_headers(client: TestClient, unit_settings: Settings):
     """Test that specific headers are forwarded and backend headers are returned."""
@@ -120,6 +119,8 @@ def test_proxy_forwards_headers(client: TestClient, unit_settings: Settings):
     # Verify transfer-encoding is handled (often added for streaming)
 
 
+# Mark this explicitly as a unit test
+@pytest.mark.unit
 @respx.mock
 def test_proxy_backend_connection_error(client: TestClient, unit_settings: Settings):
     """Test handling of backend connection errors (e.g., timeout, DNS error)."""

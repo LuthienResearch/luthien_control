@@ -30,6 +30,7 @@ ruff = "^0.11.2"
 bandit = "^1.8.3"
 respx = "^0.22.0"
 pytest-asyncio = "^0.26.0"
+pytest-dotenv = "^0.5.2"
 
 [tool.pytest.ini_options]
 pythonpath = [

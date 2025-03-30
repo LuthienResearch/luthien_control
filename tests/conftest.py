@@ -7,38 +7,45 @@ import psycopg2
 import pytest
 import pytest_asyncio  # Import pytest_asyncio
 from luthien_control.config.settings import Settings, get_settings
-from luthien_control.proxy.server import app as fastapi_app  # Import the FastAPI app
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-
-
-@pytest.fixture(scope="session")
-def app():
-    """Fixture to provide the FastAPI app instance."""
-    return fastapi_app
+from pydantic import HttpUrl # Added import
 
 
 @pytest.fixture(scope="session")
 def unit_settings() -> Settings:
     """Fixture to load settings specifically for unit tests (.env.test)."""
-    # Ensure APP_ENV is set correctly for unit tests
-    original_env = os.environ.get("APP_ENV")
+    # Temporarily set APP_ENV to ensure get_settings prioritizes .env.test
+    original_app_env = os.environ.get("APP_ENV")
+    original_backend_url = os.environ.get("BACKEND_URL") # Store original BACKEND_URL
     os.environ["APP_ENV"] = "test"
+    # Explicitly override BACKEND_URL for unit tests, regardless of what pytest-dotenv loaded
+    mock_backend_url = "http://mock-backend.test:8001"
+    os.environ["BACKEND_URL"] = mock_backend_url
+    print(f"\n---> [DEBUG][unit_settings] Set BACKEND_URL to: {mock_backend_url} <---")
 
-    # Clear the cache for get_settings before calling it
+    # Clear cache and get settings
     get_settings.cache_clear()
     settings = get_settings()
 
-    # Restore original APP_ENV if it existed
-    if original_env is None:
-        del os.environ["APP_ENV"]
+    # Restore original environment variables
+    if original_app_env is not None:
+        os.environ["APP_ENV"] = original_app_env
     else:
-        os.environ["APP_ENV"] = original_env
+        if "APP_ENV" in os.environ:
+            del os.environ["APP_ENV"]
+    if original_backend_url is not None:
+        os.environ["BACKEND_URL"] = original_backend_url
+    else:
+        if "BACKEND_URL" in os.environ:
+            del os.environ["BACKEND_URL"]
+    print("---> [DEBUG][unit_settings] Restored original env vars <---")
 
-    # Clear cache again after restoring env (optional but clean)
+    # Clear cache again
     get_settings.cache_clear()
 
-    assert settings.BACKEND_URL.host == "mock-backend.test", (
-        "Unit tests should use the mock backend URL from .env.test"
+    # Compare HttpUrl object against an HttpUrl object created from the mock string
+    assert settings.BACKEND_URL == HttpUrl(mock_backend_url), (
+        f"Unit tests should use the mock backend URL '{mock_backend_url}', but got '{settings.BACKEND_URL}'"
     )
     return settings
 
@@ -75,8 +82,11 @@ def integration_settings() -> Settings:
 
 # Fixture to override settings dependency in FastAPI app for testing
 @pytest.fixture(autouse=True)  # Apply this automatically to relevant tests
-def override_settings_dependency(app, request):
+def override_settings_dependency(request):
     """Overrides the get_settings dependency based on test markers."""
+    # Import the main app directly within the fixture
+    from luthien_control.main import app
+
     if request.node.get_closest_marker("integration"):
         # Use integration settings for integration tests
         print("\n[Fixture] Using integration_settings for test")
@@ -246,3 +256,18 @@ async def test_db_session(db_settings: Settings):
     finally:
         if conn_admin_drop:
             conn_admin_drop.close()
+
+
+@pytest.fixture(scope="session") # Scope might be session if app doesn't change
+def client():
+    """Pytest fixture for the FastAPI TestClient.
+    Uses the main 'app' imported from luthien_control.main.
+    Ensures lifespan events are handled correctly by TestClient.
+    """
+    # Ensure httpx is installed for TestClient
+    from luthien_control.main import app # Import here to avoid top-level side effects if any
+    from fastapi.testclient import TestClient
+
+    # TestClient handles startup/shutdown implicitly when used as context manager
+    with TestClient(app) as test_client:
+        yield test_client

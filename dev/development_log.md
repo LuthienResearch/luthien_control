@@ -216,3 +216,29 @@
 - Old dependencies (`black`, `isort`) were confirmed not present.
 - Development log rotation script is fixed.
 - **Action Required:** User needs to run `pre-commit install` to activate the hooks locally.
+
+## [2025-03-30 16:57] - Debug Proxy Errors & Update Tests
+
+### Changes Made
+- Diagnosed and fixed 500 errors in the proxy endpoint related to lifespan management and state access when using `app.mount`.
+  - Moved `lifespan` manager from `proxy/server.py` to `main.py`.
+  - Refactored `proxy/server.py` to use `APIRouter` and `main.py` to use `app.include_router` instead of `app.mount`.
+  - Introduced `dependencies.py` and used `Depends(get_http_client)` for robust client access.
+  - Added enhanced error handling and logging to `proxy/server.py`.
+- Updated `README.md` with sections for Docker DB setup, `.env` configuration, running the server, logging details, and development tool commands (Ruff, Bandit).
+- Added `pytest-dotenv` to handle `.env` loading for `pytest`.
+- Added a real integration test (`test_proxy_openai_chat_completion_real`) to `tests/integration/test_proxy_integration.py` that hits the configured backend API.
+  - Refactored test setup: Moved `client` fixture to `conftest.py`, corrected `TestClient` initialization to use the main app.
+  - Fixed `ImportError` and `AttributeError` in test setup related to settings loading and fixture usage.
+  - Corrected `AssertionError` in `unit_settings` fixture due to `HttpUrl` normalization.
+  - Ensured `unit_settings` correctly overrides `BACKEND_URL` from `.env` using `os.environ`.
+  - Updated integration test to use `api_key.get_secret_value()` explicitly.
+- Moved integration test to correct location (`tests/integration/`).
+- Added ToDos for DB logging integration tests and handling compressed responses for logging.
+
+### Current Status
+- Proxy endpoint successfully forwards requests to the backend API (tested with `curl` and integration test).
+- Basic client usage with `curl` works (requires `--compressed` for Brotli).
+- Unit tests pass.
+- Real integration test passes (requires valid `OPENAI_API_KEY` and `BACKEND_URL` in `.env`).
+- Development tracking files updated.

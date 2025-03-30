@@ -1,11 +1,13 @@
 # Current Task
-## Integrate Ruff for Formatting and Linting
+## Debug Proxy & Update Tests/Docs
  - Status: Complete
  - Major changes made:
-   - Configured `ruff` in `pyproject.toml` (formatting, linting - E, F, W, I).
-   - Ran initial `ruff format` and `ruff check --fix`.
-   - Created `.pre-commit-config.yaml` with `ruff` hooks.
-   - Fixed syntax error in `dev/scripts/rotate_dev_log.sh`.
+    - Fixed proxy request handling (lifespan, state, routing).
+    - Added real API integration test.
+    - Refactored test fixtures and structure.
+    - Updated README with setup, config, run, and tool usage.
+    - Added pytest-dotenv.
  - Follow-up tasks, if any:
-   - User action: Run `pre-commit install` to activate hooks locally.
-   - Consider enabling more `ruff` lint rules in `pyproject.toml` as needed.
+    - Implement DB logging (from ProjectPlan).
+    - Add DB logging integration tests (from ToDo).
+    - Handle compressed responses for logging (from ToDo).

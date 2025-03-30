@@ -4,13 +4,13 @@ globs:
 alwaysApply: true
 ---
 <project_organization>
-1. All luthien_control code should be in the luthien_control package
-2. Follow the existing directory structure within luthien_control:
+1. All Python code should be in the luthien_control package
+2. Follow the existing directory structure:
    - proxy/ - Proxy server implementation
    - policies/ - Policy engine and rules
    - logging/ - Logging infrastructure
    - utils/ - Utility functions
 3. New features should be added as separate modules
-4. Tests should be placed in parallel test directories under the top-level `tests/` directory.
-5. README.md should be updated to reflect development guidelines and package functionality/features.
+4. Tests should be placed in a top-level `tests/` directory, mirroring the structure of the `luthien_control` package (e.g., `tests/proxy/test_server.py` would test `luthien_control/proxy/server.py`).
+5. Documentation should be maintained in the docs/ directory
 </project_organization>

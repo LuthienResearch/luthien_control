@@ -1,7 +1,7 @@
 ---
-description: Guidelines for AI management of rule files
-globs: [] # This rule applies generally, not to specific files
-alwaysApply: false # Apply only when relevant (e.g., discussing rules)
+description:
+globs:
+alwaysApply: true
 ---
 # AI Rule Management Guidelines
 
@@ -9,3 +9,8 @@ alwaysApply: false # Apply only when relevant (e.g., discussing rules)
 - You **MUST NOT** perform any of these actions (create, edit, delete rule files) unless the user's **explicit instruction is *specifically* to modify a rule file.** Making changes to rule files as a side effect or perceived necessity to achieve a different, non-rule-related goal is **NEVER** permitted.
 - You **MUST NOT** proactively suggest creating, modifying, or deleting rules. Only act upon direct, explicit user instructions *about rule management itself*.
 - Always confirm the specific changes (content, filename) with the user before applying them to a rule file, unless the user has provided the exact content and filename already.
+- **Formatting Note:** For rules intended to always apply (`alwaysApply: true`), the `globs:` line MUST be present but left empty (no value after the colon) for compatibility with the Cursor GUI. Example:
+  ```yaml
+  globs:
+  alwaysApply: true
+  ```

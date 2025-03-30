@@ -1,5 +1,5 @@
 ---
-description: MANDATORY tracking file update procedures
+description:
 globs:
 alwaysApply: true
 ---
@@ -22,8 +22,8 @@ bash dev/scripts/rotate_dev_log.sh
 ```
 This ensures the active log file remains manageable and archives older entries.
 
-### 2. Update dev/DEVELOPMENT_LOG.md - Historical Record
-Append the new entry (starting with a newline if the file is not empty or was just created by the rotation script) to the current `dev/DEVELOPMENT_LOG.md` using the following format:
+### 2. Update dev/development_log.md - Historical Record
+Append the new entry (starting with a newline if the file is not empty or was just created by the rotation script) to the current `dev/development_log.md` using the following format:
 ```markdown
 ## [YYYY-MM-DD HH:MM] - Brief Action Title
 
@@ -40,8 +40,8 @@ Append the new entry (starting with a newline if the file is not empty or was ju
 - Clear, actionable next steps
 ```
 
-### 3. Update dev/CURSOR_CONTEXT.md - Current State Snapshot
-Replace the **entire** content of `dev/CURSOR_CONTEXT.md` with the current state using this template:
+### 3. Update dev/current_context.md - Current State Snapshot
+Replace the **entire** content of `dev/current_context.md` with the current state using this template:
 ```markdown
 # Current Working Context
 [Replace entire file with current state - this is NOT a log]
@@ -69,11 +69,11 @@ Replace the **entire** content of `dev/CURSOR_CONTEXT.md` with the current state
 ## IMPORTANT GUIDELINES
 
 1.  **Update First**: Always update tracking files BEFORE moving to a new task or ending work.
-2.  **Rotate Log First**: Always run the rotation script `bash dev/scripts/rotate_dev_log.sh` *before* appending to `dev/DEVELOPMENT_LOG.md`.
+2.  **Rotate Log First**: Always run the rotation script `bash dev/scripts/rotate_dev_log.sh` *before* appending to `dev/development_log.md`.
 3.  **Continuation Header**: The rotation script should handle creating the continuation header in the new log file.
 4.  **Be Specific**: Include specific file names, commands, and error messages in the log.
-5.  **Complete Replacement**: For `dev/CURSOR_CONTEXT.md`, always replace the entire file content.
-6.  **Timestamps**: Use accurate timestamps in `dev/DEVELOPMENT_LOG.md` entries.
+5.  **Complete Replacement**: For `dev/current_context.md`, always replace the entire file content.
+6.  **Timestamps**: Use accurate timestamps in `dev/development_log.md` entries.
 7.  **No Skipping**: These updates (including running the rotation script first) are mandatory for ALL changes, no matter how small.
 
 IMPORTANT: This is not optional. Every change requires running the rotation script and subsequent tracking file updates.

@@ -1,0 +1,37 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Development Workflow and Practices
+
+This outlines the standard workflow for implementing features or fixing bugs.
+
+## Core Development Cycle
+
+Follow these steps for each discrete task:
+
+1.  **Identify Task:** Define a clear, bounded task. Update `dev/current_context.md` to reflect the new task's goals and scope.
+2.  **Outline Solution:** Plan the approach, identifying which functions/classes/files will be created or modified.
+3.  **Implement Skeleton:** Create the necessary files and function/method signatures without full implementation (e.g., using `pass` or `NotImplementedError`).
+4.  **Write Unit Tests:** Implement unit tests for the planned functionality *before* writing the implementation code. Ensure tests cover expected behavior and edge cases.
+5.  **Run Unit Tests (Expect Failures):** Run the tests (`poetry run pytest`). They should fail for the unimplemented code. This verifies the tests are correctly targeting the new code.
+6.  **Implement Solution:** Write the actual code to implement the feature or fix.
+7.  **Run Unit Tests (Verify Pass):** Run the unit tests again. Iterate on the implementation until all unit tests pass.
+8.  **Integration Testing:**
+    *   Run existing integration tests to ensure no regressions were introduced elsewhere.
+    *   If the change introduces significant new interactions or functionality, write new integration tests.
+9.  **Tracking Updates (MANDATORY):** Once all tests pass and the solution is complete, follow the **full procedure** outlined in `dev_tracking.mdc` (run rotation script, update log, update context).
+10. **Commit:** Follow the `git_commit_strategy.mdc` to stage the changes (including tracking files) and propose a commit.
+11. **Push:** After commit is accepted, push the changes (user action).
+
+## Handling Out-of-Scope Issues (`dev/ToDo.md`)
+
+- If issues or potential improvements are identified during a task that fall *outside* the scope of the current task:
+    - **Do not** address them immediately (unless critical and discussed with the user).
+    - **Add** a clear entry to the `dev/ToDo.md` file describing the issue or idea.
+    - Stay focused on completing the current task.
+
+## Test Coverage
+
+- Strive for **near 100% unit test coverage** for all code in the `luthien_control` package. Use tools like `pytest-cov` to monitor coverage. High coverage is crucial for maintainability and refactoring confidence.

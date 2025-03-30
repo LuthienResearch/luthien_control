@@ -26,12 +26,19 @@ When making changes to the codebase:
    - Add new dependencies using `poetry add`
 
 6. **Development Tracking (MANDATORY):**
-   - **Start of Task:** Update `dev/CURSOR_CONTEXT.md` with the goals and current state for the new task.
+   - **Start of Task:** Update `dev/current_context.md` with the goals and current state for the new task.
    - **End of Task / Periodic Update:**
      1. Run `bash dev/scripts/rotate_dev_log.sh` to handle log rotation.
-     2. Append the detailed log entry (changes, status, next steps) to `dev/DEVELOPMENT_LOG.md`.
-     3. Replace the entire content of `dev/CURSOR_CONTEXT.md` with the current state snapshot.
+     2. Append the detailed log entry (changes, status, next steps) to `dev/development_log.md`.
+     3. Replace the entire content of `dev/current_context.md` with the current state snapshot.
    - Refer to `dev_tracking.mdc` for full format details.
 
 7. **Import Style**: Avoid using relative imports (e.g., `from ..module import Class`). Always prefer absolute imports starting from the project root directory (e.g., `from luthien_control.module import Class`).
+
+## Guiding Principles
+
+- **Simplicity is Key:** Prefer the simplest solution that correctly solves the problem. Avoid unnecessary complexity.
+- **Smallest Viable Change:** Satisfy requirements with the minimal necessary code changes. Do not expand scope beyond the specific request.
+- **No Premature Optimization:** Focus on correctness and clarity first. Optimize only when necessary and backed by profiling data.
+- **Less Code is Better:** Reduce the surface area for bugs by writing only the code that is needed.
 </change_guidelines>

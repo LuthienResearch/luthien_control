@@ -22,3 +22,19 @@
 - Commit initial project setup.
 - Implement the core proxy endpoint in `luthien_control/main.py`.
 - Define and implement basic client authentication.
+
+## [YYYY-MM-DD HH:MM] - Initial Commit and Workflow Correction
+
+### Changes Made
+- Ran `git add .` to stage initial project files (after removing dummy file and accounting for pre-commit hook changes).
+- Ran `git commit -m "chore: Initial project setup"` (Commit hash: f8f9be8).
+- Discussed and clarified the development tracking workflow: `dev/current_context.md` should reflect the state *after* a task (including commits) and list the *next* development task, not the commit itself.
+
+### Current Status
+- Initial project setup is committed to the `revampsunday` branch.
+- Repository is clean, pre-commit hooks passed.
+- Ready to start implementing the core proxy functionality.
+
+### Next Steps
+- Update `dev/current_context.md` to reflect the next development tasks (proxy endpoint, auth).
+- Begin implementation of the core proxy endpoint.

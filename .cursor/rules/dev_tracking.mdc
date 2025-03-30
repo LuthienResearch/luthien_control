@@ -66,6 +66,8 @@ Replace the **entire** content of `dev/current_context.md` with the current stat
 3. Outstanding issues to address
 ```
 
+**Important:** The `## Next Steps` section should list the *subsequent development actions* needed after the current changes are complete (and potentially committed). It should *not* list the act of committing the current changes itself, as the context file should represent the state *after* the commit.
+
 ## IMPORTANT GUIDELINES
 
 1.  **Update First**: Always update tracking files BEFORE moving to a new task or ending work.

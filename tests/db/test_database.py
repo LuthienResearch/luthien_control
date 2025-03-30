@@ -1,14 +1,22 @@
-import pytest
-import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 import json
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+import pytest_asyncio
 
 # Assuming absolute imports
-from luthien_control.db.database import log_request_response, DBSettings, create_db_pool, close_db_pool, get_db_pool
+from luthien_control.db.database import (
+    DBSettings,
+    close_db_pool,
+    create_db_pool,
+    get_db_pool,
+    log_request_response,
+)
 
 # Mark all tests in this module as async tests
 pytestmark = pytest.mark.asyncio
+
 
 @pytest_asyncio.fixture
 async def mock_pool(monkeypatch):
@@ -21,7 +29,9 @@ async def mock_pool(monkeypatch):
     mock_context_manager.__aenter__.return_value = mock_conn
     # __aexit__ needs to be an async def or AsyncMock for 'async with'
     # It takes args (exc_type, exc_val, exc_tb)
-    mock_context_manager.__aexit__ = AsyncMock(return_value=None) # Mock __aexit__ as well
+    mock_context_manager.__aexit__ = AsyncMock(
+        return_value=None
+    )  # Mock __aexit__ as well
 
     # Configure pool.acquire() to return the mock context manager
     # Importantly, acquire() itself is likely NOT async, it just returns the async context manager
@@ -35,7 +45,7 @@ async def mock_pool(monkeypatch):
     # Patch the global _db_pool variable within the database module
     monkeypatch.setattr("luthien_control.db.database._db_pool", mock_pool_instance)
 
-    yield mock_pool_instance, mock_conn # Yield connection too for assertions
+    yield mock_pool_instance, mock_conn  # Yield connection too for assertions
 
     # Clean up global state after test
     monkeypatch.setattr("luthien_control.db.database._db_pool", None)
@@ -43,7 +53,7 @@ async def mock_pool(monkeypatch):
 
 async def test_log_request_response_executes_insert(mock_pool):
     """Test that log_request_response attempts to execute the correct INSERT statement."""
-    pool, conn = mock_pool # Unpack pool and connection mock
+    pool, conn = mock_pool  # Unpack pool and connection mock
 
     request_data = {
         "method": "POST",
@@ -67,7 +77,7 @@ async def test_log_request_response_executes_insert(mock_pool):
         pool=pool,
         request_data=request_data,
         response_data=response_data,
-        client_ip=client_ip
+        client_ip=client_ip,
     )
     # --- End Failing Section ---
 
@@ -87,7 +97,7 @@ async def test_log_request_response_executes_insert(mock_pool):
     """
 
     # Get the actual arguments passed to conn.execute
-    actual_args = conn.execute.call_args[0] # Positional args
+    actual_args = conn.execute.call_args[0]  # Positional args
     actual_sql = actual_args[0]
 
     # Normalize whitespace for comparison
@@ -98,14 +108,14 @@ async def test_log_request_response_executes_insert(mock_pool):
         client_ip,
         request_data["method"],
         request_data["url"],
-        json.dumps(request_data["headers"]), # Expect headers to be JSON encoded
+        json.dumps(request_data["headers"]),  # Expect headers to be JSON encoded
         request_data["body"],
         response_data["status_code"],
-        json.dumps(response_data["headers"]), # Expect headers to be JSON encoded
+        json.dumps(response_data["headers"]),  # Expect headers to be JSON encoded
         response_data["body"],
-        request_data["processing_time_ms"]
+        request_data["processing_time_ms"],
     )
-    assert actual_args[1:] == expected_params # Compare parameters
+    assert actual_args[1:] == expected_params  # Compare parameters
 
     # Assert that the context manager was exited (implicitly checks release logic)
     # Check __aexit__ was awaited on the context manager object returned by acquire
@@ -122,10 +132,12 @@ def reset_global_pool(monkeypatch):
     monkeypatch.setattr("luthien_control.db.database._db_pool", None)
 
 
-@patch('luthien_control.db.database.asyncpg.create_pool', new_callable=AsyncMock)
+@patch("luthien_control.db.database.asyncpg.create_pool", new_callable=AsyncMock)
 async def test_create_db_pool_success(mock_create_pool):
     """Test successful creation and retrieval of the DB pool."""
-    settings = DBSettings(db_host='fake_host') # Use fake settings to avoid real connections
+    settings = DBSettings(
+        db_host="fake_host"
+    )  # Use fake settings to avoid real connections
     mock_pool_instance = AsyncMock()
     mock_create_pool.return_value = mock_pool_instance
 
@@ -148,17 +160,17 @@ async def test_create_db_pool_success(mock_create_pool):
     mock_create_pool.assert_not_called()
 
 
-@patch('luthien_control.db.database.asyncpg.create_pool', new_callable=AsyncMock)
+@patch("luthien_control.db.database.asyncpg.create_pool", new_callable=AsyncMock)
 async def test_create_db_pool_failure(mock_create_pool):
     """Test handling of failure during pool creation."""
-    settings = DBSettings(db_host='another_fake')
+    settings = DBSettings(db_host="another_fake")
     mock_create_pool.side_effect = Exception("Connection refused")
 
     await create_db_pool(settings)
 
     mock_create_pool.assert_awaited_once()
     with pytest.raises(RuntimeError, match="Database pool has not been initialized."):
-        get_db_pool() # Pool should be None or accessing it should raise
+        get_db_pool()  # Pool should be None or accessing it should raise
 
 
 async def test_get_db_pool_not_initialized():
@@ -168,7 +180,9 @@ async def test_get_db_pool_not_initialized():
         get_db_pool()
 
 
-@patch('luthien_control.db.database._db_pool', new_callable=AsyncMock) # Directly patch the global pool
+@patch(
+    "luthien_control.db.database._db_pool", new_callable=AsyncMock
+)  # Directly patch the global pool
 async def test_close_db_pool(mock_global_pool):
     """Test closing the database pool."""
     # Ensure the mock pool has a close method
@@ -182,7 +196,7 @@ async def test_close_db_pool(mock_global_pool):
     mock_global_pool.close.assert_awaited_once()
     # After closing, accessing the pool should fail
     with pytest.raises(RuntimeError, match="Database pool has not been initialized."):
-         get_db_pool()
+        get_db_pool()
 
 
 async def test_close_db_pool_idempotent():

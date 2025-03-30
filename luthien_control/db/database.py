@@ -1,8 +1,9 @@
-import asyncpg
-import logging
-from typing import Dict, Any, Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
+import logging
+from typing import Any, Dict, Optional
+
+import asyncpg
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
@@ -10,8 +11,11 @@ logger = logging.getLogger(__name__)
 # Ideally, this would be managed within an application context (e.g., FastAPI lifespan)
 _db_pool: Optional[asyncpg.Pool] = None
 
+
 class DBSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     db_user: str = "user"
     db_password: str = "password"
@@ -24,6 +28,7 @@ class DBSettings(BaseSettings):
     @property
     def dsn(self) -> str:
         return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+
 
 async def create_db_pool(settings: Optional[DBSettings] = None) -> None:
     """Creates the asyncpg connection pool."""
@@ -45,7 +50,8 @@ async def create_db_pool(settings: Optional[DBSettings] = None) -> None:
     except Exception as e:
         logger.exception(f"Failed to create database connection pool: {e}")
         # Depending on application structure, might want to raise or exit
-        _db_pool = None # Ensure pool is None if creation failed
+        _db_pool = None  # Ensure pool is None if creation failed
+
 
 async def close_db_pool() -> None:
     """Closes the asyncpg connection pool."""
@@ -55,6 +61,7 @@ async def close_db_pool() -> None:
         _db_pool = None
         logger.info("Database connection pool closed.")
 
+
 def get_db_pool() -> asyncpg.Pool:
     """Returns the existing database pool. Raises Exception if not initialized."""
     if _db_pool is None:
@@ -63,6 +70,7 @@ def get_db_pool() -> asyncpg.Pool:
         logger.error("Database pool accessed before initialization.")
         raise RuntimeError("Database pool has not been initialized.")
     return _db_pool
+
 
 async def log_request_response(
     pool: asyncpg.Pool,
@@ -87,19 +95,19 @@ async def log_request_response(
     """
 
     # Extract and prepare parameters, ensuring JSON fields are encoded
-    request_headers_json = json.dumps(request_data.get('headers'))
-    response_headers_json = json.dumps(response_data.get('headers'))
+    request_headers_json = json.dumps(request_data.get("headers"))
+    response_headers_json = json.dumps(response_data.get("headers"))
 
     params = (
         client_ip,
-        request_data.get('method'),
-        request_data.get('url'),
+        request_data.get("method"),
+        request_data.get("url"),
         request_headers_json,
-        request_data.get('body'), # Assuming body is already string/text
-        response_data.get('status_code'),
+        request_data.get("body"),  # Assuming body is already string/text
+        response_data.get("status_code"),
         response_headers_json,
-        response_data.get('body'), # Assuming body is already string/text
-        request_data.get('processing_time_ms')
+        response_data.get("body"),  # Assuming body is already string/text
+        request_data.get("processing_time_ms"),
     )
 
     conn = None

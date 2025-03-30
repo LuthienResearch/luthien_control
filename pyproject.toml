@@ -14,7 +14,8 @@ dependencies = [
     "httpx (>=0.28.1,<0.29.0)",
     "pydantic-settings (>=2.8.1,<3.0.0)",
     "psycopg2-binary (>=2.9.10,<3.0.0)",
-    "pytest (>=8.3.5,<9.0.0)"
+    "pytest (>=8.3.5,<9.0.0)",
+    "pre-commit (>=4.2.0,<5.0.0)"
 ]
 
 
@@ -39,3 +40,19 @@ markers = [
     "unit: marks tests as unit tests (run by default)"
 ]
 addopts = "-m 'not integration'"
+
+[tool.ruff]
+# Enable black-compatible formatting.
+# format = { quote-style = "double", indent-style = "space" } # Defaults are fine
+
+src = ["luthien_control", "tests"]
+line-length = 88 # Default is 88, matching Black
+
+[tool.ruff.lint]
+# Enable Pyflakes (F), pycodestyle (E, W), and isort (I) codes by default.
+# For a full list of rules, see: https://docs.astral.sh/ruff/rules/
+select = ["E", "F", "W", "I"]
+
+# Optionally ignore specific rules or files
+# ignore = ["E501"] # Example: ignore line too long
+# exclude = ["docs/*"] # Example: exclude docs directory

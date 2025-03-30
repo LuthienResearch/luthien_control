@@ -46,6 +46,6 @@ if [ "$CURRENT_LINES" -gt "$MAX_LINES" ]; then
 fi
 
 # print a timestamp
-echo $(date +%Y-%m-%d %H:%M")
+echo "$(date '+%Y-%m-%d %H:%M')"
 
 exit 0

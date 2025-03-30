@@ -194,3 +194,25 @@
 - Unit tests for database and logger modules are passing.
 - Integration test confirms `log_request_response` successfully inserts data into the `request_log` table in the test database environment.
 - Project item "Implement asynchronous logging of request/response pairs to the database" is largely complete, pending actual integration into the proxy request/response flow.
+
+## [2025-03-30 16:08] - Integrate Ruff for Formatting and Linting
+
+### Changes Made
+- Verified `ruff` dependency was already present in `pyproject.toml` (group `dev`).
+- Added `[tool.ruff]` and `[tool.ruff.lint]` sections to `pyproject.toml` to configure:
+    - Source directories (`luthien_control`, `tests`).
+    - Black-compatible line length (88).
+    - Selected lint rules: Pyflakes (F), pycodestyle (E, W), isort (I).
+- Ran `poetry run ruff format .` (11 files reformatted).
+- Ran `poetry run ruff check --select I --fix .` (11 imports fixed).
+- Created `.pre-commit-config.yaml` with standard `pre-commit-hooks` and `ruff-pre-commit` (linting and formatting) hooks.
+- Fixed syntax error (unmatched quote) in `dev/scripts/rotate_dev_log.sh` on line 49.
+- Ran `bash dev/scripts/rotate_dev_log.sh` successfully.
+
+### Current Status
+- Ruff is configured for formatting (black-compatible) and basic linting/import sorting.
+- Codebase has been formatted and imports sorted according to ruff rules.
+- Pre-commit hooks are configured to run ruff on future commits.
+- Old dependencies (`black`, `isort`) were confirmed not present.
+- Development log rotation script is fixed.
+- **Action Required:** User needs to run `pre-commit install` to activate the hooks locally.

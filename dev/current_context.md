@@ -2,15 +2,19 @@
 [Replace entire file with current state - this is NOT a log]
 
 ## Implementation Phase
-- Rule Refinement
+- Testing (Unit Tests Completed)
+- Specific component worked on: `luthien_control/proxy/server.py`
 
 ## Working State
-- Updated tracking/workflow/commit rules (`.cursor/rules/dev_tracking.mdc`, `.cursor/rules/development_workflow.mdc`, `.cursor/rules/git_commit_strategy.mdc`) to integrate tracking updates more naturally into the commit lifecycle.
-- Changes are ready to be committed.
+- Unit tests for `luthien_control/proxy/server.py` are implemented and passing (5 tests).
+- Proxy server refactored to use FastAPI lifespan for HTTP client management.
+- Test environment configured using `.env.test` and updated `settings.py`.
+- `pyproject.toml` updated for Poetry standards and pytest path discovery.
 
 ## Current Blockers
 - None.
 
 ## Next Steps
-1. Commit the rule updates.
-2. Await next user instruction/task.
+1. Commit the changes related to unit tests and server refactoring.
+2. Review tests for completeness (edge cases, etc.).
+3. Await next user instruction/task.

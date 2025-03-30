@@ -102,3 +102,27 @@
 ### Next Steps
 - Commit the rule changes.
 - Proceed with next development task.
+
+## [2024-07-28 12:24] - Implement Unit Tests for proxy/server.py
+
+### Changes Made
+- Created `tests/proxy/` directory structure.
+- Added `respx` development dependency via `poetry add --group dev respx`.
+- Refactored `pyproject.toml` to use standard `[tool.poetry]` format and added `[tool.pytest.ini_options]` for path discovery.
+- Updated author info in `pyproject.toml` to 'Jai Dhyani <jai@luthienresearch.org>'.
+- Ran `poetry lock && poetry install` to update environment.
+- Created `.env.test` for test-specific configuration (`BACKEND_URL`).
+- Modified `luthien_control/config/settings.py` to load `.env.test`.
+- Created `tests/proxy/test_server.py` with 5 unit tests using `pytest` and `respx`.
+- Refactored `luthien_control/proxy/server.py` to use FastAPI lifespan manager for `httpx.AsyncClient` lifecycle, resolving test client state issues.
+- Fixed minor assertion errors in tests (JSON comparison, header check).
+- Ran `poetry run pytest`: All 5 tests passed.
+
+### Current Status
+- Unit tests for `luthien_control/proxy/server.py` are implemented and passing.
+- Core proxy functionality is covered by tests.
+
+### Next Steps
+- Review tests for any missing edge cases or scenarios.
+- Consider adding integration tests involving the proxy.
+- Await next development task.

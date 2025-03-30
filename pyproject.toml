@@ -3,7 +3,7 @@ name = "luthien-control"
 version = "0.1.0"
 description = "Intelligent proxy server for AI APIs"
 authors = [
-    {name = "Jamin Rai",email = "jaminrai@protonmail.com"}
+    {name = "Jai Dhyani",email = "jai@luthienresearch.org"}
 ]
 readme = "README.md"
 requires-python = ">=3.11,<4.0"
@@ -25,3 +25,9 @@ pytest = "^8.3.5"
 pytest-cov = "^6.0.0"
 ruff = "^0.11.2"
 bandit = "^1.8.3"
+respx = "^0.22.0"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]

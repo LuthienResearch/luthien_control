@@ -1,0 +1,115 @@
+import pytest
+import respx
+from httpx import AsyncClient, Response, RequestError
+from fastapi.testclient import TestClient
+import json
+
+# Assuming settings are configured via environment variables or a .env file
+# for testing purposes. We might need to adjust how settings are loaded
+# if the default mechanism relies on specific runtime conditions.
+from luthien_control.proxy.server import app, settings
+
+# Ensure the backend URL has a default for testing if not set by environment
+# It's better practice to ensure the test environment *does* set this.
+if not settings.BACKEND_URL:
+    settings.BACKEND_URL = "http://mock-backend.test"
+
+@pytest.fixture(name="client")
+def client_fixture():
+    """Pytest fixture for the FastAPI TestClient."""
+    # We don't need to manage the lifespan here as TestClient does it.
+    # The shutdown event handler in server.py ensures the app's http_client is closed.
+    with TestClient(app) as test_client:
+        yield test_client
+
+# Test functions will go here
+
+# Use respx to mock the httpx client used by the app
+@respx.mock
+def test_proxy_get_success(client):
+    """Test successful GET request proxying."""
+    backend_host = settings.BACKEND_URL.host
+    backend_port = settings.BACKEND_URL.port
+    backend_url = f"http://{backend_host}:{backend_port}/test/path"
+    route = respx.get(backend_url).mock(return_value=Response(200, json={"message": "Success"}))
+
+    response = client.get("/test/path")
+
+    assert route.called
+    assert response.status_code == 200
+    assert response.json() == {"message": "Success"}
+
+
+@respx.mock
+def test_proxy_post_success(client):
+    """Test successful POST request proxying with body."""
+    backend_host = settings.BACKEND_URL.host
+    backend_port = settings.BACKEND_URL.port
+    backend_url = f"http://{backend_host}:{backend_port}/submit/data"
+    route = respx.post(backend_url).mock(return_value=Response(201, json={"status": "Created"}))
+
+    response = client.post("/submit/data", json={"key": "value"})
+
+    assert route.called
+    # Check that the backend received the correct body
+    request = route.calls.last.request
+    assert json.loads(request.content) == {"key": "value"}
+    assert response.status_code == 201
+    assert response.json() == {"status": "Created"}
+
+
+@respx.mock
+def test_proxy_forwards_query_params(client):
+    """Test that query parameters are correctly forwarded."""
+    backend_host = settings.BACKEND_URL.host
+    backend_port = settings.BACKEND_URL.port
+    backend_url_pattern = f"http://{backend_host}:{backend_port}/search"
+    route = respx.get(url__regex=f"^{backend_url_pattern}\\?.*").mock(return_value=Response(200, json={"results": []}))
+
+    response = client.get("/search?query=test&limit=10")
+
+    assert route.called
+    request = route.calls.last.request
+    assert request.url.query == b"query=test&limit=10"
+    assert response.status_code == 200
+    assert response.json() == {"results": []}
+
+
+@respx.mock
+def test_proxy_forwards_headers(client):
+    """Test that specific headers are forwarded and backend headers are returned."""
+    backend_host = settings.BACKEND_URL.host
+    backend_port = settings.BACKEND_URL.port
+    backend_url = f"http://{backend_host}:{backend_port}/headers/check"
+    mock_response_headers = {"X-Backend-Header": "BackendValue", "Content-Type": "application/xml"}
+    route = respx.get(backend_url).mock(return_value=Response(200, text="<data/>", headers=mock_response_headers))
+
+    client_headers = {"X-Custom-Header": "ClientValue", "Accept": "application/xml"}
+    response = client.get("/headers/check", headers=client_headers)
+
+    assert route.called
+    request = route.calls.last.request
+    # Note: TestClient/httpx might add/modify standard headers (like host, accept-encoding, connection)
+    assert request.headers["x-custom-header"] == "ClientValue"
+    assert request.headers["accept"] == "application/xml"
+
+    assert response.status_code == 200
+    assert response.text == "<data/>"
+    assert response.headers["x-backend-header"] == "BackendValue"
+    # Check a standard header modified by the proxy/backend
+    assert response.headers["content-type"] == "application/xml"
+    # Verify transfer-encoding is handled (often added for streaming)
+
+@respx.mock
+def test_proxy_backend_connection_error(client):
+    """Test handling of backend connection errors (e.g., timeout, DNS error)."""
+    backend_host = settings.BACKEND_URL.host
+    backend_port = settings.BACKEND_URL.port
+    backend_url = f"http://{backend_host}:{backend_port}/error/path"
+    route = respx.get(backend_url).mock(side_effect=RequestError("Connection failed"))
+
+    response = client.get("/error/path")
+
+    assert route.called
+    assert response.status_code == 502  # Bad Gateway
+    assert "Error connecting to backend: Connection failed" in response.text 

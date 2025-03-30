@@ -1,18 +1,34 @@
-from fastapi import FastAPI, Request, Response
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, Response, HTTPException
 import httpx
 from starlette.responses import StreamingResponse
 from starlette.background import BackgroundTask
 
 from luthien_control.config.settings import settings
 
-app = FastAPI(title="Luthien Control Proxy")
 
-http_client = httpx.AsyncClient()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage the lifespan of the application, including the HTTP client."""
+    # Startup: Initialize the client and store it in app state
+    app.state.http_client = httpx.AsyncClient()
+    print("HTTP Client Initialized") # Added for debugging test runs
+    yield
+    # Shutdown: Close the client stored in app state
+    print("Closing HTTP Client") # Added for debugging test runs
+    await app.state.http_client.aclose()
 
 
-async def _close_http_client():
-    """Close the httpx client gracefully."""
-    await http_client.aclose()
+app = FastAPI(title="Luthien Control Proxy", lifespan=lifespan)
+
+# Remove the global client instance
+# http_client = httpx.AsyncClient()
+
+# Remove the old shutdown handler function and registration
+# async def _close_http_client():
+#     """Close the httpx client gracefully."""
+#     await http_client.aclose()
+# app.add_event_handler("shutdown", _close_http_client)
 
 
 @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
@@ -24,14 +40,16 @@ async def proxy_endpoint(request: Request, full_path: str):
     backend_url = httpx.URL(
         path=f"/{full_path.lstrip('/')}",
         query=request.url.query.encode("utf-8"),
-        # Use settings.BACKEND_URL as the base
         scheme=settings.BACKEND_URL.scheme,
         host=settings.BACKEND_URL.host,
         port=settings.BACKEND_URL.port,
     )
 
+    # Get the client from app state
+    client = request.app.state.http_client
+
     # Prepare the request for the backend
-    backend_request = http_client.build_request(
+    backend_request = client.build_request(
         method=request.method,
         url=backend_url,
         headers=request.headers.raw,  # Pass raw headers
@@ -40,10 +58,11 @@ async def proxy_endpoint(request: Request, full_path: str):
 
     # Send the request to the backend and stream the response
     try:
-        backend_response = await http_client.send(backend_request, stream=True)
+        backend_response = await client.send(backend_request, stream=True)
     except httpx.RequestError as exc:
         # Handle connection errors, timeouts, etc.
-        return Response(f"Error connecting to backend: {exc}", status_code=502) # Bad Gateway
+        # Use HTTPException for standard FastAPI error handling
+        raise HTTPException(status_code=502, detail=f"Error connecting to backend: {exc}")
 
     # Stream the backend response back to the client
     return StreamingResponse(
@@ -53,5 +72,4 @@ async def proxy_endpoint(request: Request, full_path: str):
         background=BackgroundTask(backend_response.aclose),
     )
 
-# Add lifespan event handler for client cleanup
-app.add_event_handler("shutdown", _close_http_client)
+# No need for the explicit event handler registration anymore

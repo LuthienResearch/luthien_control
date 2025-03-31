@@ -11,6 +11,7 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from pydantic import HttpUrl, Field, SecretStr
 # Import SettingsConfigDict for overriding and TestSettings definition
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from luthien_control.main import app # Import app directly
 
 
 # Remove monkeypatch_session fixture if no longer needed
@@ -29,6 +30,7 @@ class TestSettings(Settings):
     
     # Define model_config to ONLY load .env.test using absolute path
     model_config = SettingsConfigDict(
+        # Restore env_file loading
         env_file=str(Path(__file__).parent.parent / ".env.test"), 
         extra='ignore'
     )
@@ -51,11 +53,10 @@ def integration_settings() -> Settings:
         pytest.fail(f"Failed to load integration_settings from .env: {e}")
 
 
-# Override the Settings class itself
 @pytest.fixture(autouse=True)
 def override_settings_dependency(request):
-    """Overrides the Settings dependency based on test markers."""
-    from luthien_control.main import app
+    """Overrides the Settings dependency and stores instance in app.state."""
+    # from luthien_control.main import app # Already imported at top level
     settings_instance = None
 
     if request.node.get_closest_marker("integration"):
@@ -75,17 +76,25 @@ def override_settings_dependency(request):
     if settings_instance is None:
         pytest.fail("Failed to obtain settings instance in override_settings_dependency")
 
+    # Store the chosen settings instance in app.state
+    app.state.test_settings = settings_instance 
+
     # Store original overrides if any (though likely none)
     original_overrides = app.dependency_overrides.copy()
+    original_state = getattr(app.state, 'test_settings', None)
 
     def get_override_settings(): 
-        # This function now just returns the instance we already created/fetched
+        # This dependency override function now becomes simpler or potentially unnecessary
+        # If we always get settings from app.state in the endpoint. Let's keep it for now.
         return settings_instance
 
     app.dependency_overrides[Settings] = get_override_settings # Override with our chosen instance
+    
     yield # Run the test
-    # Restore original overrides after test
+    
+    # Restore original overrides and state after test
     app.dependency_overrides = original_overrides
+    app.state.test_settings = original_state
 
 
 @pytest.fixture(scope="session")
@@ -223,7 +232,6 @@ def client():
     Ensures lifespan events are handled correctly by TestClient.
     """
     # Ensure httpx is installed for TestClient
-    from luthien_control.main import app # Import here to avoid top-level side effects if any
     from fastapi.testclient import TestClient
 
     # TestClient handles startup/shutdown implicitly when used as context manager

@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     BACKEND_URL: HttpUrl
     OPENAI_API_KEY: SecretStr | None = None
 
+    # Policy configuration
+    POLICY_MODULE: str = Field(
+        default="luthien_control.policies.examples.no_op.NoOpPolicy",
+        description="Python path to the policy class to load (e.g., 'luthien_control.policies.examples.my_policy.MyPolicy')"
+    )
+
     # Database settings (Optional - required only for DB operations)
     POSTGRES_USER: str | None = Field(default=None)
     POSTGRES_PASSWORD: SecretStr | None = Field(default=None)
@@ -18,6 +24,7 @@ class Settings(BaseSettings):
     POSTGRES_DB: str | None = Field(default=None)  # Default/initial database name
 
     model_config = SettingsConfigDict(
+        # Restore default env_file loading
         env_file=".env", 
         env_file_encoding="utf-8",
         extra="ignore",

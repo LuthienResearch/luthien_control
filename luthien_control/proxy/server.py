@@ -180,7 +180,6 @@ async def proxy_endpoint(
 
     except httpx.HTTPStatusError as exc:
         error_body = exc.response.content
-        error_headers = exc.response.headers.copy()
         error_status_code = exc.response.status_code
         await exc.response.aclose()
         print(

@@ -32,7 +32,7 @@ async def proxy_endpoint(
     request_id = str(uuid.uuid4())
 
     # Get settings from app state BEFORE first use
-    current_settings: Settings | None = getattr(request.app.state, 'test_settings', None)
+    current_settings: Settings | None = getattr(request.app.state, "test_settings", None)
     if current_settings is None:
         print("CRITICAL ERROR: Settings not found in request.app.state")
         raise HTTPException(status_code=500, detail="Internal server error: App settings not configured.")
@@ -43,9 +43,7 @@ async def proxy_endpoint(
     # --- Apply Request Policy ---
     try:
         policy_outcome: Union[Dict[str, Any], Response] = await policy.apply_request_policy(
-            request=request,
-            original_body=raw_request_body,
-            request_id=request_id
+            request=request, original_body=raw_request_body, request_id=request_id
         )
     except Exception as e:
         print(f"[{request_id}] Error applying request policy: {e}", flush=True)
@@ -58,10 +56,10 @@ async def proxy_endpoint(
     modified_request_body = policy_outcome.get("content", raw_request_body)
     if not isinstance(modified_request_body, bytes):
         try:
-            modified_request_body = str(modified_request_body).encode('utf-8')
+            modified_request_body = str(modified_request_body).encode("utf-8")
         except Exception as e:
-             print(f"[{request_id}] Error encoding policy request content: {e}")
-             raise HTTPException(status_code=500, detail="Policy returned invalid request content type.")
+            print(f"[{request_id}] Error encoding policy request content: {e}")
+            raise HTTPException(status_code=500, detail="Policy returned invalid request content type.")
 
     # --- Prepare Backend Headers ---
     policy_headers = policy_outcome.get("headers")
@@ -74,26 +72,28 @@ async def proxy_endpoint(
         elif isinstance(policy_headers, list):
             items = policy_headers
         else:
-             print(f"[{request_id}] Warning: Policy returned unexpected header type: {type(policy_headers)}. Ignoring.")
-             items = request.headers.items() # Fallback to original request headers
+            print(f"[{request_id}] Warning: Policy returned unexpected header type: {type(policy_headers)}. Ignoring.")
+            items = request.headers.items()  # Fallback to original request headers
 
         for key, value in items:
-            key_bytes = key.encode('latin-1') if isinstance(key, str) else key
-            value_bytes = value.encode('latin-1') if isinstance(value, str) else value
-            if isinstance(key_bytes, bytes) and isinstance(value_bytes, bytes) and key_bytes.lower() not in excluded_headers:
-                 backend_headers_list.append((key_bytes, value_bytes))
+            key_bytes = key.encode("latin-1") if isinstance(key, str) else key
+            value_bytes = value.encode("latin-1") if isinstance(value, str) else value
+            if (
+                isinstance(key_bytes, bytes)
+                and isinstance(value_bytes, bytes)
+                and key_bytes.lower() not in excluded_headers
+            ):
+                backend_headers_list.append((key_bytes, value_bytes))
     else:
         for key, value in request.headers.raw:
             if key.lower() not in excluded_headers:
                 backend_headers_list.append((key, value))
 
     # Use current_settings fetched earlier
-    backend_headers_list = [(k, v) for k, v in backend_headers_list if k.lower() != b'host']
-    backend_headers_list.append(
-        (b"host", current_settings.BACKEND_URL.host.encode("latin-1"))
-    )
-    backend_headers_list = [(k, v) for k, v in backend_headers_list if k.lower() != b'content-length']
-    backend_headers_list.append((b"content-length", str(len(modified_request_body)).encode('latin-1')))
+    backend_headers_list = [(k, v) for k, v in backend_headers_list if k.lower() != b"host"]
+    backend_headers_list.append((b"host", current_settings.BACKEND_URL.host.encode("latin-1")))
+    backend_headers_list = [(k, v) for k, v in backend_headers_list if k.lower() != b"content-length"]
+    backend_headers_list.append((b"content-length", str(len(modified_request_body)).encode("latin-1")))
 
     # --- Backend Request Construction ---
     backend_url = httpx.URL(
@@ -123,9 +123,7 @@ async def proxy_endpoint(
         # --- Apply Response Policy ---
         try:
             policy_outcome: Union[Dict[str, Any], Response] = await policy.apply_response_policy(
-                backend_response=backend_response,
-                original_response_body=raw_response_body,
-                request_id=request_id
+                backend_response=backend_response, original_response_body=raw_response_body, request_id=request_id
             )
         except Exception as e:
             print(f"[{request_id}] Error applying response policy: {e}", flush=True)
@@ -142,10 +140,10 @@ async def proxy_endpoint(
         # Ensure final body is bytes
         if not isinstance(final_raw_body, bytes):
             try:
-                 final_raw_body = str(final_raw_body).encode('utf-8')
+                final_raw_body = str(final_raw_body).encode("utf-8")
             except Exception as e:
-                 print(f"[{request_id}] Error encoding policy response content: {e}")
-                 raise HTTPException(status_code=500, detail="Policy returned invalid response content type.")
+                print(f"[{request_id}] Error encoding policy response content: {e}")
+                raise HTTPException(status_code=500, detail="Policy returned invalid response content type.")
 
         # --- Prepare Final Headers ---
         final_headers_dict: Dict[str, str] = {}
@@ -156,11 +154,13 @@ async def proxy_endpoint(
             elif isinstance(policy_resp_headers, list):
                 items = policy_resp_headers
             else:
-                 print(f"[{request_id}] Warning: Policy returned unexpected header type: {type(policy_resp_headers)}. Ignoring.")
-                 items = backend_headers.items()
+                print(
+                    f"[{request_id}] Warning: Policy returned unexpected header type: {type(policy_resp_headers)}. Ignoring."
+                )
+                items = backend_headers.items()
             for key, value in items:
-                key_str = key.decode('latin-1') if isinstance(key, bytes) else str(key)
-                value_str = value.decode('latin-1') if isinstance(value, bytes) else str(value)
+                key_str = key.decode("latin-1") if isinstance(key, bytes) else str(key)
+                value_str = value.decode("latin-1") if isinstance(value, bytes) else str(value)
                 if key_str.lower() not in headers_to_remove:
                     final_headers_dict[key_str] = value_str
         else:
@@ -182,20 +182,19 @@ async def proxy_endpoint(
         error_headers = exc.response.headers.copy()
         error_status_code = exc.response.status_code
         await exc.response.aclose()
-        print(f"[{request_id}] Backend returned error status {error_status_code}: Body: {error_body.decode(errors='ignore') if error_body else '[empty body]'}")
-        raise HTTPException(
-            status_code=502,
-            detail=f"Backend server returned status code {error_status_code}"
-        ) from exc
+        print(
+            f"[{request_id}] Backend returned error status {error_status_code}: Body: {error_body.decode(errors='ignore') if error_body else '[empty body]'}"
+        )
+        raise HTTPException(status_code=502, detail=f"Backend server returned status code {error_status_code}") from exc
     except httpx.RequestError as exc:
         print(f"[{request_id}] HTTPX RequestError connecting to backend: {exc}")
-        if hasattr(exc, 'response') and exc.response and not exc.response.is_closed:
-            try: await exc.response.aclose()
-            except Exception: pass
-        raise HTTPException(
-            status_code=502, detail=f"Error connecting to backend: {exc}"
-        ) from exc
-    except Exception as exc: # Catch any other unexpected exceptions
+        if hasattr(exc, "response") and exc.response and not exc.response.is_closed:
+            try:
+                await exc.response.aclose()
+            except Exception:
+                pass
+        raise HTTPException(status_code=502, detail=f"Error connecting to backend: {exc}") from exc
+    except Exception as exc:  # Catch any other unexpected exceptions
         # If it's an HTTPException that we raised intentionally, re-raise it
         if isinstance(exc, HTTPException):
             raise exc
@@ -203,11 +202,9 @@ async def proxy_endpoint(
         # Otherwise, log it as truly unexpected and return a generic 500
         print(f"[{request_id}] Unexpected error during proxy request: {exc}", flush=True)
         # Ensure response is closed if one exists and wasn't closed
-        if 'backend_response' in locals() and backend_response and not backend_response.is_closed:
-            try: await backend_response.aclose()
-            except Exception: pass
-        raise HTTPException(
-            status_code=500, detail="Internal server error during proxy processing."
-        ) from exc
-
-
+        if "backend_response" in locals() and backend_response and not backend_response.is_closed:
+            try:
+                await backend_response.aclose()
+            except Exception:
+                pass
+        raise HTTPException(status_code=500, detail="Internal server error during proxy processing.") from exc

@@ -19,16 +19,14 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
         # This indicates a critical setup error if the lifespan manager didn't run
         # or didn't set the state correctly.
         print("!!! CRITICAL ERROR: httpx.AsyncClient not found in request.app.state")
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error: HTTP client not available."
-        )
+        raise HTTPException(status_code=500, detail="Internal server error: HTTP client not available.")
     return client
 
 
 # Global variable to cache the loaded policy instance
 # Initialize to None. It will be loaded on first request.
 _cached_policy: Policy | None = None
+
 
 def get_policy(request: Request, settings: Settings = Depends(Settings)) -> Policy:
     """
@@ -61,14 +59,8 @@ def get_policy(request: Request, settings: Settings = Depends(Settings)) -> Poli
         print(f"!!! CRITICAL ERROR: Failed to load policy: {e}")
         # Log the detailed error from the loader
         # In a real app, consider more robust error handling/reporting
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: Could not load configured policy. {e}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: Could not load configured policy. {e}")
     except Exception as e:
         # Catch any other unexpected errors during loading
         print(f"!!! CRITICAL UNEXPECTED ERROR during policy load: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error: Unexpected issue loading policy."
-        )
+        raise HTTPException(status_code=500, detail="Internal server error: Unexpected issue loading policy.")

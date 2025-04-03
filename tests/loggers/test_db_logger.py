@@ -34,9 +34,7 @@ def create_mock_request_response(
 
     # Mock response headers needs to be available via .headers attribute which behaves like a dict/mapping
     mock_response_headers = {"content-length": "100", "x-api-key": "test-key"}
-    mock_response = Response(
-        status_code=200, content=b'{"success": true}', headers=mock_response_headers
-    )
+    mock_response = Response(status_code=200, content=b'{"success": true}', headers=mock_response_headers)
 
     return mock_request, mock_response, url  # Return constructed URL for assertion
 

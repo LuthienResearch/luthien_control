@@ -13,9 +13,7 @@ _db_pool: Optional[asyncpg.Pool] = None
 
 
 class DBSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     db_user: str = "user"
     db_password: str = "password"
@@ -116,9 +114,7 @@ async def log_request_response(
             await conn.execute(sql, *params)
         logger.debug(f"Successfully logged request for {request_data.get('url')}")
     except Exception as e:
-        logger.exception(
-            f"Failed to log request/response to database for {request_data.get('url')}: {e}"
-        )
+        logger.exception(f"Failed to log request/response to database for {request_data.get('url')}: {e}")
         # Optionally re-raise or handle depending on desired application behavior
         # For now, we log and suppress to avoid breaking the main flow.
 

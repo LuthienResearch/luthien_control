@@ -10,6 +10,7 @@ from luthien_control.policies.examples.nah_bruh import NahBruhPolicy
 
 # --- Fixtures needed for NahBruhPolicy tests (copying for now) ---
 
+
 @pytest.fixture
 def mock_request() -> Request:
     # ... (fixture code copied from original test_examples.py) ...
@@ -28,6 +29,7 @@ def mock_request() -> Request:
         "state": {},
     }
     return Request(scope)
+
 
 @pytest.fixture
 def mock_request_other_path() -> Request:
@@ -48,12 +50,11 @@ def mock_request_other_path() -> Request:
     }
     return Request(scope)
 
+
 @pytest.fixture
 def mock_backend_response() -> HttpxResponse:
     # ... (fixture code copied from original test_examples.py) ...
-    dummy_httpx_request = HttpxRequest(
-        method="POST", url="http://backend/v1/chat/completions"
-    )
+    dummy_httpx_request = HttpxRequest(method="POST", url="http://backend/v1/chat/completions")
     return HttpxResponse(
         status_code=200,
         headers=Headers({"content-type": "application/json"}),
@@ -78,22 +79,27 @@ def mock_backend_response() -> HttpxResponse:
         request=dummy_httpx_request,
     )
 
+
 @pytest.fixture
 def request_body_bytes() -> bytes:
     # ... (fixture code copied from original test_examples.py) ...
     return b'{"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "Hello!"}]}'
+
 
 @pytest.fixture
 def response_body_bytes(mock_backend_response: HttpxResponse) -> bytes:
     # ... (fixture code copied from original test_examples.py) ...
     return mock_backend_response.content
 
+
 @pytest.fixture
 def request_id_fixture() -> str:
     # ... (fixture code copied from original test_examples.py) ...
     return "test-req-123"
 
+
 # --- Test NahBruhPolicy ---
+
 
 @pytest.mark.asyncio
 async def test_nah_bruh_policy_apply_request_intercepts_chat_completion(
@@ -104,9 +110,7 @@ async def test_nah_bruh_policy_apply_request_intercepts_chat_completion(
     """Test NahBruhPolicy intercepts chat completion requests."""
     # ... (test code copied from original test_examples.py) ...
     policy = NahBruhPolicy()
-    result = await policy.apply_request_policy(
-        mock_request, request_body_bytes, request_id_fixture
-    )
+    result = await policy.apply_request_policy(mock_request, request_body_bytes, request_id_fixture)
     assert isinstance(result, JSONResponse)
     assert result.status_code == 200
     response_body = json.loads(result.body.decode())
@@ -119,6 +123,7 @@ async def test_nah_bruh_policy_apply_request_intercepts_chat_completion(
     assert choice.get("message", {}).get("content") == "nah bruh"
     assert choice.get("finish_reason") == "stop"
 
+
 @pytest.mark.asyncio
 async def test_nah_bruh_policy_apply_request_passes_other_paths(
     mock_request_other_path: Request,  # Use the one with /v1/models path
@@ -128,9 +133,7 @@ async def test_nah_bruh_policy_apply_request_passes_other_paths(
     # ... (test code copied from original test_examples.py) ...
     policy = NahBruhPolicy()
     empty_body = b""
-    result = await policy.apply_request_policy(
-        mock_request_other_path, empty_body, request_id_fixture
-    )
+    result = await policy.apply_request_policy(mock_request_other_path, empty_body, request_id_fixture)
     expected_result = {
         "url": str(mock_request_other_path.url),
         "headers": dict(mock_request_other_path.headers),
@@ -139,6 +142,7 @@ async def test_nah_bruh_policy_apply_request_passes_other_paths(
     }
     assert isinstance(result, dict)
     assert result == expected_result
+
 
 @pytest.mark.asyncio
 async def test_nah_bruh_policy_apply_response_passes_through(
@@ -149,9 +153,7 @@ async def test_nah_bruh_policy_apply_response_passes_through(
     """Test NahBruhPolicy.apply_response_policy passes data through."""
     # ... (test code copied from original test_examples.py) ...
     policy = NahBruhPolicy()
-    result = await policy.apply_response_policy(
-        mock_backend_response, response_body_bytes, request_id_fixture
-    )
+    result = await policy.apply_response_policy(mock_backend_response, response_body_bytes, request_id_fixture)
     expected_result = {
         "status_code": mock_backend_response.status_code,
         "headers": dict(mock_backend_response.headers),

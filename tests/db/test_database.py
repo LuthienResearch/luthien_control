@@ -28,9 +28,7 @@ async def mock_pool(monkeypatch):
     mock_context_manager.__aenter__.return_value = mock_conn
     # __aexit__ needs to be an async def or AsyncMock for 'async with'
     # It takes args (exc_type, exc_val, exc_tb)
-    mock_context_manager.__aexit__ = AsyncMock(
-        return_value=None
-    )  # Mock __aexit__ as well
+    mock_context_manager.__aexit__ = AsyncMock(return_value=None)  # Mock __aexit__ as well
 
     # Configure pool.acquire() to return the mock context manager
     # Importantly, acquire() itself is likely NOT async, it just returns the async context manager
@@ -134,9 +132,7 @@ def reset_global_pool(monkeypatch):
 @patch("luthien_control.db.database.asyncpg.create_pool", new_callable=AsyncMock)
 async def test_create_db_pool_success(mock_create_pool):
     """Test successful creation and retrieval of the DB pool."""
-    settings = DBSettings(
-        db_host="fake_host"
-    )  # Use fake settings to avoid real connections
+    settings = DBSettings(db_host="fake_host")  # Use fake settings to avoid real connections
     mock_pool_instance = AsyncMock()
     mock_create_pool.return_value = mock_pool_instance
 
@@ -179,9 +175,7 @@ async def test_get_db_pool_not_initialized():
         get_db_pool()
 
 
-@patch(
-    "luthien_control.db.database._db_pool", new_callable=AsyncMock
-)  # Directly patch the global pool
+@patch("luthien_control.db.database._db_pool", new_callable=AsyncMock)  # Directly patch the global pool
 async def test_close_db_pool(mock_global_pool):
     """Test closing the database pool."""
     # Ensure the mock pool has a close method

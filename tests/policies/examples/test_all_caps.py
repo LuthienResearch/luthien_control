@@ -33,9 +33,7 @@ def mock_request() -> Request:
 @pytest.fixture
 def mock_backend_response() -> HttpxResponse:
     # Copied from test_no_op.py
-    dummy_httpx_request = HttpxRequest(
-        method="POST", url="http://backend/v1/chat/completions"
-    )
+    dummy_httpx_request = HttpxRequest(method="POST", url="http://backend/v1/chat/completions")
     return HttpxResponse(
         status_code=200,
         headers=Headers({"content-type": "application/json"}),
@@ -60,12 +58,11 @@ def mock_backend_response() -> HttpxResponse:
         request=dummy_httpx_request,
     )
 
+
 @pytest.fixture
 def mock_backend_response_non_json() -> HttpxResponse:
     """Creates a mock httpx Response with non-JSON content."""
-    dummy_httpx_request = HttpxRequest(
-        method="POST", url="http://backend/v1/chat/completions"
-    )
+    dummy_httpx_request = HttpxRequest(method="POST", url="http://backend/v1/chat/completions")
     return HttpxResponse(
         status_code=200,
         headers=Headers({"content-type": "text/plain"}),
@@ -73,12 +70,11 @@ def mock_backend_response_non_json() -> HttpxResponse:
         request=dummy_httpx_request,
     )
 
+
 @pytest.fixture
 def mock_backend_response_not_chat_completion() -> HttpxResponse:
     """Creates a mock httpx Response that is JSON but not chat completion."""
-    dummy_httpx_request = HttpxRequest(
-        method="GET", url="http://backend/v1/models"
-    )
+    dummy_httpx_request = HttpxRequest(method="GET", url="http://backend/v1/models")
     return HttpxResponse(
         status_code=200,
         headers=Headers({"content-type": "application/json"}),
@@ -86,18 +82,18 @@ def mock_backend_response_not_chat_completion() -> HttpxResponse:
         request=dummy_httpx_request,
     )
 
+
 @pytest.fixture
 def mock_backend_response_error_status() -> HttpxResponse:
     """Creates a mock httpx Response with an error status code."""
-    dummy_httpx_request = HttpxRequest(
-        method="POST", url="http://backend/v1/chat/completions"
-    )
+    dummy_httpx_request = HttpxRequest(method="POST", url="http://backend/v1/chat/completions")
     return HttpxResponse(
         status_code=400,
         headers=Headers({"content-type": "application/json"}),
         json={"error": {"message": "Invalid request"}},
         request=dummy_httpx_request,
     )
+
 
 @pytest.fixture
 def request_body_bytes() -> bytes:
@@ -128,9 +124,7 @@ async def test_all_caps_policy_apply_request_passes_through(
 ):
     """Test AllCapsPolicy.apply_request_policy passes data through."""
     policy = AllCapsPolicy()
-    result = await policy.apply_request_policy(
-        mock_request, request_body_bytes, request_id_fixture
-    )
+    result = await policy.apply_request_policy(mock_request, request_body_bytes, request_id_fixture)
     expected_result = {
         "url": str(mock_request.url),
         "headers": dict(mock_request.headers),
@@ -149,9 +143,7 @@ async def test_all_caps_policy_apply_response_uppercases_content(
 ):
     """Test AllCapsPolicy correctly uppercases chat completion content."""
     policy = AllCapsPolicy()
-    result = await policy.apply_response_policy(
-        mock_backend_response, response_body_bytes, request_id_fixture
-    )
+    result = await policy.apply_response_policy(mock_backend_response, response_body_bytes, request_id_fixture)
 
     assert isinstance(result, dict)
     assert result["status_code"] == mock_backend_response.status_code
@@ -182,9 +174,7 @@ async def test_all_caps_policy_apply_response_passes_through_non_json(
     """Test AllCapsPolicy passes through non-JSON responses unmodified."""
     policy = AllCapsPolicy()
     original_body = mock_backend_response_non_json.content
-    result = await policy.apply_response_policy(
-        mock_backend_response_non_json, original_body, request_id_fixture
-    )
+    result = await policy.apply_response_policy(mock_backend_response_non_json, original_body, request_id_fixture)
 
     expected_result = {
         "status_code": mock_backend_response_non_json.status_code,
@@ -215,6 +205,7 @@ async def test_all_caps_policy_apply_response_passes_through_non_chat_completion
     assert isinstance(result, dict)
     assert result == expected_result
 
+
 @pytest.mark.asyncio
 async def test_all_caps_policy_apply_response_passes_through_error_status(
     mock_backend_response_error_status: HttpxResponse,
@@ -223,9 +214,7 @@ async def test_all_caps_policy_apply_response_passes_through_error_status(
     """Test AllCapsPolicy passes through responses with error status codes unmodified."""
     policy = AllCapsPolicy()
     original_body = mock_backend_response_error_status.content
-    result = await policy.apply_response_policy(
-        mock_backend_response_error_status, original_body, request_id_fixture
-    )
+    result = await policy.apply_response_policy(mock_backend_response_error_status, original_body, request_id_fixture)
 
     expected_result = {
         "status_code": mock_backend_response_error_status.status_code,

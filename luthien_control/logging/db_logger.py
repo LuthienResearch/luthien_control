@@ -37,17 +37,13 @@ async def log_db_entry(
             "method": request.method,
             "url": str(request.url),
             "headers": dict(request.headers),
-            "body": request_body.decode("utf-8", errors="replace")
-            if request_body
-            else None,
+            "body": request_body.decode("utf-8", errors="replace") if request_body else None,
             # Add more fields as needed
         }
         response_data: Dict[str, Any] = {
             "status_code": response.status_code,
             "headers": dict(response.headers),
-            "body": response_body.decode("utf-8", errors="replace")
-            if response_body
-            else None,
+            "body": response_body.decode("utf-8", errors="replace") if response_body else None,
             # Add more fields as needed (e.g., processing time)
         }
         client_ip = request.client.host if request.client else None
@@ -62,15 +58,11 @@ async def log_db_entry(
 
     except NotImplementedError:
         # Expected during skeleton phase
-        logger.warning(
-            f"Database logging for {request.url} skipped: Not implemented yet."
-        )
+        logger.warning(f"Database logging for {request.url} skipped: Not implemented yet.")
     except RuntimeError as e:
         # Catch specific case where DB pool is not initialized
         logger.error(f"Database logging failed: {e}")
     except Exception as e:
         # Catch-all for other unexpected errors during logging
-        logger.exception(
-            f"Unexpected error during database logging for {request.url}: {e}"
-        )
+        logger.exception(f"Unexpected error during database logging for {request.url}: {e}")
         # Avoid crashing the main application flow due to logging failures

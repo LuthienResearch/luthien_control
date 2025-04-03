@@ -16,34 +16,41 @@ from luthien_control.proxy.utils import (
 # Test data
 ORIGINAL_CONTENT = b"This is the original test content."
 
-GZIP_CONTENT = zlib.compress(ORIGINAL_CONTENT, wbits=16 + zlib.MAX_WBITS) # gzip format
-DEFLATE_CONTENT = zlib.compress(ORIGINAL_CONTENT, wbits=-zlib.MAX_WBITS) # raw deflate
+GZIP_CONTENT = zlib.compress(ORIGINAL_CONTENT, wbits=16 + zlib.MAX_WBITS)  # gzip format
+DEFLATE_CONTENT = zlib.compress(ORIGINAL_CONTENT, wbits=-zlib.MAX_WBITS)  # raw deflate
 BR_CONTENT = brotli.compress(ORIGINAL_CONTENT)
 
 # === Tests for decompress_content ===
+
 
 def test_decompress_content_no_encoding():
     assert decompress_content(ORIGINAL_CONTENT, None) == ORIGINAL_CONTENT
     assert decompress_content(ORIGINAL_CONTENT, "") == ORIGINAL_CONTENT
     assert decompress_content(ORIGINAL_CONTENT, "identity") == ORIGINAL_CONTENT
 
+
 def test_decompress_content_gzip():
     assert decompress_content(GZIP_CONTENT, "gzip") == ORIGINAL_CONTENT
-    assert decompress_content(GZIP_CONTENT, "GZIP") == ORIGINAL_CONTENT # Case-insensitive
+    assert decompress_content(GZIP_CONTENT, "GZIP") == ORIGINAL_CONTENT  # Case-insensitive
+
 
 def test_decompress_content_deflate():
     assert decompress_content(DEFLATE_CONTENT, "deflate") == ORIGINAL_CONTENT
-    assert decompress_content(DEFLATE_CONTENT, "DEFLATE") == ORIGINAL_CONTENT # Case-insensitive
+    assert decompress_content(DEFLATE_CONTENT, "DEFLATE") == ORIGINAL_CONTENT  # Case-insensitive
+
 
 def test_decompress_content_brotli():
     assert decompress_content(BR_CONTENT, "br") == ORIGINAL_CONTENT
-    assert decompress_content(BR_CONTENT, "BR") == ORIGINAL_CONTENT # Case-insensitive
+    assert decompress_content(BR_CONTENT, "BR") == ORIGINAL_CONTENT  # Case-insensitive
+
 
 def test_decompress_content_unsupported():
     with pytest.raises(ValueError, match="Unsupported encoding: unknown"):
         decompress_content(ORIGINAL_CONTENT, "unknown")
 
+
 # === Tests for get_decompressed_request_body ===
+
 
 @pytest.mark.asyncio
 async def test_get_request_body_no_encoding():
@@ -54,6 +61,7 @@ async def test_get_request_body_no_encoding():
     assert body == ORIGINAL_CONTENT
     mock_request.body.assert_awaited_once()
 
+
 @pytest.mark.asyncio
 async def test_get_request_body_gzip():
     mock_request = AsyncMock()
@@ -62,6 +70,7 @@ async def test_get_request_body_gzip():
     body = await get_decompressed_request_body(mock_request)
     assert body == ORIGINAL_CONTENT
     mock_request.body.assert_awaited_once()
+
 
 @pytest.mark.asyncio
 async def test_get_request_body_deflate():
@@ -72,6 +81,7 @@ async def test_get_request_body_deflate():
     assert body == ORIGINAL_CONTENT
     mock_request.body.assert_awaited_once()
 
+
 @pytest.mark.asyncio
 async def test_get_request_body_brotli():
     mock_request = AsyncMock()
@@ -81,7 +91,9 @@ async def test_get_request_body_brotli():
     assert body == ORIGINAL_CONTENT
     mock_request.body.assert_awaited_once()
 
+
 # === Tests for get_decompressed_response_body ===
+
 
 @pytest.mark.asyncio
 async def test_get_response_body_no_encoding():
@@ -92,6 +104,7 @@ async def test_get_response_body_no_encoding():
     assert body == ORIGINAL_CONTENT
     mock_response.aread.assert_awaited_once()
 
+
 @pytest.mark.asyncio
 async def test_get_response_body_gzip():
     mock_response = AsyncMock()
@@ -101,6 +114,7 @@ async def test_get_response_body_gzip():
     assert body == ORIGINAL_CONTENT
     mock_response.aread.assert_awaited_once()
 
+
 @pytest.mark.asyncio
 async def test_get_response_body_deflate():
     mock_response = AsyncMock()
@@ -109,6 +123,7 @@ async def test_get_response_body_deflate():
     body = await get_decompressed_response_body(mock_response)
     assert body == ORIGINAL_CONTENT
     mock_response.aread.assert_awaited_once()
+
 
 @pytest.mark.asyncio
 async def test_get_response_body_brotli():

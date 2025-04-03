@@ -1,4 +1,3 @@
-
 import pytest
 from fastapi.testclient import TestClient
 from luthien_control.config.settings import Settings
@@ -36,7 +35,7 @@ def test_proxy_openai_chat_completion_real(client: TestClient, integration_setti
         "Content-Type": "application/json",
     }
     payload = {
-        "model": "gpt-3.5-turbo", # Use a common/cheap model
+        "model": "gpt-3.5-turbo",  # Use a common/cheap model
         "messages": [{"role": "user", "content": "Say this is an integration test!"}],
         "temperature": 0.7,
         "max_tokens": 15,
@@ -56,4 +55,4 @@ def test_proxy_openai_chat_completion_real(client: TestClient, integration_setti
     assert "message" in response_data["choices"][0]
     assert "role" in response_data["choices"][0]["message"]
     assert "content" in response_data["choices"][0]["message"]
-    print(f"Real API response content: {response_data['choices'][0]['message']['content']}") # For visibility
+    print(f"Real API response content: {response_data['choices'][0]['message']['content']}")  # For visibility

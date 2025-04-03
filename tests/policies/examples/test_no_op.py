@@ -1,4 +1,3 @@
-
 import pytest
 from fastapi import Request
 from httpx import Headers
@@ -9,6 +8,7 @@ from httpx import Response as HttpxResponse
 from luthien_control.policies.examples.no_op import NoOpPolicy
 
 # --- Fixtures needed for NoOpPolicy tests ---
+
 
 @pytest.fixture
 def mock_request() -> Request:
@@ -29,12 +29,11 @@ def mock_request() -> Request:
     }
     return Request(scope)
 
+
 @pytest.fixture
 def mock_backend_response() -> HttpxResponse:
     # ... (fixture code copied from original test_examples.py) ...
-    dummy_httpx_request = HttpxRequest(
-        method="POST", url="http://backend/v1/chat/completions"
-    )
+    dummy_httpx_request = HttpxRequest(method="POST", url="http://backend/v1/chat/completions")
     return HttpxResponse(
         status_code=200,
         headers=Headers({"content-type": "application/json"}),
@@ -65,17 +64,21 @@ def request_body_bytes() -> bytes:
     # ... (fixture code copied from original test_examples.py) ...
     return b'{"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "Hello!"}]}'
 
+
 @pytest.fixture
 def response_body_bytes(mock_backend_response: HttpxResponse) -> bytes:
     # ... (fixture code copied from original test_examples.py) ...
     return mock_backend_response.content
+
 
 @pytest.fixture
 def request_id_fixture() -> str:
     # ... (fixture code copied from original test_examples.py) ...
     return "test-req-123"
 
+
 # --- Test NoOpPolicy ---
+
 
 @pytest.mark.asyncio
 async def test_noop_policy_apply_request(
@@ -86,9 +89,7 @@ async def test_noop_policy_apply_request(
     """Test NoOpPolicy.apply_request_policy passes data through."""
     # ... (test code copied from original test_examples.py) ...
     policy = NoOpPolicy()
-    result = await policy.apply_request_policy(
-        mock_request, request_body_bytes, request_id_fixture
-    )
+    result = await policy.apply_request_policy(mock_request, request_body_bytes, request_id_fixture)
     expected_result = {
         "url": str(mock_request.url),
         "headers": dict(mock_request.headers),
@@ -101,6 +102,7 @@ async def test_noop_policy_apply_request(
     assert result["method"] == expected_result["method"]
     assert len(result["headers"]) == len(expected_result["headers"])
 
+
 @pytest.mark.asyncio
 async def test_noop_policy_apply_response(
     mock_backend_response: HttpxResponse,
@@ -110,9 +112,7 @@ async def test_noop_policy_apply_response(
     """Test NoOpPolicy.apply_response_policy passes data through."""
     # ... (test code copied from original test_examples.py) ...
     policy = NoOpPolicy()
-    result = await policy.apply_response_policy(
-        mock_backend_response, response_body_bytes, request_id_fixture
-    )
+    result = await policy.apply_response_policy(mock_backend_response, response_body_bytes, request_id_fixture)
     expected_result = {
         "status_code": mock_backend_response.status_code,
         "headers": dict(mock_backend_response.headers),

@@ -27,7 +27,7 @@ app = FastAPI(
     version="0.1.0",  # Consider deriving from pyproject.toml later
     lifespan=lifespan,
 )
-print(f"---> Main app ID during init: {id(app)} <---") # DEBUG PRINT
+print(f"---> Main app ID during init: {id(app)} <---")  # DEBUG PRINT
 
 
 @app.get("/health", tags=["General"], status_code=200)

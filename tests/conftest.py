@@ -30,7 +30,7 @@ class TestSettings(Settings):
     model_config = SettingsConfigDict(
         # Restore env_file loading
         env_file=str(Path(__file__).parent.parent / ".env.test"),
-        extra='ignore'
+        extra="ignore",
     )
     # Fields are inherited from the main Settings class
 
@@ -39,7 +39,7 @@ class TestSettings(Settings):
 def integration_settings() -> Settings:
     """Fixture providing Settings loaded explicitly from .env."""
     try:
-        config_override = SettingsConfigDict(env_file='.env', extra='ignore') # Be explicit
+        config_override = SettingsConfigDict(env_file=".env", extra="ignore")  # Be explicit
         settings = Settings(_settings_config_override=config_override)
 
         # Assert that the loaded URL is NOT the mock one
@@ -68,7 +68,7 @@ def override_settings_dependency(request):
         try:
             settings_instance = TestSettings()
         except Exception as e:
-             pytest.fail(f"Failed to instantiate TestSettings for unit test: {e}")
+            pytest.fail(f"Failed to instantiate TestSettings for unit test: {e}")
 
     # Ensure we actually got an instance before proceeding
     if settings_instance is None:
@@ -79,16 +79,16 @@ def override_settings_dependency(request):
 
     # Store original overrides if any (though likely none)
     original_overrides = app.dependency_overrides.copy()
-    original_state = getattr(app.state, 'test_settings', None)
+    original_state = getattr(app.state, "test_settings", None)
 
     def get_override_settings():
         # This dependency override function now becomes simpler or potentially unnecessary
         # If we always get settings from app.state in the endpoint. Let's keep it for now.
         return settings_instance
 
-    app.dependency_overrides[Settings] = get_override_settings # Override with our chosen instance
+    app.dependency_overrides[Settings] = get_override_settings  # Override with our chosen instance
 
-    yield # Run the test
+    yield  # Run the test
 
     # Restore original overrides and state after test
     app.dependency_overrides = original_overrides
@@ -100,7 +100,7 @@ def db_settings() -> Settings:
     """Fixture providing database connection Settings loaded explicitly from .env."""
     try:
         # Explicitly load ONLY .env for database settings
-        config_override = SettingsConfigDict(env_file='.env', extra='ignore') # Be explicit
+        config_override = SettingsConfigDict(env_file=".env", extra="ignore")  # Be explicit
         settings_loaded = Settings(_settings_config_override=config_override)
 
         assert all(
@@ -115,9 +115,7 @@ def db_settings() -> Settings:
         return settings_loaded
 
     except Exception as e:
-        pytest.fail(
-            f"Failed to load db_settings from .env: {e}"
-        )
+        pytest.fail(f"Failed to load db_settings from .env: {e}")
 
 
 # Use pytest_asyncio.fixture for async fixtures
@@ -146,16 +144,10 @@ async def test_db_session(db_settings: Settings):
         conn_admin.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         with conn_admin.cursor() as cursor:
             # Check if db exists first (optional, but avoids error noise if tests are interrupted)
-            cursor.execute(
-                "SELECT 1 FROM pg_database WHERE datname = %s", (temp_db_name,)
-            )
+            cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (temp_db_name,))
             if cursor.fetchone():
-                print(
-                    f"Warning: Database {temp_db_name} already exists. Attempting to drop and recreate."
-                )
-                cursor.execute(
-                    f'DROP DATABASE "{temp_db_name}"'
-                )  # Use quotes for safety
+                print(f"Warning: Database {temp_db_name} already exists. Attempting to drop and recreate.")
+                cursor.execute(f'DROP DATABASE "{temp_db_name}"')  # Use quotes for safety
 
             print(f"Executing CREATE DATABASE {temp_db_name}")
             cursor.execute(f'CREATE DATABASE "{temp_db_name}"')
@@ -223,7 +215,7 @@ async def test_db_session(db_settings: Settings):
             conn_admin_drop.close()
 
 
-@pytest.fixture(scope="session") # Scope might be session if app doesn't change
+@pytest.fixture(scope="session")  # Scope might be session if app doesn't change
 def client():
     """Pytest fixture for the FastAPI TestClient.
     Uses the main 'app' imported from luthien_control.main.

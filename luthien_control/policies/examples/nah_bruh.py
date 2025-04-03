@@ -22,7 +22,7 @@ class NahBruhPolicy(Policy):
                 "id": f"chatcmpl-{uuid.uuid4()!s}",
                 "object": "chat.completion",
                 "created": int(time.time()),
-                "model": "nah-bruh-model", # Indicate the policy intercepted
+                "model": "nah-bruh-model",  # Indicate the policy intercepted
                 "choices": [
                     {
                         "index": 0,

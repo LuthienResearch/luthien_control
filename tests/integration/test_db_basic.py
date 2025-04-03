@@ -22,12 +22,8 @@ async def test_db_connection_and_schema(test_db_session):
         # Simple query to check if a key table from the schema exists
         # This implicitly verifies that the schema was applied
         print("[Test] Verifying schema by checking 'interactions' table...")
-        result = await conn.fetchval(
-            "SELECT 1 FROM information_schema.tables WHERE table_name = 'interactions';"
-        )
-        assert result == 1, (
-            "Table 'interactions' should exist after schema application."
-        )
+        result = await conn.fetchval("SELECT 1 FROM information_schema.tables WHERE table_name = 'interactions';")
+        assert result == 1, "Table 'interactions' should exist after schema application."
         print("[Test] Schema verification successful ('interactions' table found).")
 
         # Optional: Could add more checks for other tables or basic INSERT/SELECT
@@ -107,18 +103,14 @@ async def test_db_log_insertion(test_db_session):
 
         # Verify insertion directly
         conn = await asyncpg.connect(dsn=dsn)
-        record = await conn.fetchrow(
-            "SELECT * FROM request_log ORDER BY timestamp DESC LIMIT 1"
-        )
+        record = await conn.fetchrow("SELECT * FROM request_log ORDER BY timestamp DESC LIMIT 1")
 
         assert record is not None, "No record found in request_log"
         assert record["client_ip"] == client_ip
         assert record["request_method"] == request_data["method"]
         assert record["request_url"] == request_data["url"]
         assert json.loads(record["request_headers"]) == request_data["headers"]
-        assert (
-            record["request_body"] == request_data["body"]
-        )  # Assuming None maps to NULL
+        assert record["request_body"] == request_data["body"]  # Assuming None maps to NULL
         assert record["response_status_code"] == response_data["status_code"]
         assert json.loads(record["response_headers"]) == response_data["headers"]
         assert record["response_body"] == response_data["body"]

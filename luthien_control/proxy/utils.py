@@ -42,7 +42,7 @@ def decompress_content(content: bytes, encoding: Optional[str]) -> bytes:
             try:
                 return zlib.decompress(content, wbits=zlib.MAX_WBITS)
             except zlib.error:
-                raise ValueError(f"Failed to decompress deflate content: {e}") from e # Raise original error
+                raise ValueError(f"Failed to decompress deflate content: {e}") from e  # Raise original error
     elif normalized_encoding == "br":
         try:
             return brotli.decompress(content)
@@ -78,7 +78,7 @@ async def get_decompressed_response_body(response: httpx.Response) -> bytes:
     Returns:
         The (potentially decompressed) response body as bytes.
     """
-    raw_body = await response.aread() # Reads the entire body
+    raw_body = await response.aread()  # Reads the entire body
     encoding = response.headers.get("content-encoding")
-     # Pass raw_body and encoding to the decompression logic
+    # Pass raw_body and encoding to the decompression logic
     return decompress_content(raw_body, encoding)

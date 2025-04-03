@@ -1,4 +1,3 @@
-
 from pydantic import Field, HttpUrl, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,7 +11,7 @@ class Settings(BaseSettings):
     # Policy configuration
     POLICY_MODULE: str = Field(
         default="luthien_control.policies.examples.no_op.NoOpPolicy",
-        description="Python path to the policy class to load (e.g., 'luthien_control.policies.examples.my_policy.MyPolicy')"
+        description="Python path to the policy class to load (e.g., 'luthien_control.policies.examples.my_policy.MyPolicy')",
     )
 
     # Database settings (Optional - required only for DB operations)
@@ -43,15 +42,12 @@ class Settings(BaseSettings):
                 self.POSTGRES_PORT,
             ]
         ):
-            raise ValueError(
-                "Missing required database settings (USER, PASSWORD, HOST, PORT) for admin_dsn"
-            )
+            raise ValueError("Missing required database settings (USER, PASSWORD, HOST, PORT) for admin_dsn")
         # Ensure password is treated as secret
         password = self.POSTGRES_PASSWORD.get_secret_value() if self.POSTGRES_PASSWORD else None
         if not password:
-             raise ValueError("Missing POSTGRES_PASSWORD for admin_dsn")
+            raise ValueError("Missing POSTGRES_PASSWORD for admin_dsn")
         return f"postgresql://{self.POSTGRES_USER}:{password}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/postgres"
-
 
     @property
     def base_dsn(self) -> str:
@@ -66,15 +62,12 @@ class Settings(BaseSettings):
                 self.POSTGRES_PORT,
             ]
         ):
-            raise ValueError(
-                "Missing required database settings (USER, PASSWORD, HOST, PORT) for base_dsn"
-            )
+            raise ValueError("Missing required database settings (USER, PASSWORD, HOST, PORT) for base_dsn")
         # Ensure password is treated as secret
         password = self.POSTGRES_PASSWORD.get_secret_value() if self.POSTGRES_PASSWORD else None
         if not password:
-             raise ValueError("Missing POSTGRES_PASSWORD for base_dsn")
+            raise ValueError("Missing POSTGRES_PASSWORD for base_dsn")
         return f"postgresql://{self.POSTGRES_USER}:{password}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}"
-
 
     def get_db_dsn(self, db_name: str | None = None) -> str:
         """Returns the DSN for a specific database name, or the default POSTGRES_DB.
@@ -82,9 +75,7 @@ class Settings(BaseSettings):
         """
         target_db = db_name or self.POSTGRES_DB
         if not target_db:
-            raise ValueError(
-                "Missing target database name (either provide db_name or set POSTGRES_DB)"
-            )
+            raise ValueError("Missing target database name (either provide db_name or set POSTGRES_DB)")
         # Base DSN checks user/pass/host/port are present
-        base = self.base_dsn # Call property to ensure checks run
+        base = self.base_dsn  # Call property to ensure checks run
         return f"{base}/{target_db}"

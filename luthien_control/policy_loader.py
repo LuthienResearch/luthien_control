@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 class PolicyLoadError(Exception):
     """Custom exception for errors during policy loading."""
+
     pass
 
 
@@ -31,12 +32,9 @@ def load_policy(settings: Settings) -> Policy:
     logger.info(f"Attempting to load policy from: {policy_path}")
 
     try:
-        module_path, class_name = policy_path.rsplit('.', 1)
+        module_path, class_name = policy_path.rsplit(".", 1)
     except ValueError:
-        raise PolicyLoadError(
-            f"Invalid policy path format: '{policy_path}'. "
-            "Expected format: 'module.path.ClassName'"
-        )
+        raise PolicyLoadError(f"Invalid policy path format: '{policy_path}'. Expected format: 'module.path.ClassName'")
 
     try:
         module = importlib.import_module(module_path)
@@ -49,16 +47,12 @@ def load_policy(settings: Settings) -> Policy:
 
     if policy_class is None:
         logger.error(f"Policy class '{class_name}' not found in module '{module_path}'")
-        raise PolicyLoadError(
-            f"Policy class '{class_name}' not found in module '{module_path}'"
-        )
+        raise PolicyLoadError(f"Policy class '{class_name}' not found in module '{module_path}'")
 
     # Ensure it's a class type AND a subclass of Policy
     if not isinstance(policy_class, type) or not issubclass(policy_class, Policy):
         logger.error(f"Class '{policy_path}' is not a valid subclass of {Policy.__name__}")
-        raise PolicyLoadError(
-            f"Class '{policy_path}' must be a valid subclass of {Policy.__name__}"
-        )
+        raise PolicyLoadError(f"Class '{policy_path}' must be a valid subclass of {Policy.__name__}")
 
     try:
         policy_instance = policy_class()

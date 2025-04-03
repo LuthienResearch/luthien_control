@@ -13,27 +13,35 @@ from luthien_control.policies.base import Policy
 
 # --- Mock Policy Implementations ---
 
+
 class MockNoOpPolicy(Policy):
     """Mimics NoOpPolicy for testing default behavior."""
+
     async def apply_request_policy(self, request: Request, original_body: bytes, request_id: str) -> Dict[str, Any]:
         return {"content": original_body, "headers": request.headers.raw}
 
-    async def apply_response_policy(self, backend_response: httpx.Response, original_response_body: bytes, request_id: str) -> Dict[str, Any]:
+    async def apply_response_policy(
+        self, backend_response: httpx.Response, original_response_body: bytes, request_id: str
+    ) -> Dict[str, Any]:
         return {
             "content": original_response_body,
             "headers": backend_response.headers,
             "status_code": backend_response.status_code,
         }
 
+
 class ModifyRequestPolicy(Policy):
     """Adds a header and modifies body in request."""
+
     async def apply_request_policy(self, request: Request, original_body: bytes, request_id: str) -> Dict[str, Any]:
         headers = list(request.headers.raw)
-        headers.append((b'X-Req-Policy', b'Applied'))
-        modified_body = original_body + b' [REQ_MODIFIED]'
+        headers.append((b"X-Req-Policy", b"Applied"))
+        modified_body = original_body + b" [REQ_MODIFIED]"
         return {"content": modified_body, "headers": headers}
 
-    async def apply_response_policy(self, backend_response: httpx.Response, original_response_body: bytes, request_id: str) -> Dict[str, Any]:
+    async def apply_response_policy(
+        self, backend_response: httpx.Response, original_response_body: bytes, request_id: str
+    ) -> Dict[str, Any]:
         # No change on response
         return {
             "content": original_response_body,
@@ -41,68 +49,91 @@ class ModifyRequestPolicy(Policy):
             "status_code": backend_response.status_code,
         }
 
+
 class ModifyResponsePolicy(Policy):
     """Changes status code and modifies body in response."""
+
     async def apply_request_policy(self, request: Request, original_body: bytes, request_id: str) -> Dict[str, Any]:
         # No change on request
         return {"content": original_body, "headers": request.headers.raw}
 
-    async def apply_response_policy(self, backend_response: httpx.Response, original_response_body: bytes, request_id: str) -> Dict[str, Any]:
+    async def apply_response_policy(
+        self, backend_response: httpx.Response, original_response_body: bytes, request_id: str
+    ) -> Dict[str, Any]:
         headers = dict(backend_response.headers)
         headers["X-Resp-Policy"] = "Applied"
-        modified_body = original_response_body + b' [RESP_MODIFIED]'
+        modified_body = original_response_body + b" [RESP_MODIFIED]"
         return {
             "content": modified_body,
             "headers": headers,
-            "status_code": status.HTTP_202_ACCEPTED, # Change status code
+            "status_code": status.HTTP_202_ACCEPTED,  # Change status code
         }
+
 
 class DirectRequestResponsePolicy(Policy):
     """Returns a direct response during request phase."""
+
     async def apply_request_policy(self, request: Request, original_body: bytes, request_id: str) -> Response:
         return Response(content=b"Direct from Request Policy", status_code=status.HTTP_418_IM_A_TEAPOT)
 
-    async def apply_response_policy(self, backend_response: httpx.Response, original_response_body: bytes, request_id: str) -> Dict[str, Any]:
-       pass # Should not be called
+    async def apply_response_policy(
+        self, backend_response: httpx.Response, original_response_body: bytes, request_id: str
+    ) -> Dict[str, Any]:
+        pass  # Should not be called
+
 
 class DirectResponseResponsePolicy(Policy):
     """Returns a direct response during response phase."""
+
     async def apply_request_policy(self, request: Request, original_body: bytes, request_id: str) -> Dict[str, Any]:
         # No change on request
         return {"content": original_body, "headers": request.headers.raw}
 
-    async def apply_response_policy(self, backend_response: httpx.Response, original_response_body: bytes, request_id: str) -> Response:
-         return Response(content=b"Direct from Response Policy", status_code=status.HTTP_201_CREATED)
+    async def apply_response_policy(
+        self, backend_response: httpx.Response, original_response_body: bytes, request_id: str
+    ) -> Response:
+        return Response(content=b"Direct from Response Policy", status_code=status.HTTP_201_CREATED)
+
 
 class RequestPolicyError(Policy):
     """Raises an error during request policy application."""
-    async def apply_request_policy(self, request: Request, original_body: bytes, request_id: str) -> Dict[str, Any]:
-         raise ValueError("Request Policy Failed!")
 
-    async def apply_response_policy(self, backend_response: httpx.Response, original_response_body: bytes, request_id: str) -> Dict[str, Any]:
-        pass # Should not be called
+    async def apply_request_policy(self, request: Request, original_body: bytes, request_id: str) -> Dict[str, Any]:
+        raise ValueError("Request Policy Failed!")
+
+    async def apply_response_policy(
+        self, backend_response: httpx.Response, original_response_body: bytes, request_id: str
+    ) -> Dict[str, Any]:
+        pass  # Should not be called
+
 
 class ResponsePolicyError(Policy):
     """Raises an error during response policy application."""
+
     async def apply_request_policy(self, request: Request, original_body: bytes, request_id: str) -> Dict[str, Any]:
         return {"content": original_body, "headers": request.headers.raw}
 
-    async def apply_response_policy(self, backend_response: httpx.Response, original_response_body: bytes, request_id: str) -> Dict[str, Any]:
-         raise ValueError("Response Policy Failed!")
+    async def apply_response_policy(
+        self, backend_response: httpx.Response, original_response_body: bytes, request_id: str
+    ) -> Dict[str, Any]:
+        raise ValueError("Response Policy Failed!")
+
 
 # --- Pytest Fixtures ---
 
 # Use override_settings for tests needing specific settings
 # Example: @pytest.mark.parametrize("override_settings", [{"POLICY_MODULE": ...}])
 
+
 @pytest.fixture(autouse=True)
 def clear_policy_cache():
     """Ensure the policy cache in dependencies is cleared before each test."""
     # Access the private variable to reset it. This is test-specific.
     from luthien_control import dependencies
+
     dependencies._cached_policy = None
     yield
-    dependencies._cached_policy = None # Clear after test too
+    dependencies._cached_policy = None  # Clear after test too
 
 
 @pytest.fixture
@@ -113,6 +144,7 @@ def test_app() -> FastAPI:
     app.dependency_overrides = {}
     return app
 
+
 @pytest.fixture
 def client(test_app: FastAPI) -> TestClient:
     """Provides a FastAPI test client that correctly handles lifespan events."""
@@ -121,7 +153,9 @@ def client(test_app: FastAPI) -> TestClient:
         yield test_client
     # No explicit shutdown needed here, TestClient context manager handles it.
 
+
 # --- Test Cases ---
+
 
 @respx.mock
 def test_proxy_with_no_op_policy(client: TestClient):
@@ -133,8 +167,10 @@ def test_proxy_with_no_op_policy(client: TestClient):
     app.dependency_overrides[get_policy] = lambda: MockNoOpPolicy()
 
     # Use the BACKEND_URL from the actual test settings for the mock route
-    backend_url_str = str(settings.BACKEND_URL).rstrip('/')
-    backend_route = respx.post(f"{backend_url_str}/test/path").mock(return_value=httpx.Response(200, json={"backend": "ok"}))
+    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_route = respx.post(f"{backend_url_str}/test/path").mock(
+        return_value=httpx.Response(200, json={"backend": "ok"})
+    )
 
     # Use json parameter for TestClient to handle Content-Type automatically
     client_payload = {"client": "hello"}
@@ -153,17 +189,22 @@ def test_proxy_with_no_op_policy(client: TestClient):
     # Clean up override
     del app.dependency_overrides[get_policy]
 
+
 @respx.mock
 def test_proxy_modify_request_policy(client: TestClient):
     """Test policy modifying the request before forwarding."""
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: ModifyRequestPolicy()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip('/')
-    backend_route = respx.post(f"{backend_url_str}/modify/req").mock(return_value=httpx.Response(200, text="Backend got it"))
+    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_route = respx.post(f"{backend_url_str}/modify/req").mock(
+        return_value=httpx.Response(200, text="Backend got it")
+    )
 
     # Add default Content-Type for raw content
-    response = client.post("/modify/req", content=b"original data", headers={"Content-Type": "application/octet-stream"})
+    response = client.post(
+        "/modify/req", content=b"original data", headers={"Content-Type": "application/octet-stream"}
+    )
 
     assert response.status_code == 200
     assert response.text == "Backend got it"
@@ -174,14 +215,17 @@ def test_proxy_modify_request_policy(client: TestClient):
 
     del app.dependency_overrides[get_policy]
 
+
 @respx.mock
 def test_proxy_modify_response_policy(client: TestClient):
     """Test policy modifying the response from the backend."""
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: ModifyResponsePolicy()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip('/')
-    backend_route = respx.post(f"{backend_url_str}/modify/resp").mock(return_value=httpx.Response(200, content=b"backend content"))
+    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_route = respx.post(f"{backend_url_str}/modify/resp").mock(
+        return_value=httpx.Response(200, content=b"backend content")
+    )
 
     # Add default Content-Type for raw content
     response = client.post("/modify/resp", content=b"client data", headers={"Content-Type": "application/octet-stream"})
@@ -193,15 +237,18 @@ def test_proxy_modify_response_policy(client: TestClient):
 
     del app.dependency_overrides[get_policy]
 
+
 @respx.mock
 def test_proxy_direct_request_response_policy(client: TestClient):
     """Test policy returning a direct response during request phase."""
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: DirectRequestResponsePolicy()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip('/')
+    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
     # Backend should NOT be called, but we still need the URL for respx pattern potentially
-    backend_route = respx.post(f"{backend_url_str}/direct/req").mock(return_value=httpx.Response(200, text="SHOULD NOT BE CALLED"))
+    backend_route = respx.post(f"{backend_url_str}/direct/req").mock(
+        return_value=httpx.Response(200, text="SHOULD NOT BE CALLED")
+    )
 
     # Add default Content-Type for raw content
     response = client.post("/direct/req", content=b"client data", headers={"Content-Type": "application/octet-stream"})
@@ -212,14 +259,17 @@ def test_proxy_direct_request_response_policy(client: TestClient):
 
     del app.dependency_overrides[get_policy]
 
+
 @respx.mock
 def test_proxy_direct_response_response_policy(client: TestClient):
     """Test policy returning a direct response during response phase."""
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: DirectResponseResponsePolicy()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip('/')
-    backend_route = respx.post(f"{backend_url_str}/direct/resp").mock(return_value=httpx.Response(200, content=b"backend original"))
+    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_route = respx.post(f"{backend_url_str}/direct/resp").mock(
+        return_value=httpx.Response(200, content=b"backend original")
+    )
 
     # Add default Content-Type for raw content
     response = client.post("/direct/resp", content=b"client data", headers={"Content-Type": "application/octet-stream"})
@@ -230,14 +280,17 @@ def test_proxy_direct_response_response_policy(client: TestClient):
 
     del app.dependency_overrides[get_policy]
 
+
 @respx.mock
 def test_proxy_request_policy_error(client: TestClient):
     """Test handling of error during request policy execution."""
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: RequestPolicyError()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip('/')
-    backend_route = respx.post(f"{backend_url_str}/err/req").mock(return_value=httpx.Response(200, text="SHOULD NOT BE CALLED"))
+    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_route = respx.post(f"{backend_url_str}/err/req").mock(
+        return_value=httpx.Response(200, text="SHOULD NOT BE CALLED")
+    )
 
     # Add default Content-Type for raw content
     response = client.post("/err/req", content=b"client data", headers={"Content-Type": "application/octet-stream"})
@@ -251,14 +304,17 @@ def test_proxy_request_policy_error(client: TestClient):
 
     del app.dependency_overrides[get_policy]
 
+
 @respx.mock
 def test_proxy_response_policy_error(client: TestClient):
     """Test handling of error during response policy execution."""
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: ResponsePolicyError()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip('/')
-    backend_route = respx.post(f"{backend_url_str}/err/resp").mock(return_value=httpx.Response(200, content=b"backend ok"))
+    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_route = respx.post(f"{backend_url_str}/err/resp").mock(
+        return_value=httpx.Response(200, content=b"backend ok")
+    )
 
     # Add default Content-Type for raw content
     response = client.post("/err/resp", content=b"client data", headers={"Content-Type": "application/octet-stream"})
@@ -270,6 +326,7 @@ def test_proxy_response_policy_error(client: TestClient):
 
     del app.dependency_overrides[get_policy]
 
+
 @respx.mock
 def test_proxy_backend_error_passthrough(client: TestClient):
     """Test that backend errors are proxied correctly (if policy doesn't interfere)."""
@@ -277,11 +334,15 @@ def test_proxy_backend_error_passthrough(client: TestClient):
     # Use a simple policy for this test
     app.dependency_overrides[get_policy] = lambda: MockNoOpPolicy()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip('/')
-    backend_route = respx.post(f"{backend_url_str}/backend/error").mock(return_value=httpx.Response(status.HTTP_503_SERVICE_UNAVAILABLE, text="Backend down"))
+    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_route = respx.post(f"{backend_url_str}/backend/error").mock(
+        return_value=httpx.Response(status.HTTP_503_SERVICE_UNAVAILABLE, text="Backend down")
+    )
 
     # Add default Content-Type for raw content
-    response = client.post("/backend/error", content=b"client data", headers={"Content-Type": "application/octet-stream"})
+    response = client.post(
+        "/backend/error", content=b"client data", headers={"Content-Type": "application/octet-stream"}
+    )
 
     # The proxy should return 502 Bad Gateway when backend fails
     assert response.status_code == status.HTTP_502_BAD_GATEWAY

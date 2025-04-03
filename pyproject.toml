@@ -48,7 +48,7 @@ addopts = "-m 'not integration'"
 # format = { quote-style = "double", indent-style = "space" } # Defaults are fine
 
 src = ["luthien_control", "tests"]
-line-length = 88 # Default is 88, matching Black
+line-length = 120 # Default is 88, matching Black
 
 [tool.ruff.lint]
 # Enable Pyflakes (F), pycodestyle (E, W), and isort (I) codes by default.

@@ -61,7 +61,7 @@ class AllCapsPolicy(Policy):
                 # If body isn't valid JSON, just pass through original
                 pass
             except Exception:
-                 # Handle other potential errors gracefully, pass through original
+                # Handle other potential errors gracefully, pass through original
                 pass
 
         return response_dict

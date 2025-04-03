@@ -1,0 +1,19 @@
+# Git files
+.git
+.gitignore
+
+# Poetry / Environment
+.venv
+.env
+*.pyc
+__pycache__/
+
+# Development / Testing
+.pytest_cache/
+dev/
+tests/
+
+# IDE / OS specific
+.idea/
+.vscode/
+*.DS_Store 

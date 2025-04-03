@@ -5,8 +5,6 @@ from luthien_control.config.settings import Settings
 from luthien_control.policies.base import Policy
 from luthien_control.policy_loader import PolicyLoadError, load_policy
 
-# --- Test Policies (Dummy implementations) ---
-
 
 class ValidTestPolicy(Policy):
     """A valid policy for testing."""

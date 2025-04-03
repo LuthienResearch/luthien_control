@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # Policy configuration
     POLICY_MODULE: str = Field(
         default="luthien_control.policies.examples.no_op.NoOpPolicy",
-        description="Python path to the policy class to load (e.g., 'luthien_control.policies.examples.my_policy.MyPolicy')",
+        description="Python path to the policy class (e.g., 'luthien_control.policies.examples.my_policy.MyPolicy')",
     )
 
     # Database settings (Optional - required only for DB operations)

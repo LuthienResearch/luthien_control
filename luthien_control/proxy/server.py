@@ -155,7 +155,8 @@ async def proxy_endpoint(
                 items = policy_resp_headers
             else:
                 print(
-                    f"[{request_id}] Warning: Policy returned unexpected header type: {type(policy_resp_headers)}. Ignoring."
+                    f"[{request_id}] Warning: Policy returned unexpected header type: "
+                    f"{type(policy_resp_headers)}. Ignoring."
                 )
                 items = backend_headers.items()
             for key, value in items:
@@ -183,7 +184,8 @@ async def proxy_endpoint(
         error_status_code = exc.response.status_code
         await exc.response.aclose()
         print(
-            f"[{request_id}] Backend returned error status {error_status_code}: Body: {error_body.decode(errors='ignore') if error_body else '[empty body]'}"
+            f"[{request_id}] Backend returned error status {error_status_code}: "
+            f"Body: {error_body.decode(errors='ignore') if error_body else '[empty body]'}"
         )
         raise HTTPException(status_code=502, detail=f"Backend server returned status code {error_status_code}") from exc
     except httpx.RequestError as exc:

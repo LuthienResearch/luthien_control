@@ -19,9 +19,6 @@ def test_proxy_openai_chat_completion_real(client: TestClient, integration_setti
     api_key = integration_settings.OPENAI_API_KEY
     target_backend_host = integration_settings.BACKEND_URL.host
 
-    if api_key:
-        loaded_key_value = api_key.get_secret_value()
-
     # The check below using the loaded settings is correct.
     if not api_key:
         pytest.skip("Skipping real API test: OPENAI_API_KEY not found in settings.")

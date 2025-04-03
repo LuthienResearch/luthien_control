@@ -53,11 +53,6 @@ async def test_log_db_entry_passes_correct_data(mock_log_req_resp, mock_get_pool
     request_body = b'{"input": "data"}'
     response_body = b'{"output": "result"}'
 
-    # Add a placeholder for processing time calculation (likely done in middleware later)
-    start_time = 1700000000.0
-    end_time = 1700000000.150
-    processing_time_ms = int((end_time - start_time) * 1000)
-
     # Call the function
     # We may need to pass start/end time eventually, or calculate it inside
     await log_db_entry(

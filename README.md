@@ -1,6 +1,6 @@
 # Luthien Control
 
-An intelligent proxy server for OpenAI-compatible API endpoints.
+Luthien Control is a framework to implement AI Control policies on OpenAI-API compatible endpoints. The Luthien Control server is a proxy server that sits between clients and the AI backend, implementing AI Control policies on traffic that goes between them.
 
 ## Core Goal
 To build an AI Control System (`luthien_control`) acting as an intelligent proxy server for OpenAI-compatible API endpoints. The system will intercept client requests and backend responses, apply user-defined control policies, log traffic, and eventually provide analysis tools for this data.
@@ -15,7 +15,7 @@ To build an AI Control System (`luthien_control`) acting as an intelligent proxy
 *   **Configuration:** Pydantic-Settings
 *   **Linting/Formatting:** Ruff
 *   **Security Scanning:** Bandit
-*   **Testing:** Pytest, `pytest-cov` (aiming for near 100% unit test coverage)
+*   **Testing:** Pytest, `pytest-cov`
 *   **Local DB:** Docker Compose
 
 ## Getting Started
@@ -28,7 +28,7 @@ To build an AI Control System (`luthien_control`) acting as an intelligent proxy
 ### Setup
 1.  **Clone the repository:**
     ```bash
-    git clone <repository-url>
+    git clone git@github.com:LuthienResearch/luthien_control.git
     cd luthien_control
     ```
 2.  **Install dependencies:**
@@ -47,9 +47,9 @@ To build an AI Control System (`luthien_control`) acting as an intelligent proxy
     *   Copy the example file: `cp .env.example .env`
     *   Edit the `.env` file and provide the necessary values.
     *   **Required Variables:**
-        *   `DATABASE_URL`: Connection string for the PostgreSQL database (e.g., `postgresql+asyncpg://user:password@host:port/dbname`). The default in `docker-compose.yml` and `.env.example` is `postgresql+asyncpg://luthien:secret@localhost:5432/luthien_log_db`.
+        *   `OPENAI_API_KEY`: API key for the backend AI service
+        *   `POSTGRES_URL` Connection string for the PostgreSQL database (e.g., `postgresql+asyncpg://user:password@host:port/dbname`). The default in `docker-compose.yml` and `.env.example` is `postgresql+asyncpg://luthien:secret@localhost:5432/luthien_log_db`.
         *   `TARGET_BACKEND_URL`: The URL of the backend OpenAI-compatible API you want to proxy requests to.
-    *   Refer to `.cursor/rules/config_and_secrets.mdc` for more details on configuration management.
 
 ## Usage
 
@@ -59,16 +59,6 @@ Ensure your `.env` file is configured correctly. Run the FastAPI application usi
 poetry run uvicorn luthien_control.main:app --reload
 ```
 The `--reload` flag enables auto-reloading when code changes are detected, useful during development.
-
-### Logging
-The proxy logs detailed information about each request and response transaction to the PostgreSQL database. This includes:
-*   Timestamp of the request
-*   Client IP address
-*   HTTP method and path
-*   Request headers and body (potentially redacted/truncated based on future policies)
-*   Backend response status code
-*   Response headers and body (potentially redacted/truncated based on future policies)
-*   Timing information
 
 ## Development Practices
 
@@ -86,18 +76,12 @@ This project uses Ruff for linting and formatting.
 Bandit is used to check for common security vulnerabilities.
 *   Run Bandit: `poetry run bandit -r luthien_control/`
 
-### Workflow & Tracking
-*   Development follows a test-driven approach. See `.cursor/rules/development_workflow.mdc`.
-*   Track progress using files in the `dev/` directory. See `.cursor/rules/dev_tracking.mdc`.
-*   Use conventional commit messages. See `.cursor/rules/git_commit_strategy.mdc`.
-*   Keep code simple and focused.
-
 ### Directory Structure
 *   `luthien_control/`: Main package code (submodules: `proxy/`, `db/`, `config/`, `logging/`, etc.).
 *   `tests/`: Top-level test directory mirroring `luthien_control`.
 *   `dev/`: Development tracking files (`ProjectPlan.md`, `current_context.md`, `development_log.md`, `ToDo.md`).
 *   `dev/scripts/`: Helper scripts (e.g., log rotation).
-*   `.cursor/rules/`: AI assistant guidelines.
 *   `docker-compose.yml`: Configuration for local development database.
 *   `.env.example`: Example environment variable file.
 *   `pyproject.toml`: Project metadata and dependencies (Poetry).
+*   `.cursor/rules/`: AI assistant guidelines.

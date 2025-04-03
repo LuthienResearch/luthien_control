@@ -1,11 +1,11 @@
 """Utility functions for the proxy server."""
 
 import zlib
-import brotli
 from typing import Optional
 
-from fastapi import Request
+import brotli
 import httpx
+from fastapi import Request
 
 
 def decompress_content(content: bytes, encoding: Optional[str]) -> bytes:
@@ -81,4 +81,4 @@ async def get_decompressed_response_body(response: httpx.Response) -> bytes:
     raw_body = await response.aread() # Reads the entire body
     encoding = response.headers.get("content-encoding")
      # Pass raw_body and encoding to the decompression logic
-    return decompress_content(raw_body, encoding) 
+    return decompress_content(raw_body, encoding)

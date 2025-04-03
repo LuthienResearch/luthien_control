@@ -1,4 +1,3 @@
-import os
 import uuid
 from pathlib import Path
 
@@ -7,12 +6,11 @@ import psycopg2
 import pytest
 import pytest_asyncio
 from luthien_control.config.settings import Settings
+from luthien_control.main import app  # Import app directly
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from pydantic import HttpUrl, Field, SecretStr
-# Import SettingsConfigDict for overriding and TestSettings definition
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from luthien_control.main import app # Import app directly
 
+# Import SettingsConfigDict for overriding and TestSettings definition
+from pydantic_settings import SettingsConfigDict
 
 # Remove monkeypatch_session fixture if no longer needed
 # @pytest.fixture(scope='session')
@@ -24,14 +22,14 @@ from luthien_control.main import app # Import app directly
 #     m.undo()
 
 
-# --- Define TestSettings inheriting from main Settings --- 
+# --- Define TestSettings inheriting from main Settings ---
 class TestSettings(Settings):
     """Test-specific settings loading ONLY from .env.test."""
-    
+
     # Define model_config to ONLY load .env.test using absolute path
     model_config = SettingsConfigDict(
         # Restore env_file loading
-        env_file=str(Path(__file__).parent.parent / ".env.test"), 
+        env_file=str(Path(__file__).parent.parent / ".env.test"),
         extra='ignore'
     )
     # Fields are inherited from the main Settings class
@@ -68,7 +66,7 @@ def override_settings_dependency(request):
         if not env_test_path.exists():
             pytest.fail(f"Unit test setup failed: .env.test not found at {env_test_path}")
         try:
-            settings_instance = TestSettings() 
+            settings_instance = TestSettings()
         except Exception as e:
              pytest.fail(f"Failed to instantiate TestSettings for unit test: {e}")
 
@@ -77,21 +75,21 @@ def override_settings_dependency(request):
         pytest.fail("Failed to obtain settings instance in override_settings_dependency")
 
     # Store the chosen settings instance in app.state
-    app.state.test_settings = settings_instance 
+    app.state.test_settings = settings_instance
 
     # Store original overrides if any (though likely none)
     original_overrides = app.dependency_overrides.copy()
     original_state = getattr(app.state, 'test_settings', None)
 
-    def get_override_settings(): 
+    def get_override_settings():
         # This dependency override function now becomes simpler or potentially unnecessary
         # If we always get settings from app.state in the endpoint. Let's keep it for now.
         return settings_instance
 
     app.dependency_overrides[Settings] = get_override_settings # Override with our chosen instance
-    
+
     yield # Run the test
-    
+
     # Restore original overrides and state after test
     app.dependency_overrides = original_overrides
     app.state.test_settings = original_state
@@ -205,7 +203,7 @@ async def test_db_session(db_settings: Settings):
         with conn_admin_drop.cursor() as cursor:
             # Force disconnect users - crucial if tests left connections open
             cursor.execute(
-                f"""
+                """
                 SELECT pg_terminate_backend(pg_stat_activity.pid)
                 FROM pg_stat_activity
                 WHERE pg_stat_activity.datname = %s

@@ -1,9 +1,9 @@
-import pytest
 from unittest.mock import MagicMock, patch
 
-from luthien_control.policy_loader import load_policy, PolicyLoadError
-from luthien_control.policies.base import Policy
+import pytest
 from luthien_control.config.settings import Settings
+from luthien_control.policies.base import Policy
+from luthien_control.policy_loader import PolicyLoadError, load_policy
 
 # --- Test Policies (Dummy implementations) ---
 
@@ -44,7 +44,7 @@ def mock_settings() -> Settings:
 def test_load_policy_success(mock_import_module, mock_settings):
     """Test successful loading of a valid policy class."""
     mock_settings.POLICY_MODULE = "dummy_module.ValidTestPolicy"
-    
+
     # Configure the mock module returned by import_module
     mock_module = MagicMock()
     mock_module.ValidTestPolicy = ValidTestPolicy
@@ -112,4 +112,4 @@ def test_load_policy_instantiation_error(mock_import_module, mock_settings):
 
     with pytest.raises(PolicyLoadError, match="Could not instantiate policy class"):
         load_policy(mock_settings)
-    mock_import_module.assert_called_once_with("dummy_module") 
+    mock_import_module.assert_called_once_with("dummy_module")

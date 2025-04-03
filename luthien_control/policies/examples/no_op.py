@@ -31,4 +31,4 @@ class NoOpPolicy(Policy):
             "status_code": backend_response.status_code,
             "headers": dict(backend_response.headers),
             "content": original_response_body,
-        } 
+        }

@@ -1,15 +1,16 @@
 """Tests for proxy utility functions."""
 
 import zlib
+from unittest.mock import AsyncMock
+
 import brotli
 import pytest
-from unittest.mock import Mock, AsyncMock
 
 # Use absolute import based on change_guidelines.mdc
 from luthien_control.proxy.utils import (
     decompress_content,
     get_decompressed_request_body,
-    get_decompressed_response_body
+    get_decompressed_response_body,
 )
 
 # Test data
@@ -116,4 +117,4 @@ async def test_get_response_body_brotli():
     mock_response.aread = AsyncMock(return_value=BR_CONTENT)
     body = await get_decompressed_response_body(mock_response)
     assert body == ORIGINAL_CONTENT
-    mock_response.aread.assert_awaited_once() 
+    mock_response.aread.assert_awaited_once()

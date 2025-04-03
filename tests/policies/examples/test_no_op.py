@@ -1,8 +1,9 @@
-import pytest
-from typing import Any, Dict
 
+import pytest
 from fastapi import Request
-from httpx import Headers, Request as HttpxRequest, Response as HttpxResponse
+from httpx import Headers
+from httpx import Request as HttpxRequest
+from httpx import Response as HttpxResponse
 
 # Assuming fixtures might be moved to a conftest.py later, but copying for now
 from luthien_control.policies.examples.no_op import NoOpPolicy
@@ -118,4 +119,4 @@ async def test_noop_policy_apply_response(
         "content": response_body_bytes,
     }
     assert isinstance(result, dict)
-    assert result == expected_result 
+    assert result == expected_result

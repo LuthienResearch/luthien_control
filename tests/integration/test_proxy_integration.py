@@ -1,10 +1,6 @@
-import httpx
-import pytest
-from fastapi.concurrency import run_in_threadpool
-import os
-from fastapi.testclient import TestClient
-from luthien_control.config.settings import Settings
 
+import pytest
+from fastapi.testclient import TestClient
 from luthien_control.config.settings import Settings
 
 # Requires .env file with BACKEND_URL=https://api.openai.com and valid OPENAI_API_KEY

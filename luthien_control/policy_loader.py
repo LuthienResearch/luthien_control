@@ -66,4 +66,4 @@ def load_policy(settings: Settings) -> Policy:
         return policy_instance
     except Exception as e:
         logger.error(f"Failed to instantiate policy class '{policy_path}': {e}", exc_info=True)
-        raise PolicyLoadError(f"Could not instantiate policy class '{policy_path}'") from e 
+        raise PolicyLoadError(f"Could not instantiate policy class '{policy_path}'") from e

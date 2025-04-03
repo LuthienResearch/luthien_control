@@ -1,10 +1,10 @@
 import json
+
 import pytest
-from typing import Any, Dict
-
 from fastapi import Request
-from httpx import Headers, Request as HttpxRequest, Response as HttpxResponse
-
+from httpx import Headers
+from httpx import Request as HttpxRequest
+from httpx import Response as HttpxResponse
 from luthien_control.policies.examples.all_caps import AllCapsPolicy
 
 # --- Fixtures (Copying relevant ones, consider conftest.py later) ---
@@ -233,4 +233,4 @@ async def test_all_caps_policy_apply_response_passes_through_error_status(
         "content": original_body,
     }
     assert isinstance(result, dict)
-    assert result == expected_result 
+    assert result == expected_result

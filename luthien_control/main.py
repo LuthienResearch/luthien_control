@@ -1,6 +1,7 @@
-from fastapi import FastAPI
 from contextlib import asynccontextmanager
+
 import httpx
+from fastapi import FastAPI
 
 from luthien_control.proxy.server import router as proxy_router  # Changed import name
 

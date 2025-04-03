@@ -1,17 +1,15 @@
 # tests/proxy/test_server.py
+import json  # Add json import
+from typing import Any, Dict
+
+import httpx
 import pytest
 import respx
-import httpx
-from fastapi import FastAPI, Response, Request, status
+from fastapi import FastAPI, Request, Response, status
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, Any, Union
-import json # Add json import
-
-from luthien_control.main import app # Import your main FastAPI app
-from luthien_control.config.settings import Settings
+from luthien_control.dependencies import get_policy  # To override
+from luthien_control.main import app  # Import your main FastAPI app
 from luthien_control.policies.base import Policy
-from luthien_control.dependencies import get_policy # To override
 
 # --- Mock Policy Implementations ---
 
@@ -129,7 +127,7 @@ def client(test_app: FastAPI) -> TestClient:
 def test_proxy_with_no_op_policy(client: TestClient):
     """Test basic proxying with the default NoOpPolicy (or equivalent mock)."""
     # Get the settings instance injected by the override fixture
-    settings = client.app.state.test_settings 
+    settings = client.app.state.test_settings
 
     # Ensure NoOpPolicy (or mock equivalent) is loaded
     app.dependency_overrides[get_policy] = lambda: MockNoOpPolicy()
@@ -145,12 +143,12 @@ def test_proxy_with_no_op_policy(client: TestClient):
     assert response.status_code == 200
     assert response.json() == {"backend": "ok"}
     assert backend_route.called
-    
+
     request_sent = backend_route.calls[0].request
     assert request_sent.headers["x-client-header"] == "Value"
     # Parse the sent content and compare dicts to ignore whitespace differences
     sent_payload = json.loads(request_sent.content)
-    assert sent_payload == client_payload 
+    assert sent_payload == client_payload
 
     # Clean up override
     del app.dependency_overrides[get_policy]
@@ -188,7 +186,7 @@ def test_proxy_modify_response_policy(client: TestClient):
     # Add default Content-Type for raw content
     response = client.post("/modify/resp", content=b"client data", headers={"Content-Type": "application/octet-stream"})
 
-    assert response.status_code == status.HTTP_202_ACCEPTED 
+    assert response.status_code == status.HTTP_202_ACCEPTED
     assert response.content == b"backend content [RESP_MODIFIED]"
     assert response.headers["x-resp-policy"] == "Applied"
     assert backend_route.called
@@ -208,7 +206,7 @@ def test_proxy_direct_request_response_policy(client: TestClient):
     # Add default Content-Type for raw content
     response = client.post("/direct/req", content=b"client data", headers={"Content-Type": "application/octet-stream"})
 
-    assert response.status_code == status.HTTP_418_IM_A_TEAPOT 
+    assert response.status_code == status.HTTP_418_IM_A_TEAPOT
     assert response.content == b"Direct from Request Policy"
     assert not backend_route.called
 
@@ -226,9 +224,9 @@ def test_proxy_direct_response_response_policy(client: TestClient):
     # Add default Content-Type for raw content
     response = client.post("/direct/resp", content=b"client data", headers={"Content-Type": "application/octet-stream"})
 
-    assert response.status_code == status.HTTP_201_CREATED 
+    assert response.status_code == status.HTTP_201_CREATED
     assert response.content == b"Direct from Response Policy"
-    assert backend_route.called 
+    assert backend_route.called
 
     del app.dependency_overrides[get_policy]
 
@@ -286,7 +284,7 @@ def test_proxy_backend_error_passthrough(client: TestClient):
     response = client.post("/backend/error", content=b"client data", headers={"Content-Type": "application/octet-stream"})
 
     # The proxy should return 502 Bad Gateway when backend fails
-    assert response.status_code == status.HTTP_502_BAD_GATEWAY 
+    assert response.status_code == status.HTTP_502_BAD_GATEWAY
     assert "Backend server returned status code 503" in response.json()["detail"]
     assert backend_route.called
 

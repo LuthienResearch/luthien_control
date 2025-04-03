@@ -51,7 +51,7 @@ class AllCapsPolicy(Policy):
                             if isinstance(message["content"], str):
                                 message["content"] = message["content"].upper()
                                 modified = True
-                    
+
                     if modified:
                         # Update the content in the dictionary if modified
                         response_dict["content"] = json.dumps(data).encode()
@@ -59,9 +59,9 @@ class AllCapsPolicy(Policy):
 
             except json.JSONDecodeError:
                 # If body isn't valid JSON, just pass through original
-                pass 
+                pass
             except Exception:
                  # Handle other potential errors gracefully, pass through original
-                pass 
+                pass
 
-        return response_dict 
+        return response_dict

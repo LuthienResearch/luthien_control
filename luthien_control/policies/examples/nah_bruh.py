@@ -1,4 +1,3 @@
-import json
 import time
 import uuid
 from typing import Any, Dict, Union
@@ -57,4 +56,4 @@ class NahBruhPolicy(Policy):
             "status_code": backend_response.status_code,
             "headers": dict(backend_response.headers),
             "content": original_response_body,
-        } 
+        }

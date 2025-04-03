@@ -1,11 +1,11 @@
 import json
-import pytest
-from typing import Any, Dict
 
+import pytest
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from httpx import Headers, Request as HttpxRequest, Response as HttpxResponse
-
+from httpx import Headers
+from httpx import Request as HttpxRequest
+from httpx import Response as HttpxResponse
 from luthien_control.policies.examples.nah_bruh import NahBruhPolicy
 
 # --- Fixtures needed for NahBruhPolicy tests (copying for now) ---
@@ -158,4 +158,4 @@ async def test_nah_bruh_policy_apply_response_passes_through(
         "content": response_body_bytes,
     }
     assert isinstance(result, dict)
-    assert result == expected_result 
+    assert result == expected_result

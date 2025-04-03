@@ -1,10 +1,11 @@
 import httpx
-from fastapi import Request, HTTPException, Depends
+from fastapi import Depends, HTTPException, Request
 
 # Import Settings and the policy loader
 from luthien_control.config.settings import Settings
-from luthien_control.policy_loader import load_policy, PolicyLoadError
 from luthien_control.policies.base import Policy
+from luthien_control.policy_loader import PolicyLoadError, load_policy
+
 
 def get_http_client(request: Request) -> httpx.AsyncClient:
     """
@@ -70,4 +71,4 @@ def get_policy(request: Request, settings: Settings = Depends(Settings)) -> Poli
         raise HTTPException(
             status_code=500,
             detail="Internal server error: Unexpected issue loading policy."
-        ) 
+        )

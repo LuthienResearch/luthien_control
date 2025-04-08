@@ -125,3 +125,79 @@
 - All unit tests (`poetry run pytest`) are passing.
 - E2E test (`poetry run pytest -m e2e`) against local server is passing.
 - E2E test configuration allows targeting a deployed URL via `--e2e-target-url`.
+
+## [2024-04-08 16:45] - Start Request Processing Framework Implementation
+
+### Changes Made
+- Ran log rotation script: `bash dev/scripts/rotate_dev_log.sh`
+- Updated `dev/current_context.md` to reflect the new task.
+
+### Current Status
+- Starting implementation of the new request processing framework as outlined in `docs/designs/request_processing_framework.md`.
+- No code changes made yet.
+
+## [2024-04-08 17:03] - Create First Control Processor (ApplyRequestPolicyProcessor)
+
+### Changes Made
+- Moved `TransactionContext` from `control_processors/interface.py` to `core/context.py`.
+- Created `luthien_control/control_processors/interface.py` with `ControlProcessor` protocol.
+- Created `luthien_control/control_processors/apply_request_policy.py` with skeleton `ApplyRequestPolicyProcessor` (initially raising `NotImplementedError`).
+- Created `tests/control_processors/test_apply_request_policy.py` with initial test `test_apply_request_policy_processor_skeleton`.
+- Followed TDD:
+    1. Ran test against `NotImplementedError` implementation (FAILED as expected).
+    2. Implemented minimal code in `ApplyRequestPolicyProcessor.process` to return context.
+    3. Ran test against minimal implementation (PASSED).
+- Ran `poetry run pytest tests/control_processors/test_apply_request_policy.py` (1 passed).
+
+### Current Status
+- Basic structure for control processors is in place.
+- `ApplyRequestPolicyProcessor` exists with a minimal, test-passing implementation.
+- Actual policy logic integration is pending the implementation of the policy engine.
+
+## [2024-04-08 17:15] - Implement and Test PolicyLoader
+
+### Changes Made
+- Corrected repeated use of `policy/` instead of `policies/` in paths.
+- Added `Policy` protocol to `luthien_control/policies/base.py` (realized it already existed, no change needed there).
+- Added `get_request_policies` and `get_response_policies` methods to `luthien_control/config/settings.py` (using placeholder paths initially, then corrected to `policies.examples`).
+- Created `luthien_control/policies/loader.py` with `PolicyLoader` class.
+    - Implemented dynamic policy import and instantiation logic in `_instantiate_policies`.
+    - Added checks using `inspect` to handle non-classes and abstract classes/protocols during loading.
+- Created `tests/policy/test_loader.py` (initially misplaced, used this path).
+    - Added tests for `PolicyLoader` covering initialization, loading valid/invalid policies, lazy loading via getters, and edge cases.
+- Debugged test failures:
+    - Fixed `ModuleNotFoundError` by creating `luthien_control/policies/examples/__init__.py`.
+    - Fixed `TypeError` on abstract class instantiation by adding `inspect.isabstract` check in loader.
+    - Fixed `TypeError` on module instantiation by adding `inspect.isclass` check in loader.
+- Integrated `PolicyLoader` into `ApplyRequestPolicyProcessor`:
+    - Added `PolicyLoader` dependency to `__init__`.
+    - Updated `process` method to use `policy_loader.get_request_policies()`.
+- Refactored tests in `tests/control_processors/test_apply_request_policy.py`:
+    - Removed direct mocking of `_load_request_policies`.
+    - Added `mock_policy_loader` fixture.
+    - Updated tests to instantiate processor with mock loader and configure loader's return values.
+- Ran all relevant tests (`tests/policy/test_loader.py`, `tests/control_processors/test_apply_request_policy.py`) successfully.
+
+### Current Status
+- `PolicyLoader` implemented and unit tested for loading policies based on settings.
+- `ApplyRequestPolicyProcessor` now correctly uses `PolicyLoader` to retrieve policies.
+- Unit tests for both components are passing.
+- File locations for loader (`policies/loader.py`) and its test (`tests/policies/test_loader.py`) still need to be corrected (deferred).
+
+## [2024-04-08 17:17] - Implement AddApiKeyHeaderProcessor
+
+### Changes Made
+- Created `luthien_control/control_processors/add_api_key_header.py` with `AddApiKeyHeaderProcessor` class.
+- Implemented `process` method to add `Authorization: Bearer <key>` header, reading key from `settings.get_openai_api_key()`.
+- Added checks for `context.request` being None and API key not being configured.
+- Created `tests/control_processors/test_add_api_key_header.py` with unit tests covering:
+    - Successful key addition.
+    - No request in context.
+    - API key not configured in settings.
+    - Overwriting existing Authorization header.
+- Followed TDD: Skeleton -> Failing Tests -> Implementation -> Passing Tests.
+- Ran tests (`poetry run pytest tests/control_processors/test_add_api_key_header.py`) successfully (4 passed).
+
+### Current Status
+- `AddApiKeyHeaderProcessor` implemented and unit tested.
+- Ready for integration into the main processing chain.

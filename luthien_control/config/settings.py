@@ -1,4 +1,5 @@
 import os
+from typing import List
 from urllib.parse import urlparse  # For basic URL validation
 
 from dotenv import load_dotenv
@@ -109,3 +110,23 @@ class Settings:
         # Call base_dsn property to ensure checks run and get the base string
         base = self.base_dsn
         return f"{base}/{target_db}"
+
+    # --- Policy Settings --- #
+
+    def get_request_policies(self) -> List[str]:
+        """Returns a list of fully qualified request policy class names."""
+        # TODO: Load from environment variable (e.g., REQUEST_POLICIES=...,...)
+        # Example using existing policies:
+        return [
+            "luthien_control.policies.examples.no_op.NoOpPolicy",
+            # "luthien_control.policies.examples.all_caps.AllCapsPolicy",
+        ]
+
+    def get_response_policies(self) -> List[str]:
+        """Returns a list of fully qualified response policy class names."""
+        # TODO: Load from environment variable (e.g., RESPONSE_POLICIES=...,...)
+        return [
+            "luthien_control.policies.examples.no_op.NoOpPolicy",
+        ]
+
+    # --- End Policy Settings --- #

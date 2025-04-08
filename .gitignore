@@ -7,22 +7,15 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
 build/
 dist/
-develop-eggs/
-*.egg-info/
-*.egg
 venv/
 .venv/
-env/
-.env/
 
 # Poetry
 .poetry/
 
 # IDE / Editor specific
-.idea/
 .vscode/
 *.swp
 *~
@@ -36,13 +29,8 @@ htmlcov/
 *.log
 logs/
 
+# Misc
 .DS_Store
 
-# Certs
-certs/
-
-# Data
-data/
-
-# Scratch / Temp
-scratch/
+# ruff
+.ruff_cache/

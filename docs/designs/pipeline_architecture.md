@@ -1,111 +1,84 @@
-# Luthien Control: Request/Response Pipeline Architecture
+# Luthien Control: Request/Response Processing Architecture
 
 **Status:** Proposed
 
-**Goal:** Refactor the monolithic request/response handling in `luthien_control.proxy.server.proxy_endpoint` into a modular, composable pipeline of processing steps. This will improve maintainability, testability, and flexibility.
+**Goal:** Refactor the monolithic request/response handling in `luthien_control.proxy.server.proxy_endpoint` into a modular, composable architecture. This will improve maintainability, testability, and flexibility.
 
 ## Core Concepts
 
-### 1. Pipeline Context Objects
+### 1. Transaction Context
 
-Instead of passing raw `Request` and `Response` objects along with other disparate variables, we will use dedicated context objects to encapsulate all necessary state for a processing stage.
+A central object holding the state for a single request/response transaction throughout its processing lifecycle.
 
-*   **`RequestContext`**: Holds data relevant *before* the request is sent to the backend.
-    *   `request_id: str`
-    *   `client_request: fastapi.Request`
-    *   `raw_request_body: bytes`
-    *   `policy: Policy` (or policy decisions)
-    *   `settings: Settings`
-    *   `derived_backend_url: httpx.URL` (optional, might be set by a step)
-    *   `modified_request_headers: Dict[str, str]` (or List[Tuple[str, str]])
-    *   `modified_request_content: bytes`
-    *   `final_response: Optional[fastapi.Response]` (If set, pipeline short-circuits)
-    *   ... (other metadata added by steps)
-
-*   **`ResponseContext`**: Holds data relevant *after* the response is received from the backend, potentially inheriting or referencing the `RequestContext`.
-    *   `request_context: RequestContext` (or relevant fields copied)
-    *   `backend_response: httpx.Response`
-    *   `raw_response_body: bytes`
-    *   `modified_response_headers: Dict[str, str]`
-    *   `modified_response_content: bytes`
-    *   `modified_status_code: int`
-    *   `final_response: Optional[fastapi.Response]` (If set, pipeline short-circuits, potentially overriding backend response processing)
-    *   ... (other metadata added by steps)
-
-*Initial thought: Start with separate classes for clarity. Revisit generics (`ControlData[T]`) later if significant overlap justifies it.*
-
-### 2. Pipeline Step Interface
-
-A common interface for all processing steps.
+*   **`TransactionContext`**:
+    *   `transaction_id: str`: A unique identifier for logging and tracing.
+    *   `request: httpx.Request`: The incoming client request, potentially modified during processing.
+    *   `response: Optional[httpx.Response]`: The backend response, populated after the backend call.
+    *   `final_response: Optional[fastapi.Response]`: If set by any processor, the processing short-circuits, and this response is sent directly to the client.
+    *   `data: Dict[Any, Any]`: A flexible dictionary for processors to store and retrieve arbitrary data (e.g., policy decisions, intermediate results, settings).
 
 ```python
-from typing import Protocol, Union
+# Example Minimal Structure (Implementation details may vary)
+from typing import Dict, Any, Optional
+import httpx
+import fastapi
 
-class PipelineStep(Protocol):
-    async def execute(self, context: Union[RequestContext, ResponseContext]) -> Union[RequestContext, ResponseContext]:
-        """
-        Process the context.
+class TransactionContext:
+    transaction_id: str
+    request: httpx.Request
+    response: Optional[httpx.Response] = None
+    final_response: Optional[fastapi.Response] = None
+    data: Dict[Any, Any] = {}
+```
 
-        Args:
-            context: The current request or response context.
+### 2. Control Processor Interface
 
-        Returns:
-            The potentially modified context.
+Defines the standard interface for components that process the `TransactionContext`. Processors are designed to be composable, allowing complex workflows to be built from smaller, focused units.
 
-        Raises:
-            Specific exceptions for handling errors within the pipeline.
+*   **`ControlProcessor` Interface**:
+    *   Requires an `async process(self, context: TransactionContext) -> TransactionContext` method.
+    *   Takes the current context as input.
+    *   Performs its specific logic (e.g., applying policies, modifying headers, calling the backend).
+    *   Returns the (potentially modified) context.
+    *   May set `context.final_response` to short-circuit further processing.
 
-        Side Effects:
-            May modify mutable objects within the context (e.g., headers dict).
-            May set context.final_response to short-circuit the pipeline.
-        """
+### 3. Concrete Control Processors
+
+Examples of specific processor implementations:
+
+*   `ApplyPolicyProcessor`: Executes policy rules against the request or response in the context.
+*   `BackendRequestProcessor`: Constructs and sends the request to the backend service, storing the response in the context.
+*   `LoggingProcessor`: Records relevant information from the context at different stages.
+*   `HeaderManipulationProcessor`: Modifies request or response headers based on rules or context data.
+*   `ContentEncodingProcessor`: Handles request/response body compression or decompression.
+
+### 4. Response Builder
+
+A component responsible for constructing the final `fastapi.Response` to be sent back to the client, based on the state of the `TransactionContext` after processing.
+
+*   **`ResponseBuilder` Interface (Conceptual)**:
+    *   Takes a final `TransactionContext` as input.
+    *   Generates a `fastapi.Response` object.
+
+```python
+# Example Minimal Signature
+import fastapi
+# from .context import TransactionContext # Assuming context is defined elsewhere
+
+class ResponseBuilder:
+    def build_response(self, context: TransactionContext) -> fastapi.Response:
         ...
 ```
 
-### 3. Concrete Pipeline Steps
+### 5. Orchestration
 
-Individual classes implementing `PipelineStep`, each responsible for a specific piece of logic extracted from `proxy_endpoint`. Examples:
+The main proxy endpoint coordinates the flow:
 
-*   `ApplyRequestPolicyStep`: Runs `policy.apply_request_policy`, updates context with headers/content or sets `final_response`.
-*   `BuildBackendRequestStep`: Constructs the `httpx.Request` based on context.
-*   `SendBackendRequestStep`: Sends the request, receives the response, populates `ResponseContext`.
-*   `ApplyResponsePolicyStep`: Runs `policy.apply_response_policy`, updates context.
-*   `PrepareFinalResponseStep`: Constructs the `fastapi.Response` from the `ResponseContext`.
-*   `LogRequestResponseStep`: Handles logging (potentially split into pre/post steps).
-*   `DecompressionStep` / `CompressionStep`: Handle content encoding.
-*   `HeaderManipulationStep`: Consolidate various header adjustments.
-
-### 4. Composite Pipeline Steps
-
-Steps that orchestrate other steps.
-
-*   **`SequentialPipeline`**:
-    *   Takes a list of `PipelineStep` instances.
-    *   Executes them in order, passing the context between them.
-    *   Checks for `context.final_response` after each step to allow short-circuiting.
-
-*   **`ConditionalPipeline`** (Future):
-    *   Takes a condition (e.g., a callable checking the context) and two or more sub-pipelines (which could be `SequentialPipeline` or other `PipelineStep` instances).
-    *   Executes the appropriate sub-pipeline based on the condition.
-
-### 5. Pipeline Orchestration
-
-The `proxy_endpoint` function will be significantly simplified:
-
-1.  Initialize `RequestContext`.
-2.  Instantiate the main request pipeline (likely a `SequentialPipeline` containing steps like `ApplyRequestPolicyStep`, `BuildBackendRequestStep`, `SendBackendRequestStep`).
-3.  Execute the request pipeline.
-4.  Check if `final_response` was set during the request phase. If so, return it.
-5.  Initialize `ResponseContext` based on the outcome of `SendBackendRequestStep`.
-6.  Instantiate the main response pipeline (e.g., `ApplyResponsePolicyStep`, `PrepareFinalResponseStep`).
-7.  Execute the response pipeline.
-8.  Return the `final_response` generated by the response pipeline.
-9.  Include robust error handling around pipeline execution.
-
-## Incremental Refactoring Plan
-
-1.  Implement basic `RequestContext`, `ResponseContext`, `PipelineStep` interface, and `SequentialPipeline` in `luthien_control.proxy.pipeline`.
-2.  Extract `ApplyRequestPolicyStep` logic from `proxy_endpoint`.
-3.  Modify `proxy_endpoint` to use a minimal pipeline containing only `ApplyRequestPolicyStep`. Keep remaining logic inline for now, reading from/writing to the context object.
-4.  Test thoroughly.
-5.  Repeat steps 2-4 for other logical blocks (`SendBackendRequestStep`, `ApplyResponsePolicyStep`, etc.), gradually building the full pipelines and shrinking `proxy_endpoint`. 
+1.  Receive the incoming client `fastapi.Request`.
+2.  Generate a unique `transaction_id`.
+3.  Build the initial `TransactionContext` (containing the `transaction_id` and the initial `httpx.Request` derived from the client request).
+4.  Pass the `TransactionContext` to the main, pre-configured `ControlProcessor` (which might internally compose several other processors).
+5.  The processor executes its logic, potentially calling the backend and modifying the context.
+6.  Pass the resulting `TransactionContext` to a `ResponseBuilder`.
+7.  Send the `fastapi.Response` generated by the builder back to the client.
+8.  Ensure robust error handling throughout the process. 

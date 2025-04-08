@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
-from luthien_control.control_processors.add_api_key_header import AddApiKeyHeaderProcessor
+from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderProcessor
 from luthien_control.core.context import TransactionContext
 
 

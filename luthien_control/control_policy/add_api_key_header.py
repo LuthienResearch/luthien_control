@@ -1,8 +1,7 @@
 """Control processor for adding the API key header to requests."""
 
-
 from luthien_control.config.settings import Settings
-from luthien_control.control_processors.interface import ControlProcessor
+from luthien_control.control_policy.interface import ControlProcessor
 from luthien_control.core.context import TransactionContext
 
 

@@ -139,15 +139,15 @@
 ## [2024-04-08 17:03] - Create First Control Processor (ApplyRequestPolicyProcessor)
 
 ### Changes Made
-- Moved `TransactionContext` from `control_processors/interface.py` to `core/context.py`.
-- Created `luthien_control/control_processors/interface.py` with `ControlProcessor` protocol.
-- Created `luthien_control/control_processors/apply_request_policy.py` with skeleton `ApplyRequestPolicyProcessor` (initially raising `NotImplementedError`).
-- Created `tests/control_processors/test_apply_request_policy.py` with initial test `test_apply_request_policy_processor_skeleton`.
+- Moved `TransactionContext` from `control_policy/interface.py` to `core/context.py`.
+- Created `luthien_control/control_policy/interface.py` with `ControlProcessor` protocol.
+- Created `luthien_control/control_policy/apply_request_policy.py` with skeleton `ApplyRequestPolicyProcessor` (initially raising `NotImplementedError`).
+- Created `tests/control_policy/test_apply_request_policy.py` with initial test `test_apply_request_policy_processor_skeleton`.
 - Followed TDD:
     1. Ran test against `NotImplementedError` implementation (FAILED as expected).
     2. Implemented minimal code in `ApplyRequestPolicyProcessor.process` to return context.
     3. Ran test against minimal implementation (PASSED).
-- Ran `poetry run pytest tests/control_processors/test_apply_request_policy.py` (1 passed).
+- Ran `poetry run pytest tests/control_policy/test_apply_request_policy.py` (1 passed).
 
 ### Current Status
 - Basic structure for control processors is in place.
@@ -172,11 +172,11 @@
 - Integrated `PolicyLoader` into `ApplyRequestPolicyProcessor`:
     - Added `PolicyLoader` dependency to `__init__`.
     - Updated `process` method to use `policy_loader.get_request_policies()`.
-- Refactored tests in `tests/control_processors/test_apply_request_policy.py`:
+- Refactored tests in `tests/control_policy/test_apply_request_policy.py`:
     - Removed direct mocking of `_load_request_policies`.
     - Added `mock_policy_loader` fixture.
     - Updated tests to instantiate processor with mock loader and configure loader's return values.
-- Ran all relevant tests (`tests/policy/test_loader.py`, `tests/control_processors/test_apply_request_policy.py`) successfully.
+- Ran all relevant tests (`tests/policy/test_loader.py`, `tests/control_policy/test_apply_request_policy.py`) successfully.
 
 ### Current Status
 - `PolicyLoader` implemented and unit tested for loading policies based on settings.
@@ -187,16 +187,16 @@
 ## [2024-04-08 17:17] - Implement AddApiKeyHeaderProcessor
 
 ### Changes Made
-- Created `luthien_control/control_processors/add_api_key_header.py` with `AddApiKeyHeaderProcessor` class.
+- Created `luthien_control/control_policy/add_api_key_header.py` with `AddApiKeyHeaderProcessor` class.
 - Implemented `process` method to add `Authorization: Bearer <key>` header, reading key from `settings.get_openai_api_key()`.
 - Added checks for `context.request` being None and API key not being configured.
-- Created `tests/control_processors/test_add_api_key_header.py` with unit tests covering:
+- Created `tests/control_policy/test_add_api_key_header.py` with unit tests covering:
     - Successful key addition.
     - No request in context.
     - API key not configured in settings.
     - Overwriting existing Authorization header.
 - Followed TDD: Skeleton -> Failing Tests -> Implementation -> Passing Tests.
-- Ran tests (`poetry run pytest tests/control_processors/test_add_api_key_header.py`) successfully (4 passed).
+- Ran tests (`poetry run pytest tests/control_policy/test_add_api_key_header.py`) successfully (4 passed).
 
 ### Current Status
 - `AddApiKeyHeaderProcessor` implemented and unit tested.

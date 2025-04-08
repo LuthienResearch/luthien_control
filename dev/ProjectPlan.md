@@ -1,5 +1,7 @@
 # Project Plan: Luthien Control
 
+*Note: This plan requires rework to better reflect current priorities and structure.*
+
 ## 1. Core Goal
 
 To build an AI Control System (`luthien_control`) acting as an intelligent proxy server for OpenAI-compatible API endpoints. The system will intercept client requests and backend responses, apply user-defined control policies, log traffic, and eventually provide analysis tools for this data.
@@ -31,3 +33,13 @@ To build an AI Control System (`luthien_control`) acting as an intelligent proxy
 - [ ] Configuration Management for Policies
 - [ ] Log Analysis Tools
 - [ ] Enhanced Security & Authentication
+- [ ] **Modular Pipeline Refactor:**
+    - [ ] Define pipeline step interfaces (`PipelineStep`, `RequestContext`, `ResponseContext`).
+    - [ ] Implement composite steps (`SequentialPipeline`, `ConditionalPipeline`).
+    - [ ] Incrementally extract logic from `server.py` into discrete pipeline steps (e.g., `RequestPolicyStep`, `BackendRequestStep`, `ResponsePolicyStep`, `HeaderProcessingStep`).
+    - [ ] Refactor `proxy_endpoint` to orchestrate pipeline execution.
+- [ ] **Enhanced E2E Testing Framework:**
+    - [ ] Implement local proxy server management within test suite (e.g., `pytest-xprocess`).
+    - [ ] Configure test target selection (local vs. deployed) via `pytest` arguments/fixtures.
+    - [ ] Develop core E2E tests runnable against both targets.
+    - [ ] Integrate tests into deployment verification workflow.

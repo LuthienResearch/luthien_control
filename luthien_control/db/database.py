@@ -49,14 +49,17 @@ async def create_db_pool() -> None:
 
         # Basic check for essential connection details
         if not all([db_user, db_password, db_host, db_port, db_name]):
-            raise ValueError("Missing essential logging database connection environment variables (LOG_DB_USER, LOG_DB_PASSWORD, LOG_DB_HOST, LOG_DB_PORT, LOG_DB_NAME)")
+            raise ValueError(
+                "Missing essential logging database connection environment variables "
+                "(LOG_DB_USER, LOG_DB_PASSWORD, LOG_DB_HOST, LOG_DB_PORT, LOG_DB_NAME)"
+            )
 
         dsn = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
     except ValueError as e:
         logger.exception(f"Configuration error for database pool: {e}")
         _db_pool = None
-        return # Do not proceed if config is invalid
+        return  # Do not proceed if config is invalid
 
     try:
         _db_pool = await asyncpg.create_pool(
@@ -67,7 +70,7 @@ async def create_db_pool() -> None:
         logger.info(f"Database connection pool created successfully for {db_name}.")
     except Exception as e:
         logger.exception(f"Failed to create database connection pool: {e}")
-        _db_pool = None # Ensure pool is None if creation failed
+        _db_pool = None  # Ensure pool is None if creation failed
 
 
 async def close_db_pool() -> None:

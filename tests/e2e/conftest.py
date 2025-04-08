@@ -1,12 +1,13 @@
 import os
-import sys
 import socket
 import subprocess
+import sys
 import time
+from typing import AsyncGenerator, Generator
+
+import httpx
 import pytest
 import pytest_asyncio
-import httpx
-from typing import AsyncGenerator, Generator, Optional
 from dotenv import load_dotenv
 
 # Load .env file for local development environment variables
@@ -16,6 +17,7 @@ load_dotenv()
 
 # --- Command Line Option ---
 
+
 def pytest_addoption(parser):
     parser.addoption(
         "--e2e-target-url",
@@ -24,7 +26,9 @@ def pytest_addoption(parser):
         help="URL of a deployed proxy server to target for E2E tests. If not provided, a local server will be started.",
     )
 
+
 # --- Fixtures ---
+
 
 @pytest.fixture(scope="session")
 def openai_api_key() -> str:
@@ -32,16 +36,17 @@ def openai_api_key() -> str:
     key = os.getenv("OPENAI_API_KEY")
     if not key:
         pytest.fail(
-            "Missing required environment variable: OPENAI_API_KEY. "
-            "Ensure it is set in your environment or .env file."
+            "Missing required environment variable: OPENAI_API_KEY. Ensure it is set in your environment or .env file."
         )
     return key
+
 
 def _find_free_port() -> int:
     """Find an available port on localhost."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
 
 @pytest.fixture(scope="function")
 def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
@@ -64,9 +69,7 @@ def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
     # Default to real OpenAI backend for E2E tests unless overridden by system env
     server_env["BACKEND_URL"] = os.environ.get("BACKEND_URL", "https://api.openai.com/v1")
     # Ensure policy is default (NoOp) unless overridden by system env
-    server_env["POLICY_MODULE"] = os.environ.get(
-        "POLICY_MODULE", "luthien_control.policies.examples.no_op.NoOpPolicy"
-    )
+    server_env["POLICY_MODULE"] = os.environ.get("POLICY_MODULE", "luthien_control.policies.examples.no_op.NoOpPolicy")
 
     # Command to start the server using uvicorn
     # Use sys.executable to ensure the same Python interpreter is used
@@ -100,7 +103,7 @@ def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
         server_ready = False
         with httpx.Client() as health_client:
             while time.time() - start_time < max_wait_seconds:
-                if process.poll() is not None: # Check if process terminated prematurely
+                if process.poll() is not None:  # Check if process terminated prematurely
                     pytest.fail(f"Local server process terminated unexpectedly with code {process.poll()}. Check logs.")
                 try:
                     response = health_client.get(f"{base_url}/health")
@@ -109,7 +112,7 @@ def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
                         server_ready = True
                         break
                 except httpx.ConnectError:
-                    time.sleep(0.5) # Wait before retrying connection
+                    time.sleep(0.5)  # Wait before retrying connection
                 except Exception as e:
                     print(f"Health check error: {e}")
                     time.sleep(0.5)
@@ -122,19 +125,22 @@ def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
 
     finally:
         # Teardown: Stop the server process
-        if process and process.poll() is None: # Check if process exists and is running
+        if process and process.poll() is None:  # Check if process exists and is running
             print(f"\nTerminating local server (PID: {process.pid})...")
             process.terminate()
             try:
-                process.wait(timeout=5) # Wait for termination
+                process.wait(timeout=5)  # Wait for termination
                 print("Local server terminated gracefully.")
             except subprocess.TimeoutExpired:
                 print("Server did not terminate gracefully, killing...")
                 process.kill()
-                process.wait() # Ensure it's killed
+                process.wait()  # Ensure it's killed
                 print("Local server killed.")
         elif process:
-            print(f"Local server process (PID: {process.pid}) already terminated with code {process.poll()}.") # Already stopped
+            print(
+                f"Local server process (PID: {process.pid}) already terminated with code {process.poll()}."
+            )  # Already stopped
+
 
 @pytest.fixture(scope="function")
 def proxy_target_url(request: pytest.FixtureRequest, live_local_proxy_server: str) -> str:
@@ -148,11 +154,12 @@ def proxy_target_url(request: pytest.FixtureRequest, live_local_proxy_server: st
         print(f"\nUsing provided target URL: {target_url_option}")
         # Basic validation
         if not target_url_option.startswith(("http://", "https://")):
-             pytest.fail(f"Invalid --e2e-target-url: '{target_url_option}'. Must start with http:// or https://")
+            pytest.fail(f"Invalid --e2e-target-url: '{target_url_option}'. Must start with http:// or https://")
         return target_url_option
     else:
         print(f"\nUsing local server URL: {live_local_proxy_server}")
         return live_local_proxy_server
+
 
 @pytest_asyncio.fixture(scope="function")
 async def e2e_client(proxy_target_url: str, openai_api_key: str) -> AsyncGenerator[httpx.AsyncClient, None]:
@@ -162,7 +169,7 @@ async def e2e_client(proxy_target_url: str, openai_api_key: str) -> AsyncGenerat
     """
     headers = {
         "Authorization": f"Bearer {openai_api_key}",
-        "Accept": "application/json", # Good practice
+        "Accept": "application/json",  # Good practice
         # Add any other common headers needed for your tests
     }
     # Increase default timeouts for potentially slower E2E interactions
@@ -172,12 +179,15 @@ async def e2e_client(proxy_target_url: str, openai_api_key: str) -> AsyncGenerat
         # Optional: Perform a quick health check before yielding
         try:
             health_response = await client.get("/health")
-            health_response.raise_for_status() # Raise exception for 4xx/5xx status codes
+            health_response.raise_for_status()  # Raise exception for 4xx/5xx status codes
             print(f"Successfully connected to health endpoint at {proxy_target_url}/health")
         except httpx.RequestError as exc:
             pytest.fail(f"Failed to connect to target proxy health endpoint {proxy_target_url}/health: {exc}")
         except httpx.HTTPStatusError as exc:
-            pytest.fail(f"Target proxy health endpoint {proxy_target_url}/health returned error status {exc.response.status_code}: {exc.response.text}")
+            pytest.fail(
+                f"Target proxy health endpoint {proxy_target_url}/health returned "
+                f"error status {exc.response.status_code}: {exc.response.text}"
+            )
 
         yield client
         # httpx.AsyncClient is automatically closed by the async context manager

@@ -1,5 +1,5 @@
 import httpx
-from fastapi import Depends, HTTPException, Request
+from fastapi import HTTPException, Request
 
 # Import Settings and the policy loader
 from luthien_control.config.settings import Settings

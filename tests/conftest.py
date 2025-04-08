@@ -21,11 +21,11 @@ def override_settings_dependency(request):
     """
     if request.node.get_closest_marker("e2e"):
         print("\n[conftest] Skipping override_settings_dependency for e2e test.")
-        yield # Still need to yield for autouse fixture
-        return # Exit early
+        yield  # Still need to yield for autouse fixture
+        return  # Exit early
 
     project_root = Path(__file__).parent.parent
-    original_environ = os.environ.copy() # Store original environment
+    original_environ = os.environ.copy()  # Store original environment
 
     # 1. Load Base Environment File
     if request.node.get_closest_marker("integration"):
@@ -37,22 +37,25 @@ def override_settings_dependency(request):
 
     if not env_file_path.exists():
         if request.node.get_closest_marker("integration"):
-             pytest.fail(f"Required environment file not found for integration test: {env_file_path}")
+            pytest.fail(f"Required environment file not found for integration test: {env_file_path}")
         else:
-            print(f"[conftest] Warning: Unit test environment file not found: {env_file_path}. Proceeding with system env.")
+            print(
+                f"[conftest] Warning: Unit test environment file not found: {env_file_path}. "
+                f"Proceeding with system env."
+            )
             # Proceed without loading file, apply marker vars below
     else:
         loaded = load_dotenv(dotenv_path=env_file_path, override=True, verbose=True)
         if loaded:
             print(f"[conftest] Successfully loaded environment from {env_file_path}")
         else:
-             print(f"[conftest] Warning: load_dotenv did not find variables in {env_file_path}")
+            print(f"[conftest] Warning: load_dotenv did not find variables in {env_file_path}")
 
     # 2. Apply Test-Specific Overrides from Marker
     env_marker = request.node.get_closest_marker("envvars")
     if env_marker:
         if not env_marker.args or not isinstance(env_marker.args[0], dict):
-             pytest.fail("@pytest.mark.envvars requires a dictionary argument.")
+            pytest.fail("@pytest.mark.envvars requires a dictionary argument.")
 
         test_vars = env_marker.args[0]
         print(f"[conftest] Applying env overrides from marker: {test_vars}")
@@ -64,9 +67,9 @@ def override_settings_dependency(request):
                     del os.environ[key]
             else:
                 print(f"  - Setting {key}={value}")
-                os.environ[key] = str(value) # Ensure value is string
+                os.environ[key] = str(value)  # Ensure value is string
 
-    yield # Allow test to run
+    yield  # Allow test to run
 
     # 3. Restore Original Environment
     print("[conftest] Restoring original environment variables.")
@@ -83,7 +86,7 @@ async def db_session_fixture():
     """
     # Instantiate Settings here. It will use the env vars loaded by the
     # autouse override_settings_dependency fixture.
-    db_settings = None # Initialize
+    db_settings = None  # Initialize
     try:
         # Explicitly load .env here for session-scoped DB setup, as the autouse
         # fixture might load .env.test if *any* non-integration test triggers it first.
@@ -92,10 +95,12 @@ async def db_session_fixture():
         print(f"[db_session_fixture] Explicitly loading environment for DB setup: {main_env_path}")
         load_dotenv(dotenv_path=main_env_path, override=True, verbose=True)
         db_settings = Settings()
-        _ = db_settings.admin_dsn # Will raise if settings missing
+        _ = db_settings.admin_dsn  # Will raise if settings missing
         print("[db_session_fixture] Settings loaded for DB operations.")
     except Exception as e:
-        pytest.fail(f"[db_session_fixture] Failed to load Settings for DB setup: {e}. Ensure .env has required POSTGRES_* vars.")
+        pytest.fail(
+            f"[db_session_fixture] Failed to load Settings for DB setup: {e}. Ensure .env has required POSTGRES_* vars."
+        )
 
     temp_db_name = f"test_db_{uuid.uuid4().hex}"
     print(f"\nCreating temporary test database: {temp_db_name}")
@@ -115,7 +120,9 @@ async def db_session_fixture():
             cursor.execute(f'CREATE DATABASE "{temp_db_name}"')
         print(f"Database {temp_db_name} created successfully.")
     except psycopg2.Error as e:
-        pytest.fail(f"Failed to create temporary database {temp_db_name} using DSN {admin_dsn[:admin_dsn.find('@')]}...: {e}")
+        pytest.fail(
+            f"Failed to create temporary database {temp_db_name} using DSN {admin_dsn[: admin_dsn.find('@')]}...: {e}"
+        )
     finally:
         if conn_admin:
             conn_admin.close()
@@ -136,7 +143,9 @@ async def db_session_fixture():
         print(f"Schema applied successfully to {temp_db_name}.")
 
     except (asyncpg.PostgresError, FileNotFoundError, OSError) as e:
-        pytest.fail(f"Failed to apply schema to {temp_db_name} using DSN {temp_db_dsn[:temp_db_dsn.find('@')]}...: {e}")
+        pytest.fail(
+            f"Failed to apply schema to {temp_db_name} using DSN {temp_db_dsn[: temp_db_dsn.find('@')]}...: {e}"
+        )
     finally:
         if conn_test_db and not conn_test_db.is_closed():
             await conn_test_db.close()
@@ -173,7 +182,7 @@ async def db_session_fixture():
 
 
 @pytest.fixture(scope="session")
-def client(): # No longer depends on override_settings_dependency explicitly
+def client():  # No longer depends on override_settings_dependency explicitly
     """Pytest fixture for the FastAPI TestClient.
     Uses the main 'app' imported from luthien_control.main.
     Ensures lifespan events are handled correctly by TestClient.

@@ -1,15 +1,12 @@
 # tests/proxy/test_server.py
 import json  # Add json import
-from typing import Any, Dict
-import os # Import os for the last test
 
 import httpx
 import pytest
 import respx
-from fastapi import FastAPI, Request, Response as StarletteResponse, status, HTTPException # Alias Starlette Response
+from fastapi import FastAPI, status  # Alias Starlette Response
 from fastapi.testclient import TestClient
 from luthien_control.config.settings import Settings
-from luthien_control.dependencies import get_policy  # To override
 from luthien_control.main import app  # Import your main FastAPI app
 
 # --- REMOVED Mock Policy Implementations ---

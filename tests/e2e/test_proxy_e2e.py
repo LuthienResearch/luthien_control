@@ -1,8 +1,9 @@
-import pytest
 import httpx
+import pytest
 
 # Mark all tests in this module as 'e2e'
 pytestmark = [pytest.mark.e2e, pytest.mark.asyncio]
+
 
 async def test_e2e_chat_completion(e2e_client: httpx.AsyncClient):
     """
@@ -14,17 +15,17 @@ async def test_e2e_chat_completion(e2e_client: httpx.AsyncClient):
     print(f"\nTesting against base URL: {e2e_client.base_url}")
 
     request_payload = {
-        "model": "gpt-3.5-turbo", # Or a model known to be available
+        "model": "gpt-3.5-turbo",  # Or a model known to be available
         "messages": [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "What is the capital of France?"}
+            {"role": "user", "content": "What is the capital of France?"},
         ],
         "max_tokens": 50,
     }
 
     try:
         response = await e2e_client.post("/v1/chat/completions", json=request_payload)
-        response.raise_for_status() # Raise HTTPStatusError for 4xx/5xx responses
+        response.raise_for_status()  # Raise HTTPStatusError for 4xx/5xx responses
 
         response_data = response.json()
 
@@ -57,7 +58,10 @@ async def test_e2e_chat_completion(e2e_client: httpx.AsyncClient):
         assert "completion_tokens" in response_data["usage"]
         assert "total_tokens" in response_data["usage"]
 
-        print(f"Chat completion E2E test PASSED. Response model: {response_data.get('model')}, Finish reason: {choice.get('finish_reason')}")
+        print(
+            f"Chat completion E2E test PASSED. Response model: "
+            f"{response_data.get('model')}, Finish reason: {choice.get('finish_reason')}"
+        )
 
     except httpx.HTTPStatusError as e:
         pytest.fail(f"E2E test failed with status {e.response.status_code}. Response: {e.response.text}")

@@ -1,6 +1,7 @@
 import os
+from urllib.parse import urlparse  # For basic URL validation
+
 from dotenv import load_dotenv
-from urllib.parse import urlparse # For basic URL validation
 
 # Load .env file variables into environment
 load_dotenv(verbose=True)
@@ -19,7 +20,7 @@ class Settings:
         # Basic validation (can be enhanced)
         parsed = urlparse(url)
         if not all([parsed.scheme, parsed.netloc]):
-             raise ValueError(f"Invalid BACKEND_URL format: {url}")
+            raise ValueError(f"Invalid BACKEND_URL format: {url}")
         return url
 
     def get_openai_api_key(self) -> str | None:
@@ -28,9 +29,7 @@ class Settings:
 
     def get_policy_module(self) -> str:
         # Get value or use default
-        return os.getenv(
-            "POLICY_MODULE", "luthien_control.policies.examples.no_op.NoOpPolicy"
-        )
+        return os.getenv("POLICY_MODULE", "luthien_control.policies.examples.no_op.NoOpPolicy")
 
     # --- Database settings Getters ---
     # Optional - required only for DB operations
@@ -72,7 +71,9 @@ class Settings:
 
         if not all([user, password, host, port]):
             missing = [
-                name for name, val in [('USER', user), ('PASSWORD', password), ('HOST', host), ('PORT', port)] if not val
+                name
+                for name, val in [("USER", user), ("PASSWORD", password), ("HOST", host), ("PORT", port)]
+                if not val
             ]
             raise ValueError(f"Missing required database settings ({', '.join(missing)}) for admin_dsn")
 
@@ -90,7 +91,9 @@ class Settings:
 
         if not all([user, password, host, port]):
             missing = [
-                name for name, val in [('USER', user), ('PASSWORD', password), ('HOST', host), ('PORT', port)] if not val
+                name
+                for name, val in [("USER", user), ("PASSWORD", password), ("HOST", host), ("PORT", port)]
+                if not val
             ]
             raise ValueError(f"Missing required database settings ({', '.join(missing)}) for base_dsn")
 
@@ -102,9 +105,7 @@ class Settings:
         """
         target_db = db_name or self.get_postgres_db()
         if not target_db:
-            raise ValueError(
-                "Missing target database name (either provide db_name or set POSTGRES_DB env var)"
-            )
+            raise ValueError("Missing target database name (either provide db_name or set POSTGRES_DB env var)")
         # Call base_dsn property to ensure checks run and get the base string
         base = self.base_dsn
         return f"{base}/{target_db}"

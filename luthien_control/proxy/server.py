@@ -1,7 +1,7 @@
-import uuid
 import logging
-from typing import Any, Dict, Union, List, Tuple
-from urllib.parse import urlparse # Added for parsing URL
+import uuid
+from typing import Any, Dict, List, Tuple, Union
+from urllib.parse import urlparse  # Added for parsing URL
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -57,7 +57,7 @@ async def proxy_endpoint(
     if not isinstance(modified_request_body, bytes):
         try:
             modified_request_body = str(modified_request_body).encode("utf-8")
-        except Exception as e:
+        except Exception:
             logger.exception(
                 f"[{request_id}] Error encoding policy request content",
                 extra={"request_id": request_id},
@@ -186,7 +186,7 @@ async def proxy_endpoint(
     if not isinstance(final_response_body, bytes):
         try:
             final_response_body = str(final_response_body).encode("utf-8")
-        except Exception as e:
+        except Exception:
             logger.exception(
                 f"[{request_id}] Error encoding policy response content",
                 extra={"request_id": request_id},

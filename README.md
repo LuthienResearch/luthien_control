@@ -16,7 +16,7 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
 *   **Server:** Uvicorn
 *   **Database:** PostgreSQL (using `asyncpg`)
 *   **HTTP Client:** HTTPX
-*   **Configuration:** Pydantic-Settings
+*   **Configuration:** Environment variables via `python-dotenv`
 *   **Linting/Formatting:** Ruff
 *   **Security Scanning:** Bandit
 *   **Testing:** Pytest, `pytest-cov`
@@ -40,20 +40,24 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
     poetry install
     ```
 3.  **Database Setup (Local Development):**
-    This project uses PostgreSQL for logging. A `docker-compose.yml` file is provided for easy local setup.
+    This project uses PostgreSQL for logging request/response data. A `docker-compose.yml` file is provided for easy local setup.
     ```bash
     docker-compose up -d
     ```
-    This will start a PostgreSQL container in the background.
+    This will start a PostgreSQL container named `luthien-db-1` in the background.
 
 4.  **Configuration:**
-    Configuration is managed via environment variables, loaded using Pydantic-Settings. For local development, create a `.env` file in the project root.
+    Configuration is managed via environment variables, loaded using `python-dotenv` from a `.env` file in the project root during development.
     *   Copy the example file: `cp .env.example .env`
     *   Edit the `.env` file and provide the necessary values.
     *   **Required Variables:**
-        *   `OPENAI_API_KEY`: API key for the backend AI service
-        *   `POSTGRES_URL` Connection string for the PostgreSQL database (e.g., `postgresql+asyncpg://user:password@host:port/dbname`). The default in `docker-compose.yml` and `.env.example` is `postgresql+asyncpg://luthien:secret@localhost:5432/luthien_log_db`.
-        *   `TARGET_BACKEND_URL`: The URL of the backend OpenAI-compatible API you want to proxy requests to.
+        *   `BACKEND_URL`: The URL of the backend OpenAI-compatible API you want to proxy requests to (e.g., `https://api.openai.com/v1`).
+    *   **Optional Variables:**
+        *   `OPENAI_API_KEY`: API key for the backend service (required if the backend needs authentication, like OpenAI).
+        *   `POLICY_MODULE`: Python path to the policy class to load (defaults to `luthien_control.policies.examples.no_op.NoOpPolicy`).
+        *   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`: Database connection details for the *main* application database (if needed in the future, currently unused by core proxy but potentially used by tests/fixtures).
+        *   `LOG_DB_USER`, `LOG_DB_PASSWORD`, `LOG_DB_HOST`, `LOG_DB_PORT`, `LOG_DB_NAME`: Database connection details for the *request/response logging* database. The defaults match the `docker-compose.yml` setup (`LOG_DB_USER=luthien`, `LOG_DB_PASSWORD=secret`, `LOG_DB_HOST=localhost`, `LOG_DB_PORT=5432`, `LOG_DB_NAME=luthien_log_db`).
+        *   `LOG_DB_POOL_MIN_SIZE`, `LOG_DB_POOL_MAX_SIZE`: Optional pool size settings for the logging database connection.
 
 ## Usage
 

@@ -1,23 +1,34 @@
 import pytest
 from fastapi.testclient import TestClient
 from luthien_control.config.settings import Settings
+from urllib.parse import urlparse
 
 # Requires .env file with BACKEND_URL=https://api.openai.com and valid OPENAI_API_KEY
 # Run with: poetry run pytest -m integration
 
-pytestmark = pytest.mark.integration
+# Mark all tests in this module as async and integration
+pytestmark = [pytest.mark.asyncio, pytest.mark.integration]
+
+# Note: Tests hitting real external APIs (like OpenAI) might be slow
+# and require actual credentials in the .env file.
 
 PROXY_TIMEOUT = 30.0  # Increase timeout for potentially slower live API calls
 
 
-def test_proxy_openai_chat_completion_real(client: TestClient, integration_settings: Settings):
+@pytest.mark.asyncio
+async def test_proxy_openai_chat_completion_real(client: TestClient):
     """
     Test end-to-end chat completion proxying to the real backend API.
     Requires OPENAI_API_KEY environment variable to be set.
     Requires the configured TARGET_BACKEND_URL to be reachable.
     """
-    api_key = integration_settings.OPENAI_API_KEY
-    target_backend_host = integration_settings.BACKEND_URL.host
+    # Access settings via the attribute set in the conftest fixture
+    api_key = client.app.state.test_settings.get_openai_api_key()
+    target_backend_url_str = client.app.state.test_settings.get_backend_url()
+    target_backend_host = urlparse(target_backend_url_str).netloc
+
+    # Basic check: Ensure API key is loaded
+    assert api_key, "BACKEND_API_KEY (or OPENAI_API_KEY) not found in environment/settings"
 
     # The check below using the loaded settings is correct.
     if not api_key:
@@ -27,8 +38,8 @@ def test_proxy_openai_chat_completion_real(client: TestClient, integration_setti
 
     # Use the TestClient fixture which uses the main app
     headers = {
-        # Explicitly get the secret value for the header
-        "Authorization": f"Bearer {api_key.get_secret_value()}",
+        # api_key is now a string, no need for .get_secret_value()
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     payload = {

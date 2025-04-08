@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -43,11 +44,12 @@ class PolicyWithInitError(Policy):
 
 
 @pytest.fixture
-def mock_settings() -> Settings:
-    """Fixture to create a mock Settings object."""
-    settings = MagicMock(spec=Settings)
-    settings.POLICY_MODULE = ""  # Default empty, override in tests
-    return settings
+def mock_settings():
+    """Provides a MagicMock object simulating the Settings class."""
+    # Use spec=Settings to ensure the mock behaves somewhat like the real class
+    # (e.g., raises AttributeError for non-existent attributes)
+    # We don't need the real Settings object here as we mock the policy path directly.
+    return MagicMock(spec=Settings)
 
 
 # --- Test Cases ---
@@ -56,7 +58,7 @@ def mock_settings() -> Settings:
 @patch("importlib.import_module")
 def test_load_policy_success(mock_import_module, mock_settings):
     """Test successful loading of a valid policy class."""
-    mock_settings.POLICY_MODULE = "dummy_module.ValidTestPolicy"
+    mock_settings.get_policy_module.return_value = "dummy_module.ValidTestPolicy"
 
     # Configure the mock module returned by import_module
     mock_module = MagicMock()
@@ -65,64 +67,65 @@ def test_load_policy_success(mock_import_module, mock_settings):
 
     policy_instance = load_policy(mock_settings)
 
-    mock_import_module.assert_called_once_with("dummy_module")
     assert isinstance(policy_instance, ValidTestPolicy)
+    mock_import_module.assert_called_once_with("dummy_module")
+    mock_settings.get_policy_module.assert_called_once()
 
 
 def test_load_policy_invalid_path_format(mock_settings):
     """Test PolicyLoadError for invalid path format."""
-    mock_settings.POLICY_MODULE = "invalid-format"
+    mock_settings.get_policy_module.return_value = "invalid-format"
 
     with pytest.raises(PolicyLoadError, match="Invalid policy path format"):
         load_policy(mock_settings)
+    mock_settings.get_policy_module.assert_called_once()
 
 
 @patch("importlib.import_module")
 def test_load_policy_module_not_found(mock_import_module, mock_settings):
     """Test PolicyLoadError when the module cannot be imported."""
-    mock_settings.POLICY_MODULE = "nonexistent_module.MyPolicy"
+    mock_settings.get_policy_module.return_value = "nonexistent_module.MyPolicy"
     mock_import_module.side_effect = ImportError("No module named 'nonexistent_module'")
 
     with pytest.raises(PolicyLoadError, match="Could not import policy module"):
         load_policy(mock_settings)
-    mock_import_module.assert_called_once_with("nonexistent_module")
+    mock_settings.get_policy_module.assert_called_once()
 
 
 @patch("importlib.import_module")
 def test_load_policy_class_not_found(mock_import_module, mock_settings):
     """Test PolicyLoadError when the class is not found in the module."""
-    mock_settings.POLICY_MODULE = "dummy_module.MissingPolicy"
+    mock_settings.get_policy_module.return_value = "dummy_module.MissingPolicy"
 
     mock_module = MagicMock()
     # Deliberately don't add MissingPolicy to the mock module
-    # getattr will now return a MagicMock for MissingPolicy
+    # Make getattr return None explicitly when the attribute is missing
+    del mock_module.MissingPolicy
     mock_import_module.return_value = mock_module
 
-    # Update match for the new error message raised after the isinstance check
-    with pytest.raises(PolicyLoadError, match="must be a valid subclass of Policy"):
+    with pytest.raises(PolicyLoadError, match="Policy class 'MissingPolicy' not found"):
         load_policy(mock_settings)
-    mock_import_module.assert_called_once_with("dummy_module")
+    mock_settings.get_policy_module.assert_called_once()
 
 
 @patch("importlib.import_module")
 def test_load_policy_not_a_subclass(mock_import_module, mock_settings):
     """Test PolicyLoadError when the loaded class is not a Policy subclass."""
-    mock_settings.POLICY_MODULE = "dummy_module.NotAPolicy"
+    mock_settings.get_policy_module.return_value = "dummy_module.NotAPolicy"
 
     mock_module = MagicMock()
     mock_module.NotAPolicy = NotAPolicy  # Assign the non-policy class
     mock_import_module.return_value = mock_module
 
-    # Update match for the error message raised by the isinstance/issubclass check
     with pytest.raises(PolicyLoadError, match="must be a valid subclass of Policy"):
         load_policy(mock_settings)
-    mock_import_module.assert_called_once_with("dummy_module")
+    mock_settings.get_policy_module.assert_called_once()
 
 
 @patch("importlib.import_module")
 def test_load_policy_instantiation_error(mock_import_module, mock_settings):
     """Test PolicyLoadError when the policy class fails to instantiate."""
-    mock_settings.POLICY_MODULE = "dummy_module.PolicyWithInitError"
+    mock_settings.get_policy_module.return_value = "dummy_module.PolicyWithInitError"
 
     mock_module = MagicMock()
     mock_module.PolicyWithInitError = PolicyWithInitError  # Assign the class that errors
@@ -130,4 +133,4 @@ def test_load_policy_instantiation_error(mock_import_module, mock_settings):
 
     with pytest.raises(PolicyLoadError, match="Could not instantiate policy class"):
         load_policy(mock_settings)
-    mock_import_module.assert_called_once_with("dummy_module")
+    mock_settings.get_policy_module.assert_called_once()

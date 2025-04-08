@@ -6,7 +6,6 @@ import pytest_asyncio
 
 # Assuming absolute imports
 from luthien_control.db.database import (
-    DBSettings,
     close_db_pool,
     create_db_pool,
     get_db_pool,
@@ -130,9 +129,25 @@ def reset_global_pool(monkeypatch):
 
 
 @patch("luthien_control.db.database.asyncpg.create_pool", new_callable=AsyncMock)
-async def test_create_db_pool_success(mock_create_pool):
-    """Test successful creation and retrieval of the DB pool."""
-    settings = DBSettings(db_host="fake_host")  # Use fake settings to avoid real connections
+async def test_create_db_pool_success(mock_create_pool, monkeypatch):
+    """Test successful creation and retrieval of the DB pool using env vars."""
+    # Set environment variables for the test
+    test_user = "test_user"
+    test_pw = "test_pw"
+    test_host = "test_host"
+    test_port = "5433"
+    test_db = "test_db_log"
+    test_min_pool = "2"
+    test_max_pool = "5"
+
+    monkeypatch.setenv("LOG_DB_USER", test_user)
+    monkeypatch.setenv("LOG_DB_PASSWORD", test_pw)
+    monkeypatch.setenv("LOG_DB_HOST", test_host)
+    monkeypatch.setenv("LOG_DB_PORT", test_port)
+    monkeypatch.setenv("LOG_DB_NAME", test_db)
+    monkeypatch.setenv("LOG_DB_POOL_MIN_SIZE", test_min_pool)
+    monkeypatch.setenv("LOG_DB_POOL_MAX_SIZE", test_max_pool)
+
     mock_pool_instance = AsyncMock()
     mock_create_pool.return_value = mock_pool_instance
 
@@ -140,30 +155,40 @@ async def test_create_db_pool_success(mock_create_pool):
     with pytest.raises(RuntimeError, match="Database pool has not been initialized."):
         get_db_pool()
 
-    await create_db_pool(settings)
+    # Call create_db_pool without settings argument
+    await create_db_pool()
 
+    # Assert asyncpg.create_pool was called with values derived from env vars
+    expected_dsn = f"postgresql://{test_user}:{test_pw}@{test_host}:{test_port}/{test_db}"
     mock_create_pool.assert_awaited_once_with(
-        dsn=settings.dsn,
-        min_size=settings.db_pool_min_size,
-        max_size=settings.db_pool_max_size,
+        dsn=expected_dsn,
+        min_size=int(test_min_pool),
+        max_size=int(test_max_pool),
     )
     assert get_db_pool() is mock_pool_instance
 
     # Test idempotency (calling again should not recreate)
     mock_create_pool.reset_mock()
-    await create_db_pool(settings)
+    await create_db_pool()
     mock_create_pool.assert_not_called()
 
 
 @patch("luthien_control.db.database.asyncpg.create_pool", new_callable=AsyncMock)
-async def test_create_db_pool_failure(mock_create_pool):
-    """Test handling of failure during pool creation."""
-    settings = DBSettings(db_host="another_fake")
+async def test_create_db_pool_failure(mock_create_pool, monkeypatch):
+    """Test handling of failure during pool creation using env vars."""
+    # Set necessary env vars for connection attempt
+    monkeypatch.setenv("LOG_DB_USER", "fail_user")
+    monkeypatch.setenv("LOG_DB_PASSWORD", "fail_pw")
+    monkeypatch.setenv("LOG_DB_HOST", "fail_host")
+    monkeypatch.setenv("LOG_DB_PORT", "5434")
+    monkeypatch.setenv("LOG_DB_NAME", "fail_db")
+
     mock_create_pool.side_effect = Exception("Connection refused")
 
-    await create_db_pool(settings)
+    # Call create_db_pool without settings argument
+    await create_db_pool()
 
-    mock_create_pool.assert_awaited_once()
+    mock_create_pool.assert_awaited_once() # Ensure it was called
     with pytest.raises(RuntimeError, match="Database pool has not been initialized."):
         get_db_pool()  # Pool should be None or accessing it should raise
 

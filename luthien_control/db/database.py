@@ -1,9 +1,13 @@
 import json
 import logging
+import os
 from typing import Any, Dict, Optional
 
 import asyncpg
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from dotenv import load_dotenv
+
+# Load .env file variables into environment
+load_dotenv(verbose=True)
 
 logger = logging.getLogger(__name__)
 
@@ -12,43 +16,58 @@ logger = logging.getLogger(__name__)
 _db_pool: Optional[asyncpg.Pool] = None
 
 
-class DBSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-    db_user: str = "user"
-    db_password: str = "password"
-    db_host: str = "localhost"
-    db_port: int = 5432
-    db_name: str = "luthien_log_db"
-    db_pool_min_size: int = 1
-    db_pool_max_size: int = 10
-
-    @property
-    def dsn(self) -> str:
-        return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
-
-
-async def create_db_pool(settings: Optional[DBSettings] = None) -> None:
-    """Creates the asyncpg connection pool."""
+async def create_db_pool() -> None:
+    """Creates the asyncpg connection pool using environment variables for logging DB."""
     global _db_pool
     if _db_pool:
         logger.warning("Database pool already initialized.")
         return
 
-    if settings is None:
-        settings = DBSettings()
+    # Fetch settings from environment variables, using defaults from old DBSettings
+    try:
+        db_user = os.getenv("LOG_DB_USER", "user")
+        db_password = os.getenv("LOG_DB_PASSWORD", "password")
+        db_host = os.getenv("LOG_DB_HOST", "localhost")
+        db_port_str = os.getenv("LOG_DB_PORT", "5432")
+        db_name = os.getenv("LOG_DB_NAME", "luthien_log_db")
+        pool_min_size_str = os.getenv("LOG_DB_POOL_MIN_SIZE", "1")
+        pool_max_size_str = os.getenv("LOG_DB_POOL_MAX_SIZE", "10")
+
+        # Validate and convert types
+        try:
+            db_port = int(db_port_str)
+        except ValueError:
+            raise ValueError(f"Invalid LOG_DB_PORT: '{db_port_str}' is not an integer.")
+        try:
+            pool_min_size = int(pool_min_size_str)
+        except ValueError:
+            raise ValueError(f"Invalid LOG_DB_POOL_MIN_SIZE: '{pool_min_size_str}' is not an integer.")
+        try:
+            pool_max_size = int(pool_max_size_str)
+        except ValueError:
+            raise ValueError(f"Invalid LOG_DB_POOL_MAX_SIZE: '{pool_max_size_str}' is not an integer.")
+
+        # Basic check for essential connection details
+        if not all([db_user, db_password, db_host, db_port, db_name]):
+            raise ValueError("Missing essential logging database connection environment variables (LOG_DB_USER, LOG_DB_PASSWORD, LOG_DB_HOST, LOG_DB_PORT, LOG_DB_NAME)")
+
+        dsn = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+
+    except ValueError as e:
+        logger.exception(f"Configuration error for database pool: {e}")
+        _db_pool = None
+        return # Do not proceed if config is invalid
 
     try:
         _db_pool = await asyncpg.create_pool(
-            dsn=settings.dsn,
-            min_size=settings.db_pool_min_size,
-            max_size=settings.db_pool_max_size,
+            dsn=dsn,
+            min_size=pool_min_size,
+            max_size=pool_max_size,
         )
-        logger.info("Database connection pool created successfully.")
+        logger.info(f"Database connection pool created successfully for {db_name}.")
     except Exception as e:
         logger.exception(f"Failed to create database connection pool: {e}")
-        # Depending on application structure, might want to raise or exit
-        _db_pool = None  # Ensure pool is None if creation failed
+        _db_pool = None # Ensure pool is None if creation failed
 
 
 async def close_db_pool() -> None:

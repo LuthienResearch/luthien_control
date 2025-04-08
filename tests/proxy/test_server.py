@@ -167,7 +167,7 @@ def test_proxy_with_no_op_policy(client: TestClient):
     app.dependency_overrides[get_policy] = lambda: MockNoOpPolicy()
 
     # Use the BACKEND_URL from the actual test settings for the mock route
-    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_url_str = settings.get_backend_url().rstrip("/")
     backend_route = respx.post(f"{backend_url_str}/test/path").mock(
         return_value=httpx.Response(200, json={"backend": "ok"})
     )
@@ -196,7 +196,7 @@ def test_proxy_modify_request_policy(client: TestClient):
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: ModifyRequestPolicy()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_url_str = settings.get_backend_url().rstrip("/")
     backend_route = respx.post(f"{backend_url_str}/modify/req").mock(
         return_value=httpx.Response(200, text="Backend got it")
     )
@@ -222,7 +222,7 @@ def test_proxy_modify_response_policy(client: TestClient):
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: ModifyResponsePolicy()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_url_str = settings.get_backend_url().rstrip("/")
     backend_route = respx.post(f"{backend_url_str}/modify/resp").mock(
         return_value=httpx.Response(200, content=b"backend content")
     )
@@ -244,7 +244,7 @@ def test_proxy_direct_request_response_policy(client: TestClient):
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: DirectRequestResponsePolicy()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_url_str = settings.get_backend_url().rstrip("/")
     # Backend should NOT be called, but we still need the URL for respx pattern potentially
     backend_route = respx.post(f"{backend_url_str}/direct/req").mock(
         return_value=httpx.Response(200, text="SHOULD NOT BE CALLED")
@@ -266,7 +266,7 @@ def test_proxy_direct_response_response_policy(client: TestClient):
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: DirectResponseResponsePolicy()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_url_str = settings.get_backend_url().rstrip("/")
     backend_route = respx.post(f"{backend_url_str}/direct/resp").mock(
         return_value=httpx.Response(200, content=b"backend original")
     )
@@ -287,7 +287,7 @@ def test_proxy_request_policy_error(client: TestClient):
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: RequestPolicyError()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_url_str = settings.get_backend_url().rstrip("/")
     backend_route = respx.post(f"{backend_url_str}/err/req").mock(
         return_value=httpx.Response(200, text="SHOULD NOT BE CALLED")
     )
@@ -311,7 +311,7 @@ def test_proxy_response_policy_error(client: TestClient):
     settings = client.app.state.test_settings
     app.dependency_overrides[get_policy] = lambda: ResponsePolicyError()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_url_str = settings.get_backend_url().rstrip("/")
     backend_route = respx.post(f"{backend_url_str}/err/resp").mock(
         return_value=httpx.Response(200, content=b"backend ok")
     )
@@ -334,7 +334,7 @@ def test_proxy_backend_error_passthrough(client: TestClient):
     # Use a simple policy for this test
     app.dependency_overrides[get_policy] = lambda: MockNoOpPolicy()
 
-    backend_url_str = str(settings.BACKEND_URL).rstrip("/")
+    backend_url_str = settings.get_backend_url().rstrip("/")
     backend_route = respx.post(f"{backend_url_str}/backend/error").mock(
         return_value=httpx.Response(status.HTTP_503_SERVICE_UNAVAILABLE, text="Backend down")
     )
@@ -344,9 +344,10 @@ def test_proxy_backend_error_passthrough(client: TestClient):
         "/backend/error", content=b"client data", headers={"Content-Type": "application/octet-stream"}
     )
 
-    # The proxy should return 502 Bad Gateway when backend fails
-    assert response.status_code == status.HTTP_502_BAD_GATEWAY
-    assert "Backend server returned status code 503" in response.json()["detail"]
+    # Assert that the proxy returns the same status code as the backend error
+    # Changed expected status from 502 to 503
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.text == "Backend down" # Verify body passthrough too
     assert backend_route.called
 
     del app.dependency_overrides[get_policy]

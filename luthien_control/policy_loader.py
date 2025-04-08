@@ -28,7 +28,7 @@ def load_policy(settings: Settings) -> Policy:
         PolicyLoadError: If the policy module or class cannot be found,
                          or if the class is not a valid Policy subclass.
     """
-    policy_path = settings.POLICY_MODULE
+    policy_path = settings.get_policy_module()
     logger.info(f"Attempting to load policy from: {policy_path}")
 
     try:

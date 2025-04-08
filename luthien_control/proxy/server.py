@@ -6,6 +6,7 @@ from urllib.parse import urlparse # Added for parsing URL
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
+# Import Settings class directly for dependency injection
 from luthien_control.config.settings import Settings
 
 # Import policy dependency and base class
@@ -28,18 +29,13 @@ async def proxy_endpoint(
     full_path: str,
     client: httpx.AsyncClient = Depends(get_http_client),
     policy: Policy = Depends(get_policy),
+    settings: Settings = Depends(Settings),
 ):
     """
     Core proxy endpoint to forward requests to the configured backend.
     Intercepts requests/responses for policy application.
     """
     request_id = str(uuid.uuid4())
-
-    # Get settings from app state BEFORE first use
-    current_settings: Settings | None = getattr(request.app.state, "test_settings", None)
-    if current_settings is None:
-        print("CRITICAL ERROR: Settings not found in request.app.state")
-        raise HTTPException(status_code=500, detail="Internal server error: App settings not configured.")
 
     # --- Request Preparation ---
     raw_request_body = await request.body()
@@ -104,7 +100,7 @@ async def proxy_endpoint(
     backend_headers_list = [(k, v) for k, v in backend_headers_list if k.lower() != b"host"]
     # Add the correct host header for the backend
     try:
-        backend_url_str = current_settings.get_backend_url()
+        backend_url_str = settings.get_backend_url()
         parsed_backend_url = urlparse(backend_url_str)
         backend_host = parsed_backend_url.hostname
         if not backend_host:
@@ -122,7 +118,7 @@ async def proxy_endpoint(
         backend_headers_list.append((b"accept-encoding", b"identity"))
     except ValueError as e:
         logger.error(
-            f"[{request_id}] Invalid BACKEND_URL '{backend_url_str}' in settings: {e}",
+            f"[{request_id}] Invalid backend_url configuration in settings: {e}",
             extra={"request_id": request_id},
         )
         raise HTTPException(status_code=500, detail="Internal server error: Invalid backend configuration.")

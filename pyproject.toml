@@ -39,9 +39,13 @@ pythonpath = [
 ]
 markers = [
     "integration: marks tests as integration tests (excluded by default)",
-    "unit: marks tests as unit tests (run by default)"
+    "unit: marks tests as unit tests (run by default)",
+    "e2e: marks tests as end-to-end tests (excluded by default, requires network access)",
+    "envvars(vars): mark test to set specific environment variables"
 ]
-addopts = "-m 'not integration'"
+addopts = "-m 'not integration and not e2e'"
+# Configure asyncio mode and loop scope
+asyncio_mode = "auto" # Change from default 'strict' to 'auto'
 
 [tool.ruff]
 # Enable black-compatible formatting.

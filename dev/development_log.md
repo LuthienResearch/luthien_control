@@ -55,7 +55,7 @@
 - Ran `poetry run pytest -m integration` multiple times to identify failures.
 - Diagnosed errors related to missing `.env` variables (`POSTGRES_*`, `BACKEND_URL`).
 - Corrected environment variable name inconsistency (`BACKEND_URL` vs `OPENAI_BASE_URL`).
-- Refactored `tests/integration/test_db_basic.py::test_db_log_insertion` to create its own `asyncpg` pool using the `test_db_session` DSN, removing `DBSettings` import.
+- Refactored `tests/integration/test_db_basic.py::test_db_log_insertion` to create its own `asyncpg` pool using the `db_session_fixture` DSN, removing `DBSettings` import.
 - Removed unused `integration_settings` fixture parameter from `tests/integration/test_proxy_integration.py::test_proxy_openai_chat_completion_real`.
 - Corrected access to settings in proxy integration test to use `client.app.state.test_settings`.
 - Corrected settings method call from `get_backend_api_key()` to `get_openai_api_key()`.
@@ -84,7 +84,7 @@
 - Refactored `tests/conftest.py`:
     - Removed `pydantic-settings` imports and related fixtures (`TestSettings`, `integration_settings`, `db_settings`).
     - Modified `override_settings_dependency` fixture to load `.env` or `.env.test` using `load_dotenv` and instantiate the modified `Settings` class.
-    - Updated `test_db_session` to instantiate `Settings` internally.
+    - Updated `db_session_fixture` to instantiate `Settings` internally.
 - Removed `pydantic-settings` dependency (`poetry remove pydantic-settings`).
 - Fixed `ImportError` in `tests/db/test_database.py` by removing `DBSettings` import and usage, updating tests to use `monkeypatch.setenv`.
 - Fixed `AttributeError` in `luthien_control/policy_loader.py` by changing `settings.POLICY_MODULE` access to `settings.get_policy_module()`.
@@ -97,3 +97,31 @@
 - Configuration loading uses `os.getenv` via `Settings` getter methods and `python-dotenv`.
 - All unit tests (44) pass.
 - Integration tests also pass after fixes in a separate thread.
+
+## [2025-04-08 13:20] - Implement E2E Tests and Refactor Test Setup
+
+### Changes Made
+- Created new E2E tests in `tests/e2e/` directory (`test_proxy_e2e.py`).
+- Implemented pytest fixtures in `tests/e2e/conftest.py` to:
+    - Start/stop a local proxy server subprocess (`live_local_proxy_server`).
+    - Handle target URL selection via `--e2e-target-url` or local server (`proxy_target_url`).
+    - Provide an authenticated `httpx.AsyncClient` (`e2e_client`).
+- Removed old `tests/integration/` directory.
+- Refactored application code (`luthien_control/proxy/server.py`) to use standard FastAPI dependency injection for `Settings` instead of `app.state`.
+- Moved mock policies from `tests/proxy/test_server.py` to `luthien_control/testing/mocks/policies.py`.
+- Simplified root `tests/conftest.py`:
+    - `override_settings_dependency` now only loads `.env` files and applies marker-based environment variables (`@pytest.mark.envvars`).
+    - Removed complex dependency overrides and `app.state` manipulation.
+    - Added check to skip execution for `e2e` tests.
+- Refactored `tests/proxy/test_server.py`:
+    - Removed local mock policy definitions.
+    - Removed custom policy override fixtures and logic.
+    - Replaced `@pytest.mark.policy` with `@pytest.mark.envvars` to set `POLICY_MODULE` environment variable.
+    - Corrected `respx` mock responses to use `httpx.Response`.
+- Registered `e2e` and `envvars` markers in `pyproject.toml`.
+- Fixed various bugs encountered during refactoring (environment inheritance, caching, mocking types, error handling assertions).
+
+### Current Status
+- All unit tests (`poetry run pytest`) are passing.
+- E2E test (`poetry run pytest -m e2e`) against local server is passing.
+- E2E test configuration allows targeting a deployed URL via `--e2e-target-url`.

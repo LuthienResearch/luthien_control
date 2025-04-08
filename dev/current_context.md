@@ -1,9 +1,12 @@
 # Current Task
-## Remove pydantic-settings Dependency
- - Status: Complete
- - Major changes made:
-    - Removed `pydantic-settings` dependency.
-    - Refactored configuration loading in `luthien_control/config/settings.py`, `luthien_control/db/database.py`, `luthien_control/proxy/server.py`, `luthien_control/policy_loader.py` to use `os.getenv` and `python-dotenv`.
-    - Updated test fixtures and mocks in `tests/conftest.py`, `tests/db/test_database.py`, `tests/test_policy_loader.py`.
-    - Fixed associated test failures.
- - Follow-up tasks, if any: None directly related to this task.
+## Implement End-to-End (E2E) Tests for Proxy Server
+
+- Status: Complete
+- Major changes made:
+    - Replaced old integration tests with new E2E tests in `tests/e2e/`.
+    - Implemented local server fixture and `--e2e-target-url` option.
+    - Refactored unit test setup in root `conftest.py` and `tests/proxy/test_server.py` to use environment variables (`envvars` marker) for configuration, simplifying logic and improving isolation.
+    - Moved mock policies to `luthien_control/testing/mocks/policies.py`.
+    - Fixed application code (`proxy/server.py`) to use standard dependency injection for Settings.
+    - All unit and E2E tests are passing.
+- Follow-up tasks, if any: None.

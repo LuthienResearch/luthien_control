@@ -71,9 +71,35 @@ The `--reload` flag enables auto-reloading when code changes are detected, usefu
 ## Development Practices
 
 ### Testing
-*   Run unit tests: `poetry run pytest`
-*   Run integration tests: `poetry run pytest -m integration`
-*   Run all tests with coverage: `poetry run pytest --cov=luthien_control`
+This project uses Pytest. Tests are categorized using markers:
+*   **Unit Tests:** Run by default. They typically mock external dependencies.
+*   **End-to-End (E2E) Tests (`e2e` marker):** Excluded by default. These tests run against a live proxy server (either local or deployed) which connects to a *real backend API* (e.g., OpenAI). They require network access and potentially incur API costs.
+
+**Running Tests:**
+*   **Run unit tests:**
+    ```bash
+    poetry run pytest
+    ```
+*   **Run End-to-End (E2E) tests against a locally started server:**
+    *Ensure `OPENAI_API_KEY` is set in your environment or `.env` file.*
+    ```bash
+    poetry run pytest -m e2e
+    ```
+*   **Run E2E tests against a deployed proxy server:**
+    *Ensure `OPENAI_API_KEY` is set in your environment.*
+    ```bash
+    poetry run pytest -m e2e --e2e-target-url https://your-deployed-proxy.example.com
+    ```
+*   **Run all tests (Unit & E2E) with coverage:**
+    ```bash
+    poetry run pytest --cov=luthien_control -m "unit or e2e"
+    ```
+    *(Note: Coverage reporting might be less meaningful for E2E tests involving separate processes.)*
+
+**Test Configuration:**
+*   Unit tests primarily use environment variables defined in `.env.test` (if it exists).
+*   E2E tests require the `OPENAI_API_KEY` environment variable.
+*   The E2E local server fixture defaults to using `https://api.openai.com/v1` as the `BACKEND_URL` unless overridden by an existing environment variable.
 
 ### Linting & Formatting
 This project uses Ruff for linting and formatting.

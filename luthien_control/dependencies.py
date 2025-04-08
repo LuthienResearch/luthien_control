@@ -28,14 +28,13 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
 _cached_policy: Policy | None = None
 
 
-def get_policy(request: Request, settings: Settings = Depends(Settings)) -> Policy:
+def get_policy(request: Request) -> Policy:
     """
     Dependency function to load and provide the configured policy instance.
     Caches the loaded policy in app state to avoid reloading on each request.
 
     Args:
         request: The FastAPI request object.
-        settings: The application settings (dependency).
 
     Returns:
         The loaded policy instance.
@@ -48,6 +47,9 @@ def get_policy(request: Request, settings: Settings = Depends(Settings)) -> Poli
     # Check cache first
     if _cached_policy is not None:
         return _cached_policy
+
+    # Instantiate Settings directly to read the policy module name.
+    settings = Settings()
 
     # Load policy if not cached
     try:

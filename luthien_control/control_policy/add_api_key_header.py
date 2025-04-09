@@ -1,23 +1,29 @@
-"""Control processor for adding the API key header to requests."""
+"""Control Policy for adding the API key header to requests."""
+
+import logging
 
 from luthien_control.config.settings import Settings
-from luthien_control.control_policy.interface import ControlProcessor
+from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
+from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.context import TransactionContext
 
 
-class AddApiKeyHeaderProcessor(ControlProcessor):
+class AddApiKeyHeaderPolicy(ControlPolicy):
     """Adds the configured API key (e.g., OpenAI) to the request Authorization header."""
 
     def __init__(self, settings: Settings):
         """Initializes the processor with settings."""
         self.settings = settings
+        self.logger = logging.getLogger(__name__)
 
-    async def process(self, context: TransactionContext) -> TransactionContext:
+    async def apply(self, context: TransactionContext) -> TransactionContext:
         """
         Adds the Authorization: Bearer <api_key> header to the context.request.
 
         Reads API key from settings.
-        No-op if context.request is None or API key is not configured.
+        Raises:
+            NoRequestError if the request is not found in the context.
+            ApiKeyNotFoundError if the API key is not configured.
 
         Args:
             context: The current transaction context.
@@ -26,17 +32,10 @@ class AddApiKeyHeaderProcessor(ControlProcessor):
             The potentially modified transaction context.
         """
         if context.request is None:
-            print(f"[{context.transaction_id}] Skipping API key addition: No request in context.")
-            return context
-
+            raise NoRequestError(f"[{context.transaction_id}] No request in context.")
         api_key = self.settings.get_openai_api_key()
-
         if not api_key:
-            print(f"[{context.transaction_id}] Skipping API key addition: Key not configured.")
-            return context
-
-        print(f"[{context.transaction_id}] Adding Authorization header.")
-        # httpx.Headers are mutable, so we can modify in place
+            raise ApiKeyNotFoundError(f"[{context.transaction_id}] API key not configured.")
+        self.logger.info(f"[{context.transaction_id}] Adding Authorization header.")
         context.request.headers["Authorization"] = f"Bearer {api_key}"
-
         return context

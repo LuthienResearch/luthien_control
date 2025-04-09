@@ -33,11 +33,13 @@ To build an AI Control System (`luthien_control`) acting as an intelligent proxy
 - [ ] Configuration Management for Policies
 - [ ] Log Analysis Tools
 - [ ] Enhanced Security & Authentication
-- [ ] **Modular Pipeline Refactor:**
-    - [ ] Define pipeline step interfaces (`PipelineStep`, `RequestContext`, `ResponseContext`).
-    - [ ] Implement composite steps (`SequentialPipeline`, `ConditionalPipeline`).
-    - [ ] Incrementally extract logic from `server.py` into discrete pipeline steps (e.g., `RequestPolicyStep`, `BackendRequestStep`, `ResponsePolicyStep`, `HeaderProcessingStep`).
-    - [ ] Refactor `proxy_endpoint` to orchestrate pipeline execution.
+- [ ] **Control Policy Application Framework:**
+    - [X] Define `TransactionContext` object to carry state.
+    - [X] Define `ControlPolicy` interface for composable processing steps.
+    - [X] Define `ResponseBuilder` interface for final response generation.
+    - [ ] Implement an endpoint which orchestrates context creation, policy execution, and response building.
+    - [ ] Implement core policies (e.g., `RequestLoggingPolicy`, `SendBackendRequestPolicy`).
+    - [ ] Switch `proxy_endpoint` to use this new system instead of the current logic
 - [ ] **Enhanced E2E Testing Framework:**
     - [ ] Implement local proxy server management within test suite (e.g., `pytest-xprocess`).
     - [ ] Configure test target selection (local vs. deployed) via `pytest` arguments/fixtures.

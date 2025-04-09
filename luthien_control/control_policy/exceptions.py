@@ -1,3 +1,6 @@
+# Control Policy Exceptions
+
+
 class ApiKeyNotFoundError(Exception):
     """Exception raised when the API key is not found in the settings."""
 

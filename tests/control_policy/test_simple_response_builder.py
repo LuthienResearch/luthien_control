@@ -3,7 +3,7 @@
 import httpx
 import pytest
 from fastapi import Response, status
-from luthien_control.control_policy.simple_response_builder import SimpleResponseBuilder
+from luthien_control.core.response_builder.simple_response_builder import SimpleResponseBuilder
 from luthien_control.core.context import TransactionContext
 
 

@@ -1,10 +1,9 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, call, patch
 import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import fastapi
 import httpx
-
+import pytest
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy

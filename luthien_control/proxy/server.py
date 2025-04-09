@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Any, Dict, List, Tuple, Union, Sequence
+from typing import Any, Dict, List, Sequence, Tuple, Union
 from urllib.parse import urlparse  # Added for parsing URL
 
 import httpx
@@ -9,26 +9,28 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 # Import Settings class directly for dependency injection
 from luthien_control.config.settings import Settings
 
-# Import policy dependency and base class
-from luthien_control.dependencies import get_http_client, get_policy
-from luthien_control.policies.base import Policy
-
 # Import new policy framework components
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
 
 # Import concrete policies
-from luthien_control.control_policy.prepare_backend_headers import PrepareBackendHeadersPolicy
-from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
+# Import concrete builder
 from luthien_control.core.response_builder.interface import ResponseBuilder
 
-# Import concrete builder
-from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
+# Import policy dependency and base class
+# Importing utils for potential decompression in policy logic later
+# Import NEW dependency providers from dependencies module
+from luthien_control.dependencies import (
+    get_control_policies,
+    get_http_client,
+    get_initial_context_policy,
+    get_policy,
+    get_response_builder,
+)
+from luthien_control.policies.base import Policy
 
 # Import the orchestrator
 from luthien_control.proxy.orchestration import run_policy_flow
-
-# Importing utils for potential decompression in policy logic later
 
 logger = logging.getLogger(__name__)
 
@@ -38,37 +40,6 @@ router = APIRouter()
 
 # Existing provider for HTTP client
 # ... (get_http_client defined in luthien_control.dependencies)
-
-
-# Implemented providers for the new framework components
-def get_initial_context_policy() -> InitializeContextPolicy:
-    """Provides an instance of the InitializeContextPolicy."""
-    # For now, we just instantiate the default implementation.
-    # Future: Could load based on config.
-    return InitializeContextPolicy()
-
-
-def get_control_policies(
-    settings: Settings = Depends(Settings), client: httpx.AsyncClient = Depends(get_http_client)
-) -> Sequence[ControlPolicy]:
-    """Provides the sequence of main ControlPolicies."""
-    # For now, instantiate the policies mirroring the original v1 logic.
-    # Future: Could load/configure this sequence dynamically.
-    return [
-        PrepareBackendHeadersPolicy(settings=settings),
-        SendBackendRequestPolicy(http_client=client),
-        # Add other policies here in the desired order
-    ]
-
-
-def get_response_builder() -> ResponseBuilder:
-    """Provides an instance of the ResponseBuilder."""
-    # For now, instantiate the default implementation.
-    # Future: Could load based on config.
-    return DefaultResponseBuilder()
-
-
-# --- End Dependency Providers ---
 
 
 # === BETA ENDPOINT ===
@@ -91,6 +62,7 @@ async def proxy_endpoint_beta(
     """
     Proxy endpoint using the new policy orchestration flow.
     This runs in parallel with the original `proxy_endpoint`.
+    Handles requests starting with /beta/.
     """
     logger.info(f"Received request for /beta/{full_path}")
 
@@ -101,7 +73,7 @@ async def proxy_endpoint_beta(
         settings=settings,
         initial_context_policy=initial_context_policy,
         policies=policies,
-        response_builder=builder,
+        builder=builder,
     )
 
     logger.info(f"Returning response for /beta/{full_path}")

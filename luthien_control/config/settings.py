@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 from urllib.parse import urlparse  # For basic URL validation
 
 from dotenv import load_dotenv
@@ -8,44 +8,60 @@ from dotenv import load_dotenv
 load_dotenv(verbose=True)
 
 
-# Removed BaseSettings inheritance
 class Settings:
     """Application configuration settings loaded from environment variables."""
 
-    # Removed type hints like HttpUrl, SecretStr, Field
+    # --- Core Settings ---
+    BACKEND_URL: Optional[str] = None
+    POLICY_MODULE: str = "luthien_control.policies.examples.no_op.NoOpPolicy"
+    # Comma-separated list of control policies for the beta framework
+    CONTROL_POLICIES: Optional[str] = None
 
-    def get_backend_url(self) -> str:
+    # --- Database Settings ---
+    POSTGRES_SERVER: str = "localhost"
+    POSTGRES_USER: Optional[str] = None
+    POSTGRES_PASSWORD: Optional[str] = None
+    POSTGRES_DB: Optional[str] = None
+    POSTGRES_HOST: Optional[str] = None
+    POSTGRES_PORT: Optional[int] = 5432
+
+    # --- OpenAI Settings ---
+    OPENAI_API_KEY: Optional[str] = None
+
+    # --- Helper Methods using os.getenv ---
+    def get_backend_url(self) -> Optional[str]:
+        """Returns the backend URL as a string, if set."""
         url = os.getenv("BACKEND_URL")
-        if not url:
-            raise ValueError("Missing required environment variable: BACKEND_URL")
-        # Basic validation (can be enhanced)
-        parsed = urlparse(url)
-        if not all([parsed.scheme, parsed.netloc]):
-            raise ValueError(f"Invalid BACKEND_URL format: {url}")
+        if url:
+            # Basic validation (can be enhanced)
+            parsed = urlparse(url)
+            if not all([parsed.scheme, parsed.netloc]):
+                raise ValueError(f"Invalid BACKEND_URL format: {url}")
         return url
 
     def get_openai_api_key(self) -> str | None:
-        # No SecretStr, just return the string or None
+        """Returns the OpenAI API key, if set."""
         return os.getenv("OPENAI_API_KEY")
 
     def get_policy_module(self) -> str:
-        # Get value or use default
+        """Returns the configured policy module path."""
         return os.getenv("POLICY_MODULE", "luthien_control.policies.examples.no_op.NoOpPolicy")
 
-    # --- Database settings Getters ---
-    # Optional - required only for DB operations
+    def get_control_policies_list(self) -> Optional[str]:
+        """Returns the comma-separated list of control policies from env var."""
+        return os.getenv("CONTROL_POLICIES")
 
+    # --- Database settings Getters using os.getenv ---
     def get_postgres_user(self) -> str | None:
         return os.getenv("POSTGRES_USER")
 
     def get_postgres_password(self) -> str | None:
-        # No SecretStr
         return os.getenv("POSTGRES_PASSWORD")
 
     def get_postgres_host(self) -> str | None:
         return os.getenv("POSTGRES_HOST")
 
-    def get_postgres_port(self) -> int | None:
+    def get_postgres_port(self) -> Optional[int]:
         port_str = os.getenv("POSTGRES_PORT")
         if port_str:
             try:
@@ -57,9 +73,7 @@ class Settings:
     def get_postgres_db(self) -> str | None:
         return os.getenv("POSTGRES_DB")
 
-    # --- Database DSN Helper Properties ---
-    # Now use the getter methods instead of self.* attributes
-
+    # --- Database DSN Helper Properties using Getters ---
     @property
     def admin_dsn(self) -> str:
         """DSN for connecting to the default 'postgres' db for admin tasks.
@@ -107,8 +121,7 @@ class Settings:
         target_db = db_name or self.get_postgres_db()
         if not target_db:
             raise ValueError("Missing target database name (either provide db_name or set POSTGRES_DB env var)")
-        # Call base_dsn property to ensure checks run and get the base string
-        base = self.base_dsn
+        base = self.base_dsn  # Use property
         return f"{base}/{target_db}"
 
     # --- Policy Settings --- #

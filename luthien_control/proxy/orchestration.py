@@ -1,6 +1,6 @@
+import logging
 import uuid
 from typing import Sequence
-import logging
 
 import fastapi
 import httpx

@@ -1,12 +1,10 @@
 """Default implementation for the ResponseBuilder interface."""
 
-import logging
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from fastapi import Response
 from fastapi.responses import PlainTextResponse
 from httpx import Headers  # For type hinting context.response.headers
-
 from luthien_control.core.context import TransactionContext
 from luthien_control.core.response_builder.interface import ResponseBuilder
 
@@ -70,7 +68,8 @@ class DefaultResponseBuilder(ResponseBuilder):
             # TODO: Handle non-bytes final_content? For now, assume bytes.
             if not isinstance(final_content, bytes):
                 self.logger.warning(
-                    f"[{context.transaction_id}] 'final_content' in context.data is not bytes ({type(final_content)}). Attempting to encode."
+                    f"[{context.transaction_id}] 'final_content' in context.data is not bytes "
+                    f"({type(final_content)}). Attempting to encode."
                 )
                 try:
                     final_content = str(final_content).encode("utf-8")
@@ -119,7 +118,8 @@ class DefaultResponseBuilder(ResponseBuilder):
 
         # Construct the final FastAPI Response
         self.logger.info(
-            f"[{context.transaction_id}] Building final response: Status={final_status}, Headers={list(final_headers_dict.keys())}, BodyLength={len(final_content)}"
+            f"[{context.transaction_id}] Building final response: Status={final_status}, "
+            f"Headers={list(final_headers_dict.keys())}, BodyLength={len(final_content)}"
         )
         return Response(
             content=final_content,

@@ -132,3 +132,30 @@
 - `/beta/{full_path:path}` endpoint implemented using `run_policy_flow`.
 - Endpoint is unit-tested, mocking the orchestrator.
 - All unit and integration tests are passing.
+
+## [2025-04-09 16:08] - Implement Control Policy Framework and Beta Endpoint
+
+### Changes Made
+- Created `ControlPolicy` interface (`control_policy/interface.py`).
+- Created `TransactionContext` (`core/context.py`).
+- Created `ResponseBuilder` interface and default implementation (`core/response_builder/`).
+- Implemented `InitializeContextPolicy` to extract request data and path (`control_policy/initialize_context.py`).
+- Implemented `PrepareBackendHeadersPolicy` to set Host, X-Request-ID, etc. (`control_policy/prepare_backend_headers.py`).
+- Implemented `SendBackendRequestPolicy` to build backend URL and send request (`control_policy/send_backend_request.py`).
+- Added orchestrator function `run_policy_flow` (`proxy/orchestration.py`).
+- Added dynamic loading for control policies via `CONTROL_POLICIES` env var in `policy_loader.py` and `dependencies.py`.
+- Added `/beta/{full_path:path}` endpoint in `proxy/server.py` using the new framework.
+- Refactored `config/settings.py` to use getter methods and handle `CONTROL_POLICIES`.
+- Added unit tests for all new components.
+- Added basic E2E test (`test_beta_proxy_with_simple_flow`) for the `/beta` endpoint in `tests/proxy/test_server.py`.
+- Updated test logging configuration in `tests/conftest.py`.
+- Cleaned up logging levels (INFO -> DEBUG) and removed temporary comments.
+- Ensured `settings.py` raises errors for invalid critical config.
+
+### Current Status
+- Core control policy framework is implemented.
+- Policies can be loaded dynamically via environment variables.
+- The `/beta` endpoint successfully proxies requests using the configured policies.
+- Unit tests and a basic E2E test are passing.
+- Staged changes have been reviewed and cleaned up.
+- Next step is to add more comprehensive E2E tests for the `/beta` endpoint.

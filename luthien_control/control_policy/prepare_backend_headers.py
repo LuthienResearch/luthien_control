@@ -5,7 +5,6 @@ from typing import List, Tuple
 from urllib.parse import urlparse
 
 from httpx import Headers  # Import Headers for type hinting and manipulation
-
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.context import TransactionContext
@@ -67,8 +66,13 @@ class PrepareBackendHeadersPolicy(ControlPolicy):
                 raise ValueError("Could not parse hostname from BACKEND_URL")
 
             # Add the correct Host header
-            self.logger.debug(f"[{context.transaction_id}] Setting Host header to: {backend_host}")
+            self.logger.info(f"[{context.transaction_id}] PrepareBackend: Adding Host header: {backend_host}")
             backend_headers_list.append((b"host", backend_host.encode("latin-1")))
+
+            # Add x-request-id based on transaction_id
+            request_id_str = str(context.transaction_id)
+            self.logger.info(f"[{context.transaction_id}] PrepareBackend: Adding X-Request-ID header: {request_id_str}")
+            backend_headers_list.append((b"x-request-id", request_id_str.encode("latin-1")))
 
             # Force Accept-Encoding to identity
             # Remove any existing Accept-Encoding headers first

@@ -1,10 +1,9 @@
 """Unit tests for DefaultResponseBuilder."""
 
-import pytest
 import httpx
-from httpx import Headers
+import pytest
 from fastapi import Response
-
+from httpx import Headers
 from luthien_control.core.context import TransactionContext
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 

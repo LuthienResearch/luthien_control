@@ -1,9 +1,9 @@
 """Unit tests for PrepareBackendHeadersPolicy."""
 
-import pytest
-from httpx import Headers, Request
 from unittest.mock import MagicMock
 
+import pytest
+from httpx import Headers, Request
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.prepare_backend_headers import PrepareBackendHeadersPolicy
 from luthien_control.core.context import TransactionContext

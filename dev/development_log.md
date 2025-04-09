@@ -34,3 +34,16 @@
 - `ResponseBuilder` interface defined.
 - `SimpleResponseBuilder` implemented and tested.
 - Ready to proceed with implementing the orchestrating endpoint.
+
+## [2025-04-09 12:17] - Refactor Test Helpers Location
+
+### Changes Made
+- Moved mock files `exceptions.py` and `policies.py` from `luthien_control/testing/mocks/` to `tests/mocks/`. (`mv luthien_control/testing/mocks/*.py tests/mocks/`)
+- Updated import paths in `tests/proxy/test_server.py` from `luthien_control.testing.mocks.policies` to `tests.mocks.policies`.
+- Removed the old `luthien_control/testing/` directory (`rm -rf luthien_control/testing`).
+- Corrected `tests/proxy/test_server.py` to revert accidental changes back to using `respx` and `TestClient` instead of `pytest-asyncio` and `AsyncClient`/`HTTPXMock`.
+- Verified changes by running `poetry run pytest`.
+
+### Current Status
+- Tests pass successfully.
+- Test helper code is now correctly located within the `tests/` directory structure.

@@ -14,17 +14,20 @@ from luthien_control.main import app  # Import your main FastAPI app
 
 # --- Pytest Fixtures ---
 
+
 # Reinstate fixture to clear policy cache between tests
 @pytest.fixture(autouse=True)
 def clear_policy_cache():
     """Ensure the policy cache in dependencies is cleared before each test."""
     from luthien_control import dependencies
+
     print("\n[clear_policy_cache] Clearing policy cache.")
     original_cache = dependencies._cached_policy
     dependencies._cached_policy = None
     yield
     print("[clear_policy_cache] Restoring original policy cache state (likely None).")
-    dependencies._cached_policy = original_cache # Restore original (likely None)
+    dependencies._cached_policy = original_cache  # Restore original (likely None)
+
 
 @pytest.fixture
 def test_app() -> FastAPI:
@@ -50,17 +53,19 @@ def get_test_backend_url() -> str:
         url = test_settings.get_backend_url()
         if not url:
             pytest.fail("BACKEND_URL not found in test environment after loading .env.test")
-        return url.rstrip('/') # Ensure no trailing slash for respx
+        return url.rstrip("/")  # Ensure no trailing slash for respx
     except Exception as e:
         pytest.fail(f"Failed to get BACKEND_URL from test Settings: {e}")
 
 
 # --- Test Cases ---
 
+
 def test_health_check(client: TestClient):
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
 
 # Test with default policy (usually NoOp, determined by .env.test)
 # @pytest.mark.envvars({}) # No specific override needed for default
@@ -84,14 +89,12 @@ def test_proxy_with_default_policy(client: TestClient):
     # REMOVED: del app.dependency_overrides[get_policy]
 
 
-@pytest.mark.envvars({"POLICY_MODULE": "luthien_control.testing.mocks.policies.ModifyRequestPolicy"})
+@pytest.mark.envvars({"POLICY_MODULE": "tests.mocks.policies.ModifyRequestPolicy"})
 @respx.mock
 def test_proxy_modify_request_policy(client: TestClient):
     """Test policy modifying the request before forwarding."""
     backend_url = get_test_backend_url()
-    mock_route = respx.post(f"{backend_url}/modify/req").mock(
-        return_value=httpx.Response(200, text="Backend got it")
-    )
+    mock_route = respx.post(f"{backend_url}/modify/req").mock(return_value=httpx.Response(200, text="Backend got it"))
     response = client.post(
         "/modify/req", content=b"original data", headers={"Content-Type": "application/octet-stream"}
     )
@@ -105,7 +108,7 @@ def test_proxy_modify_request_policy(client: TestClient):
     # REMOVED: del app.dependency_overrides[get_policy]
 
 
-@pytest.mark.envvars({"POLICY_MODULE": "luthien_control.testing.mocks.policies.ModifyResponsePolicy"})
+@pytest.mark.envvars({"POLICY_MODULE": "tests.mocks.policies.ModifyResponsePolicy"})
 @respx.mock
 def test_proxy_modify_response_policy(client: TestClient):
     """Test policy modifying the response from the backend."""
@@ -122,7 +125,7 @@ def test_proxy_modify_response_policy(client: TestClient):
     # REMOVED: del app.dependency_overrides[get_policy]
 
 
-@pytest.mark.envvars({"POLICY_MODULE": "luthien_control.testing.mocks.policies.DirectRequestResponsePolicy"})
+@pytest.mark.envvars({"POLICY_MODULE": "tests.mocks.policies.DirectRequestResponsePolicy"})
 @respx.mock
 def test_proxy_direct_request_response_policy(client: TestClient):
     """Test policy returning a direct response during request phase."""
@@ -138,7 +141,7 @@ def test_proxy_direct_request_response_policy(client: TestClient):
     # REMOVED: del app.dependency_overrides[get_policy]
 
 
-@pytest.mark.envvars({"POLICY_MODULE": "luthien_control.testing.mocks.policies.DirectResponseResponsePolicy"})
+@pytest.mark.envvars({"POLICY_MODULE": "tests.mocks.policies.DirectResponseResponsePolicy"})
 @respx.mock
 def test_proxy_direct_response_response_policy(client: TestClient):
     """Test policy returning a direct response during response phase."""
@@ -154,7 +157,7 @@ def test_proxy_direct_response_response_policy(client: TestClient):
     # REMOVED: del app.dependency_overrides[get_policy]
 
 
-@pytest.mark.envvars({"POLICY_MODULE": "luthien_control.testing.mocks.policies.RequestPolicyError"})
+@pytest.mark.envvars({"POLICY_MODULE": "tests.mocks.policies.RequestPolicyError"})
 @respx.mock
 def test_proxy_request_policy_error(client: TestClient):
     """Test handling of error during request policy execution."""
@@ -170,14 +173,12 @@ def test_proxy_request_policy_error(client: TestClient):
     # REMOVED: del app.dependency_overrides[get_policy]
 
 
-@pytest.mark.envvars({"POLICY_MODULE": "luthien_control.testing.mocks.policies.ResponsePolicyError"})
+@pytest.mark.envvars({"POLICY_MODULE": "tests.mocks.policies.ResponsePolicyError"})
 @respx.mock
 def test_proxy_response_policy_error(client: TestClient):
     """Test handling of error during response policy execution."""
     backend_url = get_test_backend_url()
-    mock_route = respx.post(f"{backend_url}/err/resp").mock(
-        return_value=httpx.Response(200, content=b"backend ok")
-    )
+    mock_route = respx.post(f"{backend_url}/err/resp").mock(return_value=httpx.Response(200, content=b"backend ok"))
     response = client.post("/err/resp", content=b"client data", headers={"Content-Type": "application/octet-stream"})
 
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -191,9 +192,7 @@ def test_proxy_response_policy_error(client: TestClient):
 def test_proxy_backend_error_passthrough(client: TestClient):
     """Test that backend errors are proxied correctly (if policy doesn't interfere)."""
     backend_url = get_test_backend_url()
-    mock_route = respx.post(f"{backend_url}/backend/error").mock(
-        return_value=httpx.Response(503, text="Backend down")
-    )
+    mock_route = respx.post(f"{backend_url}/backend/error").mock(return_value=httpx.Response(503, text="Backend down"))
     response = client.post(
         "/backend/error", content=b"client data", headers={"Content-Type": "application/octet-stream"}
     )

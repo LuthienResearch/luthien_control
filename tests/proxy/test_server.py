@@ -4,7 +4,7 @@ import json  # Add json import
 import httpx
 import pytest
 import respx
-from fastapi import FastAPI, status  # Alias Starlette Response
+from fastapi import FastAPI, status, Response, Request
 from fastapi.testclient import TestClient
 from luthien_control.config.settings import Settings
 from luthien_control.main import app  # Import your main FastAPI app
@@ -214,3 +214,100 @@ def test_proxy_invalid_backend_url(client: TestClient):
     assert response.status_code == 500
     # Optionally, check the detail message if consistent
     assert "Internal server error: Invalid backend configuration." in response.text
+
+
+# --- Tests for /beta endpoint ---
+
+# Imports needed for /beta tests
+import asyncio
+from unittest.mock import patch, MagicMock, AsyncMock
+from luthien_control.proxy.orchestration import run_policy_flow  # Target for mocking
+from luthien_control.control_policy.initialize_context import InitializeContextPolicy
+from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.core.response_builder.interface import ResponseBuilder
+from typing import Sequence
+
+
+@pytest.mark.asyncio
+async def test_proxy_endpoint_beta_calls_orchestrator(client: TestClient):
+    """Verify /beta endpoint calls run_policy_flow and returns its response."""
+    test_path = "/some/beta/path"
+    expected_content = b"Response from mocked run_policy_flow"
+    expected_status = 201
+    # Create a realistic Response object to be returned by the mock
+    mock_response = Response(
+        content=expected_content,
+        status_code=expected_status,
+        headers={"X-Mock-Header": "MockValue"},
+        media_type="text/plain",
+    )
+
+    # Use AsyncMock because run_policy_flow is async
+    # Patch the target function within the module where it's *looked up* (server.py)
+    with patch("luthien_control.proxy.server.run_policy_flow", new_callable=AsyncMock) as mock_run_flow:
+        mock_run_flow.return_value = mock_response
+
+        # Make a request to the /beta endpoint
+        actual_response = client.get(f"/beta{test_path}")
+
+    # 1. Assert the response received by the client matches the mock's response
+    assert actual_response.status_code == expected_status
+    assert actual_response.content == expected_content
+    assert actual_response.headers["x-mock-header"] == "MockValue"
+    assert actual_response.headers["content-type"].startswith("text/plain")
+
+    # 2. Assert run_policy_flow was called once
+    mock_run_flow.assert_awaited_once()
+
+    # 3. Assert run_policy_flow was called with expected argument types
+    call_args = mock_run_flow.await_args[0]  # Get positional args from the call
+    call_kwargs = mock_run_flow.await_args[1]  # Get keyword args from the call
+
+    # Check keyword arguments passed to run_policy_flow
+    assert "request" in call_kwargs
+    assert "http_client" in call_kwargs
+    assert "settings" in call_kwargs
+    assert "initial_context_policy" in call_kwargs
+    assert "policies" in call_kwargs
+    assert "response_builder" in call_kwargs
+
+    # Check request object details
+    request_arg = call_kwargs["request"]
+    assert isinstance(request_arg, Request)
+    assert request_arg.method == "GET"
+    # TestClient uses http://testserver as base URL
+    assert request_arg.url.path == f"/beta{test_path}"
+
+    # Check dependency types (ensure DI worked)
+    assert isinstance(call_kwargs["http_client"], httpx.AsyncClient)
+    assert isinstance(call_kwargs["settings"], Settings)
+    assert isinstance(call_kwargs["initial_context_policy"], InitializeContextPolicy)
+    assert isinstance(call_kwargs["policies"], Sequence)
+    # Check that policies sequence contains ControlPolicy instances
+    assert len(call_kwargs["policies"]) > 0  # Assuming default providers return some
+    assert all(isinstance(p, ControlPolicy) for p in call_kwargs["policies"])
+    assert isinstance(call_kwargs["response_builder"], ResponseBuilder)
+
+
+@pytest.mark.asyncio
+async def test_proxy_endpoint_beta_handles_post(client: TestClient):
+    """Verify /beta endpoint works with POST requests too."""
+    test_path = "/another/beta/post/path"
+    request_body = {"key": "value"}
+    mock_response = Response(content=b"POST handled", status_code=200)
+
+    with patch("luthien_control.proxy.server.run_policy_flow", new_callable=AsyncMock) as mock_run_flow:
+        mock_run_flow.return_value = mock_response
+
+        actual_response = client.post(f"/beta{test_path}", json=request_body)
+
+    assert actual_response.status_code == 200
+    assert actual_response.content == b"POST handled"
+    mock_run_flow.assert_awaited_once()
+
+    # Verify the request object passed to the orchestrator had the correct method and body
+    call_kwargs = mock_run_flow.await_args[1]
+    request_arg = call_kwargs["request"]
+    assert isinstance(request_arg, Request)
+    assert request_arg.method == "POST"
+    assert await request_arg.json() == request_body  # Check body correctly passed

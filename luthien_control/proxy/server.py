@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union, Sequence
 from urllib.parse import urlparse  # Added for parsing URL
 
 import httpx
@@ -13,13 +13,102 @@ from luthien_control.config.settings import Settings
 from luthien_control.dependencies import get_http_client, get_policy
 from luthien_control.policies.base import Policy
 
+# Import new policy framework components
+from luthien_control.control_policy.initialize_context import InitializeContextPolicy
+from luthien_control.control_policy.interface import ControlPolicy
+
+# Import concrete policies
+from luthien_control.control_policy.prepare_backend_headers import PrepareBackendHeadersPolicy
+from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
+from luthien_control.core.response_builder.interface import ResponseBuilder
+
+# Import concrete builder
+from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
+
+# Import the orchestrator
+from luthien_control.proxy.orchestration import run_policy_flow
+
 # Importing utils for potential decompression in policy logic later
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# --- Dependency Providers ---
 
+# Existing provider for HTTP client
+# ... (get_http_client defined in luthien_control.dependencies)
+
+
+# Implemented providers for the new framework components
+def get_initial_context_policy() -> InitializeContextPolicy:
+    """Provides an instance of the InitializeContextPolicy."""
+    # For now, we just instantiate the default implementation.
+    # Future: Could load based on config.
+    return InitializeContextPolicy()
+
+
+def get_control_policies(
+    settings: Settings = Depends(Settings), client: httpx.AsyncClient = Depends(get_http_client)
+) -> Sequence[ControlPolicy]:
+    """Provides the sequence of main ControlPolicies."""
+    # For now, instantiate the policies mirroring the original v1 logic.
+    # Future: Could load/configure this sequence dynamically.
+    return [
+        PrepareBackendHeadersPolicy(settings=settings),
+        SendBackendRequestPolicy(http_client=client),
+        # Add other policies here in the desired order
+    ]
+
+
+def get_response_builder() -> ResponseBuilder:
+    """Provides an instance of the ResponseBuilder."""
+    # For now, instantiate the default implementation.
+    # Future: Could load based on config.
+    return DefaultResponseBuilder()
+
+
+# --- End Dependency Providers ---
+
+
+# === BETA ENDPOINT ===
+# Must be defined *before* the catch-all `proxy_endpoint`
+@router.api_route(
+    "/beta/{full_path:path}",
+    methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+)
+async def proxy_endpoint_beta(
+    request: Request,
+    full_path: str,
+    # Common dependencies
+    client: httpx.AsyncClient = Depends(get_http_client),
+    settings: Settings = Depends(Settings),
+    # New framework dependencies (using implemented providers)
+    initial_context_policy: InitializeContextPolicy = Depends(get_initial_context_policy),
+    policies: Sequence[ControlPolicy] = Depends(get_control_policies),
+    builder: ResponseBuilder = Depends(get_response_builder),
+):
+    """
+    Proxy endpoint using the new policy orchestration flow.
+    This runs in parallel with the original `proxy_endpoint`.
+    """
+    logger.info(f"Received request for /beta/{full_path}")
+
+    # Orchestrate the policy flow
+    response = await run_policy_flow(
+        request=request,
+        http_client=client,
+        settings=settings,
+        initial_context_policy=initial_context_policy,
+        policies=policies,
+        response_builder=builder,
+    )
+
+    logger.info(f"Returning response for /beta/{full_path}")
+    return response
+
+
+# === ORIGINAL PROXY ENDPOINT ===
 @router.api_route(
     "/{full_path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
@@ -172,9 +261,7 @@ async def proxy_endpoint(
     except Exception as e:
         # Make sure to close the stream if an error occurs before returning
         await backend_response.aclose()
-        logger.exception(
-            f"[{request_id}] Error applying response policy", extra={"request_id": request_id}
-        )
+        logger.exception(f"[{request_id}] Error applying response policy", extra={"request_id": request_id})
         raise HTTPException(status_code=500, detail="Error applying response policy.") from e
 
     if isinstance(response_policy_outcome, Response):
@@ -191,7 +278,7 @@ async def proxy_endpoint(
                 f"[{request_id}] Error encoding policy response content",
                 extra={"request_id": request_id},
             )
-            await backend_response.aclose() # Close stream before raising
+            await backend_response.aclose()  # Close stream before raising
             raise HTTPException(status_code=500, detail="Policy returned invalid response content type.")
 
     final_status_code = response_policy_outcome.get("status_code", backend_response.status_code)
@@ -217,7 +304,7 @@ async def proxy_endpoint(
         key_lower_bytes = key_bytes.lower() if isinstance(key_bytes, bytes) else key_bytes
 
         if isinstance(key_lower_bytes, bytes) and key_lower_bytes in hop_by_hop_headers:
-            continue # Skip hop-by-hop header
+            continue  # Skip hop-by-hop header
 
         # Decode key and value to strings for the final Response object
         key_str = key_bytes.decode("latin-1") if isinstance(key_bytes, bytes) else str(k)
@@ -232,3 +319,6 @@ async def proxy_endpoint(
         headers=response_headers,
         media_type=backend_response.headers.get("content-type"),
     )
+
+
+# --- Helper Functions / Original v1 Logic Helpers ---

@@ -15,8 +15,15 @@ pytestmark = pytest.mark.asyncio
 def mock_http_client() -> MagicMock:
     """Provides a mock httpx.AsyncClient."""
     client = MagicMock(spec=httpx.AsyncClient)
-    client.send = AsyncMock()  # Mock the async send method
+    # Mock the async send method
+    client.send = AsyncMock()
     return client
+
+
+@pytest.fixture
+def policy(mock_http_client: MagicMock) -> SendBackendRequestPolicy:
+    """Provides an instance of the policy with a mock client."""
+    return SendBackendRequestPolicy(http_client=mock_http_client)
 
 
 @pytest.fixture
@@ -25,19 +32,20 @@ def base_context() -> TransactionContext:
     return TransactionContext(transaction_id="tx-test-1")
 
 
-@pytest.fixture
-def policy(mock_http_client: MagicMock) -> SendBackendRequestPolicy:
-    """Provides an instance of SendBackendRequestPolicy with mocks."""
-    return SendBackendRequestPolicy(http_client=mock_http_client)
-
-
 async def test_send_request_policy_success(
     policy: SendBackendRequestPolicy, mock_http_client: MagicMock, base_context: TransactionContext
 ):
-    """Test successful request sending and response storage."""
+    """Test successful request sending, response storage, and raw body reading."""
     # Arrange
     mock_request = httpx.Request("GET", "http://mock-backend.test/path")
-    mock_response = httpx.Response(200, request=mock_request, content=b"Success")
+    # Mock the response object and its async methods
+    mock_response = MagicMock(spec=httpx.Response)
+    mock_response.aread = AsyncMock(return_value=b"Raw response body")
+    # Ensure necessary attributes exist on the mock response for context storage
+    mock_response.status_code = 200
+    mock_response.headers = httpx.Headers()
+    mock_response.request = mock_request
+
     base_context.request = mock_request
     mock_http_client.send.return_value = mock_response
 
@@ -46,8 +54,12 @@ async def test_send_request_policy_success(
 
     # Assert
     mock_http_client.send.assert_awaited_once_with(mock_request)
+    mock_response.aread.assert_awaited_once()  # Verify body was read
     assert updated_context is base_context  # Should modify in place
+    # Check that the *original* response object is stored
     assert updated_context.response is mock_response
+    # Check that the raw body is stored in context.data
+    assert updated_context.data.get("raw_backend_response_body") == b"Raw response body"
 
 
 async def test_send_request_policy_no_request_in_context(
@@ -62,6 +74,7 @@ async def test_send_request_policy_no_request_in_context(
         await policy.apply(base_context)
 
     mock_http_client.send.assert_not_awaited()
+    assert "raw_backend_response_body" not in base_context.data  # Ensure data not polluted
 
 
 async def test_send_request_policy_http_error(
@@ -79,3 +92,7 @@ async def test_send_request_policy_http_error(
 
     mock_http_client.send.assert_awaited_once_with(mock_request)
     assert base_context.response is None  # Response should not be set on error
+    assert "raw_backend_response_body" not in base_context.data  # Ensure data not polluted
+
+
+# TODO: Add test for case where response.aread() fails?

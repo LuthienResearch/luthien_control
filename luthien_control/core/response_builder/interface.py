@@ -1,10 +1,11 @@
 import logging
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from fastapi import Response
 from luthien_control.core.context import TransactionContext
 
 
+@runtime_checkable
 class ResponseBuilder(Protocol):
     """Protocol defining the interface for building the final client response."""
 

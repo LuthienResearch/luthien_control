@@ -1,10 +1,11 @@
 """Interfaces for the request processing framework."""
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from luthien_control.core.context import TransactionContext
 
 
+@runtime_checkable
 class ControlPolicy(Protocol):
     """Protocol defining the interface for a single processing step."""
 

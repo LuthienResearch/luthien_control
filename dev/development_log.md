@@ -47,3 +47,88 @@
 ### Current Status
 - Tests pass successfully.
 - Test helper code is now correctly located within the `tests/` directory structure.
+
+## [2025-04-09 13:51] - Implement Policy Orchestration Logic (TDD)
+
+### Changes Made
+- Created orchestration module: `luthien_control/proxy/orchestration.py`
+- Defined skeleton `async def run_policy_flow(...)` function.
+- Created test module: `tests/proxy/test_orchestration.py`
+- Implemented comprehensive unit tests for `run_policy_flow` using `pytest` and `unittest.mock`:
+    - `test_run_policy_flow_successful`: Covers normal execution flow.
+    - `test_run_policy_flow_policy_exception`: Covers exceptions during main policy execution.
+    - `test_run_policy_flow_initial_policy_exception`: Covers exceptions during initial context policy execution.
+- Ran tests against skeleton (confirmed `NotImplementedError` failures):
+  ```
+  poetry run pytest tests/proxy/test_orchestration.py | cat
+  ... (3 failures) ...
+  ```
+- Implemented the `run_policy_flow` logic:
+    - Generates `transaction_id`.
+    - Creates `TransactionContext`.
+    - Executes `initial_context_policy`.
+    - Iterates through `policies`, executing each in a `try/except` block.
+    - Calls `builder.build_response` with the final context.
+    - Added basic logging for policy exceptions.
+- Ran tests against implementation (debugged mock interactions and assertions):
+  ```
+  poetry run pytest tests/proxy/test_orchestration.py | cat
+  ... (3 failures - uuid mock call count) ...
+  poetry run pytest tests/proxy/test_orchestration.py | cat
+  ... (3 failures - await return_value, hasattr check) ...
+  poetry run pytest tests/proxy/test_orchestration.py | cat
+  ... (3 passed) ...
+  ```
+- Ran full test suite to check for regressions:
+  ```
+  poetry run pytest | cat
+  ... (72 passed, 1 deselected) ...
+  ```
+
+### Current Status
+- `run_policy_flow` orchestration logic is implemented and unit-tested.
+- Core functionality handles policy sequencing and exceptions.
+- Full test suite passes.
+- Ready to refactor `proxy_endpoint` to use this new orchestrator.
+
+## [2025-04-09 13:59] - Strategy Change: Implement Parallel V2 Endpoint
+
+### Changes Made
+- Adjusted development plan based on user feedback.
+- Instead of refactoring the existing `/ {full_path:path}` (`proxy_endpoint`), the next step will be to implement a new, parallel endpoint (e.g., `/v2/{full_path:path}`) that utilizes the `run_policy_flow` orchestrator.
+- The existing endpoint will remain untouched for now.
+- Updated `dev/current_context.md` to reflect this new plan.
+
+### Current Status
+- Plan updated.
+- Ready to implement the new `/v2` endpoint.
+
+## [2025-04-09 14:11] - Implement and Test Parallel /beta Endpoint (with Debugging)
+
+### Changes Made
+- Implemented `proxy_endpoint_beta` in `luthien_control/proxy/server.py`:
+    - Decorated with `@router.api_route("/beta/{full_path:path}", ...)`
+    - Added call to `run_policy_flow`, passing dependency-injected `request`, `client`, `settings`, `initial_context_policy`, `policies`, and `builder`.
+- Added unit tests for `proxy_endpoint_beta` in `tests/proxy/test_server.py`:
+    - Used `unittest.mock.patch` to mock `run_policy_flow`.
+    - `test_proxy_endpoint_beta_calls_orchestrator`: Verified correct call to `run_policy_flow` and response passthrough (GET request).
+    - `test_proxy_endpoint_beta_handles_post`: Verified functionality with POST requests.
+- **Debugging Cycle:** Ran tests iteratively to fix several issues:
+    - Added missing `from fastapi import Response` import in `tests/proxy/test_server.py` (`NameError`).
+    - Reordered endpoint definitions in `luthien_control/proxy/server.py` to place `/beta/...` before `/...` (fixed 502 Bad Gateway due to incorrect routing).
+    - Modified `get_control_policies` in `luthien_control/proxy/server.py` to inject `settings` into `PrepareBackendHeadersPolicy` (`TypeError`).
+    - Modified `get_control_policies` to inject `http_client` into `SendBackendRequestPolicy` (`TypeError`).
+    - Corrected `content-type` assertion in `tests/proxy/test_server.py` to use `startswith('text/plain')` (`AssertionError`).
+    - Added missing `from fastapi import Request` import in `tests/proxy/test_server.py` (`NameError`).
+    - Added `@runtime_checkable` to `ControlPolicy` in `luthien_control/control_policy/interface.py` (`TypeError` on `isinstance`).
+    - Added `@runtime_checkable` to `ResponseBuilder` in `luthien_control/core/response_builder/interface.py` (`TypeError` on `isinstance`).
+- Final Test Run:
+  ```
+  poetry run pytest | cat
+  ... (74 passed, 1 deselected) ...
+  ```
+
+### Current Status
+- `/beta/{full_path:path}` endpoint implemented using `run_policy_flow`.
+- Endpoint is unit-tested, mocking the orchestrator.
+- All unit and integration tests are passing.

@@ -37,6 +37,7 @@ To build an AI Control System (`luthien_control`) acting as an intelligent proxy
     - [X] Define `TransactionContext` object to carry state.
     - [X] Define `ControlPolicy` interface for composable processing steps.
     - [X] Define `ResponseBuilder` interface for final response generation.
+    - [ ] Implement existing `proxy_endpoint` logic as ControlPolicies under new framework
     - [ ] Implement an endpoint which orchestrates context creation, policy execution, and response building.
     - [ ] Implement core policies (e.g., `RequestLoggingPolicy`, `SendBackendRequestPolicy`).
     - [ ] Switch `proxy_endpoint` to use this new system instead of the current logic

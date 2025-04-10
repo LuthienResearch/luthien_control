@@ -46,7 +46,7 @@ markers = [
 ]
 addopts = "-m 'not integration and not e2e'"
 # Configure asyncio mode and loop scope
-asyncio_mode = "auto" # Change from default 'strict' to 'auto'
+asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]

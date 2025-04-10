@@ -2,6 +2,7 @@
 
 import logging
 
+from fastapi.responses import JSONResponse
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
 from luthien_control.control_policy.interface import ControlPolicy
@@ -35,6 +36,9 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")
         api_key = self.settings.get_openai_api_key()
         if not api_key:
+            context.response = JSONResponse(
+                status_code=500, content={"detail": "Server configuration error: API key not configured"}
+            )
             raise ApiKeyNotFoundError(f"[{context.transaction_id}] API key not configured.")
         self.logger.info(f"[{context.transaction_id}] Adding Authorization header.")
         context.request.headers["Authorization"] = f"Bearer {api_key}"

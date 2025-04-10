@@ -86,8 +86,6 @@ class PrepareBackendHeadersPolicy(ControlPolicy):
             # Re-raise the original error for specific testing, but add context
             raise ValueError(msg) from e
 
-        # Update the request headers in the context
-        # Note: This replaces the Headers object on the request
         context.request.headers = Headers(backend_headers_list)
 
         self.logger.debug(f"[{context.transaction_id}] Backend headers prepared.")

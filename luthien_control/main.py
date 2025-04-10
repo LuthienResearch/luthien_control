@@ -3,14 +3,20 @@ import os
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 
+from luthien_control.config.settings import Settings
+
+# Import the specific exception
 from luthien_control.db.database import close_log_db_pool, close_main_db_pool, create_log_db_pool, create_main_db_pool
 
 # --- Local Imports --- #
 from luthien_control.proxy.server import router as proxy_router
 
 logger = logging.getLogger(__name__)
+
+settings = Settings()
 
 
 @asynccontextmanager
@@ -84,3 +90,25 @@ app.include_router(proxy_router)
 
 # To run the server (from the project root directory):
 # uvicorn luthien_control.main:app --reload
+
+
+# --- Root Endpoint --- #
+
+
+@app.get("/")
+async def read_root():
+    return {"message": "Luthien Control Proxy is running."}
+
+
+# --- Run with Uvicorn (for local development) --- #
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "luthien_control.main:app",
+        host=settings.get_app_host(),
+        port=settings.get_app_port(),
+        reload=settings.get_app_reload(),
+        log_level=settings.get_app_log_level().lower(),
+    )

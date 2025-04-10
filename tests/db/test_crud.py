@@ -1,9 +1,9 @@
-import pytest
-import asyncpg
 import json
-from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import asyncpg
+import pytest
 from luthien_control.db.crud import get_api_key_by_value
 from luthien_control.db.models import ApiKey
 
@@ -54,10 +54,24 @@ async def test_get_api_key_by_value_found_active(mock_db_pool):
     assert result.created_at == now
     assert result.metadata_ == mock_metadata_dict  # Check deserialized metadata
 
-    mock_conn.fetchrow.assert_awaited_once_with(
-        "\n        SELECT id, key_value, name, is_active, created_at, metadata_\n        FROM api_keys\n        WHERE key_value = $1\n    ",
-        test_key,
-    )
+    # Assert the SQL query was called correctly, ignoring whitespace differences
+    mock_conn.fetchrow.assert_awaited_once()
+    call_args = mock_conn.fetchrow.await_args
+    actual_query = call_args[0][0]
+    actual_param = call_args[0][1]
+
+    expected_query = """
+        SELECT id, key_value, name, is_active, created_at, metadata_
+        FROM api_keys
+        WHERE key_value = $1
+    """
+
+    # Normalize whitespace (split by any whitespace, join with single space)
+    normalized_actual = " ".join(actual_query.split())
+    normalized_expected = " ".join(expected_query.split())
+
+    assert normalized_actual == normalized_expected
+    assert actual_param == test_key
 
 
 async def test_get_api_key_by_value_not_found(mock_db_pool):
@@ -153,3 +167,41 @@ async def test_get_api_key_by_value_invalid_metadata_json(mock_db_pool):
     mock_warning.assert_called_once()
     # Check that the specific warning about invalid JSON was logged
     assert "Invalid JSON in metadata" in mock_warning.call_args[0][0]
+
+
+async def test_get_api_key_by_value_found(mock_db_pool):
+    mock_pool, mock_conn = mock_db_pool
+    test_key = "test-value"
+    expected_record = {
+        "id": 1,
+        "key_value": test_key,
+        "name": "Test Key",
+        "is_active": True,
+        "created_at": datetime.now(UTC),
+        "metadata_": None,
+    }
+    mock_conn.fetchrow.return_value = expected_record
+
+    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
+        result_key = await get_api_key_by_value(test_key)
+
+    assert result_key == ApiKey(**expected_record)  # type: ignore
+
+    # Assert the SQL query was called correctly, ignoring whitespace differences
+    mock_conn.fetchrow.assert_awaited_once()
+    call_args = mock_conn.fetchrow.await_args
+    actual_query = call_args[0][0]
+    actual_param = call_args[0][1]
+
+    expected_query = """
+        SELECT id, key_value, name, is_active, created_at, metadata_
+        FROM api_keys
+        WHERE key_value = $1
+    """
+
+    # Normalize whitespace (split by any whitespace, join with single space)
+    normalized_actual = " ".join(actual_query.split())
+    normalized_expected = " ".join(expected_query.split())
+
+    assert normalized_actual == normalized_expected
+    assert actual_param == test_key

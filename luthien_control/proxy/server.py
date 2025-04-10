@@ -1,11 +1,10 @@
 import logging
 
 # import uuid # Removed: No longer used
-from typing import Any, Dict, List, Sequence, Tuple  # Removed Union
-from urllib.parse import urlparse  # Added for parsing URL
+from typing import Sequence  # Removed Union
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Request
 
 # Import Settings class directly for dependency injection
 from luthien_control.config.settings import Settings
@@ -18,6 +17,7 @@ from luthien_control.control_policy.interface import ControlPolicy
 # Import concrete builder
 from luthien_control.core.response_builder.interface import ResponseBuilder
 
+# Import the ApiKey model for type hinting
 # Import policy dependency and base class
 # Importing utils for potential decompression in policy logic later
 # Import NEW dependency providers from dependencies module
@@ -29,13 +29,10 @@ from luthien_control.dependencies import (
     # get_policy, # Already removed
     get_response_builder,
 )
-# from luthien_control.policies.base import Policy # Already removed
 
+# from luthien_control.policies.base import Policy # Already removed
 # Import the orchestrator
 from luthien_control.proxy.orchestration import run_policy_flow
-
-# Import the ApiKey model for type hinting
-from luthien_control.db.models import ApiKey
 
 logger = logging.getLogger(__name__)
 

@@ -1,21 +1,18 @@
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
-import pytest
-import pytest_asyncio
 import asyncpg
 import luthien_control.db.database
+import pytest
+import pytest_asyncio
 
 # Assuming absolute imports
 from luthien_control.db.database import (
     close_log_db_pool,
-    create_log_db_pool,
-    get_log_db_pool,
     close_main_db_pool,
+    create_log_db_pool,
     create_main_db_pool,
+    get_log_db_pool,
     get_main_db_pool,
-    _log_db_pool,
-    _main_db_pool,
 )
 
 # Mark all tests in this module as async tests

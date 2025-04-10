@@ -1,7 +1,6 @@
 """Control Policy for initializing the TransactionContext from a FastAPI Request."""
 
 import logging
-
 from typing import Optional
 
 import httpx

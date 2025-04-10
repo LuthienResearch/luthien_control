@@ -1,16 +1,14 @@
 """Unit tests for InitializeContextPolicy."""
 
-from typing import Optional
-from unittest.mock import AsyncMock, MagicMock, patch
-from urllib.parse import urlparse
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
 from fastapi import Request as FastAPIRequest  # Use alias to avoid clash
-from httpx import Headers, QueryParams
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.core.context import TransactionContext
+
 # from luthien_control.core.models import Request as CoreRequest # Removed incorrect import
 
 # Mark all tests in this module as async tests

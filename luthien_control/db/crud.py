@@ -1,8 +1,6 @@
 import logging
 from typing import Optional
-import json  # Added for metadata deserialization
 
-import asyncpg
 from pydantic_core import ValidationError  # Added
 
 from .database import get_main_db_pool
@@ -76,8 +74,8 @@ async def get_api_key_by_value(key_value: str) -> Optional[ApiKey]:
                     except ValidationError as ve_retry:
                         # Should not happen if only metadata was the issue, but log if it does
                         logger.error(
-                            f"Failed to create ApiKey even after clearing metadata for key ID {record_dict.get('id', '?')}. "
-                            f"Validation Errors: {ve_retry.errors()}"
+                            f"Failed to create ApiKey even after clearing metadata for key ID "
+                            f"{record_dict.get('id', '?')}. Validation Errors: {ve_retry.errors()}"
                         )
                         # Fall through to the main exception handler -> return None
                 else:

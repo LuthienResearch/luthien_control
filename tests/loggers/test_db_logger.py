@@ -1,11 +1,9 @@
 import json
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import asyncpg
 import pytest
-from luthien_control.config.settings import Settings
 from luthien_control.logging.db_logger import log_db_entry
-from luthien_control.db.database import get_log_db_pool
 
 # Mark all tests in this module as unit tests
 pytestmark = pytest.mark.unit

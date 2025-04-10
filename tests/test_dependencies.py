@@ -1,12 +1,11 @@
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
-from datetime import datetime, UTC
 
-from fastapi import HTTPException, status
-
-from luthien_control.dependencies import get_current_active_api_key
-from luthien_control.db.models import ApiKey
+import pytest
+from fastapi import HTTPException
 from luthien_control.db.crud import get_api_key_by_value
+from luthien_control.db.models import ApiKey
+from luthien_control.dependencies import get_current_active_api_key
 
 # Mark all tests in this module as async
 pytestmark = pytest.mark.asyncio

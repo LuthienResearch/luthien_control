@@ -3,7 +3,6 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-import asyncpg
 from luthien_control.db.database import get_log_db_pool
 
 logger = logging.getLogger(__name__)

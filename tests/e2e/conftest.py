@@ -59,7 +59,6 @@ def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
     # Ensure policy is default (NoOp) unless overridden by system env
     # Needed for the new policy orchestration flow
     default_control_policies = [
-        # "luthien_control.control_policy.request_logging.RequestLoggingPolicy", # Temporarily disabled until implemented
         "luthien_control.control_policy.send_backend_request.SendBackendRequestPolicy",
     ]
     # Use comma-separated string for env var

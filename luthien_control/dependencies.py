@@ -1,6 +1,6 @@
-import logging
 import importlib  # Added for dynamic loading
 import inspect  # Added for signature inspection
+import logging
 from typing import Sequence, Type  # Added Type for class checking
 
 import httpx
@@ -13,7 +13,6 @@ from luthien_control.control_policy.initialize_context import InitializeContextP
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 from luthien_control.core.response_builder.interface import ResponseBuilder
-
 
 # --- Added for API Key Auth --- #
 from luthien_control.db.crud import get_api_key_by_value
@@ -67,7 +66,8 @@ def load_control_policies(settings: Settings, http_client: httpx.AsyncClient) ->
             # or if the class doesn't explicitly inherit. Checking attribute is safer.
             if not issubclass(policy_class, ControlPolicy):
                 raise PolicyLoadError(
-                    f"Class '{class_name}' from '{module_path}' does not inherit from ControlPolicy (or is not a recognized subclass)."
+                    f"Class '{class_name}' from '{module_path}' does not inherit from "
+                    f"ControlPolicy (or is not a recognized subclass)."
                 )
 
             # --- Dependency Injection based on __init__ signature --- #
@@ -98,7 +98,8 @@ def load_control_policies(settings: Settings, http_client: httpx.AsyncClient) ->
                         ) from fallback_e
                 else:
                     raise PolicyLoadError(
-                        f"Could not instantiate policy class '{class_name}' with detected args {list(instance_args.keys())}. Check __init__ signature."
+                        f"Could not instantiate policy class '{class_name}' with detected args "
+                        f"{list(instance_args.keys())}. Check __init__ signature."
                     ) from e
             # --- End Dependency Injection --- #
 
@@ -140,7 +141,6 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
 
 # Global variable to cache the loaded policy instance
 # Initialize to None. It will be loaded on first request.
-
 
 
 # --- API Key Authentication Dependency ---

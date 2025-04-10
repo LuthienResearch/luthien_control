@@ -7,7 +7,7 @@ from urllib.parse import urlparse  # Added for Host header check
 import httpx
 import pytest
 import respx
-from fastapi import FastAPI, Request, Response, status
+from fastapi import FastAPI, Request, Response
 from fastapi.testclient import TestClient
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy

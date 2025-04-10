@@ -1,14 +1,14 @@
-from contextlib import asynccontextmanager
+import logging
 import os
+from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
-import logging
+
+from luthien_control.db.database import close_log_db_pool, close_main_db_pool, create_log_db_pool, create_main_db_pool
 
 # --- Local Imports --- #
 from luthien_control.proxy.server import router as proxy_router
-from luthien_control.db.database import create_log_db_pool, close_log_db_pool, create_main_db_pool, close_main_db_pool
-from luthien_control.config import settings
 
 logger = logging.getLogger(__name__)
 

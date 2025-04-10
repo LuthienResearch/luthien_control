@@ -1,7 +1,8 @@
-import asyncpg
 import asyncio
-import os
 import logging
+import os
+
+import asyncpg
 from dotenv import load_dotenv
 
 # Load environment variables from .env file

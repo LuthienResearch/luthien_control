@@ -1,7 +1,6 @@
 """Unit tests for core ControlPolicy implementations."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
-from urllib.parse import urlparse  # Added for host check
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest

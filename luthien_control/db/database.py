@@ -72,7 +72,8 @@ async def _create_pool_internal(
             max_size=pool_max_size,
         )
         logger.info(
-            f"{pool_desc.capitalize()} database connection pool created successfully for {db_name} @ {db_host}:{db_port}."
+            f"{pool_desc.capitalize()} database connection pool created successfully "
+            f"for {db_name} @ {db_host}:{db_port}."
         )
         return pool
     except Exception as e:

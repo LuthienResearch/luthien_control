@@ -4,7 +4,6 @@ import logging
 from typing import Awaitable, Callable, Optional
 
 from fastapi.responses import JSONResponse
-
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
     ClientAuthenticationNotFoundError,
@@ -77,6 +76,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
             raise ClientAuthenticationError(detail="Inactive API Key")
 
         self.logger.info(
-            f"[{context.transaction_id}] Client API key authenticated successfully (Name: {db_key.name}, ID: {db_key.id})."
+            f"[{context.transaction_id}] Client API key authenticated successfully "
+            f"(Name: {db_key.name}, ID: {db_key.id})."
         )
         return context

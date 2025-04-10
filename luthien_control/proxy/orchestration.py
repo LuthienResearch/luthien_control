@@ -4,8 +4,8 @@ from typing import Sequence
 
 import fastapi
 import httpx
-from fastapi.responses import JSONResponse  # Added for generic 500 error
 from fastapi import status  # Added for status codes
+from fastapi.responses import JSONResponse  # Added for generic 500 error
 
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.exceptions import ControlPolicyError
@@ -97,7 +97,8 @@ async def run_policy_flow(
         except Exception as build_e:
             # Log the exception that occurred *during response building*
             logger.exception(
-                f"[{context.transaction_id}] Exception occurred *during* error response building: {build_e}. Original error was: {e}"
+                f"[{context.transaction_id}] Exception occurred *during* error response building: "
+                f"{build_e}. Original error was: {e}"
             )
             # Fallback to a basic JSONResponse, mentioning both errors if possible
             final_response = JSONResponse(

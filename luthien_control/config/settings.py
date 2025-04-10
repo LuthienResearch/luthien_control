@@ -46,6 +46,10 @@ class Settings:
         """Returns the comma-separated list of control policies from env var."""
         return os.getenv("CONTROL_POLICIES")
 
+    def get_top_level_policy_name(self) -> str:
+        """Returns the name of the top-level policy instance to load."""
+        return os.getenv("TOP_LEVEL_POLICY_NAME", "root")
+
     # --- Database settings Getters using os.getenv ---
     def get_postgres_user(self) -> str | None:
         return os.getenv("POSTGRES_USER")

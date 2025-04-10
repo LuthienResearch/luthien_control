@@ -1,26 +1,23 @@
 # tests/proxy/test_server.py
 import json
 from typing import Sequence
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import urlparse
 
 import httpx
 import pytest
 import respx
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import PlainTextResponse
 from fastapi.testclient import TestClient
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.response_builder.interface import ResponseBuilder
-from luthien_control.main import app  # Import your main FastAPI app
-from fastapi.responses import PlainTextResponse
 from luthien_control.dependencies import (
-    get_control_policies,
-    get_http_client,
-    get_initial_context_policy,
     get_response_builder,
 )
+from luthien_control.main import app  # Import your main FastAPI app
 
 # --- Pytest Fixtures ---
 

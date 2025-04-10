@@ -71,7 +71,11 @@ def context_without_response() -> TransactionContext:
 
 
 def test_build_response_from_raw_body(builder: DefaultResponseBuilder, context_with_raw_body: TransactionContext):
-    """Test building response using context.response status/headers and context.data[raw_backend_response_body] for content."""
+    """Test building response
+
+    Test building response using context.response status/headers and
+    context.data[raw_backend_response_body] for content.
+    """
     # Act
     fastapi_response = builder.build_response(context_with_raw_body)
 

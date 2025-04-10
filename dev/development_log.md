@@ -53,3 +53,21 @@
 **Status:** Completed. All warnings resolved, tests passing.
 
 **Next Steps:** Commit changes.
+
+---
+
+**Date:** 2025-04-10
+
+**Summary:** Implemented DB Models and CRUD/Loading logic for Policy Refactor.
+
+**Changes:**
+- Created `PolicyBase` and `Policy` Pydantic models in `luthien_control/db/models.py`.
+- Implemented `get_policy_config_by_name` in `luthien_control/db/crud.py` to fetch active policy config by name.
+- Implemented `load_policy_instance` in `luthien_control/db/crud.py` for dynamic loading, DI, config injection, and recursive loading (specifically for `CompoundPolicy`). Added `PolicyLoadError` exception.
+- Added `get_top_level_policy_name` method to `Settings` in `luthien_control/config/settings.py`.
+- Added tests for new models in `tests/db/test_models.py`.
+- Added extensive tests with mocking for `get_policy_config_by_name` and `load_policy_instance` in `tests/db/test_crud.py`, resolving several complex mocking issues.
+
+**Status:** Complete (Models and Loading Logic).
+
+**Next Steps:** Integrate the new loading mechanism into the application's dependency injection flow (`dependencies.py`, `orchestration.py`, `server.py`).

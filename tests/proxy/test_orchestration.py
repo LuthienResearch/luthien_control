@@ -7,6 +7,7 @@ import pytest
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.core.context import TransactionContext
 from luthien_control.core.response_builder.interface import ResponseBuilder
 from luthien_control.proxy.orchestration import run_policy_flow
@@ -74,13 +75,11 @@ def mock_builder() -> MagicMock:
 @pytest.fixture
 def mock_policies_with_exception() -> list[AsyncMock]:
     """Fixture for policies where the first one raises an exception."""
-    policies = [
-        AsyncMock(spec=ControlPolicy),
-        AsyncMock(spec=ControlPolicy),
-    ]
-    policies[0].apply = AsyncMock(side_effect=ValueError("Policy Error"))
-    policies[1].apply = AsyncMock()  # This should not be called
-    return policies
+    policy1 = AsyncMock(spec=ControlPolicy)
+    # Configure the first policy to raise an exception
+    policy1.apply.side_effect = ControlPolicyError("Policy Error")  # Changed from ValueError
+    policy2 = AsyncMock(spec=ControlPolicy)
+    return [policy1, policy2]
 
 
 @pytest.fixture
@@ -211,15 +210,16 @@ async def test_run_policy_flow_initial_policy_exception(
     fixed_test_uuid = uuid.UUID("aaaaabbb-bbbb-cccc-dddd-eeeeefffff00")
     mock_uuid4.return_value = fixed_test_uuid
 
-    # Call the orchestrator
-    response = await run_policy_flow(
-        request=mock_request,
-        policies=mock_policies,
-        builder=mock_builder,
-        settings=mock_settings,
-        http_client=mock_http_client,
-        initial_context_policy=mock_initial_policy_exception,
-    )
+    # Expect the call to run_policy_flow to raise the exception from the initial policy
+    with pytest.raises(ValueError, match="Initial Policy Error"):
+        await run_policy_flow(
+            request=mock_request,
+            policies=mock_policies,
+            builder=mock_builder,
+            settings=mock_settings,
+            http_client=mock_http_client,
+            initial_context_policy=mock_initial_policy_exception,
+        )
 
     # Assertions
     mock_uuid4.assert_called_once()
@@ -236,14 +236,5 @@ async def test_run_policy_flow_initial_policy_exception(
     mock_policies[0].apply.assert_not_awaited()
     mock_policies[1].apply.assert_not_awaited()
 
-    # Check that the builder WAS called with the context created *before* the initial policy call
-    builder_call_args = mock_builder.build_response.call_args
-    assert builder_call_args is not None, "Builder was not called"
-    context_passed_to_builder = builder_call_args[0][0]
-    assert isinstance(context_passed_to_builder, TransactionContext)
-    assert context_passed_to_builder.transaction_id == fixed_test_uuid
-    # --- Assertion fixed --- Check the request attribute is None
-    assert context_passed_to_builder.request is None  # Initial policy failed before setting it
-
-    # Check final response is the one from the builder
-    assert response == mock_builder.build_response.return_value
+    # Check that the builder was NOT called
+    mock_builder.build_response.assert_not_called()

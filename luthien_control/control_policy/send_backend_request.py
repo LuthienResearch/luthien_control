@@ -4,6 +4,7 @@ import logging
 from urllib.parse import urlparse
 
 import httpx
+from luthien_control.config.settings import Settings
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.context import TransactionContext
 
@@ -14,6 +15,7 @@ class SendBackendRequestPolicy(ControlPolicy):
     """
     Policy responsible for sending the request to the backend, storing the response,
     and reading the raw response body.
+    Reads settings from context.settings.
     """
 
     def __init__(self, http_client: httpx.AsyncClient):
@@ -25,9 +27,14 @@ class SendBackendRequestPolicy(ControlPolicy):
         Stores the httpx.Response in context.response.
         Reads the raw response body and stores it in context.data["raw_backend_response_body"].
         Handles potential httpx exceptions.
+        Requires context.settings to be set.
         """
         if not context.request:
             raise ValueError(f"[{context.transaction_id}] Cannot send request: context.request is None")
+        if not hasattr(context, "settings") or not isinstance(context.settings, Settings):
+            raise ValueError(
+                f"[{context.transaction_id}] Cannot send request: context.settings not available or invalid type."
+            )
 
         response: httpx.Response | None = None
         raw_body: bytes | None = None
@@ -77,7 +84,7 @@ class SendBackendRequestPolicy(ControlPolicy):
                     f"[{context.transaction_id}] Invalid BACKEND_URL for Host header: {e}",
                     extra={"request_id": context.transaction_id},
                 )
-                raise ValueError(f"Invalid BACKEND_URL configuration: {e}")
+                raise ValueError(f"Could not parse scheme or netloc from BACKEND_URL: {e}")
 
             # Force Accept-Encoding: identity (See issue #1)
             backend_headers.append((b"accept-encoding", b"identity"))

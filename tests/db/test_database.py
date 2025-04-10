@@ -3,224 +3,229 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
+import asyncpg
+import luthien_control.db.database
 
 # Assuming absolute imports
 from luthien_control.db.database import (
-    close_db_pool,
-    create_db_pool,
-    get_db_pool,
-    log_request_response,
+    close_log_db_pool,
+    create_log_db_pool,
+    get_log_db_pool,
+    close_main_db_pool,
+    create_main_db_pool,
+    get_main_db_pool,
+    _log_db_pool,
+    _main_db_pool,
 )
 
 # Mark all tests in this module as async tests
 pytestmark = pytest.mark.asyncio
 
 
-@pytest_asyncio.fixture
-async def mock_pool(monkeypatch):
-    """Fixture to provide a mock asyncpg pool and manage global state."""
-    mock_pool_instance = AsyncMock()
-    mock_conn = AsyncMock()
-
-    # Create a mock for the context manager returned by acquire()
-    mock_context_manager = AsyncMock()
-    mock_context_manager.__aenter__.return_value = mock_conn
-    # __aexit__ needs to be an async def or AsyncMock for 'async with'
-    # It takes args (exc_type, exc_val, exc_tb)
-    mock_context_manager.__aexit__ = AsyncMock(return_value=None)  # Mock __aexit__ as well
-
-    # Configure pool.acquire() to return the mock context manager
-    # Importantly, acquire() itself is likely NOT async, it just returns the async context manager
-    mock_pool_instance.acquire = MagicMock(return_value=mock_context_manager)
-
-    # Mock release if it's called on the pool (check asyncpg docs if needed)
-    # If release is called on the connection, mock it there.
-    # Assuming release is called on the pool:
-    mock_pool_instance.release = AsyncMock()
-
-    # Patch the global _db_pool variable within the database module
-    monkeypatch.setattr("luthien_control.db.database._db_pool", mock_pool_instance)
-
-    yield mock_pool_instance, mock_conn  # Yield connection too for assertions
-
-    # Clean up global state after test
-    monkeypatch.setattr("luthien_control.db.database._db_pool", None)
-
-
-async def test_log_request_response_executes_insert(mock_pool):
-    """Test that log_request_response attempts to execute the correct INSERT statement."""
-    pool, conn = mock_pool  # Unpack pool and connection mock
-
-    request_data = {
-        "method": "POST",
-        "url": "http://example.com/test",
-        "headers": {"Content-Type": "application/json", "X-Trace": "123"},
-        "body": '{"key": "value"}',
-    }
-    response_data = {
-        "status_code": 201,
-        "headers": {"Content-Length": "50", "X-Request-ID": "abc"},
-        "body": '{"result": "created"}',
-    }
-    client_ip = "192.168.0.100"
-    # Assume processing_time_ms is calculated and added within the calling function or middleware
-    # For this test, let's add it to the data passed in.
-    request_data["processing_time_ms"] = 150
-
-    # --- This is the part that will FAIL until implemented ---
-    # We call the function, which currently raises NotImplementedError
-    await log_request_response(
-        pool=pool,
-        request_data=request_data,
-        response_data=response_data,
-        client_ip=client_ip,
-    )
-    # --- End Failing Section ---
-
-    # Assert that pool.acquire was called to get a connection
-    pool.acquire.assert_called_once()
-
-    # Assert that conn.execute was called
-    conn.execute.assert_awaited_once()
-
-    # Define the expected SQL (adjust table/column names if needed)
-    # Using numbered placeholders ($1, $2, etc.) for asyncpg
-    expected_sql = """
-        INSERT INTO request_log (
-            client_ip, request_method, request_url, request_headers, request_body,
-            response_status_code, response_headers, response_body, processing_time_ms
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-    """
-
-    # Get the actual arguments passed to conn.execute
-    actual_args = conn.execute.call_args[0]  # Positional args
-    actual_sql = actual_args[0]
-
-    # Normalize whitespace for comparison
-    assert " ".join(actual_sql.split()) == " ".join(expected_sql.split())
-
-    # Check the parameters passed to execute
-    expected_params = (
-        client_ip,
-        request_data["method"],
-        request_data["url"],
-        json.dumps(request_data["headers"]),  # Expect headers to be JSON encoded
-        request_data["body"],
-        response_data["status_code"],
-        json.dumps(response_data["headers"]),  # Expect headers to be JSON encoded
-        response_data["body"],
-        request_data["processing_time_ms"],
-    )
-    assert actual_args[1:] == expected_params  # Compare parameters
-
-    # Assert that the context manager was exited (implicitly checks release logic)
-    # Check __aexit__ was awaited on the context manager object returned by acquire
-    pool.acquire.return_value.__aexit__.assert_awaited_once()
-
-
 @pytest_asyncio.fixture(autouse=True)
-def reset_global_pool(monkeypatch):
-    """Ensures the global _db_pool is reset before/after each test in this module."""
-    # Reset before test
-    monkeypatch.setattr("luthien_control.db.database._db_pool", None)
-    yield
-    # Reset after test
-    monkeypatch.setattr("luthien_control.db.database._db_pool", None)
+def set_test_db_env_vars(monkeypatch):
+    """Sets required database environment variables and resets global pools for tests."""
+    # Use monkeypatch to ensure isolation between tests
+    # Log DB Vars
+    monkeypatch.setenv("LOG_DB_USER", "test_log_user")
+    monkeypatch.setenv("LOG_DB_PASSWORD", "test_log_password")
+    monkeypatch.setenv("LOG_DB_HOST", "localhost")
+    monkeypatch.setenv("LOG_DB_PORT", "5433")  # Different port for testing
+    monkeypatch.setenv("LOG_DB_NAME", "test_log_db")
+    # Main DB Vars (using postgres naming convention)
+    monkeypatch.setenv("POSTGRES_USER", "test_main_user")
+    monkeypatch.setenv("POSTGRES_PASSWORD", "test_main_password")
+    monkeypatch.setenv("POSTGRES_HOST", "localhost")
+    monkeypatch.setenv("POSTGRES_PORT", "5434")  # Different port
+    monkeypatch.setenv("POSTGRES_DB", "test_main_db")
+
+    # Reset global pool variables before each test
+    # Use the actual names: _log_db_pool and _main_db_pool
+    monkeypatch.setattr(luthien_control.db.database, "_log_db_pool", None)
+    monkeypatch.setattr(luthien_control.db.database, "_main_db_pool", None)
+
+    yield  # Test runs here
+
+    # Teardown: Reset globals again just in case
+    # Use the actual names: _log_db_pool and _main_db_pool
+    monkeypatch.setattr(luthien_control.db.database, "_log_db_pool", None)
+    monkeypatch.setattr(luthien_control.db.database, "_main_db_pool", None)
 
 
-@patch("luthien_control.db.database.asyncpg.create_pool", new_callable=AsyncMock)
-async def test_create_db_pool_success(mock_create_pool, monkeypatch):
-    """Test successful creation and retrieval of the DB pool using env vars."""
-    # Set environment variables for the test
-    test_user = "test_user"
-    test_pw = "test_pw"
-    test_host = "test_host"
-    test_port = "5433"
-    test_db = "test_db_log"
-    test_min_pool = "2"
-    test_max_pool = "5"
+@pytest.mark.asyncio
+async def test_create_and_close_log_db_pool(set_test_db_env_vars):
+    """Test creating and closing the logging database pool."""
+    with patch("asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
+        # Configure mock to return a mock pool object
+        mock_pool_instance = AsyncMock(spec=asyncpg.Pool)
+        # Mock the close method on the instance returned by create_pool
+        mock_pool_instance.close = AsyncMock()
+        mock_create_pool.return_value = mock_pool_instance
 
-    monkeypatch.setenv("LOG_DB_USER", test_user)
-    monkeypatch.setenv("LOG_DB_PASSWORD", test_pw)
-    monkeypatch.setenv("LOG_DB_HOST", test_host)
-    monkeypatch.setenv("LOG_DB_PORT", test_port)
-    monkeypatch.setenv("LOG_DB_NAME", test_db)
-    monkeypatch.setenv("LOG_DB_POOL_MIN_SIZE", test_min_pool)
-    monkeypatch.setenv("LOG_DB_POOL_MAX_SIZE", test_max_pool)
+        # Ensure pool is initially None (using direct access for test assertion)
+        assert luthien_control.db.database._log_db_pool is None
 
-    mock_pool_instance = AsyncMock()
-    mock_create_pool.return_value = mock_pool_instance
+        # Create pool
+        await create_log_db_pool()
 
-    # Expect RuntimeError when getting pool before creation
-    with pytest.raises(RuntimeError, match="Database pool has not been initialized."):
-        get_db_pool()
+        # Verify create_pool was called with correct DSN (based on fixture env vars)
+        mock_create_pool.assert_awaited_once()
+        call_args = mock_create_pool.await_args[1]  # Get keyword args
+        assert call_args["dsn"] == "postgresql://test_log_user:test_log_password@localhost:5433/test_log_db"
+        assert call_args["min_size"] == 1  # Default
+        assert call_args["max_size"] == 10  # Default
 
-    # Call create_db_pool without settings argument
-    await create_db_pool()
+        # Verify global pool variable is set
+        assert luthien_control.db.database._log_db_pool == mock_pool_instance
 
-    # Assert asyncpg.create_pool was called with values derived from env vars
-    expected_dsn = f"postgresql://{test_user}:{test_pw}@{test_host}:{test_port}/{test_db}"
-    mock_create_pool.assert_awaited_once_with(
-        dsn=expected_dsn,
-        min_size=int(test_min_pool),
-        max_size=int(test_max_pool),
-    )
-    assert get_db_pool() is mock_pool_instance
+        # Test get_log_db_pool retrieves the pool
+        retrieved_pool = get_log_db_pool()
+        assert retrieved_pool == mock_pool_instance
 
-    # Test idempotency (calling again should not recreate)
-    mock_create_pool.reset_mock()
-    await create_db_pool()
-    mock_create_pool.assert_not_called()
+        # Close pool
+        await close_log_db_pool()
+
+        # Verify pool.close() was called
+        mock_pool_instance.close.assert_awaited_once()
+
+        # Verify global pool variable is reset
+        assert luthien_control.db.database._log_db_pool is None
 
 
-@patch("luthien_control.db.database.asyncpg.create_pool", new_callable=AsyncMock)
-async def test_create_db_pool_failure(mock_create_pool, monkeypatch):
-    """Test handling of failure during pool creation using env vars."""
-    # Set necessary env vars for connection attempt
-    monkeypatch.setenv("LOG_DB_USER", "fail_user")
-    monkeypatch.setenv("LOG_DB_PASSWORD", "fail_pw")
-    monkeypatch.setenv("LOG_DB_HOST", "fail_host")
-    monkeypatch.setenv("LOG_DB_PORT", "5434")
-    monkeypatch.setenv("LOG_DB_NAME", "fail_db")
+@pytest.mark.asyncio
+async def test_create_and_close_main_db_pool(set_test_db_env_vars):
+    """Test creating and closing the main database pool."""
+    with patch("asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
+        mock_pool_instance = AsyncMock(spec=asyncpg.Pool)
+        mock_pool_instance.close = AsyncMock()  # Mock close on the instance
+        mock_create_pool.return_value = mock_pool_instance
 
-    mock_create_pool.side_effect = Exception("Connection refused")
+        assert luthien_control.db.database._main_db_pool is None
 
-    # Call create_db_pool without settings argument
-    await create_db_pool()
+        await create_main_db_pool()
 
-    mock_create_pool.assert_awaited_once() # Ensure it was called
-    with pytest.raises(RuntimeError, match="Database pool has not been initialized."):
-        get_db_pool()  # Pool should be None or accessing it should raise
+        mock_create_pool.assert_awaited_once()
+        call_args = mock_create_pool.await_args[1]
+        # DSN uses POSTGRES env vars set in fixture
+        assert call_args["dsn"] == "postgresql://test_main_user:test_main_password@localhost:5434/test_main_db"
+        assert call_args["min_size"] == 1  # Default
+        assert call_args["max_size"] == 10  # Default
 
+        assert luthien_control.db.database._main_db_pool == mock_pool_instance
 
-async def test_get_db_pool_not_initialized():
-    """Test that get_db_pool raises RuntimeError if called before initialization."""
-    # reset_global_pool fixture ensures _db_pool is None here
-    with pytest.raises(RuntimeError, match="Database pool has not been initialized."):
-        get_db_pool()
+        retrieved_pool = get_main_db_pool()
+        assert retrieved_pool == mock_pool_instance
 
+        await close_main_db_pool()
 
-@patch("luthien_control.db.database._db_pool", new_callable=AsyncMock)  # Directly patch the global pool
-async def test_close_db_pool(mock_global_pool):
-    """Test closing the database pool."""
-    # Ensure the mock pool has a close method
-    mock_global_pool.close = AsyncMock()
+        mock_pool_instance.close.assert_awaited_once()
 
-    # Set the global pool to our mock for the test
-    # (reset_global_pool clears it afterwards)
-
-    await close_db_pool()
-
-    mock_global_pool.close.assert_awaited_once()
-    # After closing, accessing the pool should fail
-    with pytest.raises(RuntimeError, match="Database pool has not been initialized."):
-        get_db_pool()
+        assert luthien_control.db.database._main_db_pool is None
 
 
-async def test_close_db_pool_idempotent():
-    """Test that closing a non-existent pool does nothing."""
-    # reset_global_pool ensures pool is None
-    # No mocks needed, just call close and ensure no error
-    await close_db_pool()
-    # Assertions? Maybe check logs if needed, but primarily testing for no exceptions.
-    pass
+@pytest.mark.asyncio
+async def test_create_pool_already_initialized(set_test_db_env_vars, caplog):
+    """Test that attempting to create an already initialized pool logs a warning."""
+    with patch("asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
+        mock_pool_instance = AsyncMock(spec=asyncpg.Pool)
+        mock_pool_instance.close = AsyncMock()
+        mock_create_pool.return_value = mock_pool_instance
+
+        # Create log pool first time
+        await create_log_db_pool()
+        assert mock_create_pool.call_count == 1
+        # Check for specific part of the success message
+        assert "Logging database connection pool created successfully" in caplog.text
+
+        # Attempt to create log pool again
+        caplog.clear()
+        await create_log_db_pool()
+        # Should not call asyncpg.create_pool again
+        assert mock_create_pool.call_count == 1
+        # Should log a warning
+        assert "Logging database pool already initialized." in caplog.text
+
+        # Create main pool first time
+        caplog.clear()
+        await create_main_db_pool()
+        assert mock_create_pool.call_count == 2
+        # Check for specific part of the success message
+        assert "Main database connection pool created successfully" in caplog.text
+
+        # Attempt to create main pool again
+        caplog.clear()
+        await create_main_db_pool()
+        assert mock_create_pool.call_count == 2
+        assert "Main database pool already initialized." in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_get_pool_before_initialization(set_test_db_env_vars):
+    """Test that get_pool raises RuntimeError if called before creation."""
+    # Fixture ensures pools are None initially
+    with pytest.raises(RuntimeError, match="Logging database pool has not been initialized."):
+        get_log_db_pool()
+
+    with pytest.raises(RuntimeError, match="Main database pool has not been initialized."):
+        get_main_db_pool()
+
+
+@pytest.mark.asyncio
+async def test_create_pool_missing_env_vars(monkeypatch, caplog):
+    """Test pool creation failure when essential env vars are missing."""
+    # Use the autouse fixture `set_test_db_env_vars` first to set everything,
+    # then explicitly delete some vars for this specific test.
+
+    # Explicitly remove one essential env var for each pool type
+    monkeypatch.delenv("LOG_DB_PASSWORD", raising=False)
+    monkeypatch.delenv("POSTGRES_USER", raising=False)
+
+    with patch("asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
+        # Ensure globals are None before starting (handled by fixture)
+        assert luthien_control.db.database._log_db_pool is None
+        assert luthien_control.db.database._main_db_pool is None
+
+        await create_log_db_pool()
+        # Pool creation should not be attempted due to config error
+        mock_create_pool.assert_not_called()
+        assert "Configuration error for logging database pool" in caplog.text
+        assert "Missing essential logging database connection environment variables" in caplog.text
+        assert luthien_control.db.database._log_db_pool is None
+
+        caplog.clear()  # Clear logs for the next check
+
+        await create_main_db_pool()
+        mock_create_pool.assert_not_called()  # Still not called
+        assert "Configuration error for main database pool" in caplog.text
+        assert "Missing essential main database connection environment variables" in caplog.text
+        assert luthien_control.db.database._main_db_pool is None
+
+
+@pytest.mark.asyncio
+async def test_create_pool_asyncpg_error(set_test_db_env_vars, caplog):
+    """Test handling of asyncpg errors during pool creation."""
+    with patch("asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
+        # Simulate an error during asyncpg.create_pool
+        mock_create_pool.side_effect = asyncpg.PostgresError("Connection refused")
+
+        # Ensure globals are None before starting (handled by fixture)
+        assert luthien_control.db.database._log_db_pool is None
+        assert luthien_control.db.database._main_db_pool is None
+
+        await create_log_db_pool()
+
+        mock_create_pool.assert_awaited_once()  # It was called
+        assert "Failed to create logging database connection pool" in caplog.text
+        assert "Connection refused" in caplog.text
+        # Ensure pool variable remains None
+        assert luthien_control.db.database._log_db_pool is None
+
+        # Reset mock and logs for main DB test
+        mock_create_pool.reset_mock()
+        caplog.clear()
+
+        await create_main_db_pool()
+        mock_create_pool.assert_awaited_once()
+        assert "Failed to create main database connection pool" in caplog.text
+        assert "Connection refused" in caplog.text
+        assert luthien_control.db.database._main_db_pool is None

@@ -1,6 +1,6 @@
 import os
-from typing import List, Optional
-from urllib.parse import urlparse  # For basic URL validation
+from typing import Optional
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -13,7 +13,6 @@ class Settings:
 
     # --- Core Settings ---
     BACKEND_URL: Optional[str] = None
-    POLICY_MODULE: str = "luthien_control.policies.examples.no_op.NoOpPolicy"
     # Comma-separated list of control policies for the beta framework
     CONTROL_POLICIES: Optional[str] = None
 
@@ -43,10 +42,6 @@ class Settings:
         """Returns the OpenAI API key, if set."""
         return os.getenv("OPENAI_API_KEY")
 
-    def get_policy_module(self) -> str:
-        """Returns the configured policy module path."""
-        return os.getenv("POLICY_MODULE", "luthien_control.policies.examples.no_op.NoOpPolicy")
-
     def get_control_policies_list(self) -> Optional[str]:
         """Returns the comma-separated list of control policies from env var."""
         return os.getenv("CONTROL_POLICIES")
@@ -58,20 +53,38 @@ class Settings:
     def get_postgres_password(self) -> str | None:
         return os.getenv("POSTGRES_PASSWORD")
 
+    def get_postgres_db(self) -> str | None:
+        return os.getenv("POSTGRES_DB")
+
     def get_postgres_host(self) -> str | None:
         return os.getenv("POSTGRES_HOST")
 
-    def get_postgres_port(self) -> Optional[int]:
-        port_str = os.getenv("POSTGRES_PORT")
-        if port_str:
-            try:
-                return int(port_str)
-            except ValueError:
-                raise ValueError(f"Invalid POSTGRES_PORT: '{port_str}' is not an integer.")
-        return None
+    def get_postgres_port(self) -> int:
+        try:
+            port_str = os.getenv("POSTGRES_PORT", "5432")
+            return int(port_str)
+        except ValueError:
+            raise ValueError("POSTGRES_PORT environment variable must be an integer.")
 
-    def get_postgres_db(self) -> str | None:
-        return os.getenv("POSTGRES_DB")
+    # --- Logging Database settings Getters using os.getenv ---
+    def get_log_db_user(self) -> str | None:
+        return os.getenv("LOG_DB_USER")
+
+    def get_log_db_password(self) -> str | None:
+        return os.getenv("LOG_DB_PASSWORD")
+
+    def get_log_db_name(self) -> str | None:
+        return os.getenv("LOG_DB_NAME")
+
+    def get_log_db_host(self) -> str | None:
+        return os.getenv("LOG_DB_HOST")
+
+    def get_log_db_port(self) -> int:
+        try:
+            port_str = os.getenv("LOG_DB_PORT", "5432")
+            return int(port_str)
+        except ValueError:
+            raise ValueError("LOG_DB_PORT environment variable must be an integer.")
 
     # --- Database DSN Helper Properties using Getters ---
     @property
@@ -123,23 +136,3 @@ class Settings:
             raise ValueError("Missing target database name (either provide db_name or set POSTGRES_DB env var)")
         base = self.base_dsn  # Use property
         return f"{base}/{target_db}"
-
-    # --- Policy Settings --- #
-
-    def get_request_policies(self) -> List[str]:
-        """Returns a list of fully qualified request policy class names."""
-        # TODO: Load from environment variable (e.g., REQUEST_POLICIES=...,...)
-        # Example using existing policies:
-        return [
-            "luthien_control.policies.examples.no_op.NoOpPolicy",
-            # "luthien_control.policies.examples.all_caps.AllCapsPolicy",
-        ]
-
-    def get_response_policies(self) -> List[str]:
-        """Returns a list of fully qualified response policy class names."""
-        # TODO: Load from environment variable (e.g., RESPONSE_POLICIES=...,...)
-        return [
-            "luthien_control.policies.examples.no_op.NoOpPolicy",
-        ]
-
-    # --- End Policy Settings --- #

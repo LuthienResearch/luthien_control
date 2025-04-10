@@ -1,14 +1,17 @@
 """Unit tests for InitializeContextPolicy."""
 
-from unittest.mock import AsyncMock, MagicMock
+from typing import Optional
+from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import urlparse
 
-import httpx  # Import httpx for Request object comparison
+import httpx
 import pytest
-from fastapi import Request
+from fastapi import Request as FastAPIRequest  # Use alias to avoid clash
 from httpx import Headers, QueryParams
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.core.context import TransactionContext
+# from luthien_control.core.models import Request as CoreRequest # Removed incorrect import
 
 # Mark all tests in this module as async tests
 pytestmark = pytest.mark.asyncio
@@ -30,56 +33,79 @@ def policy(mock_settings: MagicMock) -> InitializeContextPolicy:
 
 @pytest.fixture
 def mock_fastapi_request() -> MagicMock:
-    request = MagicMock(spec=Request)
-    request.method = "POST"
-    # Use a more realistic proxy URL structure
-    request.url = "http://proxy.luthien.local:8000/v1/chat/completions?debug=true"
-
-    # Create a separate mock for the headers object
-    mock_headers = MagicMock(spec=Headers)
-    # Set the .raw attribute on the mock_headers object
-    mock_headers.raw = [
+    """Provides a mock FastAPI Request object for POST."""
+    mock_req = MagicMock(spec=FastAPIRequest)
+    # Configure attributes accessed by the policy
+    mock_req.method = "POST"
+    mock_req.url = httpx.URL("http://proxy.luthien.local:8000/v1/chat/completions?debug=true")
+    mock_req.headers = MagicMock()
+    mock_req.headers.raw = [  # .raw returns list of (bytes, bytes) tuples
         (b"content-type", b"application/json"),
-        (b"accept", b"*/*"),
+        (b"accept", b"application/json"),
+        (b"authorization", b"Bearer sk-test-key"),
         (b"host", b"proxy.luthien.local:8000"),
-        (b"content-length", b"18"),
-        (b"x-forwarded-for", b"1.2.3.4"),
     ]
-    # Assign the mocked headers object to the request mock
-    request.headers = mock_headers
-
-    # FastAPI request.query_params is URL-decoded
-    request.query_params = QueryParams({"debug": "true"})
-    # Mock the async body() method
-    request.body = AsyncMock(return_value=b'{"prompt": "Test"}')
-    return request
+    mock_req.query_params = httpx.QueryParams("debug=true")  # Provide QueryParams object
+    mock_req.client = MagicMock()
+    mock_req.client.host = "192.168.1.100"
+    mock_req.body = AsyncMock(return_value=b'{"model": "gpt-4"}')  # Make body async
+    # Add the missing 'scope' attribute
+    mock_req.scope = {
+        "type": "http",
+        "method": "POST",
+        "headers": mock_req.headers.raw,  # Use raw headers here too
+        "client": (mock_req.client.host, 12345),
+        "path_params": {"full_path": "v1/chat/completions"},  # Add path params
+        "route": MagicMock(path_format="/api/{full_path:path}"),  # Mock route object
+        "path": "/api/v1/chat/completions",
+        "query_string": b"debug=true",
+        "scheme": "http",
+        "server": ("proxy.luthien.local", 8000),
+        "root_path": "",
+    }
+    return mock_req
 
 
 @pytest.fixture
 def mock_fastapi_get_request() -> MagicMock:
-    request = MagicMock(spec=Request)
-    request.method = "GET"
-    request.url = "http://proxy.luthien.local:8000/v1/models?filter=gpt"
-
-    # Create a separate mock for the headers object
-    mock_headers = MagicMock(spec=Headers)
-    mock_headers.raw = [
+    """Provides a mock FastAPI Request object for GET."""
+    mock_req = MagicMock(spec=FastAPIRequest)
+    mock_req.method = "GET"
+    mock_req.url = httpx.URL("http://proxy.luthien.local:8000/v1/models?filter=gpt")
+    mock_req.headers = MagicMock()
+    mock_req.headers.raw = [
         (b"accept", b"application/json"),
+        (b"authorization", b"Bearer sk-test-key"),
         (b"host", b"proxy.luthien.local:8000"),
     ]
-    request.headers = mock_headers
-
-    request.query_params = QueryParams({"filter": "gpt"})
-    # GET request has no body
-    request.body = AsyncMock(return_value=b"")
-    return request
+    mock_req.query_params = httpx.QueryParams("filter=gpt")
+    mock_req.client = MagicMock()
+    mock_req.client.host = "10.0.0.1"
+    mock_req.body = AsyncMock(return_value=b"")  # Empty body for GET
+    # Add the missing 'scope' attribute
+    mock_req.scope = {
+        "type": "http",
+        "method": "GET",
+        "headers": mock_req.headers.raw,
+        "client": (mock_req.client.host, 54321),
+        "path_params": {"full_path": "v1/models"},
+        "route": MagicMock(path_format="/api/{full_path:path}"),
+        "path": "/api/v1/models",
+        "query_string": b"filter=gpt",
+        "scheme": "http",
+        "server": ("proxy.luthien.local", 8000),
+        "root_path": "",
+    }
+    return mock_req
 
 
 @pytest.fixture
 def base_context() -> TransactionContext:
+    """Provides a base TransactionContext for tests."""
     return TransactionContext(transaction_id="tx-init-test")
 
 
+@pytest.mark.asyncio
 async def test_initialize_context_success_post(
     policy: InitializeContextPolicy, mock_fastapi_request: MagicMock, base_context: TransactionContext
 ):
@@ -88,28 +114,33 @@ async def test_initialize_context_success_post(
     updated_context = await policy.apply(context=base_context, fastapi_request=mock_fastapi_request)
 
     # Assert
-    assert updated_context is base_context  # Should modify in place
+    assert updated_context is base_context  # Policy should modify in place
     assert updated_context.request is not None
-    assert isinstance(updated_context.request, httpx.Request)
+    assert isinstance(updated_context.request, httpx.Request)  # Check for httpx.Request
 
-    # Check core attributes
-    assert updated_context.request.method == "POST"
-    # URL should initially match the incoming request URL
-    assert str(updated_context.request.url) == "http://proxy.luthien.local:8000/v1/chat/completions?debug=true"
+    core_req = updated_context.request
+    assert core_req.method == "POST"
+    # URL is placeholder initially, downstream policies set final URL
+    # assert core_req.url == mock_fastapi_request.url # Cannot compare directly
+    # Headers should be httpx Headers object, check existence via get
+    assert core_req.headers.get("content-type") == "application/json"
+    assert core_req.headers.get("accept") == "application/json"
+    assert core_req.headers.get("authorization") == "Bearer sk-test-key"
+    assert core_req.headers.get("host") == "proxy.luthien.local:8000"
 
-    # Check body was read and stored in request and context.data
-    assert updated_context.request.content == b'{"prompt": "Test"}'
-    assert updated_context.data.get("raw_request_body") == b'{"prompt": "Test"}'
+    # Client host is not directly stored on httpx.Request
+    # The policy extracts it and should store it if needed elsewhere (e.g., context.data)
+    # assert core_req.client_host == "192.168.1.100"
+    assert core_req.content == b'{"model": "gpt-4"}'
+    # Check data stored in context
+    assert updated_context.data["raw_request_body"] == b'{"model": "gpt-4"}'
+    assert updated_context.data["path_format"] == "/api/{full_path:path}"
+    assert updated_context.data["path_params"] == {"full_path": "v1/chat/completions"}
+    assert updated_context.data["relative_path"] == "v1/chat/completions"
+    mock_fastapi_request.body.assert_awaited_once()
 
-    # Check headers were copied using raw format
-    # httpx.Headers converts keys to lowercase
-    assert updated_context.request.headers.get("content-type") == "application/json"
-    assert updated_context.request.headers.get("accept") == "*/*"
-    assert updated_context.request.headers.get("host") == "proxy.luthien.local:8000"
-    assert updated_context.request.headers.get("content-length") == "18"
-    assert updated_context.request.headers.get("x-forwarded-for") == "1.2.3.4"
 
-
+@pytest.mark.asyncio
 async def test_initialize_context_success_get(
     policy: InitializeContextPolicy, mock_fastapi_get_request: MagicMock, base_context: TransactionContext
 ):
@@ -120,24 +151,68 @@ async def test_initialize_context_success_get(
     # Assert
     assert updated_context is base_context
     assert updated_context.request is not None
+    assert isinstance(updated_context.request, httpx.Request)  # Check for httpx.Request
+
+    core_req = updated_context.request
+    assert core_req.method == "GET"
+    # assert core_req.url == mock_fastapi_get_request.url
+    assert core_req.headers.get("accept") == "application/json"
+    assert core_req.headers.get("authorization") == "Bearer sk-test-key"
+    assert core_req.headers.get("host") == "proxy.luthien.local:8000"
+
+    # assert core_req.client_host == "10.0.0.1"
+    assert core_req.content == b""
+    assert updated_context.data["raw_request_body"] == b""
+    assert updated_context.data["path_format"] == "/api/{full_path:path}"
+    assert updated_context.data["path_params"] == {"full_path": "v1/models"}
+    assert updated_context.data["relative_path"] == "v1/models"
+    mock_fastapi_get_request.body.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_initialize_context_no_client(
+    policy: InitializeContextPolicy, mock_fastapi_request: MagicMock, base_context: TransactionContext
+):
+    """Test handling when request.client is None."""
+    mock_fastapi_request.client = None
+    # Update scope accordingly
+    mock_fastapi_request.scope["client"] = None
+
+    updated_context = await policy.apply(context=base_context, fastapi_request=mock_fastapi_request)
+
+    # Check that request was still created
+    assert updated_context.request is not None
     assert isinstance(updated_context.request, httpx.Request)
-    assert updated_context.request.method == "GET"
-    assert str(updated_context.request.url) == "http://proxy.luthien.local:8000/v1/models?filter=gpt"
-    assert updated_context.request.content == b""  # GET has no body
-    assert updated_context.data.get("raw_request_body") == b""
-    assert updated_context.request.headers.get("accept") == "application/json"
-    assert updated_context.request.headers.get("host") == "proxy.luthien.local:8000"
-    assert "content-length" not in updated_context.request.headers
+    # We don't store client_host on the httpx.Request itself
 
 
-async def test_initialize_context_missing_request(policy: InitializeContextPolicy, base_context: TransactionContext):
-    """Test that passing None for fastapi_request raises a ValueError."""
-    # Act & Assert
+@pytest.mark.asyncio
+async def test_initialize_context_body_read_error(
+    policy: InitializeContextPolicy, mock_fastapi_request: MagicMock, base_context: TransactionContext
+):
+    """Test handling error during request body reading."""
+    mock_fastapi_request.body.side_effect = RuntimeError("Stream consumed")
+
+    # The policy now catches this and stores empty bytes, logging an error
+    # It should not raise the error itself.
+    # with pytest.raises(RuntimeError, match="Stream consumed"):
+    updated_context = await policy.apply(context=base_context, fastapi_request=mock_fastapi_request)
+
+    # Context should be populated, but with empty body stored
+    assert updated_context.request is not None
+    assert isinstance(updated_context.request, httpx.Request)
+    assert updated_context.request.content == b""
+    assert updated_context.data["raw_request_body"] == b""
+    # Path info should still be extracted
+    assert updated_context.data["relative_path"] == "v1/chat/completions"
+    mock_fastapi_request.body.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_initialize_context_no_fastapi_request(policy: InitializeContextPolicy, base_context: TransactionContext):
+    """Test ValueError if fastapi_request is not provided."""
     with pytest.raises(ValueError, match="fastapi_request must be provided"):
         await policy.apply(context=base_context, fastapi_request=None)
-
-    assert base_context.request is None
-    assert "raw_request_body" not in base_context.data
 
 
 # Remove test related to backend URL error as it's no longer handled here

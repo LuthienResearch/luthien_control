@@ -57,8 +57,6 @@ def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
     # Default to real OpenAI backend for E2E tests unless overridden by system env
     server_env["BACKEND_URL"] = os.environ.get("BACKEND_URL", "https://api.openai.com/v1")
     # Ensure policy is default (NoOp) unless overridden by system env
-    server_env["POLICY_MODULE"] = os.environ.get("POLICY_MODULE", "luthien_control.policies.examples.no_op.NoOpPolicy")
-    # Define default control policies for the beta /beta/ endpoint
     # Needed for the new policy orchestration flow
     default_control_policies = [
         # "luthien_control.control_policy.request_logging.RequestLoggingPolicy", # Temporarily disabled until implemented
@@ -86,7 +84,6 @@ def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
     print(f"\nStarting local server: {' '.join(cmd)}")
     # Print the *actual* backend URL being used by the server process
     print(f"Local server env BACKEND_URL: {server_env.get('BACKEND_URL')}")
-    print(f"Local server env POLICY_MODULE: {server_env.get('POLICY_MODULE')}")
     print(f"Local server env CONTROL_POLICIES: {server_env.get('CONTROL_POLICIES')}")
     process = None
     try:

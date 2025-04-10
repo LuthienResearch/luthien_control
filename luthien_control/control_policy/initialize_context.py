@@ -21,6 +21,7 @@ class InitializeContextPolicy(ControlPolicy):
     Stores the original raw body in context.data["raw_request_body"].
     Extracts the matched route path format and path parameters from the request scope.
     Determines the relative backend path based on the 'full_path' path parameter if present.
+    Handles errors during body reading gracefully by logging and storing empty bytes.
     """
 
     def __init__(self, settings: Optional[Settings] = None):  # Settings might not be needed now
@@ -74,8 +75,14 @@ class InitializeContextPolicy(ControlPolicy):
         context.data["relative_path"] = relative_path
         # --- End Extract Route and Path Info ---
 
-        # Read the raw body
-        raw_request_body = await fastapi_request.body()
+        # Read the raw body gracefully
+        raw_request_body = b""
+        try:
+            raw_request_body = await fastapi_request.body()
+        except Exception as e:
+            self.logger.error(f"[{context.transaction_id}] Error reading request body: {e}. Storing empty body.")
+            # Store empty bytes if body read fails
+
         context.data["raw_request_body"] = raw_request_body
 
         # Downstream policies (like PrepareBackendHeadersPolicy or a routing policy)
@@ -90,7 +97,7 @@ class InitializeContextPolicy(ControlPolicy):
             url=initial_url,
             headers=fastapi_request.headers.raw,  # Use raw headers
             params=fastapi_request.query_params,
-            content=raw_request_body,
+            content=raw_request_body,  # Use potentially empty body
         )
 
         self.logger.debug(f"[{context.transaction_id}] Initial context.request created with URL: {context.request.url}")

@@ -1,8 +1,8 @@
 # tests/proxy/test_server.py
-import json  # Add json import
+import json
 from typing import Sequence
-from unittest.mock import AsyncMock, patch
-from urllib.parse import urlparse  # Added for Host header check
+from unittest.mock import AsyncMock, patch, MagicMock
+from urllib.parse import urlparse
 
 import httpx
 import pytest
@@ -13,9 +13,14 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.response_builder.interface import ResponseBuilder
-from luthien_control.db.models import ApiKey  # Needed for mock auth
-from luthien_control.dependencies import get_current_active_api_key  # Import dependency to override
 from luthien_control.main import app  # Import your main FastAPI app
+from fastapi.responses import PlainTextResponse
+from luthien_control.dependencies import (
+    get_control_policies,
+    get_http_client,
+    get_initial_context_policy,
+    get_response_builder,
+)
 
 # --- Pytest Fixtures ---
 
@@ -50,14 +55,6 @@ def get_test_backend_url() -> str:
         pytest.fail(f"Failed to get BACKEND_URL from test Settings: {e}")
 
 
-# Mock API key for dependency override
-mock_api_key = ApiKey(id=99, key_value="mock-key", name="Mock Key", is_active=True)
-
-
-async def override_get_current_active_api_key():
-    return mock_api_key
-
-
 # --- Test Cases ---
 
 
@@ -67,7 +64,7 @@ def test_health_check(client: TestClient):
     assert response.json() == {"status": "ok"}
 
 
-# --- Tests for /api endpoint (previously /beta) ---
+# --- Tests for /api endpoint ---
 
 
 @pytest.mark.asyncio
@@ -86,9 +83,6 @@ async def test_api_proxy_endpoint_calls_orchestrator(test_app: FastAPI, client: 
 
     # Add a dummy auth header for the test client request
     auth_headers = {"Authorization": "Bearer test-key"}
-
-    # Override the auth dependency
-    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
 
     with patch("luthien_control.proxy.server.run_policy_flow", new_callable=AsyncMock) as mock_run_flow:
         mock_run_flow.return_value = mock_response
@@ -124,7 +118,7 @@ async def test_api_proxy_endpoint_calls_orchestrator(test_app: FastAPI, client: 
     assert isinstance(request_arg, Request)
     assert request_arg.method == "GET"
     # TestClient uses http://testserver as base URL
-    assert request_arg.url.path == f"/api/{test_path}"  # Updated path check
+    assert request_arg.url.path == f"/api/{test_path}"
 
     # Check dependency types (ensure DI worked)
     assert isinstance(call_kwargs["http_client"], httpx.AsyncClient)
@@ -148,9 +142,6 @@ async def test_api_proxy_endpoint_handles_post(test_app: FastAPI, client: TestCl
     mock_response = Response(content=expected_content, status_code=expected_status)
     auth_headers = {"Authorization": "Bearer test-key-post"}
 
-    # Override the auth dependency
-    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
-
     with patch("luthien_control.proxy.server.run_policy_flow", new_callable=AsyncMock) as mock_run_flow:
         mock_run_flow.return_value = mock_response
 
@@ -167,10 +158,7 @@ async def test_api_proxy_endpoint_handles_post(test_app: FastAPI, client: TestCl
     request_arg = call_kwargs["request"]
     assert isinstance(request_arg, Request)
     assert request_arg.method == "POST"
-    # Body needs to be read from the request object passed to the mock
-    # assert await request_arg.body() == b"Test POST body" # Cannot await here
-    # Accessing body directly from testclient request is tricky, focus on method/path
-    assert request_arg.url.path == f"/api/{test_path}"  # Updated path check
+    assert request_arg.url.path == f"/api/{test_path}"
 
     # Verify the auth header was received
     assert request_arg.headers.get("authorization") == "Bearer test-key-post"
@@ -192,8 +180,8 @@ async def test_api_proxy_endpoint_handles_post(test_app: FastAPI, client: TestCl
 )
 @respx.mock
 @pytest.mark.asyncio  # TestClient handles async endpoint, but mark test for clarity
-async def test_api_proxy_with_simple_flow(test_app: FastAPI, client: TestClient):  # Renamed test
-    """E2E test basic proxying via the /api endpoint using a defined policy flow."""  # Updated docstring
+async def test_api_proxy_with_simple_flow(test_app: FastAPI, client: TestClient):
+    """E2E test basic proxying via the /api endpoint using a defined policy flow."""
     backend_url = get_test_backend_url()
     target_relative_path = "v1/test/api/endpoint"  # Path expected by backend
     full_backend_url = f"{backend_url}/{target_relative_path}"
@@ -205,13 +193,10 @@ async def test_api_proxy_with_simple_flow(test_app: FastAPI, client: TestClient)
 
     client_payload = {"data": "value", "other": 123}
     # The path sent to the proxy includes the prefix and the relative path
-    proxy_path = f"/api/{target_relative_path}"  # Updated path
+    proxy_path = f"/api/{target_relative_path}"
 
     # Add auth header for the E2E style test client request
     auth_headers = {"Authorization": "Bearer test-e2e-key"}
-
-    # Override the auth dependency
-    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
 
     response = client.post(proxy_path, json=client_payload, headers={**auth_headers, "X-API-Test": "true"})
 
@@ -262,12 +247,25 @@ async def test_api_proxy_with_simple_flow(test_app: FastAPI, client: TestClient)
 @pytest.mark.asyncio
 async def test_integration_policy_loading_success(test_app: FastAPI, client: TestClient):
     """Integration Test: Verify successful loading of valid control policies via endpoint dependency."""
-    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
+
+    # Mock the response builder to return a simple 200 OK, isolating the test to policy loading
+    mock_builder_instance = MagicMock(spec=ResponseBuilder)
+    mock_builder_instance.build_response.return_value = PlainTextResponse("OK", status_code=200)
+
+    def get_mock_builder():
+        return mock_builder_instance
+
+    test_app.dependency_overrides[get_response_builder] = get_mock_builder
+
     # Target an endpoint that uses the get_control_policies dependency
-    # The specific response of /api/health isn't the focus, just that it doesn't 500 due to loading
+    # The specific response content doesn't matter now, just the status code
     response = client.get("/api/health", headers={"Authorization": "Bearer test"})
+
+    # Clean up overrides after the test
     test_app.dependency_overrides = {}
+
     # If loading failed, get_control_policies would raise HTTPException(500)
+    # If loading succeeded, our mock builder returns 200
     assert response.status_code == 200
 
 
@@ -275,7 +273,6 @@ async def test_integration_policy_loading_success(test_app: FastAPI, client: Tes
 @pytest.mark.asyncio
 async def test_integration_policy_loading_empty_string(test_app: FastAPI, client: TestClient):
     """Integration Test: Verify behavior when CONTROL_POLICIES is empty."""
-    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
     response = client.get("/api/health", headers={"Authorization": "Bearer test"})
     test_app.dependency_overrides = {}
     # Expect 500 because policy loading succeeds (empty list), but no policy runs
@@ -289,7 +286,6 @@ async def test_integration_policy_loading_empty_string(test_app: FastAPI, client
 @pytest.mark.asyncio
 async def test_integration_policy_loading_invalid_path(test_app: FastAPI, client: TestClient):
     """Integration Test: Verify 500 error when CONTROL_POLICIES contains an invalid module path."""
-    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
     response = client.get("/api/health", headers={"Authorization": "Bearer test"})
     test_app.dependency_overrides = {}
     assert response.status_code == 500
@@ -300,7 +296,6 @@ async def test_integration_policy_loading_invalid_path(test_app: FastAPI, client
 @pytest.mark.asyncio
 async def test_integration_policy_loading_class_not_found(test_app: FastAPI, client: TestClient):
     """Integration Test: Verify 500 error when CONTROL_POLICIES points to a non-existent class in a valid module."""
-    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
     response = client.get("/api/health", headers={"Authorization": "Bearer test"})
     test_app.dependency_overrides = {}
     assert response.status_code == 500
@@ -311,7 +306,6 @@ async def test_integration_policy_loading_class_not_found(test_app: FastAPI, cli
 @pytest.mark.asyncio
 async def test_integration_policy_loading_not_subclass(test_app: FastAPI, client: TestClient):
     """Integration Test: Verify 500 error when policy class doesn't inherit from ControlPolicy."""
-    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
     response = client.get("/api/health", headers={"Authorization": "Bearer test"})
     test_app.dependency_overrides = {}
     assert response.status_code == 500
@@ -323,7 +317,6 @@ async def test_integration_policy_loading_not_subclass(test_app: FastAPI, client
 @pytest.mark.asyncio
 async def test_integration_policy_loading_instantiation_error(test_app: FastAPI, client: TestClient):
     """Integration Test: Verify 500 error when policy instantiation fails due to missing __init__ args."""
-    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
     response = client.get("/api/health", headers={"Authorization": "Bearer test"})
     test_app.dependency_overrides = {}
     assert response.status_code == 500
@@ -337,7 +330,6 @@ async def test_integration_policy_loading_instantiation_error(test_app: FastAPI,
 @pytest.mark.asyncio
 async def test_integration_policy_loading_init_raises_error(test_app: FastAPI, client: TestClient):
     """Integration Test: Verify 500 error when policy __init__ raises an exception."""
-    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
     response = client.get("/api/health", headers={"Authorization": "Bearer test"})
     test_app.dependency_overrides = {}
     assert response.status_code == 500

@@ -17,7 +17,6 @@ from luthien_control.core.response_builder.interface import ResponseBuilder
 # Import dependency providers from dependencies module
 from luthien_control.dependencies import (
     get_control_policies,
-    get_current_active_api_key,
     get_http_client,
     get_initial_context_policy,
     get_response_builder,
@@ -34,9 +33,8 @@ router = APIRouter()
 # === NEW API PROXY ENDPOINT ===
 # Replaces the previous /beta and catch-all endpoints
 @router.api_route(
-    "/api/{full_path:path}",  # Changed path from /beta/...
+    "/api/{full_path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
-    dependencies=[Depends(get_current_active_api_key)],
 )
 async def api_proxy_endpoint(
     request: Request,
@@ -54,7 +52,7 @@ async def api_proxy_endpoint(
     Handles requests starting with /api/.
     Requires valid API key authentication.
     """
-    logger.info(f"Authenticated request received for /api/{full_path}")  # Updated log
+    logger.info(f"Authenticated request received for /api/{full_path}")
 
     # Orchestrate the policy flow
     response = await run_policy_flow(
@@ -66,5 +64,5 @@ async def api_proxy_endpoint(
         builder=builder,
     )
 
-    logger.info(f"Returning response for /api/{full_path}")  # Updated log
+    logger.info(f"Returning response for /api/{full_path}")
     return response

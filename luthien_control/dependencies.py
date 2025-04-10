@@ -9,17 +9,18 @@ from fastapi.security import APIKeyHeader
 
 # Import Settings and the policy loader
 from luthien_control.config.settings import Settings
+
+# Import Policies
+from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
+
+# Import Response Builder
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 from luthien_control.core.response_builder.interface import ResponseBuilder
 
-# --- Added for API Key Auth --- #
+# Import DB access function (now needed for policy instantiation)
 from luthien_control.db.crud import get_api_key_by_value
-from luthien_control.db.models import ApiKey
-
-api_key_header = APIKeyHeader(name="Authorization", auto_error=False)  # Use Authorization header
-# --- End Added --- #
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class PolicyLoadError(Exception):
 def load_control_policies(settings: Settings, http_client: httpx.AsyncClient) -> Sequence[ControlPolicy]:
     """
     Loads and instantiates control policies based on the CONTROL_POLICIES setting.
-    Injects dependencies like settings and http_client based on policy __init__ signature.
+    Injects dependencies like settings, http_client, and api_key_lookup based on policy __init__ signature.
 
     Args:
         settings: The application settings instance.
@@ -49,21 +50,20 @@ def load_control_policies(settings: Settings, http_client: httpx.AsyncClient) ->
     """
     policies_str = settings.get_control_policies_list()
     if not policies_str:
-        logger.info("No CONTROL_POLICIES configured, returning empty list.")
-        return []
+        logger.info("No CONTROL_POLICIES configured in settings, returning empty list.")
+        policy_paths = []
+    else:
+        policy_paths = [path.strip() for path in policies_str.split(",") if path.strip()]
 
-    policy_paths = [path.strip() for path in policies_str.split(",") if path.strip()]
     loaded_policies = []
 
     for policy_path in policy_paths:
         try:
             module_path, class_name = policy_path.rsplit(".", 1)
+
             module = importlib.import_module(module_path)
             policy_class: Type[ControlPolicy] = getattr(module, class_name)
 
-            # Basic check: Does it implement the ControlPolicy protocol?
-            # Note: isinstance check might fail if Protocol isn't runtime_checkable
-            # or if the class doesn't explicitly inherit. Checking attribute is safer.
             if not issubclass(policy_class, ControlPolicy):
                 raise PolicyLoadError(
                     f"Class '{class_name}' from '{module_path}' does not inherit from "
@@ -79,6 +79,8 @@ def load_control_policies(settings: Settings, http_client: httpx.AsyncClient) ->
                 instance_args["settings"] = settings
             if "http_client" in init_params:
                 instance_args["http_client"] = http_client
+            if "api_key_lookup" in init_params:
+                instance_args["api_key_lookup"] = get_api_key_by_value
             # Add other common dependencies here if needed in the future
 
             try:
@@ -141,54 +143,6 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
 
 # Global variable to cache the loaded policy instance
 # Initialize to None. It will be loaded on first request.
-
-
-# --- API Key Authentication Dependency ---
-
-
-async def get_current_active_api_key(api_key: str = Depends(api_key_header)) -> ApiKey:
-    """
-    Dependency to validate the API key provided in the 'Authorization' header.
-
-    Args:
-        api_key: The API key string extracted from the header.
-
-    Returns:
-        The validated ApiKey object from the database.
-
-    Raises:
-        HTTPException: 401 Unauthorized if the key is missing, invalid, or inactive.
-    """
-    if not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated: Missing API key.",
-            headers={"WWW-Authenticate": "Bearer"},  # Standard practice
-        )
-
-    # Strip "Bearer " prefix if present
-    if api_key.startswith("Bearer "):
-        api_key = api_key[len("Bearer ") :]
-
-    db_key = await get_api_key_by_value(api_key)
-    if not db_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API Key",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if not db_key.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Inactive API Key",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Optionally log key usage or perform other checks here
-    # logger.info(f"API key validated: {db_key.name} (ID: {db_key.id})")
-
-    return db_key
 
 
 # --- NEW Control Policy Framework Dependencies ---

@@ -1,6 +1,6 @@
 ---
 description: Project structure and organization guidelines
-globs:
+globs: 
 alwaysApply: true
 ---
 <project_organization>
@@ -12,5 +12,5 @@ alwaysApply: true
    - utils/ - Utility functions
 3. New features should be added as separate modules
 4. Tests should be placed in a top-level `tests/` directory, mirroring the structure of the `luthien_control` package (e.g., `tests/proxy/test_server.py` would test `luthien_control/proxy/server.py`).
-5. Documentation should be maintained in the docs/ directory
+5. Core project documentation (like database choice) is maintained in the main `README.md`.
 </project_organization>

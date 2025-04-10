@@ -1,6 +1,7 @@
 """Core control policy implementations."""
 
 import logging
+from urllib.parse import urlparse
 
 import httpx
 from luthien_control.control_policy.interface import ControlPolicy
@@ -54,14 +55,42 @@ class SendBackendRequestPolicy(ControlPolicy):
             logger.debug(f"  - relative_path   : {relative_path}")
             logger.debug(f"  - final target_url: {target_url}")
 
-            # --- Build new Request for Backend ---
+            # --- Prepare Backend Headers ---
             original_request = context.request
+            backend_headers = []
+            excluded_headers = {b"host", b"content-length", b"transfer-encoding", b"accept-encoding"}
+
+            # Copy necessary headers from original request, excluding problematic ones
+            for key_bytes, value_bytes in original_request.headers.raw:
+                if key_bytes.lower() not in excluded_headers:
+                    backend_headers.append((key_bytes, value_bytes))
+
+            # Add the correct Host header for the backend
+            try:
+                parsed_backend_url = urlparse(backend_url_base)
+                backend_host = parsed_backend_url.hostname
+                if not backend_host:
+                    raise ValueError("Could not parse hostname from BACKEND_URL")
+                backend_headers.append((b"host", backend_host.encode("latin-1")))
+            except ValueError as e:
+                logger.error(
+                    f"[{context.transaction_id}] Invalid BACKEND_URL for Host header: {e}",
+                    extra={"request_id": context.transaction_id},
+                )
+                raise ValueError(f"Invalid BACKEND_URL configuration: {e}")
+
+            # Force Accept-Encoding: identity (See issue #1)
+            backend_headers.append((b"accept-encoding", b"identity"))
+            # --- End Prepare Backend Headers ---
+
+            # --- Build new Request for Backend ---
+            # Use prepared headers
             backend_request = httpx.Request(
                 method=original_request.method,
                 url=target_url,
-                headers=original_request.headers,
+                headers=backend_headers,  # Use prepared headers
                 params=original_request.url.params,
-                content=original_request.content,
+                content=original_request.content,  # Revert back to using .content
             )
             # --- End Build new Request ---
 

@@ -1,12 +1,11 @@
 # Current Task
-## Implement and Test Control Policy Framework
-
-- Status: Core framework and beta endpoint implemented.
-- Major changes made:
-  - Added Control Policy interface and related core components.
-  - Implemented dynamic policy loading based on env vars.
-  - Created `/beta` endpoint utilizing the new framework.
-  - Added core policies (`InitializeContext`, `PrepareBackendHeaders`, `SendBackendRequest`).
-  - Added unit and basic E2E tests for the new system.
-- Follow-up tasks:
-  - Enhance E2E testing for the `/beta` endpoint to cover more scenarios.
+## Implement E2E Test for Beta Endpoint
+ - Status: Complete
+ - Major changes made:
+   - Added `test_e2e_beta_chat_completion` to `tests/e2e/test_proxy_e2e.py`.
+   - Configured `live_local_proxy_server` fixture for `CONTROL_POLICIES`.
+   - Updated `SendBackendRequestPolicy` for correct header handling.
+ - Follow-up tasks, if any:
+   - Re-enable `RequestLoggingPolicy` in test fixture once implemented.
+   - Implement `RequestLoggingPolicy`.
+   - Potentially add more varied E2E tests for the beta endpoint (different methods, error cases, etc.).

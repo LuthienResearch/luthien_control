@@ -159,3 +159,15 @@
 - Unit tests and a basic E2E test are passing.
 - Staged changes have been reviewed and cleaned up.
 - Next step is to add more comprehensive E2E tests for the `/beta` endpoint.
+
+## [2024-05-16 04:18] - Implement E2E Test for Beta Endpoint
+
+### Changes Made
+- Added `test_e2e_beta_chat_completion` to `tests/e2e/test_proxy_e2e.py` to target the `/beta/chat/completions` endpoint.
+- Modified `live_local_proxy_server` fixture in `tests/e2e/conftest.py` to set the `CONTROL_POLICIES` environment variable with necessary policies (`SendBackendRequestPolicy`). Temporarily commented out `RequestLoggingPolicy` as it's not implemented.
+- Modified `SendBackendRequestPolicy` in `luthien_control/control_policy/send_backend_request.py` to correctly prepare backend headers (Host, Accept-Encoding) and access request content (`.content` instead of `.body()`).
+- Ran `poetry run pytest -m e2e -v` multiple times to debug and confirm fixes.
+
+### Current Status
+- Both `test_e2e_chat_completion` and `test_e2e_beta_chat_completion` tests pass.
+- Beta endpoint `/beta/{full_path:path}` is verified to route correctly and communicate with the backend using the new policy framework (with `SendBackendRequestPolicy`).

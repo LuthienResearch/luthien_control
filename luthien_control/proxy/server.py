@@ -22,6 +22,7 @@ from luthien_control.core.response_builder.interface import ResponseBuilder
 # Import NEW dependency providers from dependencies module
 from luthien_control.dependencies import (
     get_control_policies,
+    get_current_active_api_key,
     get_http_client,
     get_initial_context_policy,
     get_policy,
@@ -31,6 +32,9 @@ from luthien_control.policies.base import Policy
 
 # Import the orchestrator
 from luthien_control.proxy.orchestration import run_policy_flow
+
+# Import the ApiKey model for type hinting
+from luthien_control.db.models import ApiKey
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +51,7 @@ router = APIRouter()
 @router.api_route(
     "/beta/{full_path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+    dependencies=[Depends(get_current_active_api_key)],
 )
 async def proxy_endpoint_beta(
     request: Request,
@@ -63,8 +68,9 @@ async def proxy_endpoint_beta(
     Proxy endpoint using the new policy orchestration flow.
     This runs in parallel with the original `proxy_endpoint`.
     Handles requests starting with /beta/.
+    Requires valid API key authentication.
     """
-    logger.info(f"Received request for /beta/{full_path}")
+    logger.info(f"Authenticated request received for /beta/{full_path}")
 
     # Orchestrate the policy flow
     response = await run_policy_flow(
@@ -84,6 +90,7 @@ async def proxy_endpoint_beta(
 @router.api_route(
     "/{full_path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+    dependencies=[Depends(get_current_active_api_key)],
 )
 async def proxy_endpoint(
     request: Request,
@@ -95,8 +102,12 @@ async def proxy_endpoint(
     """
     Core proxy endpoint to forward requests to the configured backend.
     Intercepts requests/responses for policy application.
+    Requires valid API key authentication.
     """
     request_id = str(uuid.uuid4())
+
+    # The get_current_active_api_key dependency has already run and validated the key.
+    logger.info(f"Authenticated request received for /{full_path} (Request ID: {request_id})")
 
     # --- Request Preparation ---
     raw_request_body = await request.body()

@@ -29,12 +29,13 @@ Follow these steps for each discrete task:
 
 1.  **Identify Task:** Define a clear, bounded task. Update `dev/current_context.md` to reflect the new task's goals and scope.
 2.  **Outline Solution:** Plan the approach, identifying which functions/classes/files will be created or modified.
-8.  **Integration Testing:**
+3. **TEST-DRIVEN DEVELOPMENT** Implement and check the solution using test-driven development best practices; see tdd.mdc
+4.  **Integration Testing:**
     *   Run existing integration tests to ensure no regressions were introduced elsewhere.
     *   If the change introduces significant new interactions or functionality, write new integration tests.
-9.  **Mandatory Tracking Update:** Once all tests pass and the unit of work is complete, **perform the full tracking update procedure** as defined in `dev_tracking` (run rotation script, update `development_log.md`, replace `current_context.md`) BEFORE proceeding to the next step.
-10. **Git commit:** Follow the `git_commit_strategy` to stage the changes (including the updated tracking files) and commit (keep commit msg 1 line, <80 chars)
-11. **Push:** After commit is accepted, push the changes (user action).
+5.  **Mandatory Tracking Update:** Once all tests pass and the unit of work is complete, **perform the full tracking update procedure** as defined in `dev_tracking` (run rotation script, update `development_log.md`, replace `current_context.md`) BEFORE proceeding to the next step. THIS IS DONE BY THE AI, NOT THE USER.
+6. **Git commit:** Follow the `git_commit_strategy` to stage the changes (including the updated tracking files) and commit (keep commit msg 1 line, <80 chars)
+7. **Push:** After commit is accepted, push the changes (user action).
 
 ## Handling Out-of-Scope Issues (`dev/ToDo.md`)
 

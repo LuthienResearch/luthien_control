@@ -185,3 +185,28 @@
 - E2E tests are passing against the `luthien-control` app deployed on Fly.io.
 - Required secrets (`BACKEND_URL`, `OPENAI_API_KEY`, `CONTROL_POLICIES`) are set on Fly.io.
 - `pytest` configuration for E2E target URL is fixed.
+
+## [2025-04-10 11:53] - Implement API Key Authentication
+
+### Changes Made
+- **Database:**
+    - Added `ApiKey` Pydantic model (`db/models.py`).
+    - Created `api_keys` table schema and initialization script (`dev/scripts/init_main_db.py`).
+    - Refactored `db/database.py` to support separate connection pools for main app (`POSTGRES_*`) and logging (`LOG_DB_*`) databases.
+    - Updated `main.py` lifespan manager to create/close both pools.
+    - Added CRUD function `get_api_key_by_value` (`db/crud.py`), handling invalid JSON metadata gracefully.
+- **Authentication:**
+    - Created FastAPI dependency `get_current_active_api_key` (`dependencies.py`) to validate `Authorization: Bearer <key>` header against the DB.
+    - Applied dependency to both `/beta/{path}` and `/{path}` endpoints in `proxy/server.py`.
+- **Testing:**
+    - Added unit tests for `db/crud.py::get_api_key_by_value` (`tests/db/test_crud.py`).
+    - Added unit tests for `dependencies.py::get_current_active_api_key` (`tests/test_dependencies.py`).
+    - Ran tests iteratively to debug Pydantic validation and test assertions.
+- **Documentation:**
+    - Updated `.cursor/rules/project_organization.mdc` to clarify DB info location in `README.md`.
+
+### Current Status
+- API key authentication using `Authorization: Bearer <key>` header is implemented and required for proxy endpoints.
+- Keys are stored in the main PostgreSQL database (`api_keys` table).
+- Connection pool management handles separate main and logging databases.
+- Unit tests for new database and authentication logic are passing.

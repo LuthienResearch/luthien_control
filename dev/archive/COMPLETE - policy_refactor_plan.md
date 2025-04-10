@@ -1,5 +1,7 @@
 # Policy Framework Refactor Plan (DB-Driven Instances)
 
+> **This plan complete.**
+
 This document outlines the plan to refactor the policy framework to use database-driven configuration, clearly distinguishing between policy *types* (classes) and policy *instances* (configured objects).
 
 **Goal:** Load a single, top-level `ControlPolicy` instance identified by name (from settings) from the database. This instance can be simple or composite (like `CompoundPolicy`), and the loading mechanism should be flexible enough to accommodate future composite types.

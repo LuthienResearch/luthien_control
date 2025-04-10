@@ -77,9 +77,6 @@ async def health_check():
     return {"status": "ok"}
 
 
-# Mount the proxy application - REMOVED
-# app.mount("/", proxy_app)
-
 # Include the proxy router
 app.include_router(proxy_router)
 

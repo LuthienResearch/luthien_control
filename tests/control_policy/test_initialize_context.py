@@ -9,8 +9,6 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.core.context import TransactionContext
 
-# from luthien_control.core.models import Request as CoreRequest # Removed incorrect import
-
 # Mark all tests in this module as async tests
 pytestmark = pytest.mark.asyncio
 
@@ -213,10 +211,5 @@ async def test_initialize_context_no_fastapi_request(policy: InitializeContextPo
         await policy.apply(context=base_context, fastapi_request=None)
 
 
-# Remove test related to backend URL error as it's no longer handled here
-# async def test_initialize_context_backend_url_error(...):
-#     ...
-
-# Existing TODOs are still relevant
 # TODO: Add test for requests with different query parameters (multiple, encoding?)
 # TODO: Consider edge cases for headers (duplicates, casing - though httpx handles casing)

@@ -17,7 +17,6 @@ pytestmark = pytest.mark.asyncio
 def mock_settings() -> MagicMock:
     # Settings are not strictly needed by this policy anymore, but keep for potential future config
     settings = MagicMock(spec=Settings)
-    # settings.get_backend_url.return_value = "http://mock-backend.test:8080" # No longer used here
     return settings
 
 

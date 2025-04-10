@@ -160,7 +160,6 @@ def get_main_db_pool() -> asyncpg.Pool:
 
 
 async def log_request_response(
-    # pool: asyncpg.Pool, # No longer needed as argument, use getter
     request_data: Dict[str, Any],
     response_data: Dict[str, Any],
     client_ip: Optional[str] = None,

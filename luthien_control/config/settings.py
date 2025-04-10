@@ -59,9 +59,12 @@ class Settings:
     def get_postgres_host(self) -> str | None:
         return os.getenv("POSTGRES_HOST")
 
-    def get_postgres_port(self) -> int:
+    def get_postgres_port(self) -> int | None:
+        """Returns the PostgreSQL port as an integer, or None if not set."""
+        port_str = os.getenv("POSTGRES_PORT")
+        if port_str is None:
+            return None
         try:
-            port_str = os.getenv("POSTGRES_PORT", "5432")
             return int(port_str)
         except ValueError:
             raise ValueError("POSTGRES_PORT environment variable must be an integer.")
@@ -79,9 +82,12 @@ class Settings:
     def get_log_db_host(self) -> str | None:
         return os.getenv("LOG_DB_HOST")
 
-    def get_log_db_port(self) -> int:
+    def get_log_db_port(self) -> int | None:
+        """Returns the Log DB port as an integer, or None if not set."""
+        port_str = os.getenv("LOG_DB_PORT")
+        if port_str is None:
+            return None
         try:
-            port_str = os.getenv("LOG_DB_PORT", "5432")
             return int(port_str)
         except ValueError:
             raise ValueError("LOG_DB_PORT environment variable must be an integer.")

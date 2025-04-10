@@ -1,7 +1,9 @@
-# Current Development Context
+# Current Task: Increase Test Coverage for dependencies.py
 
-**Goal:** Fix pytest warnings.
+**Goal:** Achieve near 100% unit test coverage for `luthien_control/dependencies.py`.
 
-**Status:** Completed. All warnings resolved, tests passing.
-
-**Next Steps:** Commit changes.
+**Plan:**
+1. Run coverage report to identify missing lines.
+2. Analyze `luthien_control/dependencies.py`.
+3. Create or update `tests/test_dependencies.py` with necessary tests.
+4. Verify increased coverage.

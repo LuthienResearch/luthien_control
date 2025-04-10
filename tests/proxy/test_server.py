@@ -17,9 +17,8 @@ from luthien_control.db.models import ApiKey  # Needed for mock auth
 from luthien_control.dependencies import get_current_active_api_key  # Import dependency to override
 from luthien_control.main import app  # Import your main FastAPI app
 
-# --- Pytest Fixtures ---
 
-# REMOVED fixture clear_policy_cache - no longer needed as old policy system is gone.
+# --- Pytest Fixtures ---
 
 
 @pytest.fixture
@@ -66,13 +65,6 @@ def test_health_check(client: TestClient):
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
-
-
-# REMOVED OLD POLICY SYSTEM TESTS (test_proxy_with_default_policy to test_proxy_invalid_backend_url)
-# def test_proxy_with_default_policy(client: TestClient):
-# ... removed ...
-# def test_proxy_invalid_backend_url(client: TestClient):
-# ... removed ...
 
 
 # --- Tests for /api endpoint (previously /beta) ---
@@ -248,5 +240,104 @@ async def test_api_proxy_with_simple_flow(test_app: FastAPI, client: TestClient)
     assert request_sent_to_backend.headers["host"] == expected_host
 
     # Check payload sent to backend (should be unchanged in this flow)
-    sent_payload = json.loads(request_sent_to_backend.content)
-    assert sent_payload == client_payload
+    assert json.loads(request_sent_to_backend.content.decode("utf-8")) == client_payload
+
+
+# --- NEW Integration Tests for Control Policy Loading ---
+
+# Note: These tests use the /api/health endpoint as a simple target
+#       to trigger the dependency resolution, specifically the loading
+#       of control policies via get_control_policies. We are primarily
+#       interested in whether the *loading* succeeds or fails based on
+#       the CONTROL_POLICIES environment variable, not the endpoint's own logic.
+
+
+@pytest.mark.envvars(
+    {
+        "CONTROL_POLICIES": "tests.helpers.dummy_policies.DummyPolicyNoArgs, tests.helpers.dummy_policies.DummyPolicySettings"
+    }
+)
+@pytest.mark.asyncio
+async def test_integration_policy_loading_success(test_app: FastAPI, client: TestClient):
+    """Integration Test: Verify successful loading of valid control policies via endpoint dependency."""
+    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
+    # Target an endpoint that uses the get_control_policies dependency
+    # The specific response of /api/health isn't the focus, just that it doesn't 500 due to loading
+    response = client.get("/api/health", headers={"Authorization": "Bearer test"})
+    test_app.dependency_overrides = {}
+    # If loading failed, get_control_policies would raise HTTPException(500)
+    assert response.status_code == 200
+
+
+@pytest.mark.envvars({"CONTROL_POLICIES": ""})
+@pytest.mark.asyncio
+async def test_integration_policy_loading_empty_string(test_app: FastAPI, client: TestClient):
+    """Integration Test: Verify behavior when CONTROL_POLICIES is empty."""
+    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
+    response = client.get("/api/health", headers={"Authorization": "Bearer test"})
+    test_app.dependency_overrides = {}
+    # Expect 500 because policy loading succeeds (empty list), but no policy runs
+    # to set a final status, so the DefaultResponseBuilder defaults to 500.
+    assert response.status_code == 500
+    # Optional: Check detail to confirm it's the expected builder error
+    # assert "No backend response or final_status_code found" in response.json().get("detail", "")
+
+
+@pytest.mark.envvars({"CONTROL_POLICIES": "invalid.path.DoesNotExist"})
+@pytest.mark.asyncio
+async def test_integration_policy_loading_invalid_path(test_app: FastAPI, client: TestClient):
+    """Integration Test: Verify 500 error when CONTROL_POLICIES contains an invalid module path."""
+    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
+    response = client.get("/api/health", headers={"Authorization": "Bearer test"})
+    test_app.dependency_overrides = {}
+    assert response.status_code == 500
+    assert "Could not load policy class 'invalid.path.DoesNotExist'" in response.json()["detail"]
+
+
+@pytest.mark.envvars({"CONTROL_POLICIES": "tests.helpers.dummy_policies.NonExistentClass"})
+@pytest.mark.asyncio
+async def test_integration_policy_loading_class_not_found(test_app: FastAPI, client: TestClient):
+    """Integration Test: Verify 500 error when CONTROL_POLICIES points to a non-existent class in a valid module."""
+    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
+    response = client.get("/api/health", headers={"Authorization": "Bearer test"})
+    test_app.dependency_overrides = {}
+    assert response.status_code == 500
+    assert "Could not load policy class 'tests.helpers.dummy_policies.NonExistentClass'" in response.json()["detail"]
+
+
+@pytest.mark.envvars({"CONTROL_POLICIES": "tests.helpers.dummy_policies.InvalidPolicyNotSubclass"})
+@pytest.mark.asyncio
+async def test_integration_policy_loading_not_subclass(test_app: FastAPI, client: TestClient):
+    """Integration Test: Verify 500 error when policy class doesn't inherit from ControlPolicy."""
+    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
+    response = client.get("/api/health", headers={"Authorization": "Bearer test"})
+    test_app.dependency_overrides = {}
+    assert response.status_code == 500
+    assert "does not inherit from ControlPolicy" in response.json()["detail"]
+    assert "'InvalidPolicyNotSubclass'" in response.json()["detail"]
+
+
+@pytest.mark.envvars({"CONTROL_POLICIES": "tests.helpers.dummy_policies.DummyPolicyNeedsSpecificArg"})
+@pytest.mark.asyncio
+async def test_integration_policy_loading_instantiation_error(test_app: FastAPI, client: TestClient):
+    """Integration Test: Verify 500 error when policy instantiation fails due to missing __init__ args."""
+    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
+    response = client.get("/api/health", headers={"Authorization": "Bearer test"})
+    test_app.dependency_overrides = {}
+    assert response.status_code == 500
+    # The error message checks if specific args were attempted based on signature inspection
+    # In this case, signature inspection finds no known args (settings/http_client), so it tries no-arg fallback
+    assert "Could not instantiate policy class 'DummyPolicyNeedsSpecificArg'" in response.json()["detail"]
+    assert "Check __init__ signature" in response.json()["detail"]
+
+
+@pytest.mark.envvars({"CONTROL_POLICIES": "tests.helpers.dummy_policies.DummyPolicyInitRaises"})
+@pytest.mark.asyncio
+async def test_integration_policy_loading_init_raises_error(test_app: FastAPI, client: TestClient):
+    """Integration Test: Verify 500 error when policy __init__ raises an exception."""
+    test_app.dependency_overrides[get_current_active_api_key] = override_get_current_active_api_key
+    response = client.get("/api/health", headers={"Authorization": "Bearer test"})
+    test_app.dependency_overrides = {}
+    assert response.status_code == 500
+    assert "Unexpected error loading policy" in response.json()["detail"]
+    assert "Deliberate init failure" in response.json()["detail"]

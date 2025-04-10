@@ -1,11 +1,9 @@
-# Current Task: Integrate DB-Driven Policy Loading
+# Current Task: Completed DB-Driven Policy Integration
 
-**Goal:** Update the dependency injection and request flow to use the new database-driven policy loading mechanism based on `load_policy_instance`.
+**Goal:** Integrate the new database-driven policy loading mechanism based on `load_policy_instance` into the core request flow.
 
-**Status:** Completed implementation and testing of `Policy` models, `get_policy_config_by_name`, and `load_policy_instance` functions. Added `get_top_level_policy_name` to `Settings`.
+**Status:** Task completed. Changes made to `dependencies.py`, `orchestration.py`, and `server.py` to use the new loading mechanism. Added/updated tests in `test_dependencies.py`, `test_orchestration.py`, `test_server.py`, and `conftest.py`. All tests passed.
 
 **Next Steps:**
-- Modify `dependencies.py`: Rename `get_control_policies` to `get_main_control_policy`, update return type and implementation to use `load_policy_instance` with `get_top_level_policy_name`. Remove old `load_control_policies`.
-- Modify `orchestration.py`: Update `run_policy_flow` signature and logic to handle a single `main_policy`.
-- Modify `server.py`: Update endpoint dependency to use `get_main_control_policy` and pass the single policy to `run_policy_flow`.
-- Add tests for the updated dependency functions and potentially integration tests.
+- Commit the changes following `git_commit_strategy`.
+- Potentially define a new task, e.g., creating initial policy configurations in the database or setting up migrations.

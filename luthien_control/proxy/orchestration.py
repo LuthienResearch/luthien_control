@@ -1,6 +1,5 @@
 import logging
 import uuid
-from typing import Sequence
 
 import fastapi
 import httpx
@@ -20,19 +19,19 @@ logger = logging.getLogger(__name__)
 
 async def run_policy_flow(
     request: fastapi.Request,
-    policies: Sequence[ControlPolicy],
+    main_policy: ControlPolicy,
     builder: ResponseBuilder,
     settings: Settings,
     http_client: httpx.AsyncClient,
     initial_context_policy: InitializeContextPolicy,
 ) -> fastapi.Response:
     """
-    Orchestrates the execution of a sequence of ControlPolicies.
+    Orchestrates the execution of the main ControlPolicy.
     Exceptions raised by policies are expected to be caught by FastAPI exception handlers.
 
     Args:
         request: The incoming FastAPI request.
-        policies: The sequence of policies to execute after initialization.
+        main_policy: The main policy instance to execute after initialization.
         builder: The response builder to generate the final response.
         settings: The application settings.
         http_client: The HTTP client for making backend requests.
@@ -56,19 +55,17 @@ async def run_policy_flow(
 
     # 2. Apply the sequence of policies
     try:
-        # Reinstated loop
-        for policy in policies:
-            policy_name = getattr(policy, "name", policy.__class__.__name__)
-            logger.info(f"[{context.transaction_id}] Applying policy: {policy_name}")
-            context = await policy.apply(context)
-            # Stop if a policy sets a response (e.g., auth failure)
-            if context.response is not None:
-                logger.info(f"[{context.transaction_id}] Policy {policy_name} set a response. Halting policy flow.")
-                break
+        # Apply the single main policy
+        policy_name = getattr(main_policy, "name", main_policy.__class__.__name__)
+        logger.info(f"[{context.transaction_id}] Applying main policy: {policy_name}")
+        context = await main_policy.apply(context)
+
+        # No need to check for context.response here, as the policy itself handles its flow.
+        # If it sets a response, it will be handled in the next step.
 
         # 3. Build Response (if no policy set one)
         if context.response:
-            logger.info(f"[{context.transaction_id}] A policy set the response directly. Skipping builder.")
+            logger.info(f"[{context.transaction_id}] The main policy set the response directly. Skipping builder.")
             final_response = context.response
         else:
             logger.info(f"[{context.transaction_id}] Policy execution complete. Building final response.")
@@ -85,6 +82,7 @@ async def run_policy_flow(
         # Update context with the generic exception
         context.exception = e  # Store the original exception
         # Try to build an error response using the builder
+        policy_name_for_error = getattr(main_policy, "name", main_policy.__class__.__name__)
         try:
             # Pass the caught exception to the builder if it accepts it (new builder signature)
             # Assuming the builder might now take an 'exception' argument even for generic errors
@@ -101,10 +99,13 @@ async def run_policy_flow(
                 f"{build_e}. Original error was: {e}"
             )
             # Fallback to a basic JSONResponse, mentioning both errors if possible
+            error_detail = f"Internal Server Error while processing policy '{policy_name_for_error}'."
+            # Include more detail if available
+            error_detail += f" Initial error: {e}. Error during response building: {build_e}"
             final_response = JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 content={
-                    "detail": f"Internal Server Error. Initial error: {e}. Error during response building: {build_e}",
+                    "detail": error_detail,
                     "transaction_id": str(context.transaction_id),
                 },
             )

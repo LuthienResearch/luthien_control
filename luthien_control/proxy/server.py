@@ -1,5 +1,4 @@
 import logging
-from typing import Sequence
 
 import httpx
 from fastapi import APIRouter, Depends, Request
@@ -16,9 +15,9 @@ from luthien_control.core.response_builder.interface import ResponseBuilder
 
 # Import dependency providers from dependencies module
 from luthien_control.dependencies import (
-    get_control_policies,
     get_http_client,
     get_initial_context_policy,
+    get_main_control_policy,
     get_response_builder,
 )
 
@@ -44,7 +43,7 @@ async def api_proxy_endpoint(
     settings: Settings = Depends(Settings),
     # New framework dependencies (using implemented providers)
     initial_context_policy: InitializeContextPolicy = Depends(get_initial_context_policy),
-    policies: Sequence[ControlPolicy] = Depends(get_control_policies),
+    main_policy: ControlPolicy = Depends(get_main_control_policy),
     builder: ResponseBuilder = Depends(get_response_builder),
 ):
     """
@@ -60,7 +59,7 @@ async def api_proxy_endpoint(
         http_client=client,
         settings=settings,
         initial_context_policy=initial_context_policy,
-        policies=policies,
+        main_policy=main_policy,
         builder=builder,
     )
 

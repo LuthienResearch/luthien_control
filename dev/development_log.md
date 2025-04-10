@@ -71,3 +71,42 @@
 **Status:** Complete (Models and Loading Logic).
 
 **Next Steps:** Integrate the new loading mechanism into the application's dependency injection flow (`dependencies.py`, `orchestration.py`, `server.py`).
+
+## Task: Integrate DB-Driven Policy Loading (2025-04-10)
+
+**Goal:** Update the dependency injection and request flow to use the new database-driven policy loading mechanism based on `load_policy_instance`.
+
+**Changes:**
+- `luthien_control/dependencies.py`:
+  - Removed old `load_control_policies` function and `PolicyLoadError`.
+  - Renamed `get_control_policies` to `get_main_control_policy`.
+  - Updated `get_main_control_policy` to use `crud.load_policy_instance` with the policy name from settings (`TOP_LEVEL_POLICY_NAME`).
+  - Injected `http_client` and `api_key_lookup` dependencies correctly.
+  - Fixed type hint import (`ApiKeyLookupFunc`).
+  - Adjusted exception handling for missing policy name and loading errors.
+- `luthien_control/proxy/orchestration.py`:
+  - Updated `run_policy_flow` signature to accept a single `main_policy: ControlPolicy` instead of `policies: Sequence[ControlPolicy]`.
+  - Removed the loop iterating through policies, now directly applies `main_policy.apply()`.
+- `luthien_control/proxy/server.py`:
+  - Updated `api_proxy_endpoint` dependency from `get_control_policies` to `get_main_control_policy`.
+  - Updated the call to `run_policy_flow` to pass `main_policy`.
+- `tests/test_dependencies.py`:
+  - Added tests for `get_main_control_policy`, covering success, missing name, and error cases (`PolicyLoadError`).
+  - Corrected `PolicyNotFoundError` usage to `PolicyLoadError`.
+- `tests/proxy/test_orchestration.py`:
+  - Updated test fixtures (`mock_policies`, `mock_policies_with_exception` removed/replaced).
+  - Updated tests (`test_run_policy_flow_successful`, `_policy_exception`, `_initial_policy_exception`) to use single `main_policy` argument.
+  - Fixed missing `builder` argument in `test_run_policy_flow_successful` call.
+- `tests/proxy/test_server.py`:
+  - Updated `test_api_proxy_endpoint_calls_orchestrator` and `_handles_post` to check for `main_policy` argument in mocked `run_policy_flow` call.
+  - Added dependency override for `get_main_control_policy` in the above two tests.
+  - Refactored `test_api_proxy_with_simple_flow` (renamed to `_with_mocked_policy_flow`) to use dependency override for `get_main_control_policy` instead of `envvars`.
+  - Created `mock_main_policy_for_e2e` fixture to simulate policy flow, including making backend call and setting `backend_response`.
+  - Removed obsolete integration tests related to `CONTROL_POLICIES` env var loading.
+  - Fixed `Host` header assertion to use `netloc`.
+- `tests/conftest.py`:
+  - Moved `mock_initial_policy` and `mock_builder` fixtures from `test_orchestration.py` for broader availability.
+
+**Status:** Completed. All related tests passed after debugging import errors, fixture locations, dependency mocking, exception handling, and assertion details.
+
+**Next Steps:** Ready for commit.

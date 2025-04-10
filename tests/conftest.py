@@ -2,13 +2,17 @@ import logging
 import os
 import uuid
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 import asyncpg
+import fastapi
 import psycopg2
 import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
+from luthien_control.control_policy.initialize_context import InitializeContextPolicy
+from luthien_control.core.response_builder.interface import ResponseBuilder
 from luthien_control.main import app  # Import app directly
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
@@ -218,3 +222,32 @@ def client():  # No longer depends on override_settings_dependency explicitly
     # TestClient handles startup/shutdown implicitly when used as context manager
     with TestClient(app) as test_client:
         yield test_client
+
+
+# --- Common Mock Fixtures Moved from test_orchestration --- #
+
+
+@pytest.fixture
+def mock_initial_policy() -> AsyncMock:
+    """Provides a mock InitializeContextPolicy that returns the modified context."""
+    policy_mock = AsyncMock(spec=InitializeContextPolicy)
+
+    # Simulate apply modifying and returning the context
+    async def apply_effect(context, fastapi_request):
+        context.data["initialized"] = True
+        context.fastapi_request = fastapi_request  # Ensure request is added
+        return context
+
+    policy_mock.apply = AsyncMock(side_effect=apply_effect)
+    return policy_mock
+
+
+@pytest.fixture
+def mock_builder() -> MagicMock:
+    """Provides a mock ResponseBuilder instance."""
+    builder = MagicMock(spec=ResponseBuilder)
+    builder.build_response.return_value = MagicMock(spec=fastapi.Response)
+    return builder
+
+
+# --- End Moved Fixtures --- #

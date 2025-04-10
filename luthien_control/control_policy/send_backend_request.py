@@ -24,7 +24,7 @@ class SendBackendRequestPolicy(ControlPolicy):
     async def apply(self, context: TransactionContext) -> TransactionContext:
         """
         Sends the request in context.request to the backend via http_client.
-        Stores the httpx.Response in context.response.
+        Stores the httpx.Response in context.data["backend_response"].
         Reads the raw response body and stores it in context.data["raw_backend_response_body"].
         Handles potential httpx exceptions.
         Requires context.settings to be set.
@@ -149,8 +149,9 @@ class SendBackendRequestPolicy(ControlPolicy):
             context.data.pop("raw_backend_response_body", None)
             raise
 
-        # Store the response object and the raw body in the context
-        context.response = response
+        # Store the response object in context.data and the raw body
+        context.response = None  # Ensure this remains None for normal flow
+        context.data["backend_response"] = response  # Store the httpx response object here
         context.data["raw_backend_response_body"] = raw_body
 
         return context

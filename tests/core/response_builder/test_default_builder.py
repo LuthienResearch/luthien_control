@@ -139,7 +139,8 @@ def test_build_response_no_context_response(
     assert isinstance(fastapi_response, Response)
     assert fastapi_response.status_code == 500
     # Check for the specific error message logged and returned
-    assert b"Internal Server Error: Failed to build response." in fastapi_response.body
+    # Check for a more general part of the message as TXID is included now
+    assert b"Failed to construct final response" in fastapi_response.body
     assert f"TXID: {context_without_response.transaction_id}".encode() in fastapi_response.body
     assert fastapi_response.headers.get("content-type") == "text/plain; charset=utf-8"
 

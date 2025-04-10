@@ -1,10 +1,9 @@
 """Default implementation for the ResponseBuilder interface."""
 
-from typing import Dict, Optional
+from typing import Optional
 
 from fastapi import Response
 from fastapi.responses import JSONResponse, PlainTextResponse
-from httpx import Headers  # For type hinting context.response.headers
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.core.context import TransactionContext
 from luthien_control.core.response_builder.interface import ResponseBuilder
@@ -82,11 +81,16 @@ class DefaultResponseBuilder(ResponseBuilder):
                 status_code=getattr(exception, "status_code", 500),  # Use status_code from exception if available
             )
 
-        # If no explicit exception, try to build from context.response
-        if context.response is not None:
+        # Determine the source response object to use
+        source_response = context.response  # Prefer context.response if set directly by a policy
+        if source_response is None:
+            source_response = context.data.get("backend_response")  # Fallback to backend response data
+
+        # If we have a source response (either context.response or backend_response)
+        if source_response is not None:
             try:
-                # Attempt conversion, exceptions will now propagate from _convert_to_fastapi_response
-                final_response = self._convert_to_fastapi_response(context.response, context)
+                # Attempt conversion using the determined source response
+                final_response = self._convert_to_fastapi_response(source_response, context)
             except Exception as convert_exc:
                 # Log the specific conversion error
                 self.logger.exception(f"[{context.transaction_id}] Failed during response conversion: {convert_exc}")

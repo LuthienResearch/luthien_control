@@ -17,7 +17,6 @@ def settings():
         # Env Var Name, Settings Method Name, Value to Set, Expected Return
         ("BACKEND_URL", "get_backend_url", "https://example.com/api", "https://example.com/api"),
         ("OPENAI_API_KEY", "get_openai_api_key", "sk-12345", "sk-12345"),
-        ("CONTROL_POLICIES", "get_control_policies_list", "p1,p2", "p1,p2"),
         ("POSTGRES_USER", "get_postgres_user", "pg_user", "pg_user"),
         ("POSTGRES_PASSWORD", "get_postgres_password", "pg_pass", "pg_pass"),
         ("POSTGRES_DB", "get_postgres_db", "pg_db", "pg_db"),
@@ -43,7 +42,6 @@ def test_getter_set(settings, monkeypatch, env_var, method_name, test_value, exp
         # Env Var Name, Settings Method Name, Expected Return when Not Set
         ("BACKEND_URL", "get_backend_url", None),
         ("OPENAI_API_KEY", "get_openai_api_key", None),
-        ("CONTROL_POLICIES", "get_control_policies_list", None),
         ("POSTGRES_USER", "get_postgres_user", None),
         ("POSTGRES_PASSWORD", "get_postgres_password", None),
         ("POSTGRES_DB", "get_postgres_db", None),

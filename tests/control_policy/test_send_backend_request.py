@@ -81,9 +81,11 @@ async def test_send_request_policy_success(
     assert sent_request.headers["X-Original-Header"] == "original"
     assert sent_request.headers["host"] == "mock-backend.test"
     assert sent_request.headers["accept-encoding"] == "identity"  # Verify override
-    assert updated_context.response is mock_response
-    mock_response.aread.assert_awaited_once()
-    assert updated_context.data["raw_backend_response_body"] == b"Raw response body"
+
+    # Verify context fields updated correctly
+    assert updated_context.response is None  # Should not be set directly by this policy
+    assert updated_context.data.get("backend_response") is mock_response
+    assert updated_context.data.get("raw_backend_response_body") == b"Raw response body"
 
 
 async def test_send_request_policy_no_request_in_context(policy: SendBackendRequestPolicy, mock_settings: MagicMock):

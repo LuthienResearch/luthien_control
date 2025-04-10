@@ -51,14 +51,32 @@ async def run_policy_flow(
 
     final_response: fastapi.Response
 
+    # 1. Initialize Context
     context = await initial_context_policy.apply(context, fastapi_request=request)
+
+    # 2. Apply the sequence of policies
     try:
+        # Reinstated loop
         for policy in policies:
+            policy_name = getattr(policy, "name", policy.__class__.__name__)
+            logger.info(f"[{context.transaction_id}] Applying policy: {policy_name}")
             context = await policy.apply(context)
-        final_response = builder.build_response(context)
+            # Stop if a policy sets a response (e.g., auth failure)
+            if context.response is not None:
+                logger.info(f"[{context.transaction_id}] Policy {policy_name} set a response. Halting policy flow.")
+                break
+
+        # 3. Build Response (if no policy set one)
+        if context.response:
+            logger.info(f"[{context.transaction_id}] A policy set the response directly. Skipping builder.")
+            final_response = context.response
+        else:
+            logger.info(f"[{context.transaction_id}] Policy execution complete. Building final response.")
+            final_response = builder.build_response(context)
 
     except ControlPolicyError as e:
         logger.warning(f"[{context.transaction_id}] Control policy error halted execution: {e}")
+        # Attempt to build error response using the current context state
         final_response = builder.build_response(context)
 
     except Exception as e:

@@ -1,17 +1,15 @@
 import importlib  # Added for dynamic loading
 import inspect  # Added for signature inspection
 import logging
-from typing import Sequence, Type  # Added Type for class checking
+from typing import Sequence, Type
 
 import httpx
-from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import APIKeyHeader
+from fastapi import Depends, HTTPException, Request
 
 # Import Settings and the policy loader
 from luthien_control.config.settings import Settings
 
 # Import Policies
-from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
 
@@ -25,14 +23,14 @@ from luthien_control.db.crud import get_api_key_by_value
 logger = logging.getLogger(__name__)
 
 
-# --- Define Error Class locally --- #
+# Reinstate local PolicyLoadError
 class PolicyLoadError(Exception):
     """Custom exception for errors during policy loading."""
 
     pass
 
 
-# --- Define Policy Loading Logic locally --- #
+# Reinstate original environment variable loader
 def load_control_policies(settings: Settings, http_client: httpx.AsyncClient) -> Sequence[ControlPolicy]:
     """
     Loads and instantiates control policies based on the CONTROL_POLICIES setting.
@@ -48,6 +46,7 @@ def load_control_policies(settings: Settings, http_client: httpx.AsyncClient) ->
     Raises:
         PolicyLoadError: If a policy cannot be loaded or instantiated.
     """
+    # Use the appropriate getter from Settings (assuming it will be reverted too)
     policies_str = settings.get_control_policies_list()
     if not policies_str:
         logger.info("No CONTROL_POLICIES configured in settings, returning empty list.")
@@ -80,6 +79,7 @@ def load_control_policies(settings: Settings, http_client: httpx.AsyncClient) ->
             if "http_client" in init_params:
                 instance_args["http_client"] = http_client
             if "api_key_lookup" in init_params:
+                # Ensure get_api_key_by_value is correctly imported and used
                 instance_args["api_key_lookup"] = get_api_key_by_value
             # Add other common dependencies here if needed in the future
 
@@ -141,10 +141,6 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
     return client
 
 
-# Global variable to cache the loaded policy instance
-# Initialize to None. It will be loaded on first request.
-
-
 # --- NEW Control Policy Framework Dependencies ---
 
 
@@ -153,16 +149,19 @@ def get_initial_context_policy() -> InitializeContextPolicy:
     return InitializeContextPolicy()
 
 
+# Revert to original get_control_policies returning sequence
 def get_control_policies(
     settings: Settings = Depends(Settings),
     http_client: httpx.AsyncClient = Depends(get_http_client),  # Inject http_client here
-) -> Sequence[ControlPolicy]:
+    # api_key_lookup is now injected inside load_control_policies
+) -> Sequence[ControlPolicy]:  # Return Sequence again
     """
     Dependency to load and provide the sequence of configured ControlPolicy instances.
     Injects http_client dependency into the loader.
+    Uses CONTROL_POLICIES environment variable.
     """
     try:
-        # Pass injected dependencies to the local loader function
+        # Pass injected dependencies to the reinstated local loader function
         return load_control_policies(settings=settings, http_client=http_client)
     except PolicyLoadError as e:
         logger.exception(f"Failed to load control policies: {e}")

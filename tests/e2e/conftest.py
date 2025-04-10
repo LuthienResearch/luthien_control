@@ -62,7 +62,7 @@ def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
         "luthien_control.control_policy.send_backend_request.SendBackendRequestPolicy",
     ]
     # Use comma-separated string for env var
-    server_env["CONTROL_POLICIES"] = os.environ.get("CONTROL_POLICIES", ",".join(default_control_policies))
+    server_env["CONTROL_POLICIES"] = ",".join(default_control_policies)
 
     # Command to start the server using uvicorn
     # Use sys.executable to ensure the same Python interpreter is used
@@ -154,16 +154,29 @@ def proxy_target_url(request: pytest.FixtureRequest, live_local_proxy_server: st
         return live_local_proxy_server
 
 
+@pytest.fixture(scope="session")
+def client_api_key() -> str:
+    """Retrieves the client API key from the environment variable."""
+    key = os.environ.get("TEST_CLIENT_API_KEY")
+    if not key:
+        pytest.skip(
+            "Skipping E2E tests: TEST_CLIENT_API_KEY environment variable not set. "
+            "Set this variable with a valid client key for the target proxy."
+        )
+    return key
+
+
 @pytest_asyncio.fixture(scope="function")
-async def e2e_client(proxy_target_url: str, openai_api_key: str) -> AsyncGenerator[httpx.AsyncClient, None]:
+async def e2e_client(
+    proxy_target_url: str, openai_api_key: str, client_api_key: str
+) -> AsyncGenerator[httpx.AsyncClient, None]:
     """
     Provides an httpx.AsyncClient configured to talk to the target proxy URL
-    with the necessary OpenAI API key authentication header.
+    with the necessary client and backend API key authentication headers.
     """
     headers = {
-        "Authorization": f"Bearer {openai_api_key}",
-        "Accept": "application/json",  # Good practice
-        # Add any other common headers needed for your tests
+        "Authorization": f"Bearer {client_api_key}",
+        "Accept": "application/json",
     }
     # Increase default timeouts for potentially slower E2E interactions
     timeout = httpx.Timeout(10.0, connect=5.0, read=30.0, write=10.0)

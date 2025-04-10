@@ -1,5 +1,5 @@
 ---
-description: Guidelines for correctly interpreting pytest output
+description: MANDATORY GUIDANCE when running pytest
 globs: 
 alwaysApply: false
 ---

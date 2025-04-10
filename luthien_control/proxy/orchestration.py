@@ -62,13 +62,33 @@ async def run_policy_flow(
         final_response = builder.build_response(context)
 
     except Exception as e:
-        # Handle unexpected errors during policy execution
+        # Handle unexpected errors during initialization or policy execution
         logger.exception(f"[{context.transaction_id}] Unhandled exception during policy flow: {e}")
-        # Return a generic 500 error response
-        final_response = JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": "Internal Server Error", "transaction_id": str(context.transaction_id)},
-        )
+        # Update context with the generic exception
+        context.exception = e  # Store the original exception
+        # Try to build an error response using the builder
+        try:
+            # Pass the caught exception to the builder if it accepts it (new builder signature)
+            # Assuming the builder might now take an 'exception' argument even for generic errors
+            # If the builder build_response signature wasn't changed to accept 'exception' in all cases,
+            # we might need to adapt this call. For DefaultResponseBuilder, it now ignores the exception
+            # argument unless it's the *only* thing passed.
+            final_response = builder.build_response(
+                context, exception=context.exception if isinstance(context.exception, ControlPolicyError) else None
+            )
+        except Exception as build_e:
+            # Log the exception that occurred *during response building*
+            logger.exception(
+                f"[{context.transaction_id}] Exception occurred *during* error response building: {build_e}. Original error was: {e}"
+            )
+            # Fallback to a basic JSONResponse, mentioning both errors if possible
+            final_response = JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={
+                    "detail": f"Internal Server Error. Initial error: {e}. Error during response building: {build_e}",
+                    "transaction_id": str(context.transaction_id),
+                },
+            )
 
     return final_response
 

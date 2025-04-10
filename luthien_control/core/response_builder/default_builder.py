@@ -45,64 +45,65 @@ class DefaultResponseBuilder(ResponseBuilder):
 
     def _convert_to_fastapi_response(self, response: Response, context: TransactionContext) -> Response:
         """Converts an httpx response to a FastAPI response, filtering hop-by-hop headers."""
-        try:
-            # Get headers, filtering out hop-by-hop ones
-            headers = {}
-            media_type = None
-            for key, value in response.headers.items():
-                key_lower = key.lower()
-                if key_lower not in self.hop_by_hop_headers:
-                    headers[key] = value
-                    if key_lower == "content-type":
-                        media_type = value
+        # Get headers, filtering out hop-by-hop ones
+        headers = {}
+        media_type = None
+        for key, value in response.headers.items():
+            key_lower = key.lower()
+            if key_lower not in self.hop_by_hop_headers:
+                headers[key] = value
+                if key_lower == "content-type":
+                    media_type = value
 
-            # Get content, preferring raw_backend_response_body if available
-            content = context.data.get("raw_backend_response_body")
-            if content is None and hasattr(response, "content"):
-                content = response.content
-            if content is None:
-                content = b""
+        # Get content, preferring raw_backend_response_body if available
+        content = context.data.get("raw_backend_response_body")
+        if content is None and hasattr(response, "content"):
+            content = response.content
+        if content is None:
+            content = b""
 
-            return Response(
-                content=content,
-                status_code=response.status_code,
-                headers=headers,
-                media_type=media_type,
-            )
-        except Exception as e:
-            self.logger.exception(
-                f"[{context.transaction_id}] Failed to FastAPI-ify response: {e}. Falling back to error handling."
-            )
-            return None
+        return Response(
+            content=content,
+            status_code=response.status_code,
+            headers=headers,
+            media_type=media_type,
+        )
 
     def build_response(self, context: TransactionContext, exception: Optional[ControlPolicyError] = None) -> Response:
-        """Builds the final FastAPI Response assuming successful policy execution."""
+        """Builds the final FastAPI Response."""
+        final_response: Optional[Response] = None
 
-        # If we have a context.response, FastAPI-ify it
-        if context.response is not None:
-            fastapi_response = self._convert_to_fastapi_response(context.response, context)
-            if fastapi_response is not None:
-                return fastapi_response
-            else:
-                self.logger.exception(f"[{context.transaction_id}] Failed to FastAPI-ify context.response.")
-
+        # If an explicit policy error was passed in, handle it first
         if exception is not None:
-            self.logger.exception(
-                f"[{context.transaction_id}] Failed to construct response from context.response AND "
-                f"exception occurred during policy execution: {exception}"
-            )
+            self.logger.warning(f"[{context.transaction_id}] Building response for explicit policy error: {exception}")
+            # Customize error response based on exception type if needed
             return JSONResponse(
-                content={
-                    "detail": (
-                        "Internal Server Error: Failed to build response; Exception occurred during policy execution: "
-                        f"{exception}"
-                    )
-                },
+                content={"detail": f"Policy Error: {exception}", "transaction_id": str(context.transaction_id)},
+                status_code=getattr(exception, "status_code", 500),  # Use status_code from exception if available
+            )
+
+        # If no explicit exception, try to build from context.response
+        if context.response is not None:
+            try:
+                # Attempt conversion, exceptions will now propagate from _convert_to_fastapi_response
+                final_response = self._convert_to_fastapi_response(context.response, context)
+            except Exception as convert_exc:
+                # Log the specific conversion error
+                self.logger.exception(f"[{context.transaction_id}] Failed during response conversion: {convert_exc}")
+                # Fall through to generic error response below
+
+        # If we still don't have a response (context.response was None or conversion failed)
+        if final_response is None:
+            # Log that we are falling back to a generic error
+            self.logger.error(
+                f"[{context.transaction_id}] Could not build normal response "
+                f"(context.response was {'None' if context.response is None else 'present but conversion failed'}). "
+                f"Returning generic error."
+            )
+            return PlainTextResponse(
+                content=f"Internal Server Error: Failed to construct final response. TXID: {context.transaction_id}",
                 status_code=500,
             )
 
-        self.logger.exception(f"[{context.transaction_id}] . Returning 500.")
-        return PlainTextResponse(
-            content=f"Internal Server Error: Failed to build response. TXID: {context.transaction_id}",
-            status_code=500,
-        )
+        # If conversion succeeded
+        return final_response

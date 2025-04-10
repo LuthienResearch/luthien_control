@@ -65,7 +65,7 @@ class SendBackendRequestPolicy(ControlPolicy):
             # --- Prepare Backend Headers ---
             original_request = context.request
             backend_headers = []
-            excluded_headers = {b"host", b"content-length", b"transfer-encoding", b"accept-encoding"}
+            excluded_headers = {b"host", b"content-length", b"transfer-encoding", b"accept-encoding", b"authorization"}
 
             # Copy necessary headers from original request, excluding problematic ones
             for key_bytes, value_bytes in original_request.headers.raw:
@@ -88,7 +88,14 @@ class SendBackendRequestPolicy(ControlPolicy):
 
             # Force Accept-Encoding: identity (See issue #1)
             backend_headers.append((b"accept-encoding", b"identity"))
-            # --- End Prepare Backend Headers ---
+
+            # --- Add Backend Authorization Header ---
+            openai_key = context.settings.get_openai_api_key()
+            if not openai_key:
+                logger.error(f"[{context.transaction_id}] OPENAI_API_KEY not found in settings.")
+                raise ValueError("Backend API key not configured.")
+            backend_headers.append((b"authorization", f"Bearer {openai_key}".encode("latin-1")))
+            # --- End Backend Authorization Header ---
 
             # --- Build new Request for Backend ---
             # Use prepared headers

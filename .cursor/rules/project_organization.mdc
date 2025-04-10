@@ -4,6 +4,7 @@ globs:
 alwaysApply: true
 ---
 <project_organization>
+0. Refer to README.md for general project documentation and high-level understanding.
 1. All Python code should be in the luthien_control package
 2. Follow the existing directory structure:
    - proxy/ - Proxy server implementation
@@ -12,5 +13,4 @@ alwaysApply: true
    - utils/ - Utility functions
 3. New features should be added as separate modules
 4. Tests should be placed in a top-level `tests/` directory, mirroring the structure of the `luthien_control` package (e.g., `tests/proxy/test_server.py` would test `luthien_control/proxy/server.py`).
-5. Core project documentation (like database choice) is maintained in the main `README.md`.
 </project_organization>

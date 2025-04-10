@@ -9,7 +9,6 @@ Items discovered during development that are out of scope for the current task b
 
 - [ ] Implement package-wide logging system
 
-- [ ] test cov tracking/automation
 - [ ] security scan automation
 - [ ] typehintchecking automation
 - [ ] ruff automation

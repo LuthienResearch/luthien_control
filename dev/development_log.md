@@ -3,6 +3,7 @@
 ## [2025-04-10 12:20] - Migrate Proxy Logic to /api Endpoint and Remove Old System
 
 ### Changes Made
+
 - **Proxy Endpoint Migration:**
   - Renamed `proxy_endpoint_beta` to `api_proxy_endpoint` in `luthien_control/proxy/server.py`.
   - Changed the route from `/beta/{full_path:path}` to `/api/{full_path:path}`.
@@ -23,12 +24,14 @@
   - Fixed various test failures arising from the refactor (import errors in db/logging tests, mock object attribute errors, assertion errors).
 
 ### Current Status
+
 - Core proxy logic now resides solely at the `/api/{full_path:path}` endpoint, using the control policy framework.
 - The old proxy implementation and its associated policy loading mechanism have been removed.
 - All tests (unit and E2E placeholders) are passing after updates.
 - Code is cleaned up and refactored.
 
 ### Next Steps
+
 - Review and commit changes.
 - Consider adding more specific E2E tests for different API paths under `/api/`.
 
@@ -36,15 +39,16 @@
 **Task:** Fix pytest warnings.
 
 **Changes:**
+
 - Added `asyncio_default_fixture_loop_scope = "function"` to `pyproject.toml` to resolve `pytest-asyncio` warning.
 - Updated `luthien_control/db/models.py`:
-    - Replaced deprecated `index` and `unique` arguments in `Field` with `json_schema_extra`.
-    - Replaced deprecated `class Config:` with `orm_mode` with `model_config = ConfigDict(from_attributes=True)`.
-    - Replaced `default_factory=datetime.utcnow` with `default_factory=lambda: datetime.now(timezone.utc)` for `created_at` field.
-    - Added `ConfigDict` and `timezone` imports.
+  - Replaced deprecated `index` and `unique` arguments in `Field` with `json_schema_extra`.
+  - Replaced deprecated `class Config:` with `orm_mode` with `model_config = ConfigDict(from_attributes=True)`.
+  - Replaced `default_factory=datetime.utcnow` with `default_factory=lambda: datetime.now(timezone.utc)` for `created_at` field.
+  - Added `ConfigDict` and `timezone` imports.
 - Updated `luthien_control/logging/db_logger.py`:
-    - Replaced `datetime.utcnow()` with `datetime.now(timezone.utc)`.
-    - Added `timezone` import.
+  - Replaced `datetime.utcnow()` with `datetime.now(timezone.utc)`.
+  - Added `timezone` import.
 
 **Status:** Completed. All warnings resolved, tests passing.
 

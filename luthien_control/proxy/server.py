@@ -1,7 +1,5 @@
 import logging
-
-# import uuid # Removed: No longer used
-from typing import Sequence  # Removed Union
+from typing import Sequence
 
 import httpx
 from fastapi import APIRouter, Depends, Request
@@ -13,35 +11,24 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
 
-# Import concrete policies
 # Import concrete builder
 from luthien_control.core.response_builder.interface import ResponseBuilder
 
-# Import the ApiKey model for type hinting
-# Import policy dependency and base class
-# Importing utils for potential decompression in policy logic later
-# Import NEW dependency providers from dependencies module
+# Import dependency providers from dependencies module
 from luthien_control.dependencies import (
     get_control_policies,
     get_current_active_api_key,
     get_http_client,
     get_initial_context_policy,
-    # get_policy, # Already removed
     get_response_builder,
 )
 
-# from luthien_control.policies.base import Policy # Already removed
 # Import the orchestrator
 from luthien_control.proxy.orchestration import run_policy_flow
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# --- Dependency Providers ---
-
-# Existing provider for HTTP client
-# ... (get_http_client defined in luthien_control.dependencies)
 
 
 # === NEW API PROXY ENDPOINT ===
@@ -51,7 +38,7 @@ router = APIRouter()
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
     dependencies=[Depends(get_current_active_api_key)],
 )
-async def api_proxy_endpoint(  # Renamed from proxy_endpoint_beta
+async def api_proxy_endpoint(
     request: Request,
     full_path: str,
     # Common dependencies
@@ -81,7 +68,3 @@ async def api_proxy_endpoint(  # Renamed from proxy_endpoint_beta
 
     logger.info(f"Returning response for /api/{full_path}")  # Updated log
     return response
-
-
-# --- Helper Functions / Original v1 Logic Helpers ---
-# (Removed original proxy endpoint)

@@ -1,14 +1,11 @@
-import logging
 from datetime import UTC, datetime
-from typing import Sequence, Type
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
-from fastapi import HTTPException, Request, Response
+from fastapi import HTTPException, Request
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
-from luthien_control.core.response_builder.interface import ResponseBuilder
 from luthien_control.db.crud import get_api_key_by_value
 from luthien_control.db.models import ApiKey
 from luthien_control.dependencies import (

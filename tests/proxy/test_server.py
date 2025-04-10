@@ -17,7 +17,6 @@ from luthien_control.db.models import ApiKey  # Needed for mock auth
 from luthien_control.dependencies import get_current_active_api_key  # Import dependency to override
 from luthien_control.main import app  # Import your main FastAPI app
 
-
 # --- Pytest Fixtures ---
 
 
@@ -30,8 +29,9 @@ def test_app() -> FastAPI:
     return app
 
 
+# ignore type check here, this is a valid use case for a pytest fixture
 @pytest.fixture
-def client(test_app: FastAPI) -> TestClient:
+def client(test_app: FastAPI) -> TestClient:  # type: ignore[misc]
     """Provides a FastAPI test client that correctly handles lifespan events."""
     with TestClient(test_app) as test_client:
         yield test_client
@@ -254,7 +254,9 @@ async def test_api_proxy_with_simple_flow(test_app: FastAPI, client: TestClient)
 
 @pytest.mark.envvars(
     {
-        "CONTROL_POLICIES": "tests.helpers.dummy_policies.DummyPolicyNoArgs, tests.helpers.dummy_policies.DummyPolicySettings"
+        "CONTROL_POLICIES": (
+            "tests.helpers.dummy_policies.DummyPolicyNoArgs, tests.helpers.dummy_policies.DummyPolicySettings"
+        )
     }
 )
 @pytest.mark.asyncio

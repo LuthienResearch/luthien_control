@@ -120,7 +120,7 @@ def test_admin_dsn_happy_path(settings, set_postgres_env):
 def test_admin_dsn_missing_var(settings, set_postgres_env, monkeypatch, missing_var):
     """Test admin_dsn property raises ValueError when a required var is missing."""
     monkeypatch.delenv(missing_var)
-    with pytest.raises(ValueError, match=f"Missing required database settings .* for admin_dsn"):
+    with pytest.raises(ValueError, match="Missing required database settings .* for admin_dsn"):
         _ = settings.admin_dsn  # Access property to trigger the check
 
 
@@ -137,7 +137,7 @@ def test_base_dsn_happy_path(settings, set_postgres_env):
 def test_base_dsn_missing_var(settings, set_postgres_env, monkeypatch, missing_var):
     """Test base_dsn property raises ValueError when a required var is missing."""
     monkeypatch.delenv(missing_var)
-    with pytest.raises(ValueError, match=f"Missing required database settings .* for base_dsn"):
+    with pytest.raises(ValueError, match="Missing required database settings .* for base_dsn"):
         _ = settings.base_dsn  # Access property to trigger the check
 
 
@@ -161,7 +161,7 @@ def test_get_db_dsn_happy_path_arg_db(settings, set_postgres_env):
 def test_get_db_dsn_missing_base_var(settings, set_postgres_env, monkeypatch, missing_var):
     """Test get_db_dsn raises ValueError when a base DSN required var is missing."""
     monkeypatch.delenv(missing_var)
-    with pytest.raises(ValueError, match=f"Missing required database settings .* for base_dsn"):
+    with pytest.raises(ValueError, match="Missing required database settings .* for base_dsn"):
         settings.get_db_dsn()  # Call method to trigger the check
 
 

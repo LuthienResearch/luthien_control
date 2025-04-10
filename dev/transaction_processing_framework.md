@@ -1,4 +1,4 @@
-# Luthien Control: Control Policy Application Framework
+# Luthien Control: Control Policy Processing Framework
 
 **Status:** Proposed
 

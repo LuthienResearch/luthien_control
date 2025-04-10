@@ -1,13 +1,7 @@
 # Current Development Context
 
-**Goal:** Migrate core proxy logic to `/api` endpoint, remove old system.
+**Goal:** Fix pytest warnings.
 
-**Status:** COMPLETED
-- Proxy logic successfully migrated to `/api/{full_path:path}`.
-- Old catch-all endpoint and `/beta` endpoint removed.
-- Old policy system (`Policy`, `get_policy`, `policy_loader.py`, `POLICY_MODULE`) removed.
-- Policy loading logic integrated into `dependencies.py`.
-- All unit tests updated and passing.
-- Obsolete files and tests deleted.
+**Status:** Completed. All warnings resolved, tests passing.
 
-**Next Steps:** Review changes and commit.
+**Next Steps:** Commit changes.

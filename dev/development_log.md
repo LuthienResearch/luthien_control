@@ -31,3 +31,21 @@
 ### Next Steps
 - Review and commit changes.
 - Consider adding more specific E2E tests for different API paths under `/api/`.
+
+---
+**Task:** Fix pytest warnings.
+
+**Changes:**
+- Added `asyncio_default_fixture_loop_scope = "function"` to `pyproject.toml` to resolve `pytest-asyncio` warning.
+- Updated `luthien_control/db/models.py`:
+    - Replaced deprecated `index` and `unique` arguments in `Field` with `json_schema_extra`.
+    - Replaced deprecated `class Config:` with `orm_mode` with `model_config = ConfigDict(from_attributes=True)`.
+    - Replaced `default_factory=datetime.utcnow` with `default_factory=lambda: datetime.now(timezone.utc)` for `created_at` field.
+    - Added `ConfigDict` and `timezone` imports.
+- Updated `luthien_control/logging/db_logger.py`:
+    - Replaced `datetime.utcnow()` with `datetime.now(timezone.utc)`.
+    - Added `timezone` import.
+
+**Status:** Completed. All warnings resolved, tests passing.
+
+**Next Steps:** Commit changes.

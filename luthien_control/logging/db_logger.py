@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from luthien_control.db.database import get_log_db_pool
@@ -36,7 +36,7 @@ async def log_db_entry(
     """
     try:
         data_json = json.dumps(data)
-        timestamp = datetime.utcnow()
+        timestamp = datetime.now(timezone.utc)
 
         params = (client_ip, log_level, message, data_json, timestamp)
 

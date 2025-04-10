@@ -25,6 +25,18 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 # --- End Logging Configuration ---
 
 
+# --- Command Line Option ---
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--e2e-target-url",
+        action="store",
+        default=None,
+        help="URL of a deployed proxy server to target for E2E tests. If not provided, a local server will be started.",
+    )
+
+
 # Restore autouse=True
 @pytest.fixture(autouse=True)
 def override_settings_dependency(request):

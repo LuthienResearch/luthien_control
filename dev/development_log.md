@@ -171,3 +171,17 @@
 ### Current Status
 - Both `test_e2e_chat_completion` and `test_e2e_beta_chat_completion` tests pass.
 - Beta endpoint `/beta/{full_path:path}` is verified to route correctly and communicate with the backend using the new policy framework (with `SendBackendRequestPolicy`).
+
+## [2025-04-10 11:18] - Configure and Run E2E Tests Against Fly.io Dev Deployment
+
+### Changes Made
+- Added note about `luthien-control` Fly.io app name to `README.md`.
+- Ran `flyctl secrets set -a luthien-control CONTROL_POLICIES='luthien_control.control_policy.send_backend_request.SendBackendRequestPolicy'` to set default control policies.
+- Ran `flyctl deploy -a luthien-control` to deploy the latest code.
+- Moved `pytest_addoption` definition from `tests/e2e/conftest.py` to `tests/conftest.py` to fix pytest command-line option recognition.
+- Ran `poetry run pytest -m e2e --e2e-target-url https://luthien-control.fly.dev | cat` to execute E2E tests against the deployed server.
+
+### Current Status
+- E2E tests are passing against the `luthien-control` app deployed on Fly.io.
+- Required secrets (`BACKEND_URL`, `OPENAI_API_KEY`, `CONTROL_POLICIES`) are set on Fly.io.
+- `pytest` configuration for E2E target URL is fixed.

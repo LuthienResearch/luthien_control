@@ -15,18 +15,6 @@ from dotenv import load_dotenv
 # In CI/deployed envs, these should be set directly as environment variables
 load_dotenv()
 
-# --- Command Line Option ---
-
-
-def pytest_addoption(parser):
-    parser.addoption(
-        "--e2e-target-url",
-        action="store",
-        default=None,
-        help="URL of a deployed proxy server to target for E2E tests. If not provided, a local server will be started.",
-    )
-
-
 # --- Fixtures ---
 
 

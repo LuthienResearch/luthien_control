@@ -15,7 +15,7 @@ def builder() -> DefaultResponseBuilder:
 
 @pytest.fixture
 def backend_response() -> httpx.Response:
-    """A sample successful backend response object (content not read yet)."""
+    """A sample successful backend response object with content."""
     return httpx.Response(
         status_code=200,
         headers=Headers(
@@ -28,19 +28,39 @@ def backend_response() -> httpx.Response:
                 ("date", "some-date"),  # Example standard header
             ]
         ),
-        # Content is None because aread() hasn't been called on *this* object
-        content=None,
+        content=b'{"result": "from response content"}',  # Add actual content here
         request=httpx.Request("GET", "http://backend.test"),
     )
 
 
 @pytest.fixture
 def context_with_raw_body(backend_response: httpx.Response) -> TransactionContext:
-    """Context where response object exists and raw body is in data."""
+    """Context where response exists and raw body is in data (preferred)."""
     ctx = TransactionContext(transaction_id="tx-build-test-raw")
     ctx.response = backend_response
     # Simulate raw body read by SendBackendRequestPolicy
-    ctx.data["raw_backend_response_body"] = b'{"result": "ok raw"}'
+    ctx.data["raw_backend_response_body"] = b'{"result": "ok raw body"}'
+    return ctx
+
+
+@pytest.fixture
+def context_with_response_content(backend_response: httpx.Response) -> TransactionContext:
+    """Context where response exists, but raw_backend_response_body is not in data."""
+    ctx = TransactionContext(transaction_id="tx-build-resp-content")
+    ctx.response = backend_response
+    # raw_backend_response_body is missing
+    return ctx
+
+
+@pytest.fixture
+def context_with_empty_content(backend_response: httpx.Response) -> TransactionContext:
+    """Context where response exists, but both raw body and response.content are effectively None/empty."""
+    ctx = TransactionContext(transaction_id="tx-build-empty")
+    empty_response = httpx.Response(
+        status_code=204, headers=backend_response.headers, content=None, request=backend_response.request
+    )
+    ctx.response = empty_response
+    # raw_backend_response_body is missing
     return ctx
 
 
@@ -50,74 +70,62 @@ def context_without_response() -> TransactionContext:
     return TransactionContext(transaction_id="tx-build-no-resp")
 
 
-@pytest.fixture
-def context_with_modified_data(backend_response: httpx.Response) -> TransactionContext:
-    """Context where a policy might have modified status, headers, or content in data."""
-    ctx = TransactionContext(transaction_id="tx-build-modified")
-    ctx.response = backend_response  # Original response still present
-    ctx.data["final_status_code"] = 201
-    ctx.data["final_headers"] = {"x-policy-header": "policy-value", "content-type": "text/modified"}
-    ctx.data["final_content"] = b"Policy modified content"
-    # raw_backend_response_body might still exist but should be ignored if final_content is set
-    ctx.data["raw_backend_response_body"] = b"Original raw"
-    return ctx
-
-
 def test_build_response_from_raw_body(builder: DefaultResponseBuilder, context_with_raw_body: TransactionContext):
-    """Test building response using context.response and context.data[raw_backend_response_body]."""
+    """Test building response using context.response status/headers and context.data[raw_backend_response_body] for content."""
     # Act
     fastapi_response = builder.build_response(context_with_raw_body)
 
     # Assert
     assert isinstance(fastapi_response, Response)
     assert fastapi_response.status_code == 200  # From context.response
-    assert fastapi_response.body == b'{"result": "ok raw"}'  # From context.data
+    assert fastapi_response.body == b'{"result": "ok raw body"}'  # From context.data (preferred)
     # Check headers (case-insensitive access)
     assert fastapi_response.headers.get("content-type") == "application/json"
     assert fastapi_response.headers.get("x-custom-backend") == "value"
     assert fastapi_response.headers.get("date") == "some-date"
-    # Check filtered hop-by-hop headers (except Content-Length which FastAPI adds back)
+    # Check filtered hop-by-hop headers
     assert "transfer-encoding" not in fastapi_response.headers
     assert "connection" not in fastapi_response.headers
     # Check FastAPI added the correct Content-Length
-    expected_len = len(b'{"result": "ok raw"}')
+    expected_len = len(b'{"result": "ok raw body"}')
     assert fastapi_response.headers.get("content-length") == str(expected_len)
 
 
-def test_build_response_from_modified_data(
-    builder: DefaultResponseBuilder, context_with_modified_data: TransactionContext
+def test_build_response_from_response_content(
+    builder: DefaultResponseBuilder, context_with_response_content: TransactionContext
 ):
-    """Test building response preferring final values set in context.data by policies."""
+    """Test building response using context.response status/headers and response.content for content."""
     # Act
-    fastapi_response = builder.build_response(context_with_modified_data)
+    fastapi_response = builder.build_response(context_with_response_content)
 
     # Assert
     assert isinstance(fastapi_response, Response)
-    assert fastapi_response.status_code == 201  # From context.data["final_status_code"]
-    assert fastapi_response.body == b"Policy modified content"  # From context.data["final_content"]
-    # Check headers from context.data["final_headers"]
-    assert fastapi_response.headers.get("x-policy-header") == "policy-value"
-    assert fastapi_response.headers.get("content-type") == "text/modified"
-    # Check that original backend headers are NOT present
-    assert "x-custom-backend" not in fastapi_response.headers
-    assert "date" not in fastapi_response.headers
+    assert fastapi_response.status_code == 200  # From context.response
+    assert fastapi_response.body == b'{"result": "from response content"}'  # From response.content
+    assert fastapi_response.headers.get("content-type") == "application/json"
+    assert fastapi_response.headers.get("x-custom-backend") == "value"
+    # Check filtered hop-by-hop headers
+    assert "transfer-encoding" not in fastapi_response.headers
+    # Check FastAPI added the correct Content-Length
+    expected_len = len(b'{"result": "from response content"}')
+    assert fastapi_response.headers.get("content-length") == str(expected_len)
 
-    # Check FastAPI added correct Content-Length for modified content
-    expected_len_modified = len(b"Policy modified content")
-    assert fastapi_response.headers.get("content-length") == str(expected_len_modified)
 
-    # Check hop-by-hop headers are still filtered (even if accidentally added by a policy)
-    ctx = context_with_modified_data
-    # Ensure original final_headers is used for the next check
-    ctx.data["final_headers"] = {
-        "x-policy-header": "policy-value",
-        "content-type": "text/modified",
-        "connection": "keep-alive",
-    }
-    fastapi_response_filtered = builder.build_response(ctx)
-    assert "connection" not in fastapi_response_filtered.headers
-    # Content-Length should still be present and correct even if Connection was filtered
-    assert fastapi_response_filtered.headers.get("content-length") == str(expected_len_modified)
+def test_build_response_empty_content(builder: DefaultResponseBuilder, context_with_empty_content: TransactionContext):
+    """Test building response when content sources are empty (e.g., 204 No Content)."""
+    # Act
+    fastapi_response = builder.build_response(context_with_empty_content)
+
+    # Assert
+    assert isinstance(fastapi_response, Response)
+    assert fastapi_response.status_code == 204  # From context.response
+    assert fastapi_response.body == b""  # Should be empty
+    assert fastapi_response.headers.get("content-type") == "application/json"  # Header still present
+    assert fastapi_response.headers.get("x-custom-backend") == "value"
+    # Check filtered hop-by-hop headers
+    assert "transfer-encoding" not in fastapi_response.headers
+    # Check FastAPI added the correct Content-Length
+    assert "content-length" not in fastapi_response.headers
 
 
 def test_build_response_no_context_response(
@@ -130,7 +138,9 @@ def test_build_response_no_context_response(
     # Assert
     assert isinstance(fastapi_response, Response)
     assert fastapi_response.status_code == 500
-    assert b"Internal Server Error: No response generated" in fastapi_response.body
+    # Check for the specific error message logged and returned
+    assert b"Internal Server Error: Failed to build response." in fastapi_response.body
+    assert f"TXID: {context_without_response.transaction_id}".encode() in fastapi_response.body
     assert fastapi_response.headers.get("content-type") == "text/plain; charset=utf-8"
 
 

@@ -110,3 +110,27 @@
 **Status:** Completed. All related tests passed after debugging import errors, fixture locations, dependency mocking, exception handling, and assertion details.
 
 **Next Steps:** Ready for commit.
+
+## [2025-04-10 16:59] - Implement Policy Serialization and Round-Trip Testing
+
+### Changes Made
+- Modified `luthien_control/control_policy/interface.py`:
+    - Changed `ControlPolicy` from `Protocol` to `abc.ABC`.
+    - Added `name: str | None` attribute.
+    - Added abstract method `serialize_config(self) -> dict[str, Any]`.
+    - Made `apply` method abstract.
+- Implemented `serialize_config` method in all concrete `ControlPolicy` subclasses:
+    - `AddApiKeyHeaderPolicy`, `SendBackendRequestPolicy`, `RequestLoggingPolicy`, `PrepareBackendHeadersPolicy`, `ClientApiKeyAuthPolicy`, `InitializeContextPolicy`: Return `{}` as they only have injected dependencies or no config.
+    - `CompoundPolicy`: Returns `{"member_policy_names": [p.name for p in self.policies]}`. Removed `name` from `__init__`.
+- Added mock fixtures to `tests/conftest.py`: `mock_settings`, `mock_http_client`, `mock_api_key_lookup`.
+- Created `tests/control_policy/test_serialization.py`:
+    - Added tests for each policy type verifying serialization -> deserialization round-trip using `load_policy_instance`.
+    - Mocked `crud.get_policy_config_by_name` and dependencies.
+    - Debugged and fixed fixture errors (`mock_settings` not found).
+    - Debugged and fixed assertion errors in `test_round_trip_compound_policy` related to positional vs. keyword arguments in mock calls.
+- Ran `poetry run pytest tests/control_policy/test_serialization.py` successfully (8 passed).
+
+### Current Status
+- All `ControlPolicy` classes now implement `serialize_config`.
+- Round-trip serialization/deserialization is tested and verified for all policy types.
+- All tests in `test_serialization.py` pass.

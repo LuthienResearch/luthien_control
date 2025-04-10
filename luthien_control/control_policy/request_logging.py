@@ -1,6 +1,7 @@
 """Control Policy for logging request details."""
 
 import logging
+from typing import Any
 
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.context import TransactionContext
@@ -21,3 +22,7 @@ class RequestLoggingPolicy(ControlPolicy):
         # 3. Log this information using self.logger.
         # 4. Return context unmodified.
         raise NotImplementedError("RequestLoggingPolicy is not implemented.")
+
+    def serialize_config(self) -> dict[str, Any]:
+        """Serializes config. Returns empty dict as policy takes no parameters."""
+        return {}

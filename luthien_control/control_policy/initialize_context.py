@@ -1,7 +1,7 @@
 """Control Policy for initializing the TransactionContext from a FastAPI Request."""
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 from fastapi import Request
@@ -102,3 +102,7 @@ class InitializeContextPolicy(ControlPolicy):
         self.logger.debug(f"[{context.transaction_id}] Initial context.request created with URL: {context.request.url}")
 
         return context
+
+    def serialize_config(self) -> dict[str, Any]:
+        """Serializes config. Returns empty dict as policy takes no parameters."""
+        return {}

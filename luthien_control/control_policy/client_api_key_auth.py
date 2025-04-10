@@ -1,7 +1,7 @@
 """Control Policy for verifying the client API key."""
 
 import logging
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional
 
 from fastapi.responses import JSONResponse
 from luthien_control.control_policy.exceptions import (
@@ -80,3 +80,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
             f"(Name: {db_key.name}, ID: {db_key.id})."
         )
         return context
+
+    def serialize_config(self) -> dict[str, Any]:
+        """Serializes config. Returns empty dict as only dependency is api_key_lookup."""
+        return {}

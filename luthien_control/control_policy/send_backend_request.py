@@ -1,6 +1,7 @@
 """Core control policy implementations."""
 
 import logging
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -155,3 +156,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         context.data["raw_backend_response_body"] = raw_body
 
         return context
+
+    def serialize_config(self) -> dict[str, Any]:
+        """Serializes config. Returns empty dict as only dependency is http_client."""
+        return {}

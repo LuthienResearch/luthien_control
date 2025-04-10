@@ -1,7 +1,7 @@
 """Control Policy for preparing backend headers."""
 
 import logging
-from typing import List, Tuple
+from typing import Any, List, Tuple
 from urllib.parse import urlparse
 
 from httpx import Headers  # Import Headers for type hinting and manipulation
@@ -90,3 +90,7 @@ class PrepareBackendHeadersPolicy(ControlPolicy):
 
         self.logger.debug(f"[{context.transaction_id}] Backend headers prepared.")
         return context
+
+    def serialize_config(self) -> dict[str, Any]:
+        """Serializes config. Returns empty dict as only dependency is settings."""
+        return {}

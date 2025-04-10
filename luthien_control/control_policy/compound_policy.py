@@ -1,7 +1,7 @@
 """ ""Compound Policy that applies a sequence of other policies."""
 
 import logging
-from typing import Sequence
+from typing import Any, Sequence
 
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.context import TransactionContext
@@ -28,8 +28,7 @@ class CompoundPolicy(ControlPolicy):
         if not policies:
             logger.warning(f"Initializing CompoundPolicy '{name}' with an empty policy list.")
         self.policies = policies
-        self.name = name
-        self.logger = logger  # Use the module logger
+        self.logger = logger
 
     async def apply(self, context: TransactionContext) -> TransactionContext:
         """
@@ -66,3 +65,17 @@ class CompoundPolicy(ControlPolicy):
     def __repr__(self) -> str:
         policy_names = [getattr(p, "name", p.__class__.__name__) for p in self.policies]
         return f"<{self.name}(policies={policy_names})>"
+
+    def serialize_config(self) -> dict[str, Any]:
+        """Serializes the CompoundPolicy configuration by listing member names."""
+        member_names = []
+        for policy in self.policies:
+            if policy.name is None:
+                # This should ideally not happen if policies are loaded correctly
+                raise ValueError(
+                    f"Cannot serialize CompoundPolicy '{self.name}': member policy "
+                    f"{policy.__class__.__name__} has no name set."
+                )
+            member_names.append(policy.name)
+
+        return {"member_policy_names": member_names}

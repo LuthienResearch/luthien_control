@@ -1,6 +1,7 @@
 """Control Policy for adding the API key header to requests."""
 
 import logging
+from typing import Any
 
 from fastapi.responses import JSONResponse
 from luthien_control.config.settings import Settings
@@ -43,3 +44,7 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         self.logger.info(f"[{context.transaction_id}] Adding Authorization header.")
         context.request.headers["Authorization"] = f"Bearer {api_key}"
         return context
+
+    def serialize_config(self) -> dict[str, Any]:
+        """Serializes config. Returns empty dict as only dependency is settings."""
+        return {}

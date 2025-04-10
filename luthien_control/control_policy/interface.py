@@ -1,15 +1,22 @@
 """Interfaces for the request processing framework."""
 
-from typing import Protocol, runtime_checkable
+import abc
+from typing import TYPE_CHECKING, Any
 
-from luthien_control.core.context import TransactionContext
+if TYPE_CHECKING:
+    from luthien_control.core.context import TransactionContext
 
 
-@runtime_checkable
-class ControlPolicy(Protocol):
-    """Protocol defining the interface for a single processing step."""
+# Removed @runtime_checkable
+class ControlPolicy(abc.ABC):
+    """Abstract Base Class defining the interface for a processing step."""
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    name: str | None = None
+
+    def __init__(self, **kwargs: Any) -> None:
+
+    @abc.abstractmethod
+    async def apply(self, context: "TransactionContext") -> "TransactionContext":
         """
         Apply the policy to the transaction context.
 
@@ -22,4 +29,16 @@ class ControlPolicy(Protocol):
         Raises:
             Exception: Processors may raise exceptions to halt the processing flow.
         """
-        raise NotImplementedError(f"Policy {self.__class__.__name__} must implement the apply method.")
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def serialize_config(self) -> dict[str, Any]:
+        """
+        Serialize the policy's instance-specific configuration needed for reloading.
+
+        Returns:
+            A dictionary containing configuration parameters. Excludes dependencies
+            like settings, http_client, etc., that are injected during loading.
+            Includes parameters needed for composite policies (like member names).
+        """
+        raise NotImplementedError

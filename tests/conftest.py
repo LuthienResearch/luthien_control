@@ -2,10 +2,12 @@ import logging
 import os
 import uuid
 from pathlib import Path
+from typing import Awaitable, Callable, Optional
 from unittest.mock import AsyncMock, MagicMock
 
 import asyncpg
 import fastapi
+import httpx
 import psycopg2
 import pytest
 import pytest_asyncio
@@ -13,6 +15,7 @@ from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.core.response_builder.interface import ResponseBuilder
+from luthien_control.db.models import ApiKey  # Assuming ApiKey is defined here
 from luthien_control.main import app  # Import app directly
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
@@ -251,3 +254,36 @@ def mock_builder() -> MagicMock:
 
 
 # --- End Moved Fixtures --- #
+
+# --- Added Mock Fixtures for Dependencies --- #
+
+# Define the type alias if not already globally available
+ApiKeyLookupFunc = Callable[[str], Awaitable[Optional[ApiKey]]]
+
+
+@pytest.fixture
+def mock_settings() -> MagicMock:
+    """Provides a mock Settings object."""
+    settings = MagicMock(spec=Settings)
+    # Add specific return values if needed by tests using this fixture
+    # e.g., settings.get_backend_url.return_value = "http://mock-backend.com"
+    return settings
+
+
+@pytest.fixture
+def mock_http_client() -> AsyncMock:
+    """Provides a mock httpx.AsyncClient."""
+    client = AsyncMock(spec=httpx.AsyncClient)
+    # Add specific mock responses or behaviors if needed
+    # e.g., client.send.return_value = AsyncMock(spec=httpx.Response, status_code=200)
+    return client
+
+
+@pytest.fixture
+def mock_api_key_lookup() -> AsyncMock:
+    """Provides a mock api_key_lookup function."""
+    lookup = AsyncMock(spec=ApiKeyLookupFunc)
+    # Add specific return values for mock keys if needed
+    # e.g., async def side_effect(key_value): if key_value == 'valid': return MagicMock(spec=ApiKey); return None
+    # lookup.side_effect = side_effect
+    return lookup

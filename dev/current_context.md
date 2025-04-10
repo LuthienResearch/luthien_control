@@ -1,9 +1,14 @@
-# Current Task: Completed DB-Driven Policy Integration
+# Current Task: Policy Serialization Implementation
 
-**Goal:** Integrate the new database-driven policy loading mechanism based on `load_policy_instance` into the core request flow.
+## Short Description of Current Task
+Implement and test the `serialize_config` method on `ControlPolicy` and its subclasses to enable saving policy configurations.
 
-**Status:** Task completed. Changes made to `dependencies.py`, `orchestration.py`, and `server.py` to use the new loading mechanism. Added/updated tests in `test_dependencies.py`, `test_orchestration.py`, `test_server.py`, and `conftest.py`. All tests passed.
-
-**Next Steps:**
-- Commit the changes following `git_commit_strategy`.
-- Potentially define a new task, e.g., creating initial policy configurations in the database or setting up migrations.
+- Status: Complete
+- Major changes made:
+    - Added abstract `serialize_config` to `ControlPolicy` interface.
+    - Implemented `serialize_config` in all concrete policy classes.
+    - Created `tests/control_policy/test_serialization.py` with round-trip tests.
+    - Added required mock fixtures (`mock_settings`, `mock_http_client`, `mock_api_key_lookup`) to `tests/conftest.py`.
+    - Fixed test failures related to missing fixtures and incorrect mock assertions.
+- Follow-up tasks, if any (Excluding git commit/push/etc):
+    - None immediate. Consider implementing DB save logic (`save_policy_instance`?) in a future task if needed.

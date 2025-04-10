@@ -29,11 +29,6 @@ Follow these steps for each discrete task:
 
 1.  **Identify Task:** Define a clear, bounded task. Update `dev/current_context.md` to reflect the new task's goals and scope.
 2.  **Outline Solution:** Plan the approach, identifying which functions/classes/files will be created or modified.
-3.  **Implement Skeleton:** Create the necessary files and function/method signatures without full implementation (e.g., using `pass` or `NotImplementedError`).
-4.  **Write Unit Tests:** Implement unit tests for the planned functionality *before* writing the implementation code. Ensure tests cover expected behavior and edge cases.
-5.  **Run Unit Tests (Expect Failures):** Run the tests (`poetry run pytest`). They should fail for the unimplemented code. This verifies the tests are correctly targeting the new code.
-6.  **Implement Solution:** Write the actual code to implement the feature or fix.
-7.  **Run Unit Tests (Verify Pass):** Run the unit tests again. Iterate on the implementation until all unit tests pass.
 8.  **Integration Testing:**
     *   Run existing integration tests to ensure no regressions were introduced elsewhere.
     *   If the change introduces significant new interactions or functionality, write new integration tests.

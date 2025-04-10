@@ -1,7 +1,7 @@
 ---
-description: 
+description: Follow these steps whenever an important feature, bugfix, or other meaningful non-trivial milestone is completed, prior to git commit.
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 Mandatory dev tracking updates prior to git commits
 

@@ -1,0 +1,12 @@
+---
+description: TEST-DRIVEN DEVELOPMENT GUIDELINES. MANDATORY READING BEFORE WRITING CODE.
+globs: 
+alwaysApply: false
+---
+These are the MANDATORY steps for test-driven development. You MUST write tests that initially fail, and only then implement the actual logic that solves the problem at hand and makes the tests pass.
+
+1.  **Implement Skeleton:** Create the necessary files, classes, function/method signatures, and other skeleton code without full implementation (e.g., using `pass` or `NotImplementedError`).
+2.  **Write Unit Tests:** Implement unit tests for the planned functionality *before* writing the implementation code. Ensure tests cover expected behavior and edge cases. These tests are expected to fail because the functionality isn't implemented yet.
+3.  **Run Unit Tests (Expect Failures):** Run the tests (`poetry run pytest`). They should fail for the unimplemented code. This verifies the tests are correctly targeting the new code.
+4.  **Implement Solution:** Write the actual code to implement the feature or fix (replacing the skeleton code).
+5.  **Run Unit Tests (Verify Pass):** Run the unit tests again. Iterate on the implementation until all unit tests pass.

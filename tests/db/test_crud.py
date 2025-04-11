@@ -7,25 +7,17 @@ import httpx
 import pytest
 from luthien_control.config.settings import Settings
 
-# Assume these base classes/protocols exist for mocking
+# Import the actual policy loader parts needed for patching/exceptions
+from luthien_control.core.policy_loader import ApiKeyLookupFunc
+
+# Import only what's needed for CRUD tests
 from luthien_control.db.crud import (
-    ApiKeyLookupFunc,
     PolicyLoadError,
     get_api_key_by_value,
     get_policy_config_by_name,
-    instantiate_policy,
     load_policy_from_db,
 )
 from luthien_control.db.models import ApiKey, Policy
-
-# Import the mock policy classes from the new helper file
-from tests.db.mock_policies import (
-    MockListPolicy,
-    MockNestedPolicy,
-    MockNoArgsPolicy,
-    MockPolicyWithApiKeyLookup,
-    MockSimplePolicy,
-)
 
 # Mark all tests in this module as async
 pytestmark = pytest.mark.asyncio
@@ -368,37 +360,38 @@ async def test_get_policy_config_by_name_validation_error(mock_db_pool):
     assert "Pydantic validation failed" in mock_error.call_args[0][0]
 
 
-# --- Fixtures for load_policy_from_db --- #
+# --- Fixtures specifically for load_policy_from_db --- #
 
 
 @pytest.fixture
-def mock_settings():
-    return Settings()  # Or mock if Settings has complex logic
+def load_db_mock_settings() -> Settings:
+    """Provides a mock Settings object specifically for load_from_db tests."""
+    return MagicMock(spec=Settings)
 
 
 @pytest.fixture
-def mock_http_client():
-    return AsyncMock(spec=httpx.AsyncClient)
+def load_db_mock_http_client() -> httpx.AsyncClient:
+    """Provides a mock httpx.AsyncClient specifically for load_from_db tests."""
+    return MagicMock(spec=httpx.AsyncClient)
 
 
 @pytest.fixture
-def mock_api_key_lookup():
-    return AsyncMock(spec=ApiKeyLookupFunc)
+def load_db_mock_api_key_lookup() -> ApiKeyLookupFunc:
+    """Provides a mock ApiKeyLookupFunc specifically for load_from_db tests."""
+    return AsyncMock()
 
 
 @pytest.fixture
-def mock_dependencies(mock_settings, mock_http_client, mock_api_key_lookup):
-    """Bundle common dependencies for load_policy_from_db tests."""
+def load_db_dependencies(load_db_mock_settings, load_db_mock_http_client, load_db_mock_api_key_lookup):
+    """Bundles the dependencies for load_policy_from_db tests."""
     return {
-        "settings": mock_settings,
-        "http_client": mock_http_client,
-        "api_key_lookup": mock_api_key_lookup,
+        "settings": load_db_mock_settings,
+        "http_client": load_db_mock_http_client,
+        "api_key_lookup": load_db_mock_api_key_lookup,
     }
 
 
-# --- Helper Function to Create Mock Policy Config --- #
-
-
+# Helper to create mock Policy model instances for get_policy_config_by_name patch
 def create_mock_policy_model(
     id: int = 1,
     name: str = "test_policy",
@@ -409,12 +402,15 @@ def create_mock_policy_model(
     created_at: datetime.datetime | None = None,
     updated_at: datetime.datetime | None = None,
 ) -> Policy:
+    """Creates a mock Policy object for testing."""
     now = datetime.datetime.now(datetime.UTC)
+    # Ensure config is a dict if None
+    config_dict = config if config is not None else {}
     return Policy(
         id=id,
         name=name,
         policy_class_path=policy_class_path,
-        config=config,
+        config=config_dict,
         is_active=is_active,
         description=description,
         created_at=created_at or now,
@@ -422,366 +418,93 @@ def create_mock_policy_model(
     )
 
 
-# --- Helper for getattr mocking in instantiate tests ---
-# Removed module-level helper as it caused scope issues
-# def mock_getattr_side_effect(module, class_name): ...
-
-
 # --- Tests for load_policy_from_db --- #
 
 
 @patch("luthien_control.db.crud.get_policy_config_by_name")
-@patch("luthien_control.db.crud.instantiate_policy")
-async def test_load_policy_from_db_success(mock_instantiate, mock_get_config, mock_dependencies):
-    """Test load_policy_from_db successfully calls get_policy_config_by_name and instantiate_policy."""
-    policy_name = "my_simple_policy"
-    db_config = {"timeout": 123}
+@patch("luthien_control.db.crud.instantiate_policy", new_callable=AsyncMock)
+async def test_load_policy_from_db_success(mock_instantiate, mock_get_config, load_db_dependencies):
+    """Test successful loading and instantiation via load_policy_from_db."""
+    policy_name = "root_policy"
+    # Use a valid mock class path to avoid ImportError during test setup
     mock_policy_model = create_mock_policy_model(
-        name=policy_name, policy_class_path="luthien_control.test_policies.MockSimplePolicy", config=db_config
+        name=policy_name,
+        policy_class_path="tests.db.mock_policies.MockSimplePolicy",
+        config={"db_param": "db_value", "timeout": 123},  # Add timeout expected by MockSimplePolicy
     )
     mock_get_config.return_value = mock_policy_model
 
-    # Mock the result of instantiate_policy
-    mock_instance = MockSimplePolicy(
-        settings=mock_dependencies["settings"],
-        http_client=mock_dependencies["http_client"],
-        timeout=db_config["timeout"],
-    )
-    mock_instance.name = policy_name  # Simulate name assignment by instantiate_policy
-    mock_instance.policy_class_path = mock_policy_model.policy_class_path
-    mock_instantiate.return_value = mock_instance
+    # Assign return_value to the AsyncMock
+    mock_instantiated_policy = MagicMock()
+    mock_instantiate.return_value = mock_instantiated_policy
 
-    loaded_policy = await load_policy_from_db(policy_name, **mock_dependencies)
+    result = await load_policy_from_db(policy_name, **load_db_dependencies)
 
-    # Verify DB lookup was called
     mock_get_config.assert_awaited_once_with(policy_name)
 
-    # Verify instantiate_policy was called with the correct config dictionary
-    expected_initial_config = db_config.copy()
-    expected_initial_config["name"] = policy_name
-    expected_initial_config["policy_class_path"] = mock_policy_model.policy_class_path
-
+    # Check that instantiate_policy was called with combined config
+    expected_initial_config = {
+        "db_param": "db_value",
+        "timeout": 123,
+        "name": policy_name,  # Name from model overrides config
+        "policy_class_path": "tests.db.mock_policies.MockSimplePolicy",  # Path from model
+    }
+    # Use assert_awaited_once_with for AsyncMock
     mock_instantiate.assert_awaited_once_with(
         policy_config=expected_initial_config,
-        settings=mock_dependencies["settings"],
-        http_client=mock_dependencies["http_client"],
-        api_key_lookup=mock_dependencies["api_key_lookup"],
+        settings=load_db_dependencies["settings"],
+        http_client=load_db_dependencies["http_client"],
+        api_key_lookup=load_db_dependencies["api_key_lookup"],
     )
 
-    # Verify the final result is what instantiate_policy returned
-    assert loaded_policy is mock_instance
+    assert result is mock_instantiated_policy
 
 
 @patch("luthien_control.db.crud.get_policy_config_by_name", return_value=None)
-async def test_load_policy_from_db_not_found(mock_get_config, mock_dependencies):
-    """Test load_policy_from_db raises PolicyLoadError if policy not in DB."""
-    policy_name = "non_existent"
-
+async def test_load_policy_from_db_not_found(mock_get_config, load_db_dependencies):
+    """Test PolicyLoadError if get_policy_config_by_name returns None."""
+    policy_name = "not_found_policy"
     with pytest.raises(PolicyLoadError, match=f"Active policy configuration named '{policy_name}' not found"):
-        await load_policy_from_db(policy_name, **mock_dependencies)
-
+        await load_policy_from_db(policy_name, **load_db_dependencies)
     mock_get_config.assert_awaited_once_with(policy_name)
 
 
 @patch("luthien_control.db.crud.get_policy_config_by_name")
-async def test_load_policy_from_db_missing_class_path(mock_get_config, mock_dependencies):
-    """Test load_policy_from_db raises PolicyLoadError if DB model lacks class path."""
-    policy_name = "policy_no_path"
-    # Mock get_policy_config_by_name returning a dict-like object directly
-    # to avoid Pydantic validation error during test setup.
-    mock_db_return = MagicMock(spec=Policy)
-    mock_db_return.name = policy_name
-    mock_db_return.policy_class_path = None  # Simulate missing path
-    mock_db_return.config = {}
-    mock_get_config.return_value = mock_db_return
+async def test_load_policy_from_db_missing_class_path(mock_get_config, load_db_dependencies):
+    """Test PolicyLoadError if the fetched policy model is missing policy_class_path."""
+    policy_name = "no_path_policy"
+    # Mock the return value directly as a MagicMock to avoid Policy model validation
+    mock_policy_model = MagicMock(spec=Policy)
+    mock_policy_model.name = policy_name
+    mock_policy_model.policy_class_path = None  # Simulate missing path
+    mock_policy_model.config = {}
 
-    with pytest.raises(
-        PolicyLoadError,
-        match=f"Policy configuration for '{policy_name}' fetched from DB is missing 'policy_class_path'",
-    ):
-        await load_policy_from_db(policy_name, **mock_dependencies)
+    mock_get_config.return_value = mock_policy_model
+
+    with pytest.raises(PolicyLoadError, match="missing 'policy_class_path'"):
+        await load_policy_from_db(policy_name, **load_db_dependencies)
+    mock_get_config.assert_awaited_once_with(policy_name)
 
 
 @patch("luthien_control.db.crud.get_policy_config_by_name")
-@patch("luthien_control.db.crud.instantiate_policy", side_effect=PolicyLoadError("Instantiation failed"))
-async def test_load_policy_from_db_instantiation_fails(mock_instantiate, mock_get_config, mock_dependencies):
-    """Test load_policy_from_db propagates PolicyLoadError from instantiate_policy."""
-    policy_name = "policy_inst_fails"
+@patch(
+    "luthien_control.db.crud.instantiate_policy",
+    new_callable=AsyncMock,
+    side_effect=PolicyLoadError("Instantiation failed"),
+)
+async def test_load_policy_from_db_instantiation_fails(mock_instantiate, mock_get_config, load_db_dependencies):
+    """Test that PolicyLoadError from instantiate_policy is propagated."""
+    policy_name = "fail_instantiate_policy"
+    # Use a valid mock path
     mock_policy_model = create_mock_policy_model(
-        name=policy_name, policy_class_path="luthien_control.test_policies.MockSimplePolicy", config={"timeout": 50}
+        name=policy_name, policy_class_path="tests.db.mock_policies.MockSimplePolicy"
     )
     mock_get_config.return_value = mock_policy_model
 
+    # Now the instantiate_policy patch (AsyncMock) should take effect correctly
     with pytest.raises(PolicyLoadError, match="Instantiation failed"):
-        await load_policy_from_db(policy_name, **mock_dependencies)
+        await load_policy_from_db(policy_name, **load_db_dependencies)
 
     mock_get_config.assert_awaited_once_with(policy_name)
-    mock_instantiate.assert_awaited_once()  # Check that it was called
-
-
-# --- Tests for instantiate_policy --- #
-
-
-# Use patch for importlib/getattr to avoid needing real modules/classes
-@patch("luthien_control.db.crud.importlib.import_module")
-@patch("luthien_control.db.crud.getattr")
-async def test_instantiate_simple_policy_success(mock_getattr, mock_import_module, mock_dependencies):
-    """Test direct instantiation of a simple policy."""
-    policy_name = "simple_instance"
-    class_path = "luthien_control.test_policies.MockSimplePolicy"
-    config = {"timeout": 42}
-    policy_config_dict = {"name": policy_name, "policy_class_path": class_path, **config}
-
-    # Mock import process
-    mock_module = MagicMock()
-    mock_import_module.return_value = mock_module
-    # Need to return the actual mock class here for isinstance checks and init signature
-    mock_getattr.return_value = MockSimplePolicy
-
-    instance = await instantiate_policy(policy_config_dict, **mock_dependencies)
-
-    # Verify import was called
-    mock_import_module.assert_called_once_with("luthien_control.test_policies")
-    mock_getattr.assert_called_once_with(mock_module, "MockSimplePolicy")
-
-    # Verify instance properties
-    assert isinstance(instance, MockSimplePolicy)
-    assert instance.timeout == 42
-    assert instance.settings is mock_dependencies["settings"]
-    assert instance.http_client is mock_dependencies["http_client"]
-    # Check attributes assigned by the function
-    assert hasattr(instance, "name")
-    assert instance.name == policy_name
-    assert hasattr(instance, "policy_class_path")
-    assert instance.policy_class_path == class_path
-
-
-@patch("luthien_control.db.crud.importlib.import_module")
-@patch("luthien_control.db.crud.getattr")
-async def test_instantiate_with_api_key_lookup(mock_getattr, mock_import_module, mock_dependencies):
-    """Test instantiation injects api_key_lookup correctly."""
-    policy_name = "api_lookup_instance"
-    # Use the correct path from the mock_policies helper file
-    class_path = "tests.db.mock_policies.MockPolicyWithApiKeyLookup"
-    # Provide the correct config key 'tag' instead of 'config_val'
-    config = {"tag": "lookup_tag"}
-    policy_config_dict = {"name": policy_name, "policy_class_path": class_path, **config}
-
-    mock_module = MagicMock()
-    mock_import_module.return_value = mock_module
-    mock_getattr.return_value = MockPolicyWithApiKeyLookup
-
-    instance = await instantiate_policy(policy_config_dict, **mock_dependencies)
-
-    # Assertions for the instance
-    assert isinstance(instance, MockPolicyWithApiKeyLookup)
-    assert instance.tag == config["tag"]  # Assert based on input config
-    assert instance.name == policy_name  # Name should be assigned
-    assert instance.policy_class_path == class_path  # Path should be assigned
-    # Verify the api_key_lookup function was injected
-    # No verification needed for recursive mock anymore
-
-
-async def test_instantiate_policy_missing_class_path(mock_dependencies):
-    """Test error if policy_config dict lacks 'policy_class_path'."""
-    policy_config_dict = {"name": "missing_path", "some_param": "value"}
-    with pytest.raises(PolicyLoadError, match="missing required key: 'policy_class_path'"):
-        await instantiate_policy(policy_config_dict, **mock_dependencies)
-
-
-async def test_instantiate_policy_missing_name(mock_dependencies):
-    """Test error if policy_config dict lacks 'name'."""
-    policy_config_dict = {"policy_class_path": "luthien_control.test_policies.MockSimplePolicy", "timeout": 10}
-    with pytest.raises(PolicyLoadError, match="missing required key: 'name'"):
-        await instantiate_policy(policy_config_dict, **mock_dependencies)
-
-
-@patch("luthien_control.db.crud.importlib.import_module", side_effect=ImportError("Module not found"))
-async def test_instantiate_policy_import_error(mock_import_module, mock_dependencies):
-    """Test PolicyLoadError is raised on ImportError."""
-    policy_name = "import_fail"
-    # This path doesn't exist
-    class_path = "non_existent_module.NonExistentClass"
-    policy_config_dict = {
-        "name": policy_name,
-        "policy_class_path": class_path,
-        "param": 1,  # Add some config to avoid missing name/path errors first
-    }
-
-    # No need to mock getattr if import_module fails first
-    mock_import_module.side_effect = ImportError("Module not found")
-
-    with pytest.raises(PolicyLoadError, match="Could not load policy class"):
-        await instantiate_policy(policy_config_dict, **mock_dependencies)
-
-
-@patch("luthien_control.db.crud.importlib.import_module")
-@patch("luthien_control.db.crud.getattr", side_effect=AttributeError("Class not found"))
-async def test_instantiate_policy_attribute_error(mock_getattr, mock_import_module, mock_dependencies):
-    """Test PolicyLoadError is raised on AttributeError (class not in module)."""
-    policy_config_dict = {
-        "name": "attr_fail",
-        # Point to the right module, but non-existent class
-        "policy_class_path": "tests.db.mock_policies.NonExistentClass",
-        "param": 1,
-    }
-    MagicMock()
-
-    # Configure side_effect directly within the test
-    def getattr_side_effect(module, class_name):
-        if class_name == "MockNestedPolicy":
-            return MockNestedPolicy  # This works as MockNestedPolicy is defined in the test file scope
-        elif class_name == "MockSimplePolicy":
-            return MockSimplePolicy
-        else:
-            raise AttributeError(f"Unexpected class: {class_name}")
-
-    mock_getattr.side_effect = getattr_side_effect
-
-    # Expect the error raised when getattr fails to find the class
-    with pytest.raises(PolicyLoadError, match="Could not load policy class"):
-        await instantiate_policy(policy_config_dict, **mock_dependencies)
-
-    # Assertions for the successful part of the test (import/getattr calls)
-    module_path_used = policy_config_dict["policy_class_path"].rsplit(".", 1)[0]
-    mock_import_module.assert_called_once_with(module_path_used)
-
-
-# Test Nested Policy Instantiation
-async def test_instantiate_nested_policy_success(mock_dependencies):
-    """Test instantiation of a policy containing another policy in its config."""
-    nested_policy_name = "inner_policy"
-    nested_class_path = "tests.db.mock_policies.MockSimplePolicy"
-    nested_config = {"timeout": 99}
-
-    outer_policy_name = "outer_policy"
-    outer_class_path = "tests.db.mock_policies.MockNestedPolicy"
-    outer_config = {
-        "description": "My Nested Setup",
-        "inner_policy": {  # Nested policy config
-            "name": nested_policy_name,
-            "policy_class_path": nested_class_path,
-            **nested_config,
-        },
-    }
-    policy_config_dict = {"name": outer_policy_name, "policy_class_path": outer_class_path, **outer_config}
-
-    # No more mocking needed for recursive calls
-    instance = await instantiate_policy(policy_config_dict, **mock_dependencies)
-
-    # Outer policy assertions
-    assert isinstance(instance, MockNestedPolicy)
-    assert instance.description == "My Nested Setup"
-    assert instance.name == outer_policy_name
-    assert instance.policy_class_path == outer_class_path
-
-    # Verify inner instance
-    inner_instance = instance.inner_policy
-    assert isinstance(inner_instance, MockSimplePolicy)
-    assert inner_instance.timeout == 99
-    assert inner_instance.name == nested_policy_name
-    assert inner_instance.policy_class_path == nested_class_path
-
-
-# Test Policy with List of Policies
-@patch("luthien_control.db.crud.importlib.import_module")
-@patch("luthien_control.db.crud.getattr")
-async def test_instantiate_policy_with_list_of_policies(mock_getattr, mock_import_module, mock_dependencies):
-    """Test instantiating a policy that takes a list of other policies (and non-policies) in config."""
-    # Mock importlib.import_module to return a mock module object
-    mock_import_module.return_value = MagicMock()
-
-    # Mock getattr to return the appropriate class based on the name requested
-    def getattr_side_effect(module, class_name):
-        if class_name == "MockSimplePolicy":
-            return MockSimplePolicy
-        elif class_name == "MockNestedPolicy":
-            return MockNestedPolicy
-        elif class_name == "MockListPolicy":
-            return MockListPolicy
-        elif class_name == "MockNoArgsPolicy":
-            return MockNoArgsPolicy
-        else:
-            raise AttributeError(f"Test mock does not handle class: {class_name}")
-
-    mock_getattr.side_effect = getattr_side_effect
-
-    member1_name = "list_member_1"
-    member1_class_path = "tests.db.mock_policies.MockSimplePolicy"
-    member1_config = {"timeout": 10}
-
-    member2_name = "list_member_2"
-    member2_class_path = "tests.db.mock_policies.MockNoArgsPolicy"
-
-    outer_policy_name = "list_holder"
-    outer_class_path = "tests.db.mock_policies.MockListPolicy"
-    outer_config = {
-        "mode": "parallel",
-        "policies": [  # List containing policy configs
-            {"name": member1_name, "policy_class_path": member1_class_path, **member1_config},
-            {
-                "name": member2_name,
-                "policy_class_path": member2_class_path,
-                # No config needed for MockNoArgsPolicy
-            },
-            "not_a_policy_dict",  # Item should be kept as is
-        ],
-    }
-    policy_config_dict = {"name": outer_policy_name, "policy_class_path": outer_class_path, **outer_config}
-
-    # No more mocking needed for recursive calls
-    instance = await instantiate_policy(policy_config_dict, **mock_dependencies)
-
-    # Assertions
-    assert isinstance(instance, MockListPolicy)
-    assert instance.mode == "parallel"
-    assert instance.name == outer_policy_name
-    assert len(instance.policies) == 3  # Includes the string
-
-    # Check instantiated members
-    assert isinstance(instance.policies[0], MockSimplePolicy)
-    assert instance.policies[0].name == member1_name
-    assert instance.policies[0].timeout == 10
-
-    assert isinstance(instance.policies[1], MockNoArgsPolicy)
-    assert instance.policies[1].name == member2_name
-
-    # Check non-policy item preserved
-    assert instance.policies[2] == "not_a_policy_dict"
-
-    # Verify import/getattr calls (once for outer, once for each nested policy type)
-    # Since we removed the complex patching, we can verify import/getattr calls again
-    mock_module = MagicMock()  # Need a mock module instance for assertion
-    mock_import_module.return_value = mock_module  # Assume import returns this
-    # Configure mock_getattr side effect for verification (if needed, or remove verify block)
-    # def getattr_side_effect(module, name): ... mock_getattr.side_effect = getattr_side_effect
-    # Simple check: Ensure import_module was called multiple times (outer + nested types)
-    assert mock_import_module.call_count >= 3  # Outer + MockSimplePolicy + MockNoArgsPolicy
-    # Could add mock_getattr call assertions if needed
-
-
-# Test Nested Policy Load Failure
-async def test_instantiate_nested_policy_load_fails(mock_dependencies):
-    """Test that if a nested policy fails to instantiate, the outer one fails too."""
-    nested_policy_name = "inner_policy_fails"
-    nested_class_path = "tests.db.mock_policies.MockMissingArgPolicy"
-
-    outer_policy_name = "outer_policy_catcher"
-    outer_class_path = "tests.db.mock_policies.MockNestedPolicy"
-    outer_config = {
-        "description": "Will Fail",
-        "inner_policy": {  # Nested policy config that WILL fail
-            "name": nested_policy_name,
-            "policy_class_path": nested_class_path,
-            # Missing 'mandatory' config here
-        },
-    }
-    policy_config_dict = {"name": outer_policy_name, "policy_class_path": outer_class_path, **outer_config}
-
-    # No more mocking needed for recursive calls
-    # Now expect the specific error from trying to init MockMissingArgPolicy without 'mandatory'
-    # The outer instantiate_policy catches the inner error and wraps it.
-    with pytest.raises(PolicyLoadError, match="Failed to instantiate nested policy"):
-        await instantiate_policy(policy_config_dict, **mock_dependencies)
-
-    # No verification needed for recursive mock anymore
+    # Use assert_awaited_once() for AsyncMock
+    mock_instantiate.assert_awaited_once()

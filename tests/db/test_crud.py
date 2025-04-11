@@ -1,6 +1,9 @@
+import asyncio
+import datetime
 import inspect
 import json
-from datetime import UTC, datetime
+import uuid
+from typing import Any, Callable, Dict, List, Optional, Set, Type
 from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
 
 import asyncpg
@@ -40,7 +43,7 @@ async def test_get_api_key_by_value_found_active(mock_db_pool):
     """Test fetching an existing, active API key."""
     mock_pool, mock_conn = mock_db_pool
     test_key = "test-key-active"
-    now = datetime.now(UTC)
+    now = datetime.datetime.now(datetime.UTC)
     mock_metadata_dict = {"user": "test"}
     mock_metadata_str = json.dumps(mock_metadata_dict)
 
@@ -133,7 +136,7 @@ async def test_get_api_key_by_value_found_inactive(mock_db_pool):
     """Test fetching an existing, but inactive API key (should still return it)."""
     mock_pool, mock_conn = mock_db_pool
     test_key = "test-key-inactive"
-    now = datetime.now(UTC)
+    now = datetime.datetime.now(datetime.UTC)
 
     mock_record_dict = {
         "id": 2,
@@ -157,7 +160,7 @@ async def test_get_api_key_by_value_invalid_metadata_json(mock_db_pool):
     """Test fetching a key where metadata is invalid JSON."""
     mock_pool, mock_conn = mock_db_pool
     test_key = "test-key-bad-json"
-    now = datetime.now(UTC)
+    now = datetime.datetime.now(datetime.UTC)
     mock_metadata_str = "this is not valid json"
 
     mock_record_dict = {
@@ -191,7 +194,7 @@ async def test_get_api_key_by_value_found(mock_db_pool):
         "key_value": test_key,
         "name": "Test Key",
         "is_active": True,
-        "created_at": datetime.now(UTC),
+        "created_at": datetime.datetime.now(datetime.UTC),
         "metadata_": None,
     }
     mock_conn.fetchrow.return_value = expected_record
@@ -228,7 +231,7 @@ async def test_get_policy_config_by_name_found_active(mock_db_pool):
     """Test fetching an existing, active policy configuration."""
     mock_pool, mock_conn = mock_db_pool
     test_name = "root_policy"
-    now = datetime.now(UTC)
+    now = datetime.datetime.now(datetime.UTC)
     test_config = {"param1": "value1", "timeout": 60}
 
     # Simulate fetchrow returning a dictionary matching the Policy model structure
@@ -336,7 +339,7 @@ async def test_get_policy_config_by_name_validation_error(mock_db_pool):
     """Test behavior when DB returns data that fails Pydantic validation."""
     mock_pool, mock_conn = mock_db_pool
     test_name = "policy_bad_data"
-    now = datetime.now(UTC)
+    now = datetime.datetime.now(datetime.UTC)
 
     # Simulate fetchrow returning data with a missing required field (e.g., policy_class_path)
     mock_record_dict = {
@@ -380,6 +383,9 @@ class MockSimplePolicy(ControlPolicy):
     async def apply(self, context):
         pass
 
+    def serialize_config(self) -> dict[str, Any]:
+        return {}
+
 
 class MockPolicyWithApiKeyLookup(ControlPolicy):
     # Test injection of api_key_lookup
@@ -391,6 +397,9 @@ class MockPolicyWithApiKeyLookup(ControlPolicy):
     async def apply(self, context):
         pass
 
+    def serialize_config(self) -> dict[str, Any]:
+        return {}
+
 
 class MockNoArgsPolicy(ControlPolicy):
     def __init__(self):
@@ -398,6 +407,9 @@ class MockNoArgsPolicy(ControlPolicy):
 
     async def apply(self, context):
         pass
+
+    def serialize_config(self) -> dict[str, Any]:
+        return {}
 
 
 class MockCompoundPolicy(CompoundPolicy):
@@ -411,6 +423,11 @@ class MockCompoundPolicy(CompoundPolicy):
     async def apply(self, context):
         pass
 
+    def serialize_config(self) -> dict[str, Any]:
+        # For consistency in this test file's mocks, return empty dict.
+        # The real CompoundPolicy has its own serialization.
+        return {}
+
 
 class MockMissingArgPolicy(ControlPolicy):
     # Missing required argument `required_arg`
@@ -420,6 +437,9 @@ class MockMissingArgPolicy(ControlPolicy):
 
     async def apply(self, context):
         pass
+
+    def serialize_config(self) -> dict[str, Any]:
+        return {}
 
 
 # --- Fixtures for load_policy_instance --- #
@@ -460,10 +480,10 @@ def create_mock_policy_config(
     config: dict | None = None,
     is_active: bool = True,
     description: str | None = "A test policy",
-    created_at: datetime | None = None,
-    updated_at: datetime | None = None,
+    created_at: datetime.datetime | None = None,
+    updated_at: datetime.datetime | None = None,
 ) -> Policy:
-    now = datetime.now(UTC)
+    now = datetime.datetime.now(datetime.UTC)
     return Policy(
         id=id,
         name=name,

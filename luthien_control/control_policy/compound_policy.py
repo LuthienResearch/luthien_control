@@ -29,6 +29,7 @@ class CompoundPolicy(ControlPolicy):
             logger.warning(f"Initializing CompoundPolicy '{name}' with an empty policy list.")
         self.policies = policies
         self.logger = logger
+        self.name = name
 
     async def apply(self, context: TransactionContext) -> TransactionContext:
         """

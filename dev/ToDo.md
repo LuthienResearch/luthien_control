@@ -13,3 +13,5 @@ Items discovered during development that are out of scope for the current task b
 - [ ] typehintchecking automation
 - [ ] ruff automation
 - [ ] client api check as policy (instead of in core)
+
+- [ ] Eliminate all traces of CONTROL_POLICIES

@@ -35,6 +35,10 @@ class MockSimplePolicy(ControlPolicy):
     def __repr__(self) -> str:
         return f"<{self.name}>"
 
+    def serialize_config(self) -> dict[str, Any]:
+        # Mock policies generally don't need complex serialization in tests
+        return {}
+
 
 @pytest.fixture
 def mock_context() -> TransactionContext:

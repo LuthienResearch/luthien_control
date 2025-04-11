@@ -14,6 +14,7 @@ class ControlPolicy(abc.ABC):
     name: str | None = None
 
     def __init__(self, **kwargs: Any) -> None:
+        pass
 
     @abc.abstractmethod
     async def apply(self, context: "TransactionContext") -> "TransactionContext":

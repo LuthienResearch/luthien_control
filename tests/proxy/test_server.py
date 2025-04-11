@@ -40,7 +40,7 @@ def client(test_app: FastAPI) -> TestClient:  # type: ignore[misc]
     with (
         patch("luthien_control.main.create_main_db_pool", new_callable=AsyncMock) as mock_create_main,
         patch("luthien_control.main.create_log_db_pool", new_callable=AsyncMock) as mock_create_log,
-        patch("luthien_control.db.database._main_db_pool", new_callable=AsyncMock) as mock_pool_check,
+        patch("luthien_control.db.database._main_db_pool", new_callable=AsyncMock),
     ):  # Use AsyncMock for the pool itself
         # Ensure mocked functions don't raise exceptions implicitly
         mock_create_main.return_value = None

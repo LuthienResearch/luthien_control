@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -6,6 +5,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
+import luthien_control.db.database
 from luthien_control.config.settings import Settings
 from luthien_control.db.database import (
     _get_main_db_dsn,
@@ -16,7 +16,6 @@ from luthien_control.db.database import (
 )
 from luthien_control.logging_config import setup_logging
 from luthien_control.proxy.server import router as proxy_router
-import luthien_control.db.database
 
 setup_logging()
 

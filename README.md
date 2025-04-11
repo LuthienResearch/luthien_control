@@ -113,7 +113,7 @@ Bandit is used to check for common security vulnerabilities.
 
 ### Code Complexity Analysis
 Radon is used to analyze code complexity (e.g., cyclomatic complexity). This helps identify potentially complex and hard-to-maintain code.
-*   Check complexity: `poetry run radon cc luthien_control -a -s` (shows average and sorted results)
+*   Check complexity: `poetry run radon cc luthien_control/ -a -s` (shows average and sorted results)
 *   Check maintainability index: `poetry run radon mi luthien_control -s`
 
 ### Directory Structure

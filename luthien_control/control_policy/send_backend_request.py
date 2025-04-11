@@ -5,6 +5,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from fastapi import Request  # Added for type hint
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.context import TransactionContext
@@ -19,8 +20,67 @@ class SendBackendRequestPolicy(ControlPolicy):
     Reads settings from context.settings.
     """
 
+    _EXCLUDED_BACKEND_HEADERS = {
+        b"host",
+        b"content-length",
+        b"transfer-encoding",
+        b"accept-encoding",  # We force identity
+        b"authorization",  # We add our own
+    }
+
     def __init__(self, http_client: httpx.AsyncClient):
         self.http_client = http_client
+
+    def _build_target_url(self, context: TransactionContext, base_url: str, relative_path: str) -> str:
+        """Constructs the full target URL for the backend request."""
+        # Ensure no double slashes
+        target_url = f"{base_url.rstrip('/')}/{relative_path.lstrip('/')}"
+        logger.debug(
+            f"[{context.transaction_id}] Constructed target URL: {target_url} "
+            f"(from base: {base_url}, relative: {relative_path})"
+        )
+        return target_url
+
+    def _prepare_backend_headers(
+        self, context: TransactionContext, original_request: Request, settings: Settings
+    ) -> list[tuple[bytes, bytes]]:
+        """Prepares the headers to be sent to the backend."""
+        backend_headers: list[tuple[bytes, bytes]] = []
+        backend_url_base = settings.get_backend_url()  # Already validated in apply
+
+        # Copy necessary headers from original request, excluding problematic ones
+        for key_bytes, value_bytes in original_request.headers.raw:
+            if key_bytes.lower() not in self._EXCLUDED_BACKEND_HEADERS:
+                backend_headers.append((key_bytes, value_bytes))
+
+        # Add the correct Host header for the backend
+        try:
+            parsed_backend_url = urlparse(backend_url_base)
+            backend_host = parsed_backend_url.hostname
+            if not backend_host:
+                raise ValueError("Could not parse hostname from BACKEND_URL")
+            backend_headers.append((b"host", backend_host.encode("latin-1")))
+        except ValueError as e:
+            logger.error(
+                f"[{context.transaction_id}] Invalid BACKEND_URL '{backend_url_base}' for Host header parsing: {e}",
+                extra={"request_id": context.transaction_id},
+            )
+            # Raise a more specific internal error if needed, or let apply handle it
+            raise ValueError(f"Could not determine backend Host from BACKEND_URL: {e}")
+
+        # Force Accept-Encoding: identity (avoids downstream decompression issues)
+        backend_headers.append((b"accept-encoding", b"identity"))
+
+        # Add Backend Authorization Header
+        openai_key = settings.get_openai_api_key()
+        if not openai_key:
+            logger.error(f"[{context.transaction_id}] OPENAI_API_KEY not found in settings.")
+            raise ValueError("Backend API key (OPENAI_API_KEY) not configured.")
+        backend_headers.append((b"authorization", f"Bearer {openai_key}".encode("latin-1")))
+
+        logger.debug(f"[{context.transaction_id}] Prepared backend headers: {len(backend_headers)} headers")
+        # Consider logging the actual headers only at TRACE level if sensitive
+        return backend_headers
 
     async def apply(self, context: TransactionContext) -> TransactionContext:
         """
@@ -30,6 +90,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         Handles potential httpx exceptions.
         Requires context.settings to be set.
         """
+        # --- Pre-flight Checks ---
         if not context.request:
             raise ValueError(f"[{context.transaction_id}] Cannot send request: context.request is None")
         if not hasattr(context, "settings") or not isinstance(context.settings, Settings):
@@ -37,77 +98,39 @@ class SendBackendRequestPolicy(ControlPolicy):
                 f"[{context.transaction_id}] Cannot send request: context.settings not available or invalid type."
             )
 
+        relative_path = context.data.get("relative_path")
+        if not relative_path:
+            raise ValueError(f"[{context.transaction_id}] Cannot send request: relative_path not found in context.data")
+
+        backend_url_base = context.settings.get_backend_url()
+        if not backend_url_base:
+            raise ValueError(f"[{context.transaction_id}] Cannot send request: BACKEND_URL not configured in settings")
+        # OPENAI_API_KEY is checked within _prepare_backend_headers
+
+        # --- Prepare Request Components ---
+        try:
+            target_url = self._build_target_url(context, backend_url_base, relative_path)
+            backend_headers = self._prepare_backend_headers(context, context.request, context.settings)
+        except ValueError as e:
+            # Configuration or header preparation error
+            logger.error(
+                f"[{context.transaction_id}] Error preparing backend request components: {e}",
+                extra={"request_id": context.transaction_id},
+            )
+            raise  # Re-raise the configuration error
+
+        # --- Build and Send Backend Request ---
+        backend_request: httpx.Request | None = None
         response: httpx.Response | None = None
         raw_body: bytes | None = None
-        backend_request: httpx.Request | None = None
         try:
-            # --- Construct Backend URL ---
-            relative_path = context.data.get("relative_path")
-            if not relative_path:
-                raise ValueError(
-                    f"[{context.transaction_id}] Cannot send request: relative_path not found in context.data"
-                )
-
-            backend_url_base = context.settings.get_backend_url()
-            if not backend_url_base:
-                raise ValueError(
-                    f"[{context.transaction_id}] Cannot send request: BACKEND_URL not configured in settings"
-                )
-
-            # Ensure no double slashes
-            target_url = f"{backend_url_base.rstrip('/')}/{relative_path.lstrip('/')}"
-            # --- End Construct Backend URL ---
-
-            logger.debug(f"[{context.transaction_id}] SendBackendPolicy Calculated URL Parts:")
-            logger.debug(f"  - backend_url_base: {backend_url_base}")
-            logger.debug(f"  - relative_path   : {relative_path}")
-            logger.debug(f"  - final target_url: {target_url}")
-
-            # --- Prepare Backend Headers ---
-            original_request = context.request
-            backend_headers = []
-            excluded_headers = {b"host", b"content-length", b"transfer-encoding", b"accept-encoding", b"authorization"}
-
-            # Copy necessary headers from original request, excluding problematic ones
-            for key_bytes, value_bytes in original_request.headers.raw:
-                if key_bytes.lower() not in excluded_headers:
-                    backend_headers.append((key_bytes, value_bytes))
-
-            # Add the correct Host header for the backend
-            try:
-                parsed_backend_url = urlparse(backend_url_base)
-                backend_host = parsed_backend_url.hostname
-                if not backend_host:
-                    raise ValueError("Could not parse hostname from BACKEND_URL")
-                backend_headers.append((b"host", backend_host.encode("latin-1")))
-            except ValueError as e:
-                logger.error(
-                    f"[{context.transaction_id}] Invalid BACKEND_URL for Host header: {e}",
-                    extra={"request_id": context.transaction_id},
-                )
-                raise ValueError(f"Could not parse scheme or netloc from BACKEND_URL: {e}")
-
-            # Force Accept-Encoding: identity (See issue #1)
-            backend_headers.append((b"accept-encoding", b"identity"))
-
-            # --- Add Backend Authorization Header ---
-            openai_key = context.settings.get_openai_api_key()
-            if not openai_key:
-                logger.error(f"[{context.transaction_id}] OPENAI_API_KEY not found in settings.")
-                raise ValueError("Backend API key not configured.")
-            backend_headers.append((b"authorization", f"Bearer {openai_key}".encode("latin-1")))
-            # --- End Backend Authorization Header ---
-
-            # --- Build new Request for Backend ---
-            # Use prepared headers
             backend_request = httpx.Request(
-                method=original_request.method,
+                method=context.request.method,
                 url=target_url,
-                headers=backend_headers,  # Use prepared headers
-                params=original_request.url.params,
-                content=original_request.content,  # Revert back to using .content
+                headers=backend_headers,
+                params=context.request.url.params,
+                content=context.request.content,  # Use original raw content
             )
-            # --- End Build new Request ---
 
             logger.debug(
                 f"[{context.transaction_id}] Sending request to backend: {backend_request.method} {backend_request.url}"
@@ -119,39 +142,33 @@ class SendBackendRequestPolicy(ControlPolicy):
             raw_body = await response.aread()
             logger.debug(f"[{context.transaction_id}] Read {len(raw_body)} bytes from backend response body.")
 
-        except httpx.TimeoutException as e:
-            request_url_for_log = backend_request.url if backend_request else "<unknown>"
+        except (httpx.TimeoutException, httpx.RequestError) as e:
+            request_url_for_log = backend_request.url if backend_request else target_url  # Fallback
+            error_type = type(e).__name__
             logger.error(
-                f"[{context.transaction_id}] Timeout connecting to backend '{request_url_for_log}': {e}",
+                f"[{context.transaction_id}] {error_type} connecting to backend '{request_url_for_log}': {e}",
                 extra={"request_id": context.transaction_id},
             )
-            # Store None and re-raise
-            context.response = None
+            context.response = None  # Clear any partial response state
+            context.data.pop("backend_response", None)
             context.data.pop("raw_backend_response_body", None)
-            raise
-        except httpx.RequestError as e:
-            request_url_for_log = backend_request.url if backend_request else "<unknown>"
-            # Includes ConnectError, ReadError, etc.
-            logger.error(
-                f"[{context.transaction_id}] Error connecting to backend '{request_url_for_log}': {e}",
-                extra={"request_id": context.transaction_id},
-            )
-            context.response = None
-            context.data.pop("raw_backend_response_body", None)
-            raise
+            raise  # Re-raise the httpx error
         except Exception as e:
-            request_url_for_log = backend_request.url if backend_request else "<unknown>"
-            # Catch other potential errors during send or aread
+            request_url_for_log = backend_request.url if backend_request else target_url
             logger.exception(
-                f"[{context.transaction_id}] Unexpected error during backend request or body read: {e}",
+                f"[{context.transaction_id}] Unexpected error during backend request "
+                f"to '{request_url_for_log}' or body read: {e}",
                 extra={"request_id": context.transaction_id},
             )
-            context.response = None
+            context.response = None  # Clear any partial response state
+            context.data.pop("backend_response", None)
             context.data.pop("raw_backend_response_body", None)
-            raise
+            raise  # Re-raise the unexpected error
 
-        # Store the response object in context.data and the raw body
-        context.response = None  # Ensure this remains None for normal flow
+        # --- Store Results ---
+        # Explicitly set context.response to None as per original logic,
+        # the actual response is handled via context.data
+        context.response = None
         context.data["backend_response"] = response  # Store the httpx response object here
         context.data["raw_backend_response_body"] = raw_body
 
@@ -159,8 +176,10 @@ class SendBackendRequestPolicy(ControlPolicy):
 
     def serialize_config(self) -> dict[str, Any]:
         """Serializes config. Returns base info as only dependency is http_client."""
+        # Ensure http_client is not accidentally serialized
         return {
             "__policy_type__": self.__class__.__name__,
             "name": self.name,
             "policy_class_path": self.policy_class_path,
+            # Do not include http_client here
         }

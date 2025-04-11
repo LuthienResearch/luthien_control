@@ -163,7 +163,10 @@ async def test_send_request_invalid_backend_url(
     base_context.settings = mock_settings
 
     # The policy reads context.settings directly now
-    with pytest.raises(ValueError, match="Could not parse scheme or netloc from BACKEND_URL"):
+    with pytest.raises(
+        ValueError,
+        match=r"Could not determine backend Host from BACKEND_URL: Could not parse hostname from BACKEND_URL",
+    ):
         await policy.apply(base_context)
 
     policy.http_client.send.assert_not_called()

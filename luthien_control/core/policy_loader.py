@@ -9,12 +9,12 @@ import httpx
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.compound_policy import CompoundPolicy
 from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.db.models import ApiKey
+from luthien_control.db.models import ClientApiKey
 
 logger = logging.getLogger(__name__)
 
-# Type alias for the API key lookup function, assuming it returns Optional[ApiKey]
-ApiKeyLookupFunc = Callable[[str], Coroutine[Any, Any, Optional[ApiKey]]]
+# Type alias for the API key lookup function, assuming it returns Optional[ClientApiKey]
+ApiKeyLookupFunc = Callable[[str], Coroutine[Any, Any, Optional[ClientApiKey]]]
 
 
 class PolicyLoadError(Exception):

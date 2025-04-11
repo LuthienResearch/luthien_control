@@ -1,9 +1,10 @@
 import json
 import logging
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
+import asyncpg
 import httpx
-from pydantic_core import ValidationError
+from pydantic import ValidationError
 
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.interface import ControlPolicy
@@ -14,12 +15,12 @@ from luthien_control.core.policy_loader import (
 )
 
 from .database import get_main_db_pool
-from .models import ApiKey, Policy
+from .models import ClientApiKey, Policy
 
 logger = logging.getLogger(__name__)
 
 
-async def get_api_key_by_value(key_value: str) -> Optional[ApiKey]:
+async def get_api_key_by_value(key_value: str) -> Optional[ClientApiKey]:
     """
     Fetches an API key record from the database based on the key value.
 
@@ -27,7 +28,7 @@ async def get_api_key_by_value(key_value: str) -> Optional[ApiKey]:
         key_value: The API key string to look up.
 
     Returns:
-        An ApiKey object if found. If metadata JSON is invalid, metadata will be None.
+        An ClientApiKey object if found. If metadata JSON is invalid, metadata will be None.
         Returns None if key not found, DB pool not initialized, or other DB error occurs.
     """
     try:
@@ -61,40 +62,34 @@ async def get_api_key_by_value(key_value: str) -> Optional[ApiKey]:
 
             try:
                 # Attempt to create the model
-                api_key = ApiKey(**record_dict)
+                api_key = ClientApiKey(**record_dict)
                 return api_key
             except ValidationError as ve:
-                # Check if the ONLY error was related to metadata_ parsing
-                is_only_metadata_error = False
-                if len(ve.errors()) == 1:
-                    error_details = ve.errors()[0]
-                    if error_details.get("loc") == ("metadata_",) and error_details.get("type") == "json_invalid":
-                        is_only_metadata_error = True
-
-                if is_only_metadata_error:
+                # Log a warning if metadata JSON is invalid
+                if "metadata_" in record_dict and record_dict["metadata_"] is not None:
                     logger.warning(
                         f"Invalid JSON in metadata for key ID {record_dict.get('id', '?')}. "
-                        f"Returning ApiKey with metadata=None. Error: {ve.errors()[0].get('msg')}"
+                        f"Returning ClientApiKey with metadata=None. Error: {ve.errors()[0].get('msg')}"
                     )
                     # Retry creating the model with metadata explicitly set to None
                     record_dict["metadata_"] = None
                     try:
-                        api_key_no_meta = ApiKey(**record_dict)
+                        api_key_no_meta = ClientApiKey(**record_dict)
                         return api_key_no_meta
                     except ValidationError as ve_retry:
                         # Should not happen if only metadata was the issue, but log if it does
                         logger.error(
-                            f"Failed to create ApiKey even after clearing metadata for key ID "
+                            f"Failed to create ClientApiKey even after clearing metadata for key ID "
                             f"{record_dict.get('id', '?')}. Validation Errors: {ve_retry.errors()}"
                         )
-                        # Fall through to the main exception handler -> return None
+                        return None  # Or re-raise, depending on desired behavior
                 else:
-                    # Validation error was not just metadata or there were multiple errors
+                    # Validation error wasn't due to metadata
                     logger.error(
-                        f"Pydantic validation failed for key ID {record_dict.get('id', '?')} "
-                        f"(not just metadata): {ve.errors()}"
+                        f"Pydantic validation error for API key ID {record_dict.get('id', '?')} "
+                        f"(not metadata related): {ve.errors()}"
                     )
-                    # Fall through to the main exception handler -> return None
+                    return None
 
         else:
             logger.debug(f"No API key record found for key starting with: {key_value[:4]}...")

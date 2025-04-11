@@ -4,7 +4,7 @@ from typing import Any, Dict
 from pydantic import BaseModel, ConfigDict, Field, Json
 
 
-class ApiKey(BaseModel):
+class ClientApiKey(BaseModel):
     id: int  # Primary key, usually auto-incrementing
     key_value: str = Field(..., json_schema_extra={"index": True, "unique": True})  # The actual API key string
     name: str = Field(..., json_schema_extra={"index": True})  # A user-friendly name for the key

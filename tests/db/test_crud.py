@@ -17,7 +17,7 @@ from luthien_control.db.crud import (
     get_policy_config_by_name,
     load_policy_from_db,
 )
-from luthien_control.db.models import ApiKey, Policy
+from luthien_control.db.models import ClientApiKey, Policy
 
 # Mark all tests in this module as async
 pytestmark = pytest.mark.asyncio
@@ -59,7 +59,7 @@ async def test_get_api_key_by_value_found_active(mock_db_pool):
     with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
         result = await get_api_key_by_value(test_key)
 
-    assert isinstance(result, ApiKey)
+    assert isinstance(result, ClientApiKey)
     assert result.key_value == test_key
     assert result.name == "Test Key Active"
     assert result.is_active is True
@@ -146,7 +146,7 @@ async def test_get_api_key_by_value_found_inactive(mock_db_pool):
     with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
         result = await get_api_key_by_value(test_key)
 
-    assert isinstance(result, ApiKey)
+    assert isinstance(result, ClientApiKey)
     assert result.key_value == test_key
     assert result.is_active is False
 
@@ -173,7 +173,7 @@ async def test_get_api_key_by_value_invalid_metadata_json(mock_db_pool):
         with patch("luthien_control.db.crud.logger.warning") as mock_warning:
             result = await get_api_key_by_value(test_key)
 
-    assert isinstance(result, ApiKey)
+    assert isinstance(result, ClientApiKey)
     assert result.key_value == test_key
     assert result.metadata_ is None  # Should be set to None due to parsing error
     mock_warning.assert_called_once()
@@ -197,7 +197,7 @@ async def test_get_api_key_by_value_found(mock_db_pool):
     with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
         result_key = await get_api_key_by_value(test_key)
 
-    assert result_key == ApiKey(**expected_record)  # type: ignore
+    assert result_key == ClientApiKey(**expected_record)  # type: ignore
 
     # Assert the SQL query was called correctly, ignoring whitespace differences
     mock_conn.fetchrow.assert_awaited_once()

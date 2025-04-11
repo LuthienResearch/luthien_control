@@ -189,9 +189,17 @@ async def close_main_db_pool() -> None:
     """Closes the main database asyncpg connection pool."""
     global _main_db_pool
     if _main_db_pool:
-        await _main_db_pool.close()
-        _main_db_pool = None
-        logger.info("Main database connection pool closed.")
+        # Add logging here
+        logger.info(f"CLOSE_CHECK in database.py: Type={type(_main_db_pool)}, Value={_main_db_pool!r}")
+        try:
+            await _main_db_pool.close()
+            logger.info("Main DB Pool closed successfully.")
+        except Exception as e:
+            logger.error(f"Error closing main DB pool: {e}", exc_info=True)
+        finally:
+            _main_db_pool = None  # Ensure it's set to None even if close fails
+    else:
+        logger.info("Main DB Pool was already None or not initialized during shutdown.")
 
 
 def get_main_db_pool() -> asyncpg.Pool:

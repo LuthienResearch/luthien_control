@@ -35,8 +35,22 @@ def test_app() -> FastAPI:
 @pytest.fixture
 def client(test_app: FastAPI) -> TestClient:  # type: ignore[misc]
     """Provides a FastAPI test client that correctly handles lifespan events."""
-    with TestClient(test_app) as test_client:
-        yield test_client
+    # Patch DB pool creation AND the global pool variable check during TestClient lifespan
+    # to prevent slow/failing startup in tests.
+    with (
+        patch("luthien_control.main.create_main_db_pool", new_callable=AsyncMock) as mock_create_main,
+        patch("luthien_control.main.create_log_db_pool", new_callable=AsyncMock) as mock_create_log,
+        patch("luthien_control.db.database._main_db_pool", new_callable=AsyncMock) as mock_pool_check,
+    ):  # Use AsyncMock for the pool itself
+        # Ensure mocked functions don't raise exceptions implicitly
+        mock_create_main.return_value = None
+        mock_create_log.return_value = None
+        # mock_pool_check doesn't need explicit config, MagicMock is enough to be truthy
+
+        # Now instantiate the TestClient *while the patches are active*
+        with TestClient(test_app) as test_client:
+            yield test_client  # Yield the client for tests to use
+    # Patches are automatically removed when the 'with patch(...)' block exits
 
 
 # Helper function to get backend URL from env (used for mocking)

@@ -111,6 +111,11 @@ This project uses Ruff for linting and formatting.
 Bandit is used to check for common security vulnerabilities.
 *   Run Bandit: `poetry run bandit -r luthien_control/`
 
+### Code Complexity Analysis
+Radon is used to analyze code complexity (e.g., cyclomatic complexity). This helps identify potentially complex and hard-to-maintain code.
+*   Check complexity: `poetry run radon cc luthien_control -a -s` (shows average and sorted results)
+*   Check maintainability index: `poetry run radon mi luthien_control -s`
+
 ### Directory Structure
 *   `luthien_control/`: Main package code (submodules: `proxy/`, `db/`, `config/`, `logging/`, etc.).
 *   `tests/`: Top-level test directory mirroring `luthien_control`.

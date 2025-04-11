@@ -31,4 +31,7 @@ class ClientAuthenticationError(ControlPolicyError):
 class ClientAuthenticationNotFoundError(ControlPolicyError):
     """Exception raised when the client API key is not found in the request."""
 
-    pass
+    def __init__(self, detail: str, status_code: int = 401):
+        self.detail = detail
+        self.status_code = status_code
+        super().__init__(self.detail)

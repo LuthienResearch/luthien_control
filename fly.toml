@@ -21,3 +21,5 @@ primary_region = "" # You should set your desired primary region here, e.g., "la
 
 [deploy]
   release_command = "poetry run python db/run_migrations.py"
+
+[env]

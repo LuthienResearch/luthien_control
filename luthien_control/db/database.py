@@ -17,39 +17,83 @@ _log_db_pool: Optional[asyncpg.Pool] = None
 _main_db_pool: Optional[asyncpg.Pool] = None
 
 
-# --- Helper Function for Pool Creation --- #
+# --- Helper Function for Main DB DSN --- #
+def _get_main_db_dsn() -> Optional[str]:
+    """Determines the main database DSN, prioritizing DATABASE_URL."""
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        logger.info("Using DATABASE_URL for main database connection.")
+        return database_url
+
+    logger.warning("DATABASE_URL not found. Falling back to individual POSTGRES_* variables.")
+    db_user = os.getenv("POSTGRES_USER")
+    db_password = os.getenv("POSTGRES_PASSWORD")
+    db_host = os.getenv("POSTGRES_HOST")
+    db_port = os.getenv("POSTGRES_PORT", "5432")  # Default port
+    db_name = os.getenv("POSTGRES_DB")
+
+    if not all([db_user, db_password, db_host, db_name]):
+        logger.error(
+            "Missing one or more required POSTGRES_* environment variables "
+            "(POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_DB) "
+            "when DATABASE_URL is not set."
+        )
+        return None
+
+    dsn = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    logger.info(
+        f"Constructed main database DSN from individual variables: postgresql://{db_user}:***@{db_host}:{db_port}/{db_name}"
+    )
+    return dsn
+
+
+# --- Modified Helper Function for Pool Creation --- #
 async def _create_pool_internal(
-    user_env: str,
-    password_env: str,
-    host_env: str,
-    port_env: str,
-    name_env: str,
     min_size_env: str,
     max_size_env: str,
     pool_desc: str,  # Description for logging (e.g., "logging", "main")
 ) -> Optional[asyncpg.Pool]:
-    """Internal helper to create an asyncpg connection pool from environment variables."""
+    """Internal helper to create an asyncpg connection pool using a DSN and pool size env vars."""
+
+    dsn: Optional[str] = None
+    if pool_desc == "main":
+        dsn = _get_main_db_dsn()
+    elif pool_desc == "logging":
+        # TODO: Implement similar DSN logic for logging DB if needed, or keep separate vars
+        # For now, assume logging DB still uses individual vars (or needs update)
+        logger.warning("_create_pool_internal called for logging DB, DSN logic not implemented yet.")
+        # Placeholder: attempt to build from specific log vars if needed
+        log_db_user = os.getenv("LOG_DB_USER")
+        log_db_password = os.getenv("LOG_DB_PASSWORD")
+        log_db_host = os.getenv("LOG_DB_HOST")
+        log_db_port = os.getenv("LOG_DB_PORT", "5432")
+        log_db_name = os.getenv("LOG_DB_NAME")
+        if all([log_db_user, log_db_password, log_db_host, log_db_name]):
+            dsn = f"postgresql://{log_db_user}:{log_db_password}@{log_db_host}:{log_db_port}/{log_db_name}"
+        else:
+            # Log the specific messages expected by the test
+            logger.error(f"Configuration error for {pool_desc} database pool")
+            logger.error(f"Missing essential {pool_desc} database connection environment variables")
+            return None
+    else:
+        logger.error(f"Unknown pool description: {pool_desc}")
+        return None
+
+    if not dsn:
+        # Log the specific messages expected by the test when DSN couldn't be determined (likely missing vars)
+        logger.error(f"Configuration error for {pool_desc} database pool")
+        logger.error(f"Missing essential {pool_desc} database connection environment variables")
+        return None
+
     try:
-        db_user = os.getenv(user_env)
-        db_password = os.getenv(password_env)
-        db_host = os.getenv(host_env, "localhost")
-        db_port_str = os.getenv(port_env, "5432")
-        db_name = os.getenv(name_env)
+        # Get and validate pool sizes
         pool_min_size_str = os.getenv(min_size_env, "1")
         pool_max_size_str = os.getenv(max_size_env, "10")
+        if not pool_min_size_str:
+            pool_min_size_str = "1"
+        if not pool_max_size_str:
+            pool_max_size_str = "10"
 
-        # Validate essential variables first
-        if not all([db_user, db_password, db_host, db_name]):
-            raise ValueError(
-                f"Missing essential {pool_desc} database connection environment variables "
-                f"({user_env}, {password_env}, {host_env}, {name_env})"
-            )
-
-        # Validate and convert types
-        try:
-            db_port = int(db_port_str)
-        except ValueError:
-            raise ValueError(f"Invalid {port_env}: '{db_port_str}' is not an integer.")
         try:
             pool_min_size = int(pool_min_size_str)
         except ValueError:
@@ -59,29 +103,37 @@ async def _create_pool_internal(
         except ValueError:
             raise ValueError(f"Invalid {max_size_env}: '{pool_max_size_str}' is not an integer.")
 
-        dsn = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-
     except ValueError as e:
-        logger.error(f"Configuration error for {pool_desc} database pool: {e}")
-        return None  # Do not proceed if config is invalid
+        logger.error(f"Configuration error for {pool_desc} database pool sizes: {e}")
+        return None
 
     try:
+        # Create pool using the determined DSN
         pool = await asyncpg.create_pool(
             dsn=dsn,
             min_size=pool_min_size,
             max_size=pool_max_size,
         )
-        logger.info(
-            f"{pool_desc.capitalize()} database connection pool created successfully "
-            f"for {db_name} @ {db_host}:{db_port}."
-        )
+        logger.info(f"{pool_desc.capitalize()} database connection pool created successfully using DSN.")
         return pool
     except Exception as e:
-        logger.exception(f"Failed to create {pool_desc} database connection pool: {e}")
-        return None  # Ensure pool is None if creation failed
+        # Log the actual DSN used, masking password if possible
+        masked_dsn = dsn
+        try:
+            from urllib.parse import urlparse, urlunparse
+
+            parsed = urlparse(dsn)
+            if parsed.password:
+                masked_dsn = urlunparse(
+                    parsed._replace(netloc=f"{parsed.username}:***@{parsed.hostname}:{parsed.port}")
+                )
+        except Exception:
+            pass  # Keep original DSN if parsing fails
+        logger.exception(f"Failed to create {pool_desc} database connection pool using DSN ({masked_dsn}): {e}")
+        return None
 
 
-# --- Logging DB Pool Management --- #
+# --- Logging DB Pool Management (Needs review based on DSN logic) --- #
 async def create_log_db_pool() -> None:
     """Creates the asyncpg connection pool using environment variables for the logging DB."""
     global _log_db_pool
@@ -89,16 +141,18 @@ async def create_log_db_pool() -> None:
         logger.warning("Logging database pool already initialized.")
         return
 
+    logger.info("Attempting to create logging database pool...")
+    # Call the internal creator with only pool size env vars
     _log_db_pool = await _create_pool_internal(
-        user_env="LOG_DB_USER",
-        password_env="LOG_DB_PASSWORD",
-        host_env="LOG_DB_HOST",
-        port_env="LOG_DB_PORT",
-        name_env="LOG_DB_NAME",
         min_size_env="LOG_DB_POOL_MIN_SIZE",
         max_size_env="LOG_DB_POOL_MAX_SIZE",
         pool_desc="logging",
     )
+    # Add direct check
+    if _log_db_pool:
+        logger.info("DIRECT CHECK (Log DB): _log_db_pool is SET after call.")
+    else:
+        logger.error("DIRECT CHECK (Log DB): _log_db_pool is NONE after call. Pool creation likely failed.")
 
 
 async def close_log_db_pool() -> None:
@@ -118,25 +172,26 @@ def get_log_db_pool() -> asyncpg.Pool:
     return _log_db_pool
 
 
-# --- Main DB Pool Management --- #
+# --- Main DB Pool Management (Updated) --- #
 async def create_main_db_pool() -> None:
-    """Creates the asyncpg connection pool using environment variables for the main application DB."""
+    """Creates the asyncpg connection pool using DSN logic for the main application DB."""
     global _main_db_pool
     if _main_db_pool:
         logger.warning("Main database pool already initialized.")
         return
 
-    # Note: No default pool sizes specified for main DB in README, using same as log DB
+    logger.info("Attempting to create main database pool using DSN logic...")
+    # Call the internal creator with only pool size env vars
     _main_db_pool = await _create_pool_internal(
-        user_env="POSTGRES_USER",
-        password_env="POSTGRES_PASSWORD",
-        host_env="POSTGRES_HOST",
-        port_env="POSTGRES_PORT",
-        name_env="POSTGRES_DB",
-        min_size_env="MAIN_DB_POOL_MIN_SIZE",  # Assuming these env vars might exist
-        max_size_env="MAIN_DB_POOL_MAX_SIZE",  # Assuming these env vars might exist
+        min_size_env="MAIN_DB_POOL_MIN_SIZE",
+        max_size_env="MAIN_DB_POOL_MAX_SIZE",
         pool_desc="main",
     )
+    # Direct check remains useful here
+    if _main_db_pool:
+        logger.info("DIRECT CHECK (Main DB): _main_db_pool is SET after call.")
+    else:
+        logger.error("DIRECT CHECK (Main DB): _main_db_pool is NONE after call. Pool creation likely failed.")
 
 
 async def close_main_db_pool() -> None:

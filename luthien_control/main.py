@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -5,10 +6,25 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
+# --- BEGIN ADDED LOGGING CONFIG ---
+# Configure basic logging to ensure output is captured
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s:%(lineno)d] - %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S%z",
+)
+# --- END ADDED LOGGING CONFIG ---
+
 from luthien_control.config.settings import Settings
 
 # Import the specific exception
-from luthien_control.db.database import close_log_db_pool, close_main_db_pool, create_log_db_pool, create_main_db_pool
+from luthien_control.db.database import (
+    _get_main_db_dsn,  # Import the new helper
+    close_log_db_pool,
+    close_main_db_pool,
+    create_log_db_pool,
+    create_main_db_pool,
+)
 
 # --- Local Imports --- #
 from luthien_control.proxy.server import router as proxy_router
@@ -29,11 +45,11 @@ async def lifespan(app: FastAPI):
     logger.info("HTTP Client initialized.")
 
     # Startup: Initialize Database Pools
-    # Check if the necessary DB configs are present before attempting to create pools
+    # Check if the log DB is configured (using old method for now)
     log_db_configured = all(os.getenv(var) for var in ["LOG_DB_USER", "LOG_DB_PASSWORD", "LOG_DB_HOST", "LOG_DB_NAME"])
-    main_db_configured = all(
-        os.getenv(var) for var in ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_HOST", "POSTGRES_DB"]
-    )
+    # Check if the main DB is configured by seeing if we can get a DSN
+    main_db_dsn = _get_main_db_dsn()
+    main_db_configured = bool(main_db_dsn)
 
     if log_db_configured:
         logger.info("Log DB seems configured, attempting to create pool...")
@@ -42,10 +58,47 @@ async def lifespan(app: FastAPI):
         logger.warning("Log DB environment variables not fully set. Log DB pool will not be created.")
 
     if main_db_configured:
-        logger.info("Main DB seems configured, attempting to create pool...")
-        await create_main_db_pool()
+        # We already logged the DSN source inside _get_main_db_dsn
+        logger.info("Main DB seems configured (DSN determined), attempting to create pool with retries...")
+        # --- BEGIN RETRY LOGIC --- #
+        max_retries = 3
+        retry_delay_seconds = 2
+        pool_created = False
+        for attempt in range(1, max_retries + 1):
+            logger.info(f"Attempting to create main DB pool (Attempt {attempt}/{max_retries})...")
+            try:
+                await create_main_db_pool()
+                # Check if pool was actually created (global variable check)
+                # Import locally to avoid potential circular dependency issues at module level
+                from luthien_control.db.database import _main_db_pool
+
+                if _main_db_pool:
+                    logger.info(f"Main DB pool successfully created on attempt {attempt}.")
+                    pool_created = True
+                    break  # Exit loop on success
+                else:
+                    # This case means create_main_db_pool returned without error but pool is still None
+                    # (e.g., internal DSN check failed, error logged within create_main_db_pool)
+                    logger.warning(f"create_main_db_pool completed on attempt {attempt} but pool is still None.")
+                    # No need to retry immediately if create_main_db_pool itself logged an error
+            except Exception as pool_exc:
+                # Catch broader exceptions during the await itself
+                logger.warning(f"Attempt {attempt} failed to create main DB pool: {pool_exc}")
+
+            if not pool_created and attempt < max_retries:
+                logger.info(f"Waiting {retry_delay_seconds} seconds before next attempt...")
+                await asyncio.sleep(retry_delay_seconds)
+            elif not pool_created:
+                logger.error(f"Failed to create main DB pool after {max_retries} attempts.")
+        # --- END RETRY LOGIC --- #
+        if not pool_created:
+            logger.error("Continuing startup without a functional main DB pool!")
+            # Depending on requirements, you might want to raise an exception here to halt startup
+            # raise RuntimeError("Failed to initialize main database connection pool after retries.")
     else:
-        logger.warning("Main DB environment variables not fully set. Main DB pool will not be created.")
+        logger.warning(
+            "Main DB could not be configured (DSN could not be determined). Main DB pool will not be created."
+        )
 
     yield
 

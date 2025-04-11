@@ -17,16 +17,13 @@ class ApiKey(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class PolicyBase(BaseModel):
+class Policy(BaseModel):
     name: str = Field(..., json_schema_extra={"index": True, "unique": True})
     policy_class_path: str
     config: Dict[str, Any] | None = None
     is_active: bool = Field(default=True)
     description: str | None = None
-
-
-class Policy(PolicyBase):
-    id: int  # Primary key
+    id: int | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

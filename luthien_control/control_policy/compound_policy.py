@@ -68,15 +68,57 @@ class CompoundPolicy(ControlPolicy):
         return f"<{self.name}(policies={policy_names})>"
 
     def serialize_config(self) -> dict[str, Any]:
-        """Serializes the CompoundPolicy configuration by listing member names."""
-        member_names = []
+        """Serializes the CompoundPolicy configuration including member configurations."""
+        member_policy_configs = []
         for policy in self.policies:
+            # Ensure member policy has a name before proceeding
             if policy.name is None:
-                # This should ideally not happen if policies are loaded correctly
                 raise ValueError(
                     f"Cannot serialize CompoundPolicy '{self.name}': member policy "
                     f"{policy.__class__.__name__} has no name set."
                 )
-            member_names.append(policy.name)
 
-        return {"member_policy_names": member_names}
+            try:
+                member_config = policy.serialize_config()
+                # Ensure the member config includes its type for deserialization
+                if "__policy_type__" not in member_config:
+                    # Add type if the member policy didn't already add it (best practice)
+                    member_config["__policy_type__"] = policy.__class__.__name__
+                # Store the policy name within its config as well, if available
+                if policy.name:
+                    member_config["name"] = policy.name
+                member_policy_configs.append(member_config)
+            except NotImplementedError:
+                # Handle policies that don't implement serialization (if any)
+                policy_name = getattr(policy, "name", policy.__class__.__name__)
+                self.logger.error(
+                    f"[{self.name}] Member policy '{policy_name}' does not implement "
+                    f"serialize_config(). Cannot fully serialize CompoundPolicy."
+                )
+                raise NotImplementedError(
+                    f"Member policy '{policy_name}' in CompoundPolicy '{self.name}' does not support serialization."
+                )
+            except Exception as e:
+                policy_name = getattr(policy, "name", policy.__class__.__name__)
+                self.logger.error(f"[{self.name}] Error serializing member policy '{policy_name}': {e}", exc_info=True)
+                raise RuntimeError(f"Failed to serialize member policy '{policy_name}'.") from e
+
+        # Prepare the final dictionary
+        serialized_data = {
+            "__policy_type__": self.__class__.__name__,
+            "name": self.name,
+            "member_policy_configs": member_policy_configs,  # Embed full configs
+        }
+
+        # Add the class path if it exists on the instance
+        if hasattr(self, "policy_class_path") and self.policy_class_path:
+            serialized_data["policy_class_path"] = self.policy_class_path
+        else:
+            # This indicates the instance wasn't loaded correctly via load_policy_instance
+            # or the attribute wasn't added to the interface/class.
+            self.logger.warning(
+                f"Cannot find 'policy_class_path' attribute on CompoundPolicy '{self.name}' instance. "
+                f"Serialization might be incomplete for direct reloading."
+            )
+
+        return serialized_data

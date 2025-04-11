@@ -92,5 +92,9 @@ class PrepareBackendHeadersPolicy(ControlPolicy):
         return context
 
     def serialize_config(self) -> dict[str, Any]:
-        """Serializes config. Returns empty dict as only dependency is settings."""
-        return {}
+        """Serializes config. Returns base info as only dependency is settings."""
+        return {
+            "__policy_type__": self.__class__.__name__,
+            "name": self.name,
+            "policy_class_path": self.policy_class_path,
+        }

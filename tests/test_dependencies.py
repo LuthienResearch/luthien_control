@@ -92,18 +92,18 @@ def mock_http_client_dep() -> AsyncMock:
     return AsyncMock(spec=httpx.AsyncClient)
 
 
-# Note: We patch 'luthien_control.dependencies.load_policy_instance' because
+# Note: We patch 'luthien_control.dependencies.load_policy_from_db' because
 # that's the reference used *within* the get_main_control_policy function.
 @pytest.mark.asyncio
-@patch("luthien_control.dependencies.load_policy_instance", new_callable=AsyncMock)
+@patch("luthien_control.dependencies.load_policy_from_db", new_callable=AsyncMock)
 async def test_get_main_control_policy_success(
-    mock_load_instance: AsyncMock,
+    mock_load_from_db: AsyncMock,
     mock_settings: MagicMock,
     mock_http_client_dep: AsyncMock,
 ):
     """Test successful loading of the main control policy."""
     mock_policy = AsyncMock(spec=ControlPolicy)
-    mock_load_instance.return_value = mock_policy
+    mock_load_from_db.return_value = mock_policy
     policy_name = "test-root-policy"
 
     # Call the dependency function directly, passing mocked dependencies
@@ -114,7 +114,7 @@ async def test_get_main_control_policy_success(
 
     # Assertions
     mock_settings.get_top_level_policy_name.assert_called_once()
-    mock_load_instance.assert_awaited_once_with(
+    mock_load_from_db.assert_awaited_once_with(
         name=policy_name,
         settings=mock_settings,
         http_client=mock_http_client_dep,
@@ -124,9 +124,9 @@ async def test_get_main_control_policy_success(
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.dependencies.load_policy_instance", new_callable=AsyncMock)
+@patch("luthien_control.dependencies.load_policy_from_db", new_callable=AsyncMock)
 async def test_get_main_control_policy_name_not_configured(
-    mock_load_instance: AsyncMock,
+    mock_load_from_db: AsyncMock,
     mock_settings: MagicMock,
     mock_http_client_dep: AsyncMock,
 ):
@@ -141,20 +141,20 @@ async def test_get_main_control_policy_name_not_configured(
 
     assert exc_info.value.status_code == 500
     assert "Control policy name not configured" in exc_info.value.detail
-    mock_load_instance.assert_not_awaited()
+    mock_load_from_db.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.dependencies.load_policy_instance", new_callable=AsyncMock)
+@patch("luthien_control.dependencies.load_policy_from_db", new_callable=AsyncMock)
 async def test_get_main_control_policy_not_found_error(
-    mock_load_instance: AsyncMock,
+    mock_load_from_db: AsyncMock,
     mock_settings: MagicMock,
     mock_http_client_dep: AsyncMock,
 ):
-    """Test handling when load_policy_instance raises PolicyLoadError for not found."""
+    """Test handling when load_policy_from_db raises PolicyLoadError for not found."""
     policy_name = "test-root-policy"
-    # crud.load_policy_instance raises PolicyLoadError for not found cases
-    mock_load_instance.side_effect = PolicyLoadError(
+    # crud.load_policy_from_db raises PolicyLoadError for not found cases
+    mock_load_from_db.side_effect = PolicyLoadError(
         f"Active policy configuration named '{policy_name}' not found in database."
     )
 
@@ -166,21 +166,21 @@ async def test_get_main_control_policy_not_found_error(
 
     assert exc_info.value.status_code == 500
     assert "Could not load main control policy" in exc_info.value.detail
-    # Check for the specific message raised by load_policy_instance within the overall error detail
+    # Check for the specific message raised by load_policy_from_db within the overall error detail
     assert f"Active policy configuration named '{policy_name}' not found" in exc_info.value.detail
-    mock_load_instance.assert_awaited_once()
+    mock_load_from_db.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.dependencies.load_policy_instance", new_callable=AsyncMock)
+@patch("luthien_control.dependencies.load_policy_from_db", new_callable=AsyncMock)
 async def test_get_main_control_policy_load_error(
-    mock_load_instance: AsyncMock,
+    mock_load_from_db: AsyncMock,
     mock_settings: MagicMock,
     mock_http_client_dep: AsyncMock,
 ):
-    """Test handling PolicyLoadError from load_policy_instance."""
+    """Test handling PolicyLoadError from load_policy_from_db."""
     policy_name = "test-root-policy"
-    mock_load_instance.side_effect = PolicyLoadError(f"Failed loading '{policy_name}'")
+    mock_load_from_db.side_effect = PolicyLoadError(f"Failed loading '{policy_name}'")
 
     with pytest.raises(HTTPException) as exc_info:
         await get_main_control_policy(
@@ -191,18 +191,18 @@ async def test_get_main_control_policy_load_error(
     assert exc_info.value.status_code == 500
     assert "Could not load main control policy" in exc_info.value.detail
     assert f"Failed loading '{policy_name}'" in exc_info.value.detail
-    mock_load_instance.assert_awaited_once()
+    mock_load_from_db.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.dependencies.load_policy_instance", new_callable=AsyncMock)
+@patch("luthien_control.dependencies.load_policy_from_db", new_callable=AsyncMock)
 async def test_get_main_control_policy_unexpected_error(
-    mock_load_instance: AsyncMock,
+    mock_load_from_db: AsyncMock,
     mock_settings: MagicMock,
     mock_http_client_dep: AsyncMock,
 ):
-    """Test handling unexpected exceptions from load_policy_instance."""
-    mock_load_instance.side_effect = ValueError("Something went wrong")
+    """Test handling unexpected exceptions from load_policy_from_db."""
+    mock_load_from_db.side_effect = ValueError("Something went wrong")
 
     with pytest.raises(HTTPException) as exc_info:
         await get_main_control_policy(
@@ -212,4 +212,4 @@ async def test_get_main_control_policy_unexpected_error(
 
     assert exc_info.value.status_code == 500
     assert "Unexpected issue loading main control policy" in exc_info.value.detail
-    mock_load_instance.assert_awaited_once()
+    mock_load_from_db.assert_awaited_once()

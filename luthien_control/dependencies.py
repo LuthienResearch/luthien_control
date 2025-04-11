@@ -16,10 +16,10 @@ from luthien_control.core.response_builder.interface import ResponseBuilder
 
 # Import DB access functions
 from luthien_control.db.crud import (
-    ApiKeyLookupFunc,  # Import the correct type alias
-    PolicyLoadError,  # Assuming this exception is raised by crud
+    ApiKeyLookupFunc,
+    PolicyLoadError,
     get_api_key_by_value,
-    load_policy_instance,
+    load_policy_from_db,
 )
 
 logger = logging.getLogger(__name__)
@@ -78,13 +78,13 @@ async def get_main_control_policy(
         # Pass the injected dependencies and the function reference for lookup
         api_key_lookup: ApiKeyLookupFunc = get_api_key_by_value  # Use correct type hint
 
-        main_policy = await load_policy_instance(
+        main_policy = await load_policy_from_db(
             name=top_level_policy_name,
             settings=settings,
             http_client=http_client,  # Pass the client obtained via Depends
             api_key_lookup=api_key_lookup,  # Pass the lookup function reference
         )
-        if not main_policy:  # load_policy_instance might return None if not found
+        if not main_policy:  # load_policy_from_db might return None if not found
             logger.error(f"Main control policy '{top_level_policy_name}' could not be loaded (not found or inactive).")
             raise HTTPException(
                 status_code=500,
@@ -92,7 +92,7 @@ async def get_main_control_policy(
             )
 
         return main_policy
-    except PolicyLoadError as e:  # Catch specific loading errors from crud.load_policy_instance
+    except PolicyLoadError as e:  # Catch specific loading errors from crud.load_policy_from_db
         logger.exception(f"Failed to load main control policy '{top_level_policy_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: Could not load main control policy. {e}")
     except Exception as e:

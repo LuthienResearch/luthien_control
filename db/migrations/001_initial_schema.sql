@@ -10,6 +10,18 @@ CREATE TABLE policies (
 );
 CREATE INDEX idx_policies_name ON policies (name);
 
+-- Table for API Keys
+CREATE TABLE api_keys (
+    id SERIAL PRIMARY KEY,
+    key_value VARCHAR NOT NULL UNIQUE,
+    name VARCHAR NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    metadata_ JSONB NULL
+);
+-- Add indexes for faster lookups
+CREATE INDEX idx_api_keys_key_value ON api_keys (key_value);
+CREATE INDEX idx_api_keys_name ON api_keys (name);
 
 -- Logging table for requests and responses
 -- Kept IF NOT EXISTS for idempotency, although migration runner should handle it.

@@ -14,11 +14,18 @@ from luthien_control.core.context import TransactionContext
 class MockSimplePolicy(ControlPolicy):
     """A simple mock policy for testing."""
 
-    def __init__(self, name: str = "MockPolicy", side_effect: Any = None, sets_response: bool = False):
+    def __init__(
+        self,
+        name: str = "MockPolicy",
+        side_effect: Any = None,
+        sets_response: bool = False,
+        policy_class_path: str | None = None,
+    ):
         self.name = name
         self.apply_mock = AsyncMock(side_effect=side_effect)
         self.sets_response = sets_response
         self.logger = logging.getLogger(f"test.policy.{name}")  # Add logger
+        self.policy_class_path = policy_class_path or f"mock.module.{self.__class__.__name__}"  # Assign default path
 
     async def apply(self, context: TransactionContext) -> TransactionContext:
         self.logger.info(f"Applying {self.name}")  # Add logging
@@ -36,8 +43,14 @@ class MockSimplePolicy(ControlPolicy):
         return f"<{self.name}>"
 
     def serialize_config(self) -> dict[str, Any]:
-        # Mock policies generally don't need complex serialization in tests
-        return {}
+        # Mock policies generally don't need complex serialization in tests,
+        # but we need the keys expected by the loader/serializer.
+        return {
+            "__policy_type__": self.__class__.__name__,
+            "name": self.name,
+            "policy_class_path": self.policy_class_path,
+            # Add any other specific config if needed for a test
+        }
 
 
 @pytest.fixture
@@ -141,3 +154,50 @@ def test_compound_policy_repr():
     # Test empty
     compound_empty = CompoundPolicy(policies=[], name="Empty")
     assert repr(compound_empty) == "<Empty(policies=[])>"
+
+
+def test_compound_serialize_config():
+    """Test the serialize_config method for CompoundPolicy with nested structure."""
+    member1_path = "test.policies.MemberPolicy1"
+    member2_path = "test.policies.MemberPolicy2"
+    compound_path = "luthien_control.control_policy.compound_policy.CompoundPolicy"
+
+    member1 = MockSimplePolicy(name="Member1", policy_class_path=member1_path)
+    member2 = MockSimplePolicy(name="Member2", policy_class_path=member2_path)
+
+    compound = CompoundPolicy(policies=[member1, member2], name="MyCompound")
+    # Manually assign the class path as it would be set during loading
+    compound.policy_class_path = compound_path
+
+    expected_member1_config = {
+        "__policy_type__": "MockSimplePolicy",
+        "name": "Member1",
+        "policy_class_path": member1_path,
+    }
+    expected_member2_config = {
+        "__policy_type__": "MockSimplePolicy",
+        "name": "Member2",
+        "policy_class_path": member2_path,
+    }
+
+    expected_config = {
+        "__policy_type__": "CompoundPolicy",
+        "name": "MyCompound",
+        "policy_class_path": compound_path,
+        "member_policy_configs": [expected_member1_config, expected_member2_config],
+    }
+
+    assert compound.serialize_config() == expected_config
+
+
+def test_compound_serialize_config_missing_path_warning(caplog):
+    """Test that a warning is logged if policy_class_path is missing during serialization."""
+    member1 = MockSimplePolicy(name="Member1")
+    compound = CompoundPolicy(policies=[member1], name="MyCompound")
+    # Do *not* set compound.policy_class_path
+
+    with caplog.at_level(logging.WARNING):
+        config = compound.serialize_config()
+
+    assert "policy_class_path" not in config
+    assert f"Cannot find 'policy_class_path' attribute on CompoundPolicy '{compound.name}' instance." in caplog.text

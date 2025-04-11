@@ -12,6 +12,7 @@ class ControlPolicy(abc.ABC):
     """Abstract Base Class defining the interface for a processing step."""
 
     name: str | None = None
+    policy_class_path: str | None = None
 
     def __init__(self, **kwargs: Any) -> None:
         pass

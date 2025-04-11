@@ -28,7 +28,7 @@ When making changes to the codebase:
 6. **Development Tracking (MANDATORY):**
    - **Start of Task:** Update `dev/current_context.md` with the goals and current state for the new task.
    - **End of Task / Periodic Update:**
-     1. Run `bash dev/scripts/rotate_dev_log.sh` to handle log rotation.
+     1. Run `bash scripts/rotate_dev_log.sh` to handle log rotation.
      2. Append the detailed log entry (changes, status, next steps) to `dev/development_log.md`.
      3. Replace the entire content of `dev/current_context.md` with the current state snapshot.
    - Refer to `dev_tracking.mdc` for full format details.

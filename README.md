@@ -115,7 +115,7 @@ Bandit is used to check for common security vulnerabilities.
 *   `luthien_control/`: Main package code (submodules: `proxy/`, `db/`, `config/`, `logging/`, etc.).
 *   `tests/`: Top-level test directory mirroring `luthien_control`.
 *   `dev/`: Development tracking files (`ProjectPlan.md`, `current_context.md`, `development_log.md`, `ToDo.md`).
-*   `dev/scripts/`: Helper scripts (e.g., log rotation).
+*   `scripts/`: Helper scripts (e.g., log rotation).
 *   `docker-compose.yml`: Configuration for local development database.
 *   `.env.example`: Example environment variable file.
 *   `pyproject.toml`: Project metadata and dependencies (Poetry).

@@ -1,4 +1,3 @@
-import logging
 import os
 import uuid
 from pathlib import Path
@@ -15,22 +14,9 @@ from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.core.response_builder.interface import ResponseBuilder
-from luthien_control.db.models import ApiKey  # Assuming ApiKey is defined here
-from luthien_control.main import app  # Import app directly
+from luthien_control.db.models import ApiKey
+from luthien_control.main import app
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-
-# --- Logging Configuration for Tests ---
-# Configure logging basicConfig at the module level
-# Ensure this runs early, before other fixtures might try to log
-logging.basicConfig(
-    level=logging.INFO,  # Set level to INFO to capture our debug logs
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    force=True,  # Override any root logger config FastAPI might set implicitly
-)
-logging.getLogger("httpx").setLevel(logging.WARNING)  # Quiet down noisy httpx logs
-logging.getLogger("httpcore").setLevel(logging.WARNING)
-# --- End Logging Configuration ---
-
 
 # --- Command Line Option ---
 

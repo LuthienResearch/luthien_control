@@ -8,9 +8,6 @@ import psycopg2.errors  # Import specific errors
 from dotenv import load_dotenv
 from psycopg2 import sql
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
 # Determine project root assuming script is in db/
 PROJECT_ROOT = Path(__file__).parent.parent
 MIGRATIONS_DIR = PROJECT_ROOT / "db" / "migrations"
@@ -67,8 +64,6 @@ def get_db_connection():
 def ensure_schema_migrations_table(conn):
     """Checks if the schema_migrations table exists and creates it if not."""
     try:
-        # Remove autocommit setting from here
-        # conn.autocommit = True
         with conn.cursor() as cur:
             # Check if table exists
             cur.execute(

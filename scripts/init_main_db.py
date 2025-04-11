@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv(verbose=True)
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Database Configuration --- #

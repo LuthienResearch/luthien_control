@@ -8,13 +8,18 @@ from fastapi import FastAPI
 
 from luthien_control.config.settings import Settings
 from luthien_control.db.database import (
-    _get_main_db_dsn,  # Import the new helper
+    _get_main_db_dsn,
+    _main_db_pool,
     close_log_db_pool,
     close_main_db_pool,
     create_log_db_pool,
     create_main_db_pool,
 )
+from luthien_control.logging_config import setup_logging
 from luthien_control.proxy.server import router as proxy_router
+
+setup_logging()
+
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +62,6 @@ async def lifespan(app: FastAPI):
                 await create_main_db_pool()
                 # Check if pool was actually created (global variable check)
                 # Import locally to avoid potential circular dependency issues at module level
-                from luthien_control.db.database import _main_db_pool
 
                 if _main_db_pool:
                     logger.info(f"Main DB pool successfully created on attempt {attempt}.")

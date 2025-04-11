@@ -1,10 +1,6 @@
 ---
-description: MANDATORY GUIDANCE when running pytest
+description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
-# Interpreting Pytest Results
-
-1.  **Check the Summary Line:** Do not rely solely on the command's exit code (e.g., "Exit code: 0"). Always look for the `pytest` summary line at the end of the output (e.g., `==== X passed, Y failed, Z warnings in S.ss ====`).
-2.  **Zero Failures Required:** A successful test run means the summary line explicitly shows **0 failed**. Any number of failures indicates a problem that must be addressed.
-3.  **Analyze Failures:** If failures are reported, carefully examine the detailed failure output provided by `pytest` to understand the cause. Do not proceed until all tests pass. 
+Do not rely solely on the command's exit code (e.g., "Exit code: 0"). Always look for the `pytest` summary line at the end of the output (e.g., `==== X passed, Y failed, Z warnings in S.ss ====`).

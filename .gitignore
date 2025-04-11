@@ -34,3 +34,4 @@ logs/
 
 # ruff
 .ruff_cache/
+scratch/

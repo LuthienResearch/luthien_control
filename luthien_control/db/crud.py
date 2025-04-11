@@ -1,15 +1,15 @@
 import importlib
 import inspect
+import json
 import logging
 from typing import Any, Callable, Dict, Optional, Type
-import json
 
 import httpx
 from pydantic_core import ValidationError
 
 from luthien_control.config.settings import Settings
-from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.control_policy.compound_policy import CompoundPolicy
+from luthien_control.control_policy.interface import ControlPolicy
 
 from .database import get_main_db_pool
 from .models import ApiKey, Policy
@@ -162,9 +162,9 @@ async def get_policy_config_by_name(name: str) -> Optional[Policy]:
                     record_dict["config"] = None
             elif config_value is not None and not isinstance(config_value, dict):
                 logger.warning(
-                    f"Unexpected type for 'config' field for policy '{name}': {type(config_value)}. Attempting to proceed."
+                    f"Unexpected type for 'config' field for policy '{name}': "
+                    f"{type(config_value)}. Attempting to proceed."
                 )
-                # Pydantic validation might still fail
             elif config_value is None:  # Ensure config is always a dict
                 record_dict["config"] = {}
 
@@ -252,7 +252,8 @@ async def instantiate_policy(
             if isinstance(value, dict) and "policy_class_path" in value:
                 nested_name = value.get("name", "<unknown_nested>")
                 logger.debug(
-                    f"Found nested policy config '{nested_name}' under key '{key}' for '{instance_name}'. Recursively instantiating..."
+                    f"Found nested policy config '{nested_name}' under key '{key}' "
+                    f"for '{instance_name}'. Recursively instantiating..."
                 )
                 resolved_config[key] = await instantiate_policy(value, settings, http_client, api_key_lookup)
             # Check if value is a list possibly containing nested policy dicts
@@ -262,7 +263,8 @@ async def instantiate_policy(
                     if isinstance(item, dict) and "policy_class_path" in item:
                         nested_name = item.get("name", f"<unknown_nested_in_list_idx_{index}>")
                         logger.debug(
-                            f"Found nested policy config '{nested_name}' in list under key '{key}' (index {index}) for '{instance_name}'. Recursively instantiating..."
+                            f"Found nested policy config '{nested_name}' in list under key "
+                            f"'{key}' (index {index}) for '{instance_name}'. Recursively instantiating..."
                         )
                         resolved_list.append(await instantiate_policy(item, settings, http_client, api_key_lookup))
                     else:
@@ -342,7 +344,8 @@ async def instantiate_policy(
 
     if missing_required:
         raise PolicyLoadError(
-            f"Cannot instantiate policy '{instance_name}' ({class_name}). Missing required arguments: {missing_required}. "
+            f"Cannot instantiate policy '{instance_name}' ({class_name}). "
+            f"Missing required arguments: {missing_required}. "
             f"Provided arguments: {list(instance_args.keys())}. Resolved config keys: {list(resolved_config.keys())}. "
             f"Required by __init__: {list(p for p in init_params if p != 'self')}"
         )
@@ -357,7 +360,8 @@ async def instantiate_policy(
             f"Attempted args: { {k: type(v).__name__ for k, v in instance_args.items()} }. Error: {e}"
         )
         raise PolicyLoadError(
-            f"Failed to instantiate policy '{instance_name}' ({class_name}) due to TypeError. Check constructor signature."
+            f"Failed to instantiate policy '{instance_name}' ({class_name}) "
+            "due to TypeError. Check constructor signature."
         ) from e
     except Exception as e:
         logger.exception(

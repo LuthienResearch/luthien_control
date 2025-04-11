@@ -1,10 +1,10 @@
+import logging
 from unittest.mock import AsyncMock, patch
 
 import asyncpg
 import luthien_control.db.database
 import pytest
 import pytest_asyncio
-import logging
 
 # Assuming absolute imports
 from luthien_control.db.database import (
@@ -178,7 +178,7 @@ async def test_create_pool_missing_env_vars(monkeypatch, caplog):
     monkeypatch.delenv("LOG_DB_PASSWORD", raising=False)
     monkeypatch.delenv("POSTGRES_USER", raising=False)
 
-    with patch("asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
+    with patch("asyncpg.create_pool", new_callable=AsyncMock):
         # Ensure globals are None before starting (handled by fixture)
         assert luthien_control.db.database._log_db_pool is None
         assert luthien_control.db.database._main_db_pool is None

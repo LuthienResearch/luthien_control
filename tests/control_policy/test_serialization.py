@@ -294,7 +294,7 @@ async def test_round_trip_compound_policy(mock_get_config, mock_settings, mock_h
         is_active=True,
         description="Test Compound from DB",
     )
-    mock_member1_db_policy = DbPolicy(
+    DbPolicy(
         id=8,
         name=member1.name,
         policy_class_path=member1_class_path,
@@ -302,7 +302,7 @@ async def test_round_trip_compound_policy(mock_get_config, mock_settings, mock_h
         is_active=True,
         description="Test Member 1",
     )
-    mock_member2_db_policy = DbPolicy(
+    DbPolicy(
         id=9,
         name=member2.name,
         policy_class_path=member2_class_path,

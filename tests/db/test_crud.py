@@ -1,8 +1,6 @@
 import datetime
-import inspect
 import json
-from typing import Any, Dict
-from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import asyncpg
 import httpx
@@ -10,22 +8,19 @@ import pytest
 from luthien_control.config.settings import Settings
 
 # Assume these base classes/protocols exist for mocking
-from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.db import crud
 from luthien_control.db.crud import (
     ApiKeyLookupFunc,
     PolicyLoadError,
     get_api_key_by_value,
     get_policy_config_by_name,
-    load_policy_from_db,
     instantiate_policy,
+    load_policy_from_db,
 )
 from luthien_control.db.models import ApiKey, Policy
 
 # Import the mock policy classes from the new helper file
 from tests.db.mock_policies import (
     MockListPolicy,
-    MockMissingArgPolicy,
     MockNestedPolicy,
     MockNoArgsPolicy,
     MockPolicyWithApiKeyLookup,
@@ -626,10 +621,11 @@ async def test_instantiate_policy_attribute_error(mock_getattr, mock_import_modu
     """Test PolicyLoadError is raised on AttributeError (class not in module)."""
     policy_config_dict = {
         "name": "attr_fail",
-        "policy_class_path": "tests.db.mock_policies.NonExistentClass",  # Point to the right module, but non-existent class
+        # Point to the right module, but non-existent class
+        "policy_class_path": "tests.db.mock_policies.NonExistentClass",
         "param": 1,
     }
-    mock_module = MagicMock()
+    MagicMock()
 
     # Configure side_effect directly within the test
     def getattr_side_effect(module, class_name):

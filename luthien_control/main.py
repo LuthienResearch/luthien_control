@@ -6,18 +6,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
-# --- BEGIN ADDED LOGGING CONFIG ---
-# Configure basic logging to ensure output is captured
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s [%(name)s:%(lineno)d] - %(message)s",
-    datefmt="%Y-%m-%dT%H:%M:%S%z",
-)
-# --- END ADDED LOGGING CONFIG ---
-
 from luthien_control.config.settings import Settings
-
-# Import the specific exception
 from luthien_control.db.database import (
     _get_main_db_dsn,  # Import the new helper
     close_log_db_pool,
@@ -25,8 +14,6 @@ from luthien_control.db.database import (
     create_log_db_pool,
     create_main_db_pool,
 )
-
-# --- Local Imports --- #
 from luthien_control.proxy.server import router as proxy_router
 
 logger = logging.getLogger(__name__)

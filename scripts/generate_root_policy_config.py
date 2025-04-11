@@ -16,13 +16,17 @@ sys.path.insert(0, project_root)
 # Now import necessary components
 try:
     from luthien_control.config.settings import Settings
-    from luthien_control.db.crud import load_policy_instance, get_api_key_by_value
-    from luthien_control.db.database import create_main_db_pool, close_main_db_pool
-    from luthien_control.db.crud import ApiKeyLookupFunc  # Import the type alias
+    from luthien_control.db.crud import (
+        ApiKeyLookupFunc,  # Import the type alias
+        get_api_key_by_value,
+        load_policy_instance,
+    )
+    from luthien_control.db.database import close_main_db_pool, create_main_db_pool
 except ImportError as e:
     print(f"Error importing project modules: {e}", file=sys.stderr)
     print(
-        "Ensure the script is run from the project root using 'poetry run python scripts/generate_root_policy_config.py'",
+        "Ensure the script is run from the project root using "
+        "'poetry run python scripts/generate_root_policy_config.py'",
         file=sys.stderr,
     )
     sys.exit(1)

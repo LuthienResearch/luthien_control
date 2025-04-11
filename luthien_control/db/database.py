@@ -5,10 +5,6 @@ from typing import Any, Dict, Optional
 from urllib.parse import urlparse, urlunparse
 
 import asyncpg
-from dotenv import load_dotenv
-
-# Load .env file variables into environment
-load_dotenv(verbose=True)
 
 logger = logging.getLogger(__name__)
 

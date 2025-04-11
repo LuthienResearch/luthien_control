@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse, urlunparse
 
 import asyncpg
 from dotenv import load_dotenv
@@ -119,16 +120,10 @@ async def _create_pool_internal(
     except Exception as e:
         # Log the actual DSN used, masking password if possible
         masked_dsn = dsn
-        try:
-            from urllib.parse import urlparse, urlunparse
 
-            parsed = urlparse(dsn)
-            if parsed.password:
-                masked_dsn = urlunparse(
-                    parsed._replace(netloc=f"{parsed.username}:***@{parsed.hostname}:{parsed.port}")
-                )
-        except Exception:
-            pass  # Keep original DSN if parsing fails
+        parsed = urlparse(dsn)
+        if parsed.password:
+            masked_dsn = urlunparse(parsed._replace(netloc=f"{parsed.username}:***@{parsed.hostname}:{parsed.port}"))
         logger.exception(f"Failed to create {pool_desc} database connection pool using DSN ({masked_dsn}): {e}")
         return None
 

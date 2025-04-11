@@ -178,6 +178,9 @@ def run_migration(conn, migration_file: Path):
 
 
 def main():
+    # Configure basic logging to show INFO messages on the console
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
     load_dotenv()
     available = get_available_migrations()
     if not available:
@@ -185,9 +188,10 @@ def main():
         sys.exit(0)
 
     conn = None
+    all_successful = True
     try:
         conn = get_db_connection()
-        logging.info("Connection set to autocommit mode.")
+        # Connection already logs its status
 
         # Ensure the tracking table exists
         if not ensure_schema_migrations_table(conn):
@@ -197,49 +201,51 @@ def main():
         # Get applied migrations (table is guaranteed to exist now)
         applied = get_applied_migrations(conn)
 
-        # Determine pending migrations
-        # Exclude the tracking script itself if it's in the list and already applied by ensure_...
-        pending = sorted([m for m in available if m not in applied])
+        logging.info(f"Found {len(available)} migration files. Checking status...")
 
-        if not pending:
-            logging.info("Database schema is up to date.")
-            sys.exit(0)
-
-        logging.info(f"Pending migrations: {pending}")
-
-        # Process each pending migration individually
-        for migration_name in pending:
+        # Process each available migration individually, in order
+        for migration_name in available:
             migration_file = MIGRATIONS_DIR / migration_name
 
-            # Execute the script
+            if migration_name in applied:
+                logging.info(f"[Skipped] {migration_name} (already applied)")
+                continue
+
+            # If not applied, attempt to run it
+            logging.info(f"[Applying] {migration_name}...")
             if run_migration(conn, migration_file):
                 # If successful, record it immediately
-                logging.info(f"Recording migration: {migration_name}...")
+                logging.info(f"  Recording migration: {migration_name}...")
                 try:
                     with conn.cursor() as cur:
                         insert_sql = sql.SQL("INSERT INTO {} (version) VALUES (%s)").format(
                             sql.Identifier(SCHEMA_MIGRATIONS_TABLE_NAME)
                         )
-                        # Ensure migration_name is passed as a tuple for execute
                         cur.execute(insert_sql, (migration_name,))
-                    logging.info(f"Successfully recorded: {migration_name}")
+                        conn.commit()
+                    logging.info(f"[Success] {migration_name}")
                 except psycopg2.Error as insert_err:
-                    # This indicates a problem inserting the record after successful execution
                     logging.error(
-                        f"CRITICAL: Failed to record migration {migration_name} "
+                        f"[CRITICAL] Failed to record migration {migration_name} "
                         f"after successful execution: {insert_err}"
                     )
-                    logging.error("The schema may be in an inconsistent state. Manual intervention required.")
-                    sys.exit(1)  # Exit immediately, requires manual check
+                    logging.error("  The schema may be in an inconsistent state. Manual intervention required.")
+                    all_successful = False
+                    break  # Stop processing further migrations on critical record error
             else:
                 # run_migration failed and logged the error
-                logging.error(f"Migration {migration_name} failed. Stopping.")
-                sys.exit(1)  # Stop processing further migrations
+                logging.error(f"[Failed] {migration_name}. Stopping further migrations.")
+                all_successful = False
+                break  # Stop processing further migrations on execution failure
 
-        logging.info("All pending migrations applied and recorded successfully.")
+        if all_successful:
+            logging.info("Migration check complete. All migrations processed successfully or already applied.")
+        else:
+            logging.error("Migration process stopped due to errors.")
+            sys.exit(1)  # Exit with error code if any migration failed
 
     except Exception as e:
-        logging.error(f"An unexpected error occurred: {e}")
+        logging.exception(f"An unexpected error occurred during the migration process: {e}")
         sys.exit(1)
     finally:
         if conn and not conn.closed:
@@ -248,4 +254,5 @@ def main():
 
 
 if __name__ == "__main__":
+    # Set up logging before calling main
     main()

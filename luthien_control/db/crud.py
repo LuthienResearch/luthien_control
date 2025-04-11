@@ -1,8 +1,7 @@
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
-import asyncpg
 import httpx
 from pydantic import ValidationError
 
@@ -15,7 +14,7 @@ from luthien_control.core.policy_loader import (
 )
 
 from .database import get_main_db_pool
-from .models import ClientApiKey, Policy
+from .models import TABLE_NAME_MAP, ClientApiKey, Policy
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +36,21 @@ async def get_api_key_by_value(key_value: str) -> Optional[ClientApiKey]:
         logger.error("Cannot fetch API key: Main database pool not initialized.")
         return None
 
-    sql = """
+    # Get table name from the central mapping
+    table_name = TABLE_NAME_MAP.get(ClientApiKey)
+    if not table_name:
+        # This should ideally not happen if the map is maintained
+        logger.critical("CRITICAL: Table name for ClientApiKey not found in TABLE_NAME_MAP. Cannot proceed.")
+        # Depending on desired robustness, could default or raise an exception
+        # For now, let's prevent execution with a missing mapping
+        return None  # Or raise an error
+
+    # Use an f-string to insert the table name. This is safe as the table name
+    # comes from our defined mapping, not external input.
+    # Parameterization ($1) is still used for the actual key_value, preventing SQL injection.
+    sql = f"""
         SELECT id, key_value, name, is_active, created_at, metadata_
-        FROM api_keys
+        FROM {table_name}
         WHERE key_value = $1
     """
 

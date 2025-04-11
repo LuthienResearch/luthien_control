@@ -12,7 +12,6 @@ from luthien_control.control_policy.exceptions import (
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.context import TransactionContext
 from luthien_control.db.models import ClientApiKey
-from luthien_control.db import crud
 
 # Type alias for the database lookup function
 ApiKeyLookupFunc = Callable[[str], Awaitable[Optional[ClientApiKey]]]

@@ -28,3 +28,10 @@ class Policy(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Mapping from Pydantic models to database table names
+TABLE_NAME_MAP = {
+    ClientApiKey: "client_api_keys",
+    Policy: "policies",
+}

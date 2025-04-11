@@ -111,9 +111,6 @@ def ensure_schema_migrations_table(conn):
     except Exception as e:
         logging.error(f"Unexpected error during schema_migrations table check/creation: {e}")
         return False
-    finally:
-        # Remove autocommit reset from here
-        pass  # No action needed in finally
 
 
 def get_applied_migrations(conn) -> set[str]:
@@ -122,8 +119,6 @@ def get_applied_migrations(conn) -> set[str]:
     """
     applied = set()
     try:
-        # Remove autocommit setting from here
-        # conn.autocommit = True
         with conn.cursor() as cur:
             cur.execute(sql.SQL("SELECT version FROM {}").format(sql.Identifier(SCHEMA_MIGRATIONS_TABLE_NAME)))
             applied.update(row[0] for row in cur.fetchall())
@@ -162,8 +157,6 @@ def run_migration(conn, migration_file: Path):
     version = migration_file.name
     logging.info(f"Executing migration script: {version}...")
     try:
-        # Remove autocommit setting from here
-        # conn.autocommit = True
         with conn.cursor() as cur:
             sql_content = migration_file.read_text()
             cur.execute(sql_content)
@@ -194,8 +187,6 @@ def main():
     conn = None
     try:
         conn = get_db_connection()
-        # Set autocommit mode ONCE here after connection
-        conn.autocommit = True
         logging.info("Connection set to autocommit mode.")
 
         # Ensure the tracking table exists

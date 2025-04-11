@@ -53,11 +53,6 @@ async def lifespan(app: FastAPI):
         logger.info("Main DB seems configured (DSN determined), attempting to create pool...")
         try:
             await create_main_db_pool()
-            # Log the value and type right before the check
-            logger.info(
-                f"CHECK in main.py: Type={type(luthien_control.db.database._main_db_pool)}, "
-                f"Value={luthien_control.db.database._main_db_pool!r}"
-            )
             # Check if pool was actually created via the module namespace
             if not luthien_control.db.database._main_db_pool:
                 # This case means create_main_db_pool returned without error but pool is still None
@@ -92,9 +87,6 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutdown complete.")
 
 
-# Instantiate settings once if needed elsewhere, though lifespan uses os.getenv directly
-# settings = Settings()
-
 app = FastAPI(
     title="Luthien Control",
     description="An intelligent proxy server for AI APIs.",
@@ -106,17 +98,10 @@ app = FastAPI(
 @app.get("/health", tags=["General"], status_code=200)
 async def health_check():
     """Basic health check endpoint."""
-    # Could potentially add checks for DB connections here in the future
     return {"status": "ok"}
 
 
-# Include the proxy router
 app.include_router(proxy_router)
-
-# Further endpoints (like the main proxy endpoint) will be added here.
-
-# To run the server (from the project root directory):
-# uvicorn luthien_control.main:app --reload
 
 
 # --- Root Endpoint --- #

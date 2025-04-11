@@ -48,8 +48,3 @@ def setup_logging():
 
     # Log that configuration is complete (useful for debugging setup issues)
     logging.getLogger(__name__).info(f"Logging configured with level {log_level_name}.")
-
-
-# Example of how to get a logger in other modules:
-# import logging
-# logger = logging.getLogger(__name__)

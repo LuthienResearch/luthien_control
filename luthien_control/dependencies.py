@@ -44,9 +44,6 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
     return client
 
 
-# --- NEW Control Policy Framework Dependencies ---
-
-
 def get_initial_context_policy() -> InitializeContextPolicy:
     """Provides an instance of the InitializeContextPolicy."""
     return InitializeContextPolicy()

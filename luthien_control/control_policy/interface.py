@@ -7,7 +7,6 @@ if TYPE_CHECKING:
     from luthien_control.core.context import TransactionContext
 
 
-# Removed @runtime_checkable
 class ControlPolicy(abc.ABC):
     """Abstract Base Class defining the interface for a processing step."""
 

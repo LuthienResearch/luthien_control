@@ -55,7 +55,6 @@ async def test_round_trip_add_api_key_header(mock_get_config, mock_settings, moc
 
     assert isinstance(loaded_policy, AddApiKeyHeaderPolicy)
     assert loaded_policy.name == policy_name
-    # No config attributes to check
 
 
 @pytest.mark.asyncio
@@ -94,7 +93,6 @@ async def test_round_trip_send_backend_request(mock_get_config, mock_settings, m
 
     assert isinstance(loaded_policy, SendBackendRequestPolicy)
     assert loaded_policy.name == policy_name
-    # No config attributes to check
 
 
 @pytest.mark.asyncio

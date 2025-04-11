@@ -116,7 +116,6 @@ async def test_initialize_context_success_post(
     core_req = updated_context.request
     assert core_req.method == "POST"
     # URL is placeholder initially, downstream policies set final URL
-    # assert core_req.url == mock_fastapi_request.url # Cannot compare directly
     # Headers should be httpx Headers object, check existence via get
     assert core_req.headers.get("content-type") == "application/json"
     assert core_req.headers.get("accept") == "application/json"
@@ -125,7 +124,6 @@ async def test_initialize_context_success_post(
 
     # Client host is not directly stored on httpx.Request
     # The policy extracts it and should store it if needed elsewhere (e.g., context.data)
-    # assert core_req.client_host == "192.168.1.100"
     assert core_req.content == b'{"model": "gpt-4"}'
     # Check data stored in context
     assert updated_context.data["raw_request_body"] == b'{"model": "gpt-4"}'
@@ -150,12 +148,10 @@ async def test_initialize_context_success_get(
 
     core_req = updated_context.request
     assert core_req.method == "GET"
-    # assert core_req.url == mock_fastapi_get_request.url
     assert core_req.headers.get("accept") == "application/json"
     assert core_req.headers.get("authorization") == "Bearer sk-test-key"
     assert core_req.headers.get("host") == "proxy.luthien.local:8000"
 
-    # assert core_req.client_host == "10.0.0.1"
     assert core_req.content == b""
     assert updated_context.data["raw_request_body"] == b""
     assert updated_context.data["path_format"] == "/api/{full_path:path}"
@@ -190,7 +186,6 @@ async def test_initialize_context_body_read_error(
 
     # The policy now catches this and stores empty bytes, logging an error
     # It should not raise the error itself.
-    # with pytest.raises(RuntimeError, match="Stream consumed"):
     updated_context = await policy.apply(context=base_context, fastapi_request=mock_fastapi_request)
 
     # Context should be populated, but with empty body stored

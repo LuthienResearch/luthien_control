@@ -9,7 +9,7 @@ import httpx
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.compound_policy import CompoundPolicy
 from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.db.models import ApiKey  # Still needed for ApiKeyLookupFunc typing
+from luthien_control.db.models import ApiKey
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,8 @@ class PolicyLoadError(Exception):
 
 async def _resolve_nested_config_values(
     value: Any,
-    parent_policy_name: str,  # For logging context
-    parent_key: str,  # For logging context
+    parent_policy_name: str,
+    parent_key: str,
     settings: Settings,
     http_client: httpx.AsyncClient,
     api_key_lookup: ApiKeyLookupFunc,
@@ -152,6 +152,41 @@ async def _resolve_all_nested_configs(
         raise PolicyLoadError(f"Unexpected error resolving nested config for '{instance_name}'.") from e
 
 
+def _handle_compound_policy_args(
+    policy_class: Type[ControlPolicy],
+    instance_args: Dict[str, Any],
+    resolved_config: Dict[str, Any],
+    instance_name: str,
+) -> None:
+    """
+    Specific handling for mapping configuration to CompoundPolicy constructor arguments.
+    Modifies instance_args in place.
+    """
+    if not issubclass(policy_class, CompoundPolicy):
+        return  # Only apply to CompoundPolicy subclasses
+
+    if "member_policy_configs" in resolved_config:
+        if "policies" not in instance_args:  # Check if 'policies' wasn't already populated directly
+            member_policies = resolved_config.get("member_policy_configs")
+            if isinstance(member_policies, list):
+                # Map the resolved list of policies from config to the 'policies' constructor argument
+                instance_args["policies"] = member_policies
+                logger.debug(f"Mapped resolved 'member_policy_configs' list to 'policies' arg for {instance_name}")
+            elif member_policies is not None:  # Error if key exists but isn't a list
+                raise PolicyLoadError(
+                    f"Configuration error for {instance_name}: 'member_policy_configs' resolved to type "
+                    f"{type(member_policies).__name__}, but expected a list for CompoundPolicy."
+                )
+            # If member_policies is None (key present but value is null), we don't inject anything and don't error yet.
+            # Validation later will catch if 'policies' is still missing and required.
+        else:
+            # 'policies' argument was already provided (e.g., directly in config or via dependency injection)
+            logger.warning(
+                f"'policies' argument for {instance_name} was already populated, "
+                f"skipping automatic mapping from 'member_policy_configs'. Ensure this is intended."
+            )
+
+
 def _prepare_constructor_args(
     policy_class: Type[ControlPolicy],
     resolved_config: Dict[str, Any],
@@ -176,36 +211,22 @@ def _prepare_constructor_args(
 
     # Inject resolved configuration parameters
     for key, value in resolved_config.items():
+        # Skip special keys used for mapping, handled later if needed
+        if key == "member_policy_configs" and issubclass(policy_class, CompoundPolicy):
+            continue  # This key is handled by _handle_compound_policy_args
+
         if key in init_params and key not in instance_args:
             instance_args[key] = value
             logger.debug(f"Injecting resolved config key '{key}' into '{instance_name}' ({class_name})")
         elif key not in init_params:
             # Only warn if the key was present in config but not used by __init__
-            # Except for known mapping keys like 'member_policy_configs'
-            known_mapping_keys = ["member_policy_configs"]  # Add others if needed
-            if key not in known_mapping_keys:
-                logger.warning(
-                    f"Config key '{key}' for policy '{instance_name}' was processed but does not match any parameter "
-                    f"in {class_name}.__init__. Ignoring."
-                )
-
-    # Special Handling for Known Composite Types
-    if issubclass(policy_class, CompoundPolicy) and "member_policy_configs" in resolved_config:
-        if "policies" not in instance_args:  # Check if already injected
-            member_policies = resolved_config.get("member_policy_configs")  # Use .get for safety
-            if isinstance(member_policies, list):
-                instance_args["policies"] = member_policies
-                logger.debug(f"Mapped resolved 'member_policy_configs' list to 'policies' arg for {instance_name}")
-            elif member_policies is not None:  # Only error if it exists but isn't a list
-                raise PolicyLoadError(
-                    f"Configuration error for {instance_name}: 'member_policy_configs' resolved to type "
-                    f"{type(member_policies).__name__}, but expected a list for CompoundPolicy."
-                )
-        else:
             logger.warning(
-                f"'policies' argument for {instance_name} was already populated, "
-                f"skipping mapping from 'member_policy_configs'."
+                f"Config key '{key}' for policy '{instance_name}' was processed but does not match any parameter "
+                f"in {class_name}.__init__. Ignoring."
             )
+
+    # Apply specific argument handling for known composite types like CompoundPolicy
+    _handle_compound_policy_args(policy_class, instance_args, resolved_config, instance_name)
 
     return instance_args
 
@@ -342,7 +363,3 @@ async def instantiate_policy(
     _set_instance_metadata(instance, instance_name, policy_class_path)
 
     return instance
-
-
-# --- Loader Class (remains unchanged) ---
-# ... (rest of the file, assuming there's a loader class using this function)

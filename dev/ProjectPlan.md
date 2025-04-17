@@ -20,19 +20,16 @@ To build an AI Control System (`luthien_control`) acting as an intelligent proxy
 - [X] Implement response forwarding logic back to the client.
 - [X] Define database schema for logging requests and responses.
 - [X] Setup PostgreSQL connection using `asyncpg`.
-- [ ] Implement asynchronous logging of request/response pairs to the database.
-- [ ] Basic client authentication mechanism (TBD - e.g., static API key).
+- [X] Basic client authentication mechanism (TBD - e.g., static API key).
 - [X] Unit tests for proxy logic.
 - [X] Unit tests for database interaction/logging.
 - [X] Basic integration tests for the end-to-end flow.
 
 ## 3. Future Phases (High-Level)
 
-- [ ] Policy Engine Framework
-- [ ] Basic Policy Implementations (e.g., redaction)
-- [ ] Advanced Policy Features (e.g., verification, routing)
-- [ ] Configuration Management for Policies
+- [ ] Implement asynchronous logging of request/response pairs to the database.
 - [ ] Log Analysis Tools
+- [ ] Advanced Policy Features (e.g., verification, routing)
 - [ ] Enhanced Security & Authentication
 - [X] **Control Policy Application Framework:**
   - [X] Define `TransactionContext` object to carry state.

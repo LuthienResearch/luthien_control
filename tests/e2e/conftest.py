@@ -1,19 +1,118 @@
+import logging
 import os
 import socket
 import subprocess
 import sys
 import time
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator
 
 import httpx
 import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
+from luthien_control.config.settings import Settings
+
+# Add imports needed for policy creation
+from luthien_control.db.database import close_main_db_pool, create_main_db_pool
+from luthien_control.db.models import Policy
+from luthien_control.db.policy_crud import (
+    create_policy_config,
+    get_policy_config_by_name,
+    update_policy_config,
+)
 
 # Load .env file for local development environment variables
 # This ensures OPENAI_API_KEY and potentially BACKEND_URL are loaded if defined there
 # In CI/deployed envs, these should be set directly as environment variables
 load_dotenv()
+
+# Configure logging for the helper function
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)  # Basic config for visibility
+
+E2E_POLICY_NAME = "e2e_test_policy"
+
+
+async def _ensure_e2e_policy_exists():
+    """Connects to DB and ensures the E2E test policy exists and is configured correctly."""
+    Settings()
+    pool_created = False
+    logger.info(f"Ensuring E2E policy '{E2E_POLICY_NAME}' exists in database...")
+    try:
+        # Use the same env vars the server process will use
+        await create_main_db_pool()
+        pool_created = True
+
+        existing_policy = await get_policy_config_by_name(E2E_POLICY_NAME)
+
+        # Define the desired state
+        desired_class_path = "luthien_control.control_policy.compound_policy.CompoundPolicy"
+        desired_config = {
+            "policies": [
+                {
+                    "name": "E2E_AddBackendKey",
+                    "policy_class_path": "luthien_control.control_policy.add_api_key_header.AddApiKeyHeaderPolicy",
+                },
+                {
+                    "name": "E2E_ForwardRequest",
+                    "policy_class_path": "luthien_control.control_policy.send_backend_request.SendBackendRequestPolicy",
+                },
+            ]
+        }
+        desired_description = "E2E Test Policy: Adds backend key -> Sends request."
+
+        if existing_policy:
+            # Check if update is needed
+            if (
+                existing_policy.config != desired_config
+                or existing_policy.policy_class_path != desired_class_path
+                or existing_policy.description != desired_description
+                or not existing_policy.is_active  # Ensure it's active
+            ):
+                logger.info(f"Policy '{E2E_POLICY_NAME}' (ID: {existing_policy.id}) exists but needs update.")
+                update_data = Policy(
+                    id=existing_policy.id,
+                    name=existing_policy.name,
+                    policy_class_path=desired_class_path,
+                    config=desired_config,
+                    is_active=True,
+                    description=desired_description,
+                    created_at=existing_policy.created_at,
+                )
+                updated_policy = await update_policy_config(existing_policy.id, update_data)
+                if updated_policy:
+                    logger.info(f"Successfully updated policy '{E2E_POLICY_NAME}'.")
+                else:
+                    logger.error(f"Failed to update policy '{E2E_POLICY_NAME}'.")
+                    # Optionally raise an error to fail the test setup
+                    raise RuntimeError(f"Failed to update E2E policy '{E2E_POLICY_NAME}'")
+            else:
+                logger.info(f"Policy '{E2E_POLICY_NAME}' exists and is up-to-date.")
+        else:
+            logger.info(f"Policy '{E2E_POLICY_NAME}' not found. Creating...")
+            e2e_policy_data = Policy(
+                name=E2E_POLICY_NAME,
+                policy_class_path=desired_class_path,
+                config=desired_config,
+                is_active=True,
+                description=desired_description,
+            )
+            created_policy = await create_policy_config(e2e_policy_data)
+            if created_policy:
+                logger.info(f"Successfully created policy '{E2E_POLICY_NAME}' (ID: {created_policy.id}).")
+            else:
+                logger.error(f"Failed to create policy '{E2E_POLICY_NAME}'.")
+                # Optionally raise an error to fail the test setup
+                raise RuntimeError(f"Failed to create E2E policy '{E2E_POLICY_NAME}'")
+
+    except Exception as e:
+        logger.exception(f"Error ensuring E2E policy exists: {e}")
+        raise  # Re-raise to fail the test setup
+    finally:
+        if pool_created:
+            await close_main_db_pool()
+            logger.info("Closed temporary DB pool used for E2E policy setup.")
+
 
 # --- Fixtures ---
 
@@ -36,8 +135,8 @@ def _find_free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest.fixture(scope="function")
-def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
+@pytest_asyncio.fixture(scope="function")
+async def live_local_proxy_server(openai_api_key: str) -> AsyncGenerator[str, None]:
     """
     Starts a local instance of the FastAPI proxy server in a subprocess
     for function-scoped E2E tests.
@@ -49,6 +148,9 @@ def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
     host = "127.0.0.1"
     base_url = f"http://{host}:{port}"
 
+    # Ensure the necessary policy exists in the DB before starting server
+    await _ensure_e2e_policy_exists()
+
     # Prepare environment variables for the subprocess
     server_env = os.environ.copy()
     # Explicitly set required env vars for the E2E server,
@@ -56,6 +158,9 @@ def live_local_proxy_server(openai_api_key: str) -> Generator[str, None, None]:
     server_env["OPENAI_API_KEY"] = openai_api_key
     # Default to real OpenAI backend for E2E tests unless overridden by system env
     server_env["BACKEND_URL"] = os.environ.get("BACKEND_URL", "https://api.openai.com/v1")
+    # Tell the server process to load the specific policy created for E2E tests
+    server_env["TOP_LEVEL_POLICY_NAME"] = "e2e_test_policy"
+
     # Command to start the server using uvicorn
     # Use sys.executable to ensure the same Python interpreter is used
     # Add --log-level warning to reduce noise during tests

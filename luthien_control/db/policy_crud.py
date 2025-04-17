@@ -2,6 +2,7 @@ import json
 import logging
 from typing import List, Optional
 
+import asyncpg
 import httpx
 from pydantic import ValidationError
 
@@ -17,6 +18,149 @@ from .database import get_main_db_pool
 from .models import Policy
 
 logger = logging.getLogger(__name__)
+
+
+async def create_policy_config(policy_data: Policy) -> Optional[Policy]:
+    """
+    Creates a new policy configuration record in the database.
+
+    Args:
+        policy_data: A Policy object containing the data for the new record.
+                     The 'id', 'created_at', and 'updated_at' fields will be
+                     ignored as they should be set by the database or this function.
+
+    Returns:
+        The created Policy object, including the database-assigned ID and timestamps,
+        if successful. Returns None if the database pool is not initialized,
+        a database error occurs (e.g., duplicate name), or validation fails
+        on the created record.
+    """
+    try:
+        pool = get_main_db_pool()
+    except RuntimeError:
+        logger.error("Cannot create policy config: Main database pool not initialized.")
+        return None
+
+    # Ensure config is stored as JSON string in the DB if it's not None
+    config_json = json.dumps(policy_data.config) if policy_data.config is not None else None
+
+    sql = """
+        INSERT INTO policies (name, policy_class_path, config, is_active, description)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, name, policy_class_path, config, is_active, description, created_at, updated_at
+    """
+
+    record = None
+    try:
+        async with pool.acquire() as conn:
+            # Note: created_at and updated_at are assumed to be handled by DB defaults (e.g., triggers or DEFAULT NOW())
+            record = await conn.fetchrow(
+                sql,
+                policy_data.name,
+                policy_data.policy_class_path,
+                config_json,
+                policy_data.is_active,
+                policy_data.description,
+            )
+
+        if record:
+            logger.info(f"Successfully created policy record for name: {policy_data.name} (ID: {record['id']})")
+            # Use the existing parser/validator
+            created_policy = _parse_and_validate_policy_record(record)
+            if not created_policy:
+                # This case might indicate an issue with _parse_and_validate_policy_record
+                # or the RETURNING data being inconsistent with the model post-creation.
+                logger.error(f"Failed to parse/validate newly created policy record for name: {policy_data.name}")
+                return None
+            return created_policy
+        else:
+            # This case should ideally not happen with RETURNING * if the insert succeeded,
+            # but handle defensively.
+            logger.error(f"Policy creation for name '{policy_data.name}' did not return a record.")
+            return None
+
+    except asyncpg.UniqueViolationError:  # Catch specific constraint errors
+        logger.error(f"Failed to create policy: A policy with the name '{policy_data.name}' already exists.")
+        return None
+    except Exception as e:
+        logger.exception(f"Database error creating policy config for name '{policy_data.name}': {e}")
+        return None
+
+
+async def update_policy_config(policy_id: int, policy_update_data: Policy) -> Optional[Policy]:
+    """
+    Updates an existing policy configuration record in the database.
+
+    Args:
+        policy_id: The ID of the policy record to update.
+        policy_update_data: A Policy object containing the updated data.
+                           The 'name' field should typically match the existing record,
+                           as changing the unique name might require delete/create.
+                           'id', 'created_at' are ignored.
+                           'updated_at' will be set by the database.
+
+    Returns:
+        The updated Policy object, including the new timestamp, if successful.
+        Returns None if the database pool is not initialized, the policy_id is not found,
+        a database error occurs, or validation fails on the updated record.
+    """
+    try:
+        pool = get_main_db_pool()
+    except RuntimeError:
+        logger.error(f"Cannot update policy config ID {policy_id}: Main database pool not initialized.")
+        return None
+
+    # Ensure config is stored as JSON string
+    config_json = json.dumps(policy_update_data.config) if policy_update_data.config is not None else None
+
+    sql = """
+        UPDATE policies
+        SET
+            name = $1,
+            policy_class_path = $2,
+            config = $3,
+            is_active = $4,
+            description = $5,
+            updated_at = NOW() AT TIME ZONE 'UTC' -- Explicitly set update time
+        WHERE id = $6
+        RETURNING id, name, policy_class_path, config, is_active, description, created_at, updated_at
+    """
+
+    record = None
+    try:
+        async with pool.acquire() as conn:
+            record = await conn.fetchrow(
+                sql,
+                policy_update_data.name,  # Be cautious if allowing name changes
+                policy_update_data.policy_class_path,
+                config_json,
+                policy_update_data.is_active,
+                policy_update_data.description,
+                policy_id,
+            )
+
+        if record:
+            logger.info(f"Successfully updated policy record ID: {policy_id} (Name: {record['name']})")
+            # Use the existing parser/validator
+            updated_policy = _parse_and_validate_policy_record(record)
+            if not updated_policy:
+                logger.error(f"Failed to parse/validate newly updated policy record ID: {policy_id}")
+                return None
+            return updated_policy
+        else:
+            # This means the WHERE id = $6 clause didn't match any rows
+            logger.error(f"Policy update failed: No policy found with ID {policy_id}.")
+            return None
+
+    except asyncpg.UniqueViolationError:  # If name was updated and conflicts
+        logger.error(
+            f"Failed to update policy ID {policy_id}: "
+            f"A policy with the name '{policy_update_data.name}' already exists."
+        )
+        return None
+    except Exception as e:
+        logger.exception(f"Database error updating policy config ID {policy_id}: {e}")
+        return None
 
 
 async def get_policy_config_by_name(name: str) -> Optional[Policy]:

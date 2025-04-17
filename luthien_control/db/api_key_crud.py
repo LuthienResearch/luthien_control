@@ -42,7 +42,7 @@ async def get_api_key_by_value(key_value: str) -> Optional[ClientApiKey]:
         SELECT id, key_value, name, is_active, created_at, metadata_
         FROM {table_name}
         WHERE key_value = $1
-    """
+    """  # nosec B608 - table_name is sourced from internal TABLE_NAME_MAP, not user input.
 
     record = None
     try:

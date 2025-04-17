@@ -10,8 +10,8 @@ from luthien_control.control_policy.initialize_context import InitializeContextP
 from luthien_control.control_policy.prepare_backend_headers import PrepareBackendHeadersPolicy
 from luthien_control.control_policy.request_logging import RequestLoggingPolicy
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
-from luthien_control.db import crud
 from luthien_control.db.models import Policy as DbPolicy
+from luthien_control.db.policy_crud import load_policy_from_db
 
 
 # Helper to get full class path
@@ -20,7 +20,7 @@ def get_class_path(cls):
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.db.crud.get_policy_config_by_name", new_callable=AsyncMock)
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name", new_callable=AsyncMock)
 async def test_round_trip_add_api_key_header(mock_get_config, mock_settings, mock_http_client, mock_api_key_lookup):
     """Test serialization/deserialization for AddApiKeyHeaderPolicy."""
     original_policy = AddApiKeyHeaderPolicy(settings=mock_settings)
@@ -46,7 +46,7 @@ async def test_round_trip_add_api_key_header(mock_get_config, mock_settings, moc
     )
     mock_get_config.return_value = mock_db_policy
 
-    loaded_policy = await crud.load_policy_from_db(
+    loaded_policy = await load_policy_from_db(
         name=policy_name,
         settings=mock_settings,
         http_client=mock_http_client,
@@ -58,7 +58,7 @@ async def test_round_trip_add_api_key_header(mock_get_config, mock_settings, moc
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.db.crud.get_policy_config_by_name", new_callable=AsyncMock)
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name", new_callable=AsyncMock)
 async def test_round_trip_send_backend_request(mock_get_config, mock_settings, mock_http_client, mock_api_key_lookup):
     """Test serialization/deserialization for SendBackendRequestPolicy."""
     original_policy = SendBackendRequestPolicy(http_client=mock_http_client)
@@ -84,7 +84,7 @@ async def test_round_trip_send_backend_request(mock_get_config, mock_settings, m
     )
     mock_get_config.return_value = mock_db_policy
 
-    loaded_policy = await crud.load_policy_from_db(
+    loaded_policy = await load_policy_from_db(
         name=policy_name,
         settings=mock_settings,
         http_client=mock_http_client,
@@ -96,7 +96,7 @@ async def test_round_trip_send_backend_request(mock_get_config, mock_settings, m
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.db.crud.get_policy_config_by_name", new_callable=AsyncMock)
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name", new_callable=AsyncMock)
 async def test_round_trip_request_logging(mock_get_config, mock_settings, mock_http_client, mock_api_key_lookup):
     """Test serialization/deserialization for RequestLoggingPolicy."""
     original_policy = RequestLoggingPolicy()
@@ -122,7 +122,7 @@ async def test_round_trip_request_logging(mock_get_config, mock_settings, mock_h
     )
     mock_get_config.return_value = mock_db_policy
 
-    loaded_policy = await crud.load_policy_from_db(
+    loaded_policy = await load_policy_from_db(
         name=policy_name,
         settings=mock_settings,
         http_client=mock_http_client,
@@ -134,7 +134,7 @@ async def test_round_trip_request_logging(mock_get_config, mock_settings, mock_h
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.db.crud.get_policy_config_by_name", new_callable=AsyncMock)
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name", new_callable=AsyncMock)
 async def test_round_trip_prepare_backend_headers(
     mock_get_config, mock_settings, mock_http_client, mock_api_key_lookup
 ):
@@ -162,7 +162,7 @@ async def test_round_trip_prepare_backend_headers(
     )
     mock_get_config.return_value = mock_db_policy
 
-    loaded_policy = await crud.load_policy_from_db(
+    loaded_policy = await load_policy_from_db(
         name=policy_name,
         settings=mock_settings,
         http_client=mock_http_client,
@@ -174,7 +174,7 @@ async def test_round_trip_prepare_backend_headers(
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.db.crud.get_policy_config_by_name", new_callable=AsyncMock)
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name", new_callable=AsyncMock)
 async def test_round_trip_client_api_key_auth(mock_get_config, mock_settings, mock_http_client, mock_api_key_lookup):
     """Test serialization/deserialization for ClientApiKeyAuthPolicy."""
     original_policy = ClientApiKeyAuthPolicy(api_key_lookup=mock_api_key_lookup)
@@ -200,7 +200,7 @@ async def test_round_trip_client_api_key_auth(mock_get_config, mock_settings, mo
     )
     mock_get_config.return_value = mock_db_policy
 
-    loaded_policy = await crud.load_policy_from_db(
+    loaded_policy = await load_policy_from_db(
         name=policy_name,
         settings=mock_settings,
         http_client=mock_http_client,
@@ -212,7 +212,7 @@ async def test_round_trip_client_api_key_auth(mock_get_config, mock_settings, mo
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.db.crud.get_policy_config_by_name", new_callable=AsyncMock)
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name", new_callable=AsyncMock)
 async def test_round_trip_initialize_context(mock_get_config, mock_settings, mock_http_client, mock_api_key_lookup):
     """Test serialization/deserialization for InitializeContextPolicy."""
     original_policy = InitializeContextPolicy(settings=mock_settings)  # Pass settings even if unused internally
@@ -238,7 +238,7 @@ async def test_round_trip_initialize_context(mock_get_config, mock_settings, moc
     )
     mock_get_config.return_value = mock_db_policy
 
-    loaded_policy = await crud.load_policy_from_db(
+    loaded_policy = await load_policy_from_db(
         name=policy_name,
         settings=mock_settings,
         http_client=mock_http_client,
@@ -250,7 +250,7 @@ async def test_round_trip_initialize_context(mock_get_config, mock_settings, moc
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.db.crud.get_policy_config_by_name", new_callable=AsyncMock)
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name", new_callable=AsyncMock)
 async def test_round_trip_compound_policy(mock_get_config, mock_settings, mock_http_client, mock_api_key_lookup):
     """Test serialization/deserialization for CompoundPolicy using DB lookup."""
     # Use actual policy types for members where dependencies are simple or mocked
@@ -327,7 +327,7 @@ async def test_round_trip_compound_policy(mock_get_config, mock_settings, mock_h
     mock_get_config.side_effect = side_effect
 
     # Load the policy using the top-level name
-    loaded_policy = await crud.load_policy_from_db(
+    loaded_policy = await load_policy_from_db(
         name=policy_name,
         settings=mock_settings,
         http_client=mock_http_client,
@@ -354,7 +354,7 @@ async def test_round_trip_compound_policy(mock_get_config, mock_settings, mock_h
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.db.crud.get_policy_config_by_name", new_callable=AsyncMock)
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name", new_callable=AsyncMock)
 async def test_serialize_compound_missing_member_name(mock_get_config):
     """Test CompoundPolicy serialize raises error if member name is missing."""
     member1 = RequestLoggingPolicy()

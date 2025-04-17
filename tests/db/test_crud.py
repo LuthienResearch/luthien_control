@@ -11,13 +11,14 @@ from luthien_control.config.settings import Settings
 from luthien_control.core.policy_loader import ApiKeyLookupFunc
 
 # Import only what's needed for CRUD tests
-from luthien_control.db.crud import (
+from luthien_control.db.api_key_crud import get_api_key_by_value
+from luthien_control.db.models import ClientApiKey, Policy
+from luthien_control.db.policy_crud import (
+    ControlPolicy,
     PolicyLoadError,
-    get_api_key_by_value,
     get_policy_config_by_name,
     load_policy_from_db,
 )
-from luthien_control.db.models import ClientApiKey, Policy
 
 # Mark all tests in this module as async
 pytestmark = pytest.mark.asyncio
@@ -55,8 +56,8 @@ async def test_get_api_key_by_value_found_active(mock_db_pool):
     # This simplifies testing the Pydantic model creation
     mock_conn.fetchrow.return_value = mock_record_dict
 
-    # Patch get_main_db_pool to return our mock pool
-    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
+    # Patch get_main_db_pool where it's used (in api_key_crud)
+    with patch("luthien_control.db.api_key_crud.get_main_db_pool", return_value=mock_pool):
         result = await get_api_key_by_value(test_key)
 
     assert isinstance(result, ClientApiKey)
@@ -94,7 +95,7 @@ async def test_get_api_key_by_value_not_found(mock_db_pool):
     # Simulate fetchrow returning None (key not found)
     mock_conn.fetchrow.return_value = None
 
-    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
+    with patch("luthien_control.db.api_key_crud.get_main_db_pool", return_value=mock_pool):
         result = await get_api_key_by_value(test_key)
 
     assert result is None
@@ -109,7 +110,7 @@ async def test_get_api_key_by_value_db_error(mock_db_pool):
     # Simulate fetchrow raising an exception
     mock_conn.fetchrow.side_effect = asyncpg.PostgresError("Simulated DB error")
 
-    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
+    with patch("luthien_control.db.api_key_crud.get_main_db_pool", return_value=mock_pool):
         result = await get_api_key_by_value(test_key)
 
     assert result is None
@@ -120,8 +121,8 @@ async def test_get_api_key_by_value_pool_not_initialized():
     """Test behavior when the DB pool is not initialized."""
     test_key = "test-key-no-pool"
 
-    # Patch get_main_db_pool to raise RuntimeError
-    with patch("luthien_control.db.crud.get_main_db_pool", side_effect=RuntimeError("Pool not initialized")):
+    # Patch get_main_db_pool where it's used
+    with patch("luthien_control.db.api_key_crud.get_main_db_pool", side_effect=RuntimeError("Pool not initialized")):
         result = await get_api_key_by_value(test_key)
 
     assert result is None
@@ -143,7 +144,7 @@ async def test_get_api_key_by_value_found_inactive(mock_db_pool):
     }
     mock_conn.fetchrow.return_value = mock_record_dict
 
-    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
+    with patch("luthien_control.db.api_key_crud.get_main_db_pool", return_value=mock_pool):
         result = await get_api_key_by_value(test_key)
 
     assert isinstance(result, ClientApiKey)
@@ -168,9 +169,9 @@ async def test_get_api_key_by_value_invalid_metadata_json(mock_db_pool):
     }
     mock_conn.fetchrow.return_value = mock_record_dict
 
-    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
-        # Patch logger.warning to check if it's called
-        with patch("luthien_control.db.crud.logger.warning") as mock_warning:
+    with patch("luthien_control.db.api_key_crud.get_main_db_pool", return_value=mock_pool):
+        # Patch logger.warning where it's used
+        with patch("luthien_control.db.api_key_crud.logger.warning") as mock_warning:
             result = await get_api_key_by_value(test_key)
 
     assert isinstance(result, ClientApiKey)
@@ -194,7 +195,7 @@ async def test_get_api_key_by_value_found(mock_db_pool):
     }
     mock_conn.fetchrow.return_value = expected_record
 
-    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
+    with patch("luthien_control.db.api_key_crud.get_main_db_pool", return_value=mock_pool):
         result_key = await get_api_key_by_value(test_key)
 
     assert result_key == ClientApiKey(**expected_record)  # type: ignore
@@ -223,34 +224,35 @@ async def test_get_api_key_by_value_found(mock_db_pool):
 
 
 async def test_get_policy_config_by_name_found_active(mock_db_pool):
-    """Test fetching an existing, active policy configuration."""
+    """Test fetching an existing, active policy config."""
     mock_pool, mock_conn = mock_db_pool
-    test_name = "root_policy"
+    policy_name = "test-policy-active"
+    mock_config = {"key": "value"}
+    mock_config_str = json.dumps(mock_config)
     now = datetime.datetime.now(datetime.UTC)
-    test_config = {"param1": "value1", "timeout": 60}
 
-    # Simulate fetchrow returning a dictionary matching the Policy model structure
     mock_record_dict = {
         "id": 10,
-        "name": test_name,
-        "policy_class_path": "luthien_control.policies.RootPolicy",
-        "config": test_config,  # Assuming DB returns a dict or JSONB compatible
+        "name": policy_name,
+        "policy_class_path": "path.to.PolicyClass",
+        "config": mock_config_str,  # DB returns JSON as string
         "is_active": True,
-        "description": "The main entry policy",
+        "description": "Active policy",
         "created_at": now,
         "updated_at": now,
     }
     mock_conn.fetchrow.return_value = mock_record_dict
 
-    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
-        result = await get_policy_config_by_name(test_name)
+    # Patch where get_main_db_pool is used (in policy_crud)
+    with patch("luthien_control.db.policy_crud.get_main_db_pool", return_value=mock_pool):
+        result = await get_policy_config_by_name(policy_name)
 
     assert isinstance(result, Policy)
-    assert result.name == test_name
-    assert result.policy_class_path == "luthien_control.policies.RootPolicy"
+    assert result.name == policy_name
+    assert result.policy_class_path == "path.to.PolicyClass"
     assert result.is_active is True
-    assert result.config == test_config
-    assert result.description == "The main entry policy"
+    assert result.config == mock_config
+    assert result.description == "Active policy"
     assert result.id == 10
     assert result.created_at == now
     assert result.updated_at == now
@@ -270,7 +272,7 @@ async def test_get_policy_config_by_name_found_active(mock_db_pool):
     normalized_expected = " ".join(expected_query.split())
 
     assert normalized_actual == normalized_expected
-    assert actual_param == test_name
+    assert actual_param == policy_name
 
 
 async def test_get_policy_config_by_name_not_found(mock_db_pool):
@@ -280,7 +282,7 @@ async def test_get_policy_config_by_name_not_found(mock_db_pool):
 
     mock_conn.fetchrow.return_value = None
 
-    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
+    with patch("luthien_control.db.policy_crud.get_main_db_pool", return_value=mock_pool):
         result = await get_policy_config_by_name(test_name)
 
     assert result is None
@@ -295,7 +297,7 @@ async def test_get_policy_config_by_name_found_inactive(mock_db_pool):
     # The query specifically asks for is_active = TRUE, so fetchrow would return None
     mock_conn.fetchrow.return_value = None
 
-    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
+    with patch("luthien_control.db.policy_crud.get_main_db_pool", return_value=mock_pool):
         result = await get_policy_config_by_name(test_name)
 
     assert result is None
@@ -313,7 +315,7 @@ async def test_get_policy_config_by_name_db_error(mock_db_pool):
 
     mock_conn.fetchrow.side_effect = asyncpg.PostgresError("Simulated DB error")
 
-    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
+    with patch("luthien_control.db.policy_crud.get_main_db_pool", return_value=mock_pool):
         result = await get_policy_config_by_name(test_name)
 
     assert result is None
@@ -324,7 +326,7 @@ async def test_get_policy_config_by_name_pool_not_initialized():
     """Test behavior when the DB pool is not initialized for policy fetch."""
     test_name = "policy_no_pool"
 
-    with patch("luthien_control.db.crud.get_main_db_pool", side_effect=RuntimeError("Pool not initialized")):
+    with patch("luthien_control.db.policy_crud.get_main_db_pool", side_effect=RuntimeError("Pool not initialized")):
         result = await get_policy_config_by_name(test_name)
 
     assert result is None
@@ -349,9 +351,9 @@ async def test_get_policy_config_by_name_validation_error(mock_db_pool):
     }
     mock_conn.fetchrow.return_value = mock_record_dict
 
-    with patch("luthien_control.db.crud.get_main_db_pool", return_value=mock_pool):
-        # Patch logger.error to check if it's called
-        with patch("luthien_control.db.crud.logger.error") as mock_error:
+    with patch("luthien_control.db.policy_crud.get_main_db_pool", return_value=mock_pool):
+        # Patch logger.error where it's used
+        with patch("luthien_control.db.policy_crud.logger.error") as mock_error:
             result = await get_policy_config_by_name(test_name)
 
     assert result is None  # Should return None on validation error
@@ -402,109 +404,125 @@ def create_mock_policy_model(
     created_at: datetime.datetime | None = None,
     updated_at: datetime.datetime | None = None,
 ) -> Policy:
-    """Creates a mock Policy object for testing."""
-    now = datetime.datetime.now(datetime.UTC)
-    # Ensure config is a dict if None
-    config_dict = config if config is not None else {}
+    """Helper to create a Policy model instance for mocking."""
+    if created_at is None:
+        created_at = datetime.datetime.now(datetime.UTC)
+    if updated_at is None:
+        updated_at = created_at
     return Policy(
         id=id,
         name=name,
         policy_class_path=policy_class_path,
-        config=config_dict,
+        config=config if config is not None else {},
         is_active=is_active,
         description=description,
-        created_at=created_at or now,
-        updated_at=updated_at or now,
+        created_at=created_at,
+        updated_at=updated_at,
     )
 
 
 # --- Tests for load_policy_from_db --- #
 
 
-@patch("luthien_control.db.crud.get_policy_config_by_name")
-@patch("luthien_control.db.crud.instantiate_policy", new_callable=AsyncMock)
-async def test_load_policy_from_db_success(mock_instantiate, mock_get_config, load_db_dependencies):
-    """Test successful loading and instantiation via load_policy_from_db."""
-    policy_name = "root_policy"
-    # Use a valid mock class path to avoid ImportError during test setup
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name")
+@patch("luthien_control.db.policy_crud.instantiate_policy", new_callable=AsyncMock)
+async def test_load_policy_from_db_success(
+    mock_instantiate,
+    mock_get_config,
+    load_db_dependencies,
+):
+    """Test successful loading and instantiation of a policy."""
+    settings, http_client, api_key_lookup = load_db_dependencies
+    policy_name = "test_policy"
+    mock_config = {"timeout": 60}
+    mock_class_path = "tests.db.mock_policies.MockSimplePolicy"
     mock_policy_model = create_mock_policy_model(
+        name=policy_name, policy_class_path=mock_class_path, config=mock_config
+    )
+    mock_get_config.return_value = mock_policy_model
+
+    mock_instance = MagicMock(spec=ControlPolicy)
+    mock_instantiate.return_value = mock_instance
+
+    result = await load_policy_from_db(
         name=policy_name,
-        policy_class_path="tests.db.mock_policies.MockSimplePolicy",
-        config={"db_param": "db_value", "timeout": 123},  # Add timeout expected by MockSimplePolicy
+        settings=settings,
+        http_client=http_client,
+        api_key_lookup=api_key_lookup,
     )
-    mock_get_config.return_value = mock_policy_model
-
-    # Assign return_value to the AsyncMock
-    mock_instantiated_policy = MagicMock()
-    mock_instantiate.return_value = mock_instantiated_policy
-
-    result = await load_policy_from_db(policy_name, **load_db_dependencies)
 
     mock_get_config.assert_awaited_once_with(policy_name)
-
-    # Check that instantiate_policy was called with combined config
-    expected_initial_config = {
-        "db_param": "db_value",
-        "timeout": 123,
-        "name": policy_name,  # Name from model overrides config
-        "policy_class_path": "tests.db.mock_policies.MockSimplePolicy",  # Path from model
+    expected_instantiate_config = {
+        "name": policy_name,  # Added by load_policy_from_db
+        "policy_class_path": mock_class_path,  # Added by load_policy_from_db
+        **mock_config,  # Original config from DB model
     }
-    # Use assert_awaited_once_with for AsyncMock
     mock_instantiate.assert_awaited_once_with(
-        policy_config=expected_initial_config,
-        settings=load_db_dependencies["settings"],
-        http_client=load_db_dependencies["http_client"],
-        api_key_lookup=load_db_dependencies["api_key_lookup"],
+        policy_config=expected_instantiate_config,
+        settings=settings,
+        http_client=http_client,
+        api_key_lookup=api_key_lookup,
     )
+    assert result is mock_instance
 
-    assert result is mock_instantiated_policy
 
-
-@patch("luthien_control.db.crud.get_policy_config_by_name", return_value=None)
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name", return_value=None)
 async def test_load_policy_from_db_not_found(mock_get_config, load_db_dependencies):
-    """Test PolicyLoadError if get_policy_config_by_name returns None."""
-    policy_name = "not_found_policy"
-    with pytest.raises(PolicyLoadError, match=f"Active policy configuration named '{policy_name}' not found"):
-        await load_policy_from_db(policy_name, **load_db_dependencies)
-    mock_get_config.assert_awaited_once_with(policy_name)
+    """Test load_policy_from_db when get_policy_config_by_name returns None."""
+    settings, http_client, api_key_lookup = load_db_dependencies
+    with pytest.raises(PolicyLoadError, match="not found in database"):
+        await load_policy_from_db(
+            name="nonexistent",
+            settings=settings,
+            http_client=http_client,
+            api_key_lookup=api_key_lookup,
+        )
 
 
-@patch("luthien_control.db.crud.get_policy_config_by_name")
-async def test_load_policy_from_db_missing_class_path(mock_get_config, load_db_dependencies):
-    """Test PolicyLoadError if the fetched policy model is missing policy_class_path."""
-    policy_name = "no_path_policy"
-    # Mock the return value directly as a MagicMock to avoid Policy model validation
-    mock_policy_model = MagicMock(spec=Policy)
-    mock_policy_model.name = policy_name
-    mock_policy_model.policy_class_path = None  # Simulate missing path
-    mock_policy_model.config = {}
-
-    mock_get_config.return_value = mock_policy_model
-
-    with pytest.raises(PolicyLoadError, match="missing 'policy_class_path'"):
-        await load_policy_from_db(policy_name, **load_db_dependencies)
-    mock_get_config.assert_awaited_once_with(policy_name)
-
-
-@patch("luthien_control.db.crud.get_policy_config_by_name")
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name")
 @patch(
-    "luthien_control.db.crud.instantiate_policy",
+    "luthien_control.db.policy_crud.instantiate_policy",  # Patch target updated
     new_callable=AsyncMock,
     side_effect=PolicyLoadError("Instantiation failed"),
 )
-async def test_load_policy_from_db_instantiation_fails(mock_instantiate, mock_get_config, load_db_dependencies):
-    """Test that PolicyLoadError from instantiate_policy is propagated."""
-    policy_name = "fail_instantiate_policy"
-    # Use a valid mock path
+async def test_load_policy_from_db_instantiation_fails(
+    mock_instantiate,
+    mock_get_config,
+    load_db_dependencies,
+):
+    """Test load_policy_from_db when instantiate_policy raises an error."""
+    settings, http_client, api_key_lookup = load_db_dependencies
+    policy_name = "test_policy_inst_fail"
+    mock_policy_model = create_mock_policy_model(name=policy_name)
+    mock_get_config.return_value = mock_policy_model
+
+    with pytest.raises(PolicyLoadError, match="Instantiation failed"):
+        await load_policy_from_db(
+            name=policy_name,
+            settings=settings,
+            http_client=http_client,
+            api_key_lookup=api_key_lookup,
+        )
+
+
+@patch("luthien_control.db.policy_crud.get_policy_config_by_name")
+async def test_load_policy_from_db_missing_class_path(mock_get_config, load_db_dependencies):
+    """Test load_policy_from_db when the fetched policy model has a falsy (empty) class path."""
+    settings, http_client, api_key_lookup = load_db_dependencies
+    policy_name = "test_policy_empty_path"
+    # Use create_mock_policy_model with an empty string for policy_class_path.
+    # An empty string is a valid 'str' for Pydantic, but falsy for the check inside load_policy_from_db.
     mock_policy_model = create_mock_policy_model(
-        name=policy_name, policy_class_path="tests.db.mock_policies.MockSimplePolicy"
+        name=policy_name,
+        policy_class_path="",  # Use empty string
     )
     mock_get_config.return_value = mock_policy_model
 
-    # Now the instantiate_policy patch (AsyncMock) should take effect correctly
-    with pytest.raises(PolicyLoadError, match="Instantiation failed"):
-        await load_policy_from_db(policy_name, **load_db_dependencies)
-
-    mock_get_config.assert_awaited_once_with(policy_name)
-    # Use assert_awaited_once() for AsyncMock
-    mock_instantiate.assert_awaited_once()
+    # The check `if not policy_model.policy_class_path:` should catch the empty string
+    with pytest.raises(PolicyLoadError, match="missing 'policy_class_path'"):
+        await load_policy_from_db(
+            name=policy_name,
+            settings=settings,
+            http_client=http_client,
+            api_key_lookup=api_key_lookup,
+        )

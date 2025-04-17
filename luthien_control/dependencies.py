@@ -15,10 +15,10 @@ from luthien_control.core.response_builder.default_builder import DefaultRespons
 from luthien_control.core.response_builder.interface import ResponseBuilder
 
 # Import DB access functions
-from luthien_control.db.crud import (
+from luthien_control.db.api_key_crud import get_api_key_by_value
+from luthien_control.db.policy_crud import (
     ApiKeyLookupFunc,
     PolicyLoadError,
-    get_api_key_by_value,
     load_policy_from_db,
 )
 

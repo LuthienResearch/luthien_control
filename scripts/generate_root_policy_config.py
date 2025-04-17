@@ -16,12 +16,12 @@ sys.path.insert(0, project_root)
 # Now import necessary components
 try:
     from luthien_control.config.settings import Settings
-    from luthien_control.db.crud import (
-        ApiKeyLookupFunc,  # Import the type alias
-        get_api_key_by_value,
-        load_policy_instance,
-    )
+    from luthien_control.db.api_key_crud import get_api_key_by_value
     from luthien_control.db.database import close_main_db_pool, create_main_db_pool
+    from luthien_control.db.policy_crud import (
+        ApiKeyLookupFunc,
+        load_policy_from_db,
+    )
 except ImportError as e:
     print(f"Error importing project modules: {e}", file=sys.stderr)
     print(
@@ -43,7 +43,7 @@ async def main():
     api_key_lookup: ApiKeyLookupFunc = get_api_key_by_value
 
     try:
-        # Connect to the database (required by get_api_key_by_value and potentially load_policy_instance)
+        # Connect to the database (required by get_api_key_by_value and potentially load_policy_from_db)
         logger.info("Connecting to the main database...")
         await create_main_db_pool()
         logger.info("Database pool initialized.")
@@ -52,7 +52,7 @@ async def main():
         logger.info(f"Loading policy instance: '{root_policy_name}'...")
 
         # Load the instance - this uses the *old* config from DB to build the object initially
-        root_policy_instance = await load_policy_instance(
+        root_policy_instance = await load_policy_from_db(
             name=root_policy_name,
             settings=settings,
             http_client=http_client,

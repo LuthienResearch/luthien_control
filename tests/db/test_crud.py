@@ -74,7 +74,7 @@ async def test_get_api_key_by_value_found_active(mock_db_pool):
 
     expected_query = """
         SELECT id, key_value, name, is_active, created_at, metadata_
-        FROM api_keys
+        FROM client_api_keys
         WHERE key_value = $1
     """
 
@@ -207,7 +207,7 @@ async def test_get_api_key_by_value_found(mock_db_pool):
 
     expected_query = """
         SELECT id, key_value, name, is_active, created_at, metadata_
-        FROM api_keys
+        FROM client_api_keys
         WHERE key_value = $1
     """
 

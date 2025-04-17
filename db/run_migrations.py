@@ -14,7 +14,7 @@ MIGRATIONS_DIR = PROJECT_ROOT / "db" / "migrations"
 
 SCHEMA_MIGRATIONS_TABLE_NAME = "schema_migrations"
 # Assuming the script creating the table follows this naming convention
-SCHEMA_MIGRATIONS_CREATION_SCRIPT = "001_add_migration_tracking_table.sql"
+SCHEMA_MIGRATIONS_CREATION_SCRIPT = "002_add_migration_tracking_table.sql"
 
 
 def get_db_connection():

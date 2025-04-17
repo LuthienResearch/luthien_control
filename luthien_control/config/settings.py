@@ -14,7 +14,6 @@ class Settings:
     # --- Core Settings ---
     BACKEND_URL: Optional[str] = None
     # Comma-separated list of control policies for the beta framework
-    CONTROL_POLICIES: Optional[str] = None
 
     # --- Database Settings ---
     POSTGRES_SERVER: str = "localhost"
@@ -41,10 +40,6 @@ class Settings:
     def get_openai_api_key(self) -> str | None:
         """Returns the OpenAI API key, if set."""
         return os.getenv("OPENAI_API_KEY")
-
-    def get_control_policies_list(self) -> Optional[str]:
-        """Returns the comma-separated list of control policies from env var."""
-        return os.getenv("CONTROL_POLICIES")
 
     def get_top_level_policy_name(self) -> str:
         """Returns the name of the top-level policy instance to load."""

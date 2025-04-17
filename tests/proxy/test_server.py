@@ -293,7 +293,6 @@ async def test_api_proxy_with_mocked_policy_flow(
 
     # --- Override Dependencies --- #
     # Override the main policy loader to return our specific mock policy
-    # This replaces the old CONTROL_POLICIES mechanism for this test
     async def override_get_main_policy():
         return mock_main_policy_for_e2e
 

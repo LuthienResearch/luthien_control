@@ -4,7 +4,7 @@ globs:
 alwaysApply: true
 ---
 <project_organization>
-0. Refer to README.md for general project documentation and high-level understanding.
+0. ALWAYS REFER TO README.md
 1. All Python code should be in the luthien_control package
 2. Follow the existing directory structure:
    - proxy/ - Proxy server implementation

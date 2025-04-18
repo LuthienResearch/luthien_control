@@ -3,7 +3,6 @@ import logging
 import sys
 
 from dotenv import load_dotenv
-
 from luthien_control.config.settings import Settings
 from luthien_control.db.database_async import (
     close_main_db_engine,

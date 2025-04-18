@@ -53,13 +53,6 @@ class CompoundPolicy(ControlPolicy):
                 f"in {self.name}: {policy_name}"
             )
             current_context = await policy.apply(current_context)
-            # If a policy set a response, stop processing (consistent with ControlPolicyError handling)
-            if current_context.response is not None:
-                self.logger.info(
-                    f"[{current_context.transaction_id}] Policy {policy_name} in {self.name} "
-                    f"set a response. Halting CompoundPolicy execution."
-                )
-                break
         self.logger.debug(f"[{context.transaction_id}] Exiting CompoundPolicy: {self.name}")
         return current_context
 

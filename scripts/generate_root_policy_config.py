@@ -19,7 +19,6 @@ from luthien_control.config.settings import Settings  # noqa: E402
 
 # Now import necessary components
 try:
-    from luthien_control.db.database import close_main_db_pool, create_main_db_pool
     from luthien_control.db.sqlmodel_crud import (
         ApiKeyLookupFunc,
         get_api_key_by_value,
@@ -46,15 +45,14 @@ async def main():
     api_key_lookup: ApiKeyLookupFunc = get_api_key_by_value
 
     try:
-        # Connect to the database (required by get_api_key_by_value and potentially load_policy_from_db)
-        logger.info("Connecting to the main database...")
-        await create_main_db_pool()
-        logger.info("Database pool initialized.")
+        # Removed explicit pool creation - get_main_db_session handles engine/session
+        logger.info("Database session will be managed by get_main_db_session.")
 
         root_policy_name = settings.get_top_level_policy_name()
         logger.info(f"Loading policy instance: '{root_policy_name}'...")
 
         # Load the instance - this uses the *old* config from DB to build the object initially
+        # get_main_db_session manages the underlying engine and session
         async with get_main_db_session() as session:
             root_policy_instance = await load_policy_from_db(
                 name=root_policy_name,
@@ -79,11 +77,9 @@ async def main():
         logger.exception(f"An error occurred: {e}")
         sys.exit(1)
     finally:
-        # Ensure database pool is closed
-        logger.info("Closing database pool...")
-        await close_main_db_pool()
+        # Removed explicit pool closing
         await http_client.aclose()
-        logger.info("Cleanup complete.")
+        logger.info("Cleanup complete (HTTP client closed).")
 
 
 if __name__ == "__main__":

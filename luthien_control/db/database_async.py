@@ -24,6 +24,8 @@ def _get_main_db_url() -> Optional[str]:
         # Convert to async URL if needed
         if database_url.startswith("postgresql://"):
             database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
         return database_url
 
     logger.warning("DATABASE_URL not found. Falling back to individual DB_* variables.")

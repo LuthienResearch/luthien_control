@@ -4,14 +4,20 @@
 import asyncio
 import json
 import logging
-import os
 import sys
 
 import httpx
 
+# Load environment variables from .env if present BEFORE importing Settings
+from dotenv import load_dotenv  # noqa: E402
+
+load_dotenv(verbose=True)  # load_dotenv searches for .env automatically
+
+# Now import settings AFTER dotenv may have loaded variables
+from luthien_control.config.settings import Settings  # noqa: E402
+
 # Now import necessary components
 try:
-    from luthien_control.config.settings import Settings
     from luthien_control.db.api_key_crud import get_api_key_by_value
     from luthien_control.db.database import close_main_db_pool, create_main_db_pool
     from luthien_control.db.policy_crud import (
@@ -78,14 +84,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    # Load environment variables from .env if present (important for Settings)
-    from dotenv import load_dotenv
-
-    env_path = os.path.join(project_root, ".env")
-    if os.path.exists(env_path):
-        logger.info(f"Loading environment variables from: {env_path}")
-        load_dotenv(dotenv_path=env_path, verbose=True)
-    else:
-        logger.warning(f".env file not found at {env_path}, relying on system environment variables.")
-
     asyncio.run(main())

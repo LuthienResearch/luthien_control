@@ -6,7 +6,6 @@ Script to generate an Alembic migration for SQLModel tables.
 import os
 import subprocess
 import sys
-from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -14,12 +13,7 @@ from dotenv import load_dotenv
 def generate_migration(message="Initial sqlmodel tables"):
     """Run alembic revision with autogenerate."""
     # Load environment variables
-    env_file = Path(__file__).parent.parent / ".env"
-    if env_file.exists():
-        load_dotenv(dotenv_path=env_file)
-        print(f"Loaded environment variables from {env_file}")
-    else:
-        print(f".env file not found at {env_file}, using system environment variables")
+    load_dotenv()
 
     # Check if required environment variables are set
     required_vars = ["DB_USER", "DB_PASSWORD", "DB_NAME_NEW"]

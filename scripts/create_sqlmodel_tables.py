@@ -7,7 +7,6 @@ This is a manual alternative to using Alembic, useful for testing.
 import asyncio
 import logging
 import sys
-from pathlib import Path
 
 from dotenv import load_dotenv
 from luthien_control.db.database_async import close_main_db_engine, create_main_db_engine
@@ -20,13 +19,7 @@ logger = logging.getLogger(__name__)
 
 async def create_tables():
     """Create all tables defined in SQLModel models."""
-    # Load environment variables
-    env_file = Path(__file__).parent.parent / ".env"
-    if env_file.exists():
-        load_dotenv(dotenv_path=env_file)
-        logger.info(f"Loaded environment variables from {env_file}")
-    else:
-        logger.warning(f".env file not found at {env_file}, using system environment variables")
+    load_dotenv()
 
     # Create engine
     engine = await create_main_db_engine()

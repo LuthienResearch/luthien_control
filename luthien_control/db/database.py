@@ -22,17 +22,17 @@ def _get_main_db_dsn() -> Optional[str]:
         logger.info("Using DATABASE_URL for main database connection.")
         return database_url
 
-    logger.warning("DATABASE_URL not found. Falling back to individual POSTGRES_* variables.")
-    db_user = os.getenv("POSTGRES_USER")
-    db_password = os.getenv("POSTGRES_PASSWORD")
-    db_host = os.getenv("POSTGRES_HOST")
-    db_port = os.getenv("POSTGRES_PORT", "5432")  # Default port
-    db_name = os.getenv("POSTGRES_DB")
+    logger.warning("DATABASE_URL not found. Falling back to individual DB_* variables.")
+    db_user = os.getenv("DB_USER")
+    db_password = os.getenv("DB_PASSWORD")
+    db_host = os.getenv("DB_HOST")
+    db_port = os.getenv("DB_PORT", "5432")  # Default port
+    db_name = os.getenv("DB_NAME")
 
     if not all([db_user, db_password, db_host, db_name]):
         logger.error(
-            "Missing one or more required POSTGRES_* environment variables "
-            "(POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_DB) "
+            "Missing one or more required DB_* environment variables "
+            "(DB_USER, DB_PASSWORD, DB_HOST, DB_NAME) "
             "when DATABASE_URL is not set."
         )
         return None

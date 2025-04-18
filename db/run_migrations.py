@@ -19,7 +19,7 @@ SCHEMA_MIGRATIONS_CREATION_SCRIPT = "002_add_migration_tracking_table.sql"
 
 def get_db_connection():
     """Establishes and returns a database connection using env vars.
-    Prioritizes DATABASE_URL if available, otherwise uses individual POSTGRES_* vars.
+    Prioritizes DATABASE_URL if available, otherwise uses individual DB_* vars.
     """
     database_url = os.getenv("DATABASE_URL")
     try:
@@ -35,20 +35,20 @@ def get_db_connection():
                 logging.info("Attempting to connect using DATABASE_URL (details hidden).")
             conn = psycopg2.connect(dsn=database_url)
         else:
-            logging.info("DATABASE_URL not found, attempting connection using individual POSTGRES_* variables.")
+            logging.info("DATABASE_URL not found, attempting connection using individual DB_* variables.")
             # Check for required individual variables if DATABASE_URL is not set
-            required_vars = ["POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD"]
+            required_vars = ["DB_NAME", "DB_USER", "DB_PASSWORD"]
             missing_vars = [var for var in required_vars if not os.getenv(var)]
             if missing_vars:
-                logging.error(f"Missing required POSTGRES_* variables when DATABASE_URL is not set: {missing_vars}")
+                logging.error(f"Missing required DB_* variables when DATABASE_URL is not set: {missing_vars}")
                 sys.exit(1)
 
             conn = psycopg2.connect(
-                dbname=os.getenv("POSTGRES_DB"),
-                user=os.getenv("POSTGRES_USER"),
-                password=os.getenv("POSTGRES_PASSWORD"),
-                host=os.getenv("POSTGRES_HOST", "localhost"),  # Keep default for local
-                port=os.getenv("POSTGRES_PORT", "5432"),  # Keep default for local
+                dbname=os.getenv("DB_NAME"),
+                user=os.getenv("DB_USER"),
+                password=os.getenv("DB_PASSWORD"),
+                host=os.getenv("DB_HOST", "localhost"),  # Keep default for local
+                port=os.getenv("DB_PORT", "5432"),  # Keep default for local
             )
 
         logging.info("Database connection established.")

@@ -14,7 +14,9 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
 *   **Package Management:** Poetry
 *   **Web Framework:** FastAPI
 *   **Server:** Uvicorn
-*   **Database:** PostgreSQL (using `asyncpg`)
+*   **Database:** 
+    * PostgreSQL (using `asyncpg`) - Legacy system
+    * SQLModel (SQLAlchemy + Pydantic) with Alembic - New system (in transition)
 *   **HTTP Client:** HTTPX
 *   **Configuration:** Environment variables via `python-dotenv`
 *   **Linting/Formatting:** Ruff
@@ -55,7 +57,8 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
     *   **Optional Variables:**
         *   `OPENAI_API_KEY`: API key for the backend service (required if the backend needs authentication, like OpenAI).
         *   `POLICY_MODULE`: Python path to the policy class to load (defaults to `luthien_control.policies.examples.no_op.NoOpPolicy`).
-        *   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`: Database connection details for the *main* application database (if needed in the future, currently unused by core proxy but potentially used by tests/fixtures).
+        *   `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME`: Database connection details for the *main* application database.
+        *   `DB_NAME_NEW`: Database name for the new SQLModel database (see [SQLModel Migration](docs/sqlmodel_migration.md)).
         *   `LOG_DB_USER`, `LOG_DB_PASSWORD`, `LOG_DB_HOST`, `LOG_DB_PORT`, `LOG_DB_NAME`: Database connection details for the *request/response logging* database. The defaults match the `docker-compose.yml` setup (`LOG_DB_USER=luthien`, `LOG_DB_PASSWORD=secret`, `LOG_DB_HOST=localhost`, `LOG_DB_PORT=5432`, `LOG_DB_NAME=luthien_log_db`).
         *   `LOG_DB_POOL_MIN_SIZE`, `LOG_DB_POOL_MAX_SIZE`: Optional pool size settings for the logging database connection.
 
@@ -120,7 +123,9 @@ Radon is used to analyze code complexity (e.g., cyclomatic complexity). This hel
 *   `luthien_control/`: Main package code (submodules: `proxy/`, `db/`, `config/`, `logging/`, etc.).
 *   `tests/`: Top-level test directory mirroring `luthien_control`.
 *   `dev/`: Development tracking files (`ProjectPlan.md`, `current_context.md`, `development_log.md`, `ToDo.md`).
-*   `scripts/`: Helper scripts (e.g., log rotation).
+*   `docs/`: Documentation files, including migration guides.
+*   `scripts/`: Helper scripts (database creation, log rotation, etc.).
+*   `alembic/`: Database migration files for SQLModel.
 *   `docker-compose.yml`: Configuration for local development database.
 *   `.env.example`: Example environment variable file.
 *   `pyproject.toml`: Project metadata and dependencies (Poetry).

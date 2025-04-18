@@ -31,11 +31,11 @@ def set_test_db_env_vars(monkeypatch):
     monkeypatch.setenv("LOG_DB_PORT", "5433")  # Different port for testing
     monkeypatch.setenv("LOG_DB_NAME", "test_log_db")
     # Main DB Vars (using postgres naming convention)
-    monkeypatch.setenv("POSTGRES_USER", "test_main_user")
-    monkeypatch.setenv("POSTGRES_PASSWORD", "test_main_password")
-    monkeypatch.setenv("POSTGRES_HOST", "localhost")
-    monkeypatch.setenv("POSTGRES_PORT", "5434")  # Different port
-    monkeypatch.setenv("POSTGRES_DB", "test_main_db")
+    monkeypatch.setenv("DB_USER", "test_main_user")
+    monkeypatch.setenv("DB_PASSWORD", "test_main_password")
+    monkeypatch.setenv("DB_HOST", "localhost")
+    monkeypatch.setenv("DB_PORT", "5434")  # Different port
+    monkeypatch.setenv("DB_NAME", "test_main_db")
 
     # Reset global pool variables before each test
     # Use the actual names: _log_db_pool and _main_db_pool
@@ -176,7 +176,7 @@ async def test_create_pool_missing_env_vars(monkeypatch, caplog):
 
     # Explicitly remove one essential env var for each pool type
     monkeypatch.delenv("LOG_DB_PASSWORD", raising=False)
-    monkeypatch.delenv("POSTGRES_USER", raising=False)
+    monkeypatch.delenv("DB_USER", raising=False)
 
     with patch("asyncpg.create_pool", new_callable=AsyncMock):
         # Ensure globals are None before starting (handled by fixture)

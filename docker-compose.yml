@@ -5,9 +5,9 @@ services:
     environment:
       # Default credentials for local development ONLY.
       # Consider using a .env file for more sensitive scenarios.
-      POSTGRES_USER: luthien_user
-      POSTGRES_PASSWORD: luthien_pass
-      POSTGRES_DB: luthien_dev_db
+      DB_USER: luthien_user
+      DB_PASSWORD: luthien_pass
+      DB_NAME: luthien_dev_db
     ports:
       # Map host port 5432 to container port 5432
       - "5432:5432"

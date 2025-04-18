@@ -11,11 +11,11 @@ load_dotenv(verbose=True)
 logger = logging.getLogger(__name__)
 
 # --- Database Configuration --- #
-DB_USER = os.getenv("POSTGRES_USER", "default_user")  # Provide sensible defaults or raise errors
-DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "default_password")
-DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
-DB_PORT = os.getenv("POSTGRES_PORT", "5432")
-DB_NAME = os.getenv("POSTGRES_DB", "main_app_db")
+DB_USER = os.getenv("DB_USER", "default_user")  # Provide sensible defaults or raise errors
+DB_PASSWORD = os.getenv("DB_PASSWORD", "default_password")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME", "main_app_db")
 
 DSN = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
         logger.error(
             "Missing essential database connection environment variables "
-            "(POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB). "
+            "(DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME). "
             "Cannot initialize database."
         )
     else:

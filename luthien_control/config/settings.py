@@ -16,12 +16,12 @@ class Settings:
     # Comma-separated list of control policies for the beta framework
 
     # --- Database Settings ---
-    POSTGRES_SERVER: str = "localhost"
-    POSTGRES_USER: Optional[str] = None
-    POSTGRES_PASSWORD: Optional[str] = None
-    POSTGRES_DB: Optional[str] = None
-    POSTGRES_HOST: Optional[str] = None
-    POSTGRES_PORT: Optional[int] = 5432
+    DB_SERVER: str = "localhost"
+    DB_USER: Optional[str] = None
+    DB_PASSWORD: Optional[str] = None
+    DB_NAME: Optional[str] = None
+    DB_HOST: Optional[str] = None
+    DB_PORT: Optional[int] = 5432
 
     # --- OpenAI Settings ---
     OPENAI_API_KEY: Optional[str] = None
@@ -47,26 +47,26 @@ class Settings:
 
     # --- Database settings Getters using os.getenv ---
     def get_postgres_user(self) -> str | None:
-        return os.getenv("POSTGRES_USER")
+        return os.getenv("DB_USER")
 
     def get_postgres_password(self) -> str | None:
-        return os.getenv("POSTGRES_PASSWORD")
+        return os.getenv("DB_PASSWORD")
 
     def get_postgres_db(self) -> str | None:
-        return os.getenv("POSTGRES_DB")
+        return os.getenv("DB_NAME")
 
     def get_postgres_host(self) -> str | None:
-        return os.getenv("POSTGRES_HOST")
+        return os.getenv("DB_HOST")
 
     def get_postgres_port(self) -> int | None:
         """Returns the PostgreSQL port as an integer, or None if not set."""
-        port_str = os.getenv("POSTGRES_PORT")
+        port_str = os.getenv("DB_PORT")
         if port_str is None:
             return None
         try:
             return int(port_str)
         except ValueError:
-            raise ValueError("POSTGRES_PORT environment variable must be an integer.")
+            raise ValueError("DB_PORT environment variable must be an integer.")
 
     # --- Logging Database settings Getters using os.getenv ---
     def get_log_db_user(self) -> str | None:
@@ -133,11 +133,11 @@ class Settings:
         return f"postgresql://{user}:{password}@{host}:{port}"
 
     def get_db_dsn(self, db_name: str | None = None) -> str:
-        """Returns the DSN for a specific database name, or the default POSTGRES_DB.
+        """Returns the DSN for a specific database name, or the default DB_NAME.
         Raises ValueError if required DB settings or the target db_name are missing.
         """
         target_db = db_name or self.get_postgres_db()
         if not target_db:
-            raise ValueError("Missing target database name (either provide db_name or set POSTGRES_DB env var)")
+            raise ValueError("Missing target database name (either provide db_name or set DB_NAME env var)")
         base = self.base_dsn  # Use property
         return f"{base}/{target_db}"

@@ -117,7 +117,7 @@ async def db_session_fixture():
         print("[db_session_fixture] Settings loaded for DB operations.")
     except Exception as e:
         pytest.fail(
-            f"[db_session_fixture] Failed to load Settings for DB setup: {e}. Ensure .env has required POSTGRES_* vars."
+            f"[db_session_fixture] Failed to load Settings for DB setup: {e}. Ensure .env has required DB_* vars."
         )
 
     temp_db_name = f"test_db_{uuid.uuid4().hex}"

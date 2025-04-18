@@ -2,6 +2,7 @@ import logging
 
 import httpx
 from fastapi import Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import Settings and the policy loader
 from luthien_control.config.settings import Settings
@@ -14,8 +15,11 @@ from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 from luthien_control.core.response_builder.interface import ResponseBuilder
 
-# Import DB access functions
+# Import DB access functions (Legacy)
 from luthien_control.db.api_key_crud import get_api_key_by_value
+
+# Import SQLModel database session providers
+from luthien_control.db.database_async import get_log_db_session, get_main_db_session
 from luthien_control.db.policy_crud import (
     ApiKeyLookupFunc,
     PolicyLoadError,
@@ -42,6 +46,28 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
         logger.critical("!!! CRITICAL ERROR: httpx.AsyncClient not found in request.app.state")
         raise HTTPException(status_code=500, detail="Internal server error: HTTP client not available.")
     return client
+
+
+async def get_db() -> AsyncSession:
+    """
+    Dependency for SQLModel main database session using the new async database.
+
+    Yields:
+        AsyncSession: SQLAlchemy async session for database operations.
+    """
+    async for session in get_main_db_session():
+        yield session
+
+
+async def get_log_db() -> AsyncSession:
+    """
+    Dependency for SQLModel logging database session.
+
+    Yields:
+        AsyncSession: SQLAlchemy async session for database operations.
+    """
+    async for session in get_log_db_session():
+        yield session
 
 
 def get_initial_context_policy() -> InitializeContextPolicy:

@@ -19,7 +19,7 @@ class Settings:
     DB_SERVER: str = "localhost"
     DB_USER: Optional[str] = None
     DB_PASSWORD: Optional[str] = None
-    DB_NAME: Optional[str] = None
+    DB_NAME_NEW: Optional[str] = None
     DB_HOST: Optional[str] = None
     DB_PORT: Optional[int] = 5432
 
@@ -53,7 +53,7 @@ class Settings:
         return os.getenv("DB_PASSWORD")
 
     def get_postgres_db(self) -> str | None:
-        return os.getenv("DB_NAME")
+        return os.getenv("DB_NAME_NEW")
 
     def get_postgres_host(self) -> str | None:
         return os.getenv("DB_HOST")
@@ -67,29 +67,6 @@ class Settings:
             return int(port_str)
         except ValueError:
             raise ValueError("DB_PORT environment variable must be an integer.")
-
-    # --- Logging Database settings Getters using os.getenv ---
-    def get_log_db_user(self) -> str | None:
-        return os.getenv("LOG_DB_USER")
-
-    def get_log_db_password(self) -> str | None:
-        return os.getenv("LOG_DB_PASSWORD")
-
-    def get_log_db_name(self) -> str | None:
-        return os.getenv("LOG_DB_NAME")
-
-    def get_log_db_host(self) -> str | None:
-        return os.getenv("LOG_DB_HOST")
-
-    def get_log_db_port(self) -> int | None:
-        """Returns the Log DB port as an integer, or None if not set."""
-        port_str = os.getenv("LOG_DB_PORT")
-        if port_str is None:
-            return None
-        try:
-            return int(port_str)
-        except ValueError:
-            raise ValueError("LOG_DB_PORT environment variable must be an integer.")
 
     # --- Database DSN Helper Properties using Getters ---
     @property

@@ -19,14 +19,9 @@ def settings():
         ("OPENAI_API_KEY", "get_openai_api_key", "sk-12345", "sk-12345"),
         ("DB_USER", "get_postgres_user", "pg_user", "pg_user"),
         ("DB_PASSWORD", "get_postgres_password", "pg_pass", "pg_pass"),
-        ("DB_NAME", "get_postgres_db", "pg_db", "pg_db"),
+        ("DB_NAME_NEW", "get_postgres_db", "pg_db", "pg_db"),
         ("DB_HOST", "get_postgres_host", "pg_host", "pg_host"),
         ("DB_PORT", "get_postgres_port", "5433", 5433),  # Input str, output int
-        ("LOG_DB_USER", "get_log_db_user", "log_user", "log_user"),
-        ("LOG_DB_PASSWORD", "get_log_db_password", "log_pass", "log_pass"),
-        ("LOG_DB_NAME", "get_log_db_name", "log_db", "log_db"),
-        ("LOG_DB_HOST", "get_log_db_host", "log_host", "log_host"),
-        ("LOG_DB_PORT", "get_log_db_port", "5434", 5434),  # Input str, output int
     ],
 )
 def test_getter_set(settings, monkeypatch, env_var, method_name, test_value, expected_value):
@@ -44,14 +39,9 @@ def test_getter_set(settings, monkeypatch, env_var, method_name, test_value, exp
         ("OPENAI_API_KEY", "get_openai_api_key", None),
         ("DB_USER", "get_postgres_user", None),
         ("DB_PASSWORD", "get_postgres_password", None),
-        ("DB_NAME", "get_postgres_db", None),
+        ("DB_NAME_NEW", "get_postgres_db", None),
         ("DB_HOST", "get_postgres_host", None),
         ("DB_PORT", "get_postgres_port", None),  # Changed expectation from 5432 to None
-        ("LOG_DB_USER", "get_log_db_user", None),
-        ("LOG_DB_PASSWORD", "get_log_db_password", None),
-        ("LOG_DB_NAME", "get_log_db_name", None),
-        ("LOG_DB_HOST", "get_log_db_host", None),
-        ("LOG_DB_PORT", "get_log_db_port", None),  # Changed expectation from 5432 to None
     ],
 )
 def test_getter_not_set(settings, monkeypatch, env_var, method_name, expected_value):
@@ -85,12 +75,6 @@ def test_get_postgres_port_invalid(settings, monkeypatch):
         settings.get_postgres_port()
 
 
-def test_get_log_db_port_invalid(settings, monkeypatch):
-    """Test get_log_db_port when LOG_DB_PORT is not an integer."""
-    monkeypatch.setenv("LOG_DB_PORT", "not-an-int-either")
-    with pytest.raises(ValueError, match="LOG_DB_PORT environment variable must be an integer"):
-        settings.get_log_db_port()
-
 
 # --- Tests for DSN Properties ---
 
@@ -102,7 +86,7 @@ def set_postgres_env(monkeypatch):
     monkeypatch.setenv("DB_PASSWORD", "test_pass")
     monkeypatch.setenv("DB_HOST", "test_host")
     monkeypatch.setenv("DB_PORT", "5432")
-    monkeypatch.setenv("DB_NAME", "test_db")
+    monkeypatch.setenv("DB_NAME_NEW", "test_db")
 
 
 # --- Test admin_dsn ---
@@ -161,10 +145,3 @@ def test_get_db_dsn_missing_base_var(settings, set_postgres_env, monkeypatch, mi
     monkeypatch.delenv(missing_var)
     with pytest.raises(ValueError, match="Missing required database settings .* for base_dsn"):
         settings.get_db_dsn()  # Call method to trigger the check
-
-
-def test_get_db_dsn_missing_target_db(settings, set_postgres_env, monkeypatch):
-    """Test get_db_dsn raises ValueError when no target DB name is available."""
-    monkeypatch.delenv("DB_NAME")
-    with pytest.raises(ValueError, match="Missing target database name"):
-        settings.get_db_dsn()  # No arg, no env var

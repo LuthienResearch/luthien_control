@@ -27,7 +27,7 @@ async def test_get_main_db_url_with_postgres_vars():
         "DB_PASSWORD": "testpass",
         "DB_HOST": "testhost",
         "DB_PORT": "5433",
-        "DB_NAME": "testdb",
+        "DB_NAME_NEW": "testdb",
     }
     with patch.dict(os.environ, env_vars, clear=True):
         url = _get_main_db_url()

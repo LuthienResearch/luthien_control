@@ -32,19 +32,18 @@ def _get_main_db_url() -> Optional[str]:
     db_host = os.getenv("DB_HOST")
     db_port = os.getenv("DB_PORT", "5432")  # Default port
 
-    # Check for DB_NAME_NEW first, fall back to DB_NAME for backward compatibility
-    db_name = os.getenv("DB_NAME_NEW") or os.getenv("DB_NAME")
+    # Use DB_NAME_NEW for the database name
+    db_name = os.getenv("DB_NAME_NEW")
 
     # Log which database name variable was used
-    if os.getenv("DB_NAME_NEW"):
+    if db_name:
         logger.debug("Using DB_NAME_NEW for SQLModel connection")
-    elif os.getenv("DB_NAME"):
-        logger.debug("Falling back to DB_NAME for backward compatibility")
+    # Removed fallback logging for DB_NAME
 
     if not all([db_user, db_password, db_host, db_name]):
         logger.error(
             "Missing one or more required DB_* environment variables "
-            "(DB_USER, DB_PASSWORD, DB_HOST, DB_NAME or DB_NAME_NEW) "
+            "(DB_USER, DB_PASSWORD, DB_HOST, DB_NAME_NEW) " # Updated error message
             "when DATABASE_URL is not set."
         )
         return None

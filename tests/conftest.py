@@ -4,12 +4,13 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Optional
 from unittest.mock import AsyncMock, MagicMock
 
-import asyncpg
 import fastapi
 import httpx
 import psycopg2
 import pytest
 import pytest_asyncio
+from alembic import command
+from alembic.config import Config
 from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
@@ -115,7 +116,7 @@ async def db_session_fixture():
             cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (temp_db_name,))
             if cursor.fetchone():
                 print(f"Warning: Database {temp_db_name} already exists. Attempting to drop and recreate.")
-                cursor.execute(f'DROP DATABASE "{temp_db_name}"')
+                cursor.execute(f'DROP DATABASE IF EXISTS "{temp_db_name}" WITH (FORCE)')
             print(f"Executing CREATE DATABASE {temp_db_name}")
             cursor.execute(f'CREATE DATABASE "{temp_db_name}"')
         print(f"Database {temp_db_name} created successfully.")
@@ -127,28 +128,33 @@ async def db_session_fixture():
         if conn_admin:
             conn_admin.close()
 
-    # --- Schema Application (using asyncpg - async) ---
-    conn_test_db = None
+    # --- Schema Application (using Alembic - sync) ---
+    temp_db_dsn = db_settings.get_db_dsn(temp_db_name)
     try:
-        temp_db_dsn = db_settings.get_db_dsn(temp_db_name)
-        schema_path = Path(__file__).parent.parent / "db" / "schema_v1.sql"
-        if not schema_path.is_file():
-            pytest.fail(f"Schema file not found at: {schema_path}")
+        print(f"Applying Alembic migrations to {temp_db_name}...")
+        alembic_cfg_path = Path(__file__).parent.parent / "alembic.ini"
+        if not alembic_cfg_path.is_file():
+            pytest.fail(f"Alembic config file not found at: {alembic_cfg_path}")
 
-        print(f"Applying schema from {schema_path} to {temp_db_name}...")
-        schema_sql = schema_path.read_text()
+        alembic_cfg = Config(str(alembic_cfg_path))
+        # Tell Alembic to use the temporary database's connection string
+        # The sqlalchemy.url key in alembic.ini is used by default
+        alembic_cfg.set_main_option("sqlalchemy.url", temp_db_dsn.replace("+asyncpg", "+psycopg2"))
 
-        conn_test_db = await asyncpg.connect(dsn=temp_db_dsn)
-        await conn_test_db.execute(schema_sql)
-        print(f"Schema applied successfully to {temp_db_name}.")
+        # Ensure the script location is correctly set (relative to alembic.ini)
+        script_location = Path(alembic_cfg.get_main_option("script_location", "."))
+        if not (alembic_cfg_path.parent / script_location).exists():
+             pytest.fail(f"Alembic script location not found: {alembic_cfg_path.parent / script_location}")
+        alembic_cfg.set_main_option("script_location", str(script_location))
 
-    except (asyncpg.PostgresError, FileNotFoundError, OSError) as e:
+        command.upgrade(alembic_cfg, "head")
+        print(f"Alembic migrations applied successfully to {temp_db_name}.")
+
+    except Exception as e:
         pytest.fail(
-            f"Failed to apply schema to {temp_db_name} using DSN {temp_db_dsn[: temp_db_dsn.find('@')]}...: {e}"
+            f"Failed to apply Alembic migrations to {temp_db_name} "
+            f"using DSN {temp_db_dsn[: temp_db_dsn.find('@')]}...: {e}"
         )
-    finally:
-        if conn_test_db and not conn_test_db.is_closed():
-            await conn_test_db.close()
 
     # --- Yield DSN for Tests ---
     print(f"Yielding DSN for tests: {temp_db_dsn}")

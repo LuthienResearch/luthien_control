@@ -6,8 +6,8 @@ from fastapi import FastAPI
 
 from luthien_control.config.settings import Settings
 from luthien_control.db.database_async import (
-    create_main_db_engine,
     close_main_db_engine,
+    create_main_db_engine,
 )
 from luthien_control.logging_config import setup_logging
 from luthien_control.proxy.server import router as proxy_router

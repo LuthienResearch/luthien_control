@@ -69,23 +69,6 @@ def override_settings_dependency(request):
         else:
             print(f"[conftest] Warning: load_dotenv did not find variables in {env_file_path}")
 
-    # 2. Apply Test-Specific Overrides from Marker
-    env_marker = request.node.get_closest_marker("envvars")
-    if env_marker:
-        if not env_marker.args or not isinstance(env_marker.args[0], dict):
-            pytest.fail("@pytest.mark.envvars requires a dictionary argument.")
-
-        test_vars = env_marker.args[0]
-        print(f"[conftest] Applying env overrides from marker: {test_vars}")
-        for key, value in test_vars.items():
-            if value is None:
-                # Allow unsetting a variable
-                if key in os.environ:
-                    print(f"  - Unsetting {key}")
-                    del os.environ[key]
-            else:
-                print(f"  - Setting {key}={value}")
-                os.environ[key] = str(value)  # Ensure value is string
 
     yield  # Allow test to run
 

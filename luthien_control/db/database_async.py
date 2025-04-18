@@ -38,7 +38,7 @@ def _get_main_db_url() -> Optional[str]:
     # Log which database name variable was used
     if db_name:
         logger.debug("Using DB_NAME_NEW for SQLModel connection")
-    # Removed fallback logging for DB_NAME
+    # Removed fallback logging for DB_NAME_NEW
 
     if not all([db_user, db_password, db_host, db_name]):
         logger.error(

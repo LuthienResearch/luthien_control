@@ -127,7 +127,7 @@ def test_base_dsn_missing_var(settings, set_postgres_env, monkeypatch, missing_v
 
 
 def test_get_db_dsn_happy_path_default_db(settings, set_postgres_env):
-    """Test get_db_dsn using the default DB_NAME from env."""
+    """Test get_db_dsn using the default DB_NAME_NEW from env."""
     expected_dsn = "postgresql://test_user:test_pass@test_host:5432/test_db"
     assert settings.get_db_dsn() == expected_dsn
 

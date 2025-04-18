@@ -57,7 +57,7 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
     *   **Optional Variables:**
         *   `OPENAI_API_KEY`: API key for the backend service (required if the backend needs authentication, like OpenAI).
         *   `POLICY_MODULE`: Python path to the policy class to load (defaults to `luthien_control.policies.examples.no_op.NoOpPolicy`).
-        *   `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME`: Database connection details for the *main* application database.
+        *   `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME_NEW`: Database connection details for the *main* application database.
         *   `DB_NAME_NEW`: Database name for the new SQLModel database (see [SQLModel Migration](docs/sqlmodel_migration.md)).
         *   `LOG_DB_USER`, `LOG_DB_PASSWORD`, `LOG_DB_HOST`, `LOG_DB_PORT`, `LOG_DB_NAME`: Database connection details for the *request/response logging* database. The defaults match the `docker-compose.yml` setup (`LOG_DB_USER=luthien`, `LOG_DB_PASSWORD=secret`, `LOG_DB_HOST=localhost`, `LOG_DB_PORT=5432`, `LOG_DB_NAME=luthien_log_db`).
         *   `LOG_DB_POOL_MIN_SIZE`, `LOG_DB_POOL_MAX_SIZE`: Optional pool size settings for the logging database connection.

@@ -110,11 +110,11 @@ class Settings:
         return f"postgresql://{user}:{password}@{host}:{port}"
 
     def get_db_dsn(self, db_name: str | None = None) -> str:
-        """Returns the DSN for a specific database name, or the default DB_NAME.
+        """Returns the DSN for a specific database name, or the default DB_NAME_NEW.
         Raises ValueError if required DB settings or the target db_name are missing.
         """
         target_db = db_name or self.get_postgres_db()
         if not target_db:
-            raise ValueError("Missing target database name (either provide db_name or set DB_NAME env var)")
+            raise ValueError("Missing target database name (either provide db_name or set DB_NAME_NEW env var)")
         base = self.base_dsn  # Use property
         return f"{base}/{target_db}"

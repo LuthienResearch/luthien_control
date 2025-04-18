@@ -48,7 +48,7 @@ RUN poetry install --no-interaction --no-ansi --no-root --without dev
 
 # Copy the application code and db scripts
 COPY luthien_control/ ./luthien_control/
-COPY db/ ./db/
+COPY alembic/ ./alembic/
 
 # Expose the port the app runs on
 EXPOSE 8000

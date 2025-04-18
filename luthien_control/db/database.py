@@ -1,7 +1,6 @@
-import json
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Optional
 from urllib.parse import urlparse, urlunparse
 
 import asyncpg
@@ -208,57 +207,3 @@ def get_main_db_pool() -> asyncpg.Pool:
         logger.error("Main database pool accessed before initialization.")
         raise RuntimeError("Main database pool has not been initialized.")
     return _main_db_pool
-
-
-# --- Database Operations --- #
-
-
-async def log_request_response(
-    request_data: Dict[str, Any],
-    response_data: Dict[str, Any],
-    client_ip: Optional[str] = None,
-) -> None:
-    """
-    Logs request and response data to the logging database.
-    Uses get_log_db_pool() to acquire the connection pool.
-
-    Args:
-        request_data: Dictionary containing request details.
-        response_data: Dictionary containing response details.
-        client_ip: The IP address of the client.
-    """
-    try:
-        pool = get_log_db_pool()  # Get the pool using the getter
-    except RuntimeError:
-        logger.error("Cannot log request/response: Logging database pool not initialized.")
-        return
-
-    sql = """
-        INSERT INTO request_log (
-            client_ip, request_method, request_url, request_headers, request_body,
-            response_status_code, response_headers, response_body, processing_time_ms
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-    """
-    try:
-        request_headers_json = json.dumps(request_data.get("headers"))
-        response_headers_json = json.dumps(response_data.get("headers"))
-
-        params = (
-            client_ip,
-            request_data.get("method"),
-            str(request_data.get("url")),  # Ensure URL is string
-            request_headers_json,
-            request_data.get("body"),
-            response_data.get("status_code"),
-            response_headers_json,
-            response_data.get("body"),
-            request_data.get("processing_time_ms"),
-        )
-
-        async with pool.acquire() as conn:
-            await conn.execute(sql, *params)
-        # logger.debug(f"Successfully logged request for {request_data.get('url')}")
-    except Exception as e:
-        url_info = request_data.get("url", "[URL not available]")
-        logger.exception(f"Failed to log request/response to database for {url_info}: {e}")
-        # Suppress to avoid breaking the main flow.

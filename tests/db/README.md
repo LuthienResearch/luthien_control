@@ -35,21 +35,6 @@ Tests the `load_policy_from_db` function from `luthien_control.db.sqlmodel_crud`
 *   `test_load_policy_from_db_instantiation_fails`: Tests `PolicyLoadError` when the mocked `instantiate_policy` raises an error, using a real session.
 *   `test_load_policy_from_db_missing_class_path`: Tests `PolicyLoadError` when the fetched `Policy` config lacks a class path, using a real session.
 
-## `test_sqlmodel_integration.py`
-
-Provides integration tests for API endpoints that interact with the SQLModel database layer. It sets up a test FastAPI application with dependency injection for the database session.
-
-*   `async_engine` (fixture): Creates an async SQLite engine and manages tables for integration tests.
-*   `async_session_factory` (fixture): Creates a session factory for the test engine.
-*   `async_session` (fixture): Provides an `AsyncSession` from the factory for each test.
-*   `test_app` (fixture): Creates a test FastAPI application instance with database dependency injection.
-*   `get_test_db` (dependency): An async dependency within `test_app` to provide a database session to routes.
-*   `create_policy_route` (route): A test FastAPI route (`POST /policies/`) for creating policies.
-*   `get_policy_route` (route): A test FastAPI route (`GET /policies/{name}`) for retrieving policies.
-*   `test_client` (fixture): Provides a `TestClient` for interacting with the test FastAPI app.
-*   `test_create_and_get_policy`: Tests creating a policy via the API and then retrieving it.
-*   `test_get_nonexistent_policy`: Tests the API response when requesting a policy that does not exist.
-
 ## `test_database_async.py`
 
 Tests the asynchronous database setup functions in `luthien_control.db.database_async`.

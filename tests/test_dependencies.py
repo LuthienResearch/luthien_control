@@ -17,13 +17,6 @@ from luthien_control.dependencies import (
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import State
 
-
-@pytest.fixture
-def mock_api_key_crud():
-    """Fixture to mock the get_api_key_by_value CRUD function."""
-    return AsyncMock(spec=get_api_key_by_value)
-
-
 # --- Tests for get_http_client ---
 
 

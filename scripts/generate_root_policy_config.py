@@ -10,7 +10,11 @@ import httpx
 
 # Load environment variables from .env if present BEFORE importing Settings
 from dotenv import load_dotenv
-from luthien_control.db.database_async import get_main_db_session  # noqa: E402
+from luthien_control.db.database_async import (
+    create_main_db_engine,
+    close_main_db_engine,
+    get_main_db_session,
+)  # noqa: E402
 
 load_dotenv(verbose=True)  # load_dotenv searches for .env automatically
 
@@ -45,6 +49,11 @@ async def main():
     api_key_lookup: ApiKeyLookupFunc = get_api_key_by_value
 
     try:
+        # Initialize the main database engine
+        logger.info("Initializing main database engine...")
+        await create_main_db_engine()
+        logger.info("Main database engine initialized.")
+
         # Removed explicit pool creation - get_main_db_session handles engine/session
         logger.info("Database session will be managed by get_main_db_session.")
 
@@ -53,7 +62,10 @@ async def main():
 
         # Load the instance - this uses the *old* config from DB to build the object initially
         # get_main_db_session manages the underlying engine and session
-        async with get_main_db_session() as session:
+        session_generator = get_main_db_session()
+        session = None
+        try:
+            session = await session_generator.__anext__()
             root_policy_instance = await load_policy_from_db(
                 name=root_policy_name,
                 settings=settings,
@@ -62,6 +74,15 @@ async def main():
                 session=session,
             )
             logger.info(f"Policy instance '{root_policy_name}' loaded successfully.")
+        except StopAsyncIteration:
+            logger.error("Database session generator did not yield a session.")
+            raise RuntimeError("Failed to get database session.")
+        finally:
+            if session_generator:
+                try:
+                    await session_generator.aclose()
+                except Exception as close_exc:
+                    logger.error(f"Error closing database session generator: {close_exc}")
 
         # Serialize the loaded instance - this uses the *new* serialize_config logic
         logger.info("Serializing the loaded policy instance...")
@@ -77,7 +98,12 @@ async def main():
         logger.exception(f"An error occurred: {e}")
         sys.exit(1)
     finally:
-        # Removed explicit pool closing
+        # Close the main database engine first
+        logger.info("Closing main database engine...")
+        await close_main_db_engine()
+        logger.info("Main database engine closed.")
+
+        # Then close the HTTP client
         await http_client.aclose()
         logger.info("Cleanup complete (HTTP client closed).")
 

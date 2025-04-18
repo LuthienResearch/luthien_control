@@ -1,7 +1,7 @@
 import logging
 import os
-from typing import AsyncGenerator, Optional
-from urllib.parse import urlparse, urlunparse
+from typing import Any, AsyncGenerator, Dict, Optional, Tuple
+from urllib.parse import urlparse, urlunparse, parse_qs
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
@@ -16,17 +16,36 @@ _log_db_session_factory = None
 _main_db_session_factory = None
 
 
-def _get_main_db_url() -> Optional[str]:
+def _get_main_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
     """Determines the main database URL, prioritizing DATABASE_URL."""
     database_url = os.getenv("DATABASE_URL")
+    connect_args = {}
+    
     if database_url:
         logger.info("Using DATABASE_URL for main database connection.")
+        
+        # Parse the URL to extract sslmode and other query parameters
+        parsed_url = urlparse(database_url)
+        query_params = parse_qs(parsed_url.query)
+        
+        # If sslmode is in the query params, remove it from URL and add to connect_args
+        if 'sslmode' in query_params:
+            sslmode = query_params.pop('sslmode')[0]
+            logger.info(f"Extracted sslmode={sslmode} from DATABASE_URL")
+            connect_args['ssl'] = sslmode == 'require'
+            
+            # Rebuild URL without sslmode
+            clean_query = '&'.join([f"{k}={'='.join(v)}" for k, v in query_params.items()])
+            parsed_url = parsed_url._replace(query=clean_query)
+            database_url = urlunparse(parsed_url)
+        
         # Convert to async URL if needed
         if database_url.startswith("postgresql://"):
             database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
         elif database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-        return database_url
+        
+        return database_url, connect_args
 
     logger.warning("DATABASE_URL not found. Falling back to individual DB_* variables.")
     db_user = os.getenv("DB_USER")
@@ -55,10 +74,10 @@ def _get_main_db_url() -> Optional[str]:
         f"Constructed main database URL from individual variables: "
         f"postgresql+asyncpg://{db_user}:***@{db_host}:{db_port}/{db_name}"
     )
-    return async_url
+    return async_url, {}
 
 
-def _get_log_db_url() -> Optional[str]:
+def _get_log_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
     """Determines the logging database URL."""
     # For logging DB we still use individual vars
     log_db_user = os.getenv("LOG_DB_USER")
@@ -73,7 +92,7 @@ def _get_log_db_url() -> Optional[str]:
             f"Constructed logging database URL: "
             f"postgresql+asyncpg://{log_db_user}:***@{log_db_host}:{log_db_port}/{log_db_name}"
         )
-        return async_url
+        return async_url, {}
     else:
         logger.error("Missing essential logging database connection environment variables")
         return None
@@ -87,10 +106,12 @@ async def create_main_db_engine() -> Optional[AsyncEngine]:
         return _main_db_engine
 
     logger.info("Attempting to create main database engine...")
-    db_url = _get_main_db_url()
-    if not db_url:
+    db_url_result = _get_main_db_url()
+    if not db_url_result:
         logger.error("Failed to determine main database URL.")
         return None
+    
+    db_url, connect_args = db_url_result
 
     try:
         # Get and validate pool sizes
@@ -103,6 +124,7 @@ async def create_main_db_engine() -> Optional[AsyncEngine]:
             pool_pre_ping=True,
             pool_size=pool_min_size,
             max_overflow=pool_max_size - pool_min_size,
+            connect_args=connect_args,
         )
 
         _main_db_session_factory = async_sessionmaker(
@@ -133,10 +155,12 @@ async def create_log_db_engine() -> Optional[AsyncEngine]:
         return _log_db_engine
 
     logger.info("Attempting to create logging database engine...")
-    db_url = _get_log_db_url()
-    if not db_url:
+    db_url_result = _get_log_db_url()
+    if not db_url_result:
         logger.error("Failed to determine logging database URL.")
         return None
+    
+    db_url, connect_args = db_url_result
 
     try:
         # Get and validate pool sizes
@@ -149,6 +173,7 @@ async def create_log_db_engine() -> Optional[AsyncEngine]:
             pool_pre_ping=True,
             pool_size=pool_min_size,
             max_overflow=pool_max_size - pool_min_size,
+            connect_args=connect_args,
         )
 
         _log_db_session_factory = async_sessionmaker(

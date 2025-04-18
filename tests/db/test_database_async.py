@@ -15,8 +15,11 @@ from luthien_control.db.database_async import (
 async def test_get_main_db_url_with_database_url():
     """Test _get_main_db_url with DATABASE_URL environment variable."""
     with patch.dict(os.environ, {"DATABASE_URL": "postgresql://user:pass@localhost/dbname"}):
-        url = _get_main_db_url()
+        url_result = _get_main_db_url()
+        assert url_result is not None
+        url, connect_args = url_result
         assert url == "postgresql+asyncpg://user:pass@localhost/dbname"
+        assert isinstance(connect_args, dict)
 
 
 @pytest.mark.asyncio
@@ -30,16 +33,19 @@ async def test_get_main_db_url_with_postgres_vars():
         "DB_NAME_NEW": "testdb",
     }
     with patch.dict(os.environ, env_vars, clear=True):
-        url = _get_main_db_url()
+        url_result = _get_main_db_url()
+        assert url_result is not None
+        url, connect_args = url_result
         assert url == "postgresql+asyncpg://testuser:testpass@testhost:5433/testdb"
+        assert isinstance(connect_args, dict)
 
 
 @pytest.mark.asyncio
 async def test_get_main_db_url_missing_vars():
     """Test _get_main_db_url with missing required environment variables."""
     with patch.dict(os.environ, {"DB_USER": "testuser"}, clear=True):
-        url = _get_main_db_url()
-        assert url is None
+        url_result = _get_main_db_url()
+        assert url_result is None
 
 
 @pytest.mark.asyncio
@@ -53,16 +59,19 @@ async def test_get_log_db_url():
         "LOG_DB_NAME": "logdb",
     }
     with patch.dict(os.environ, env_vars, clear=True):
-        url = _get_log_db_url()
+        url_result = _get_log_db_url()
+        assert url_result is not None
+        url, connect_args = url_result
         assert url == "postgresql+asyncpg://loguser:logpass@loghost:5433/logdb"
+        assert isinstance(connect_args, dict)
 
 
 @pytest.mark.asyncio
 async def test_get_log_db_url_missing_vars():
     """Test _get_log_db_url with missing required environment variables."""
     with patch.dict(os.environ, {"LOG_DB_USER": "loguser"}, clear=True):
-        url = _get_log_db_url()
-        assert url is None
+        url_result = _get_log_db_url()
+        assert url_result is None
 
 
 @pytest.mark.asyncio
@@ -70,8 +79,9 @@ async def test_create_main_db_engine():
     """Test creating the main database engine."""
     # Mock environment variables and URL function
     test_url = "postgresql+asyncpg://fake:fake@localhost/fake"
+    test_connect_args = {}
 
-    with patch("luthien_control.db.database_async._get_main_db_url", return_value=test_url):
+    with patch("luthien_control.db.database_async._get_main_db_url", return_value=(test_url, test_connect_args)):
         with patch("luthien_control.db.database_async.create_async_engine") as mock_create_engine:
             # Mock the engine simply as an object with an async dispose method
             mock_engine = MagicMock()

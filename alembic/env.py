@@ -1,5 +1,6 @@
 import os
 from logging.config import fileConfig
+import logging # Import logging
 
 from alembic import context
 from dotenv import load_dotenv
@@ -10,30 +11,50 @@ from sqlmodel import SQLModel
 # Load environment variables from .env file
 load_dotenv()
 
+# Configure logging for Alembic script itself
+logger = logging.getLogger(__name__)
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
 # Set database connection URL from environment variables
-if "DB_USER" not in os.environ or "DB_PASSWORD" not in os.environ:
-    raise ValueError("Environment variables DB_USER and DB_PASSWORD must be set")
+# Prioritize DATABASE_URL
+database_url = os.environ.get("DATABASE_URL")
 
-# Override sqlalchemy.url based on loaded environment variables
-postgres_user = os.environ.get("DB_USER")
-postgres_password = os.environ.get("DB_PASSWORD")
-postgres_host = os.environ.get("DB_HOST", "localhost")
-postgres_port = os.environ.get("DB_PORT", "5432")
-postgres_db = os.environ.get("DB_NAME_NEW")
+# Determine the final URL to use
+final_db_url = None
 
-if not postgres_db:
-    raise ValueError("Environment variable DB_NAME_NEW must be set")
+if database_url:
+    logger.info("Using DATABASE_URL for Alembic connection.")
+    # Ensure the URL format is compatible with synchronous psycopg2
+    if database_url.startswith("postgresql+asyncpg://"):
+        final_db_url = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    elif database_url.startswith("postgres://"):
+        final_db_url = database_url.replace("postgres://", "postgresql://", 1)
+        logger.info("Converted 'postgres://' URL to 'postgresql://'")
+    else:
+        final_db_url = database_url
+elif os.environ.get("DB_USER") and os.environ.get("DB_PASSWORD") and os.environ.get("DB_NAME_NEW"):
+    logger.warning("DATABASE_URL not set. Falling back to individual DB_* variables for Alembic.")
+    # Fallback to individual variables if DATABASE_URL is not set
+    postgres_user = os.environ.get("DB_USER")
+    postgres_password = os.environ.get("DB_PASSWORD")
+    postgres_host = os.environ.get("DB_HOST", "localhost")
+    postgres_port = os.environ.get("DB_PORT", "5432")
+    postgres_db = os.environ.get("DB_NAME_NEW")
+    final_db_url = f"postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
+else:
+    # Raise error if neither DATABASE_URL nor sufficient DB_* vars are set
+    raise ValueError(
+        "Database connection requires either DATABASE_URL environment variable "
+        "or DB_USER, DB_PASSWORD, and DB_NAME_NEW to be set."
+    )
 
-section = config.config_ini_section
-config.set_section_option(section, "DB_USER", postgres_user)
-config.set_section_option(section, "DB_PASSWORD", postgres_password)
-config.set_section_option(section, "DB_HOST", postgres_host)
-config.set_section_option(section, "DB_PORT", postgres_port)
-config.set_section_option(section, "DB_NAME_NEW", postgres_db)
+
+# Set the final URL in the Alembic config
+config.set_main_option("sqlalchemy.url", final_db_url)
+
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -81,6 +102,13 @@ def run_migrations_online() -> None:
 
     Creates a synchronous connection to the database to run migrations.
     """
+    # Explicitly register the psycopg2 dialect to bypass entry point discovery issues
+    # from sqlalchemy.dialects import postgresql, registry
+    
+    # Only register the postgresql dialect (not postgres) since that's what we're using in the URL
+    # registry.register("postgresql", "sqlalchemy.dialects.postgresql.psycopg2", "PGDialect_psycopg2")
+    # logger.info("Explicitly registered postgresql dialect for psycopg2.")
+
     connectable = create_engine(config.get_main_option("sqlalchemy.url"))
 
     with connectable.connect() as connection:

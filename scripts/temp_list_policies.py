@@ -9,9 +9,6 @@ from luthien_control.db.policy_crud import list_policy_configs
 # Configure logging to see output
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
-# Add project root to path to allow imports
-sys.path.insert(0, ".")
-
 
 async def main():
     Settings()

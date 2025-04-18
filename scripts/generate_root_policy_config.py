@@ -9,10 +9,6 @@ import sys
 
 import httpx
 
-# Adjust path to import from the project root
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, project_root)
-
 # Now import necessary components
 try:
     from luthien_control.config.settings import Settings

@@ -9,9 +9,6 @@ import logging
 import sys
 from pathlib import Path
 
-# Add the parent directory to the Python path to allow imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from dotenv import load_dotenv
 from luthien_control.db.database_async import close_main_db_engine, create_main_db_engine
 from sqlmodel import SQLModel

@@ -41,12 +41,12 @@ def client(test_app: FastAPI) -> TestClient:  # type: ignore[misc]
         patch(
             "luthien_control.db.database_async.create_main_db_engine", new_callable=AsyncMock
         ) as mock_create_main_engine,
-        patch("luthien_control.db.database.create_log_db_pool", new_callable=AsyncMock) as mock_create_log_pool,
+        patch("luthien_control.db.database.create_main_db_pool", new_callable=AsyncMock) as mock_create_main_pool,
     ):  # Patch the actual creation functions
         # Ensure mocked functions return a mock engine/pool or None to simulate success/failure
         # Returning None should be sufficient to bypass actual DB connection attempts.
         mock_create_main_engine.return_value = None  # Or AsyncMock() if needed later
-        mock_create_log_pool.return_value = None
+        mock_create_main_pool.return_value = None
 
         # Now instantiate the TestClient *while the patches are active*
         with TestClient(test_app) as test_client:

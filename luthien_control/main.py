@@ -1,5 +1,4 @@
 import logging
-import os
 from contextlib import asynccontextmanager
 
 import httpx
@@ -8,11 +7,10 @@ from fastapi import FastAPI
 from luthien_control.config.settings import Settings
 from luthien_control.db.database import (
     _get_main_db_dsn,
-    close_log_db_pool,
-    create_log_db_pool,
+    close_main_db_pool,
+    create_main_db_pool,
 )
 from luthien_control.db.database_async import (
-    close_main_db_engine,
     create_main_db_engine,
 )
 from luthien_control.logging_config import setup_logging
@@ -29,7 +27,7 @@ settings = Settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage the lifespan of the application resources."""
-    logger.info("Application starting up...")
+    logger.info("Application startup sequence initiated.")
 
     # Startup: Initialize HTTP client
     timeout = httpx.Timeout(5.0, connect=5.0, read=60.0, write=5.0)
@@ -37,17 +35,9 @@ async def lifespan(app: FastAPI):
     logger.info("HTTP Client initialized.")
 
     # Startup: Initialize Database Pools
-    # Check if the log DB is configured (using old method for now)
-    log_db_configured = all(os.getenv(var) for var in ["LOG_DB_USER", "LOG_DB_PASSWORD", "LOG_DB_HOST", "LOG_DB_NAME"])
     # Check if the main DB is configured by seeing if we can get a DSN
     main_db_dsn = _get_main_db_dsn()
     main_db_configured = bool(main_db_dsn)
-
-    if log_db_configured:
-        logger.info("Log DB seems configured, attempting to create pool...")
-        await create_log_db_pool()
-    else:
-        logger.warning("Log DB environment variables not fully set. Log DB pool will not be created.")
 
     if main_db_configured:
         logger.info("Main DB seems configured (DSN/URL determined), attempting to create engine...")
@@ -72,12 +62,15 @@ async def lifespan(app: FastAPI):
             "Main DB could not be configured (URL could not be determined). Main DB engine will not be created."
         )
 
+    # Initialize main DB pool
+    await create_main_db_pool()
+
     yield
 
-    # Shutdown: Close Database Pools
-    logger.info("Application shutting down...")
-    await close_log_db_pool()
-    await close_main_db_engine()
+    # Shutdown: Clean up resources
+    logger.info("Application shutdown sequence initiated.")
+    # Close main DB pool
+    await close_main_db_pool()
 
     # Shutdown: Close the HTTP client
     if hasattr(app.state, "http_client") and app.state.http_client:

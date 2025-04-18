@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 # --- Global Variables for Connection Pools --- #
 # Ideally, these would be managed within an application context (e.g., FastAPI lifespan)
-_log_db_pool: Optional[asyncpg.Pool] = None
 _main_db_pool: Optional[asyncpg.Pool] = None
 
 
@@ -47,30 +46,14 @@ def _get_main_db_dsn() -> Optional[str]:
 async def _create_pool_internal(
     min_size_env: str,
     max_size_env: str,
-    pool_desc: str,  # Description for logging (e.g., "logging", "main")
+    pool_desc: str,  # Description for logging (e.g., "main") - Note: Logging DB removed
 ) -> Optional[asyncpg.Pool]:
     """Internal helper to create an asyncpg connection pool using a DSN and pool size env vars."""
 
     dsn: Optional[str] = None
     if pool_desc == "main":
         dsn = _get_main_db_dsn()
-    elif pool_desc == "logging":
-        # TODO: Implement similar DSN logic for logging DB if needed, or keep separate vars
-        # For now, assume logging DB still uses individual vars (or needs update)
-        logger.warning("_create_pool_internal called for logging DB, DSN logic not implemented yet.")
-        # Placeholder: attempt to build from specific log vars if needed
-        log_db_user = os.getenv("LOG_DB_USER")
-        log_db_password = os.getenv("LOG_DB_PASSWORD")
-        log_db_host = os.getenv("LOG_DB_HOST")
-        log_db_port = os.getenv("LOG_DB_PORT", "5432")
-        log_db_name = os.getenv("LOG_DB_NAME")
-        if all([log_db_user, log_db_password, log_db_host, log_db_name]):
-            dsn = f"postgresql://{log_db_user}:{log_db_password}@{log_db_host}:{log_db_port}/{log_db_name}"
-        else:
-            # Log the specific messages expected by the test
-            logger.error(f"Configuration error for {pool_desc} database pool")
-            logger.error(f"Missing essential {pool_desc} database connection environment variables")
-            return None
+    # Removed elif pool_desc == "logging" block
     else:
         logger.error(f"Unknown pool description: {pool_desc}")
         return None
@@ -121,45 +104,6 @@ async def _create_pool_internal(
             masked_dsn = urlunparse(parsed._replace(netloc=f"{parsed.username}:***@{parsed.hostname}:{parsed.port}"))
         logger.exception(f"Failed to create {pool_desc} database connection pool using DSN ({masked_dsn}): {e}")
         return None
-
-
-# --- Logging DB Pool Management (Needs review based on DSN logic) --- #
-async def create_log_db_pool() -> None:
-    """Creates the asyncpg connection pool using environment variables for the logging DB."""
-    global _log_db_pool
-    if _log_db_pool:
-        logger.warning("Logging database pool already initialized.")
-        return
-
-    logger.info("Attempting to create logging database pool...")
-    # Call the internal creator with only pool size env vars
-    _log_db_pool = await _create_pool_internal(
-        min_size_env="LOG_DB_POOL_MIN_SIZE",
-        max_size_env="LOG_DB_POOL_MAX_SIZE",
-        pool_desc="logging",
-    )
-    # Add direct check
-    if _log_db_pool:
-        logger.info("DIRECT CHECK (Log DB): _log_db_pool is SET after call.")
-    else:
-        logger.error("DIRECT CHECK (Log DB): _log_db_pool is NONE after call. Pool creation likely failed.")
-
-
-async def close_log_db_pool() -> None:
-    """Closes the logging database asyncpg connection pool."""
-    global _log_db_pool
-    if _log_db_pool:
-        await _log_db_pool.close()
-        _log_db_pool = None
-        logger.info("Logging database connection pool closed.")
-
-
-def get_log_db_pool() -> asyncpg.Pool:
-    """Returns the existing logging database pool. Raises Exception if not initialized."""
-    if _log_db_pool is None:
-        logger.error("Logging database pool accessed before initialization.")
-        raise RuntimeError("Logging database pool has not been initialized.")
-    return _log_db_pool
 
 
 # --- Main DB Pool Management (Updated) --- #

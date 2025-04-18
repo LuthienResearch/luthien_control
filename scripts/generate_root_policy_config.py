@@ -9,7 +9,8 @@ import sys
 import httpx
 
 # Load environment variables from .env if present BEFORE importing Settings
-from dotenv import load_dotenv  # noqa: E402
+from dotenv import load_dotenv
+from luthien_control.db.database_async import get_main_db_session  # noqa: E402
 
 load_dotenv(verbose=True)  # load_dotenv searches for .env automatically
 
@@ -18,10 +19,10 @@ from luthien_control.config.settings import Settings  # noqa: E402
 
 # Now import necessary components
 try:
-    from luthien_control.db.api_key_crud import get_api_key_by_value
     from luthien_control.db.database import close_main_db_pool, create_main_db_pool
-    from luthien_control.db.policy_crud import (
+    from luthien_control.db.sqlmodel_crud import (
         ApiKeyLookupFunc,
+        get_api_key_by_value,
         load_policy_from_db,
     )
 except ImportError as e:
@@ -54,13 +55,15 @@ async def main():
         logger.info(f"Loading policy instance: '{root_policy_name}'...")
 
         # Load the instance - this uses the *old* config from DB to build the object initially
-        root_policy_instance = await load_policy_from_db(
-            name=root_policy_name,
-            settings=settings,
-            http_client=http_client,
-            api_key_lookup=api_key_lookup,
-        )
-        logger.info(f"Policy instance '{root_policy_name}' loaded successfully.")
+        async with get_main_db_session() as session:
+            root_policy_instance = await load_policy_from_db(
+                name=root_policy_name,
+                settings=settings,
+                http_client=http_client,
+                api_key_lookup=api_key_lookup,
+                session=session,
+            )
+            logger.info(f"Policy instance '{root_policy_name}' loaded successfully.")
 
         # Serialize the loaded instance - this uses the *new* serialize_config logic
         logger.info("Serializing the loaded policy instance...")

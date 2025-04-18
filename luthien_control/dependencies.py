@@ -15,14 +15,12 @@ from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 from luthien_control.core.response_builder.interface import ResponseBuilder
 
-# Import DB access functions (Legacy)
-from luthien_control.db.api_key_crud import get_api_key_by_value
-
 # Import SQLModel database session providers
-from luthien_control.db.database_async import get_log_db_session, get_main_db_session
-from luthien_control.db.policy_crud import (
+from luthien_control.db.database_async import get_main_db_session
+from luthien_control.db.sqlmodel_crud import (
     ApiKeyLookupFunc,
     PolicyLoadError,
+    get_api_key_by_value,
     load_policy_from_db,
 )
 
@@ -59,17 +57,6 @@ async def get_db() -> AsyncSession:
         yield session
 
 
-async def get_log_db() -> AsyncSession:
-    """
-    Dependency for SQLModel logging database session.
-
-    Yields:
-        AsyncSession: SQLAlchemy async session for database operations.
-    """
-    async for session in get_log_db_session():
-        yield session
-
-
 def get_initial_context_policy() -> InitializeContextPolicy:
     """Provides an instance of the InitializeContextPolicy."""
     return InitializeContextPolicy()
@@ -81,12 +68,13 @@ def get_initial_context_policy() -> InitializeContextPolicy:
 async def get_main_control_policy(
     settings: Settings = Depends(Settings),
     http_client: httpx.AsyncClient = Depends(get_http_client),  # Inject http_client correctly
+    session: AsyncSession = Depends(get_db),  # Inject AsyncSession via get_db
 ) -> ControlPolicy:  # Return a single policy instance
     """
     Dependency to load and provide the main, top-level ControlPolicy instance
     based on the configuration name specified in settings.
 
-    Injects necessary dependencies (settings, http_client, api_key_lookup)
+    Injects necessary dependencies (settings, http_client, api_key_lookup, session)
     into the policy loading mechanism.
     """
     # First, check if the policy name is configured
@@ -101,11 +89,13 @@ async def get_main_control_policy(
         # Pass the injected dependencies and the function reference for lookup
         api_key_lookup: ApiKeyLookupFunc = get_api_key_by_value  # Use correct type hint
 
+        # Use the injected session directly
         main_policy = await load_policy_from_db(
             name=top_level_policy_name,
             settings=settings,
             http_client=http_client,  # Pass the client obtained via Depends
             api_key_lookup=api_key_lookup,  # Pass the lookup function reference
+            session=session,  # Use the injected session
         )
         if not main_policy:  # load_policy_from_db might return None if not found
             logger.error(f"Main control policy '{top_level_policy_name}' could not be loaded (not found or inactive).")

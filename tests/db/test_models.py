@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from luthien_control.db.models import Policy
+from luthien_control.db.sqlmodel_models import Policy
 
 
 def test_policy_creation():

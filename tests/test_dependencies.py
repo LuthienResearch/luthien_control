@@ -7,14 +7,14 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
-from luthien_control.db.api_key_crud import get_api_key_by_value
-from luthien_control.db.policy_crud import PolicyLoadError
+from luthien_control.db.sqlmodel_crud import PolicyLoadError, get_api_key_by_value
 from luthien_control.dependencies import (
     get_http_client,
     get_initial_context_policy,
     get_main_control_policy,
     get_response_builder,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import State
 
 
@@ -104,10 +104,15 @@ async def test_get_main_control_policy_success(
     mock_load_from_db.return_value = mock_policy
     policy_name = "test-root-policy"
 
-    # Call the dependency function directly, passing mocked dependencies
+    # We need to mock the session that get_main_control_policy receives via Depends(get_db)
+    # Since we are calling the function directly, we need to pass the dependencies manually.
+    # The session dependency needs to be handled.
+    mock_session = AsyncMock(spec=AsyncSession)
+
     result_policy = await get_main_control_policy(
         settings=mock_settings,
         http_client=mock_http_client_dep,
+        session=mock_session,  # Pass the mocked session explicitly
     )
 
     # Assertions
@@ -117,6 +122,7 @@ async def test_get_main_control_policy_success(
         settings=mock_settings,
         http_client=mock_http_client_dep,
         api_key_lookup=get_api_key_by_value,  # Check that the correct function reference is passed
+        session=mock_session,  # Add session to the expected call args
     )
     assert result_policy is mock_policy
 

@@ -5,7 +5,7 @@ import httpx
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.compound_policy import CompoundPolicy
 from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.db.policy_crud import ApiKeyLookupFunc
+from luthien_control.db.sqlmodel_crud import ApiKeyLookupFunc
 
 # --- Mock Policy Classes for Testing crud.py ---
 
@@ -163,5 +163,3 @@ class MockCompoundPolicy(CompoundPolicy):
     # apply method is inherited from CompoundPolicy
     # serialize_config can be overridden if needed for tests, but maybe not necessary.
     # Let's remove the custom serialize_config for now, inherit from parent.
-    # def serialize_config(self) -> Dict[str, Any]:
-    #     ...

@@ -5,14 +5,15 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
-import luthien_control.db.database
 from luthien_control.config.settings import Settings
 from luthien_control.db.database import (
     _get_main_db_dsn,
     close_log_db_pool,
-    close_main_db_pool,
     create_log_db_pool,
-    create_main_db_pool,
+)
+from luthien_control.db.database_async import (
+    close_main_db_engine,
+    create_main_db_engine,
 )
 from luthien_control.logging_config import setup_logging
 from luthien_control.proxy.server import router as proxy_router
@@ -49,25 +50,26 @@ async def lifespan(app: FastAPI):
         logger.warning("Log DB environment variables not fully set. Log DB pool will not be created.")
 
     if main_db_configured:
-        # We already logged the DSN source inside _get_main_db_dsn
-        logger.info("Main DB seems configured (DSN determined), attempting to create pool...")
+        logger.info("Main DB seems configured (DSN/URL determined), attempting to create engine...")
         try:
-            await create_main_db_pool()
-            # Check if pool was actually created via the module namespace
-            if not luthien_control.db.database._main_db_pool:
-                # This case means create_main_db_pool returned without error but pool is still None
-                # (e.g., internal DSN check failed, error logged within create_main_db_pool)
-                logger.critical("create_main_db_pool completed but pool is None (checked via module). Halting startup.")
-                raise RuntimeError("Failed to initialize main database connection pool.")
+            # Create the engine
+            main_db_engine = await create_main_db_engine()
+            # Check if engine was successfully created
+            if not main_db_engine:
+                # Errors during creation are logged within create_main_db_engine
+                logger.critical("create_main_db_engine() failed (returned None). Halting startup.")
+                raise RuntimeError("Failed to initialize main database connection engine.")
             else:
-                logger.info("Main DB pool successfully created (checked via module).")
-        except Exception as pool_exc:
+                logger.info("Main DB engine successfully created.")
+                # Optionally check via module namespace if needed, though direct check is better
+                # assert luthien_control.db.database_async._main_db_engine is not None
+        except Exception as engine_exc:
             # Catch exceptions during the await itself
-            logger.critical(f"Failed to create main DB pool due to exception: {pool_exc}", exc_info=True)
-            raise RuntimeError(f"Failed to initialize main database connection pool: {pool_exc}") from pool_exc
+            logger.critical(f"Failed to create main DB engine due to exception: {engine_exc}", exc_info=True)
+            raise RuntimeError(f"Failed to initialize main database connection engine: {engine_exc}") from engine_exc
     else:
         logger.warning(
-            "Main DB could not be configured (DSN could not be determined). Main DB pool will not be created."
+            "Main DB could not be configured (URL could not be determined). Main DB engine will not be created."
         )
 
     yield
@@ -75,7 +77,7 @@ async def lifespan(app: FastAPI):
     # Shutdown: Close Database Pools
     logger.info("Application shutting down...")
     await close_log_db_pool()
-    await close_main_db_pool()
+    await close_main_db_engine()
 
     # Shutdown: Close the HTTP client
     if hasattr(app.state, "http_client") and app.state.http_client:

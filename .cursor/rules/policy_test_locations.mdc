@@ -1,0 +1,13 @@
+# Rule: Policy Test Locations
+
+## Purpose
+To document the location of different types of policy-related tests within the `tests/` directory.
+
+## Locations
+
+*   **Policy CRUD Tests:** Database interaction tests for policy creation, reading, updating, and deletion are located in `tests/db/`.
+    *   Example: `tests/db/test_policy_crud.py`
+*   **Policy Logic/Control Tests:** Tests focusing on the logic and behavior of policy classes themselves (e.g., evaluation, context handling) are located in `tests/control_policy/`.
+    *   Examples: `tests/control_policy/test_compound_policy.py`, `tests/control_policy/test_serialization.py`
+
+*Note: This is based on the current structure. If new categories of policy tests emerge, update this rule.* 

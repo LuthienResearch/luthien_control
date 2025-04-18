@@ -35,17 +35,18 @@ def test_app() -> FastAPI:
 @pytest.fixture
 def client(test_app: FastAPI) -> TestClient:  # type: ignore[misc]
     """Provides a FastAPI test client that correctly handles lifespan events."""
-    # Patch DB pool creation AND the global pool variable check during TestClient lifespan
+    # Patch DB engine/pool creation during TestClient lifespan
     # to prevent slow/failing startup in tests.
     with (
-        patch("luthien_control.main.create_main_db_pool", new_callable=AsyncMock) as mock_create_main,
-        patch("luthien_control.main.create_log_db_pool", new_callable=AsyncMock) as mock_create_log,
-        patch("luthien_control.db.database._main_db_pool", new_callable=AsyncMock),
-    ):  # Use AsyncMock for the pool itself
-        # Ensure mocked functions don't raise exceptions implicitly
-        mock_create_main.return_value = None
-        mock_create_log.return_value = None
-        # mock_pool_check doesn't need explicit config, MagicMock is enough to be truthy
+        patch(
+            "luthien_control.db.database_async.create_main_db_engine", new_callable=AsyncMock
+        ) as mock_create_main_engine,
+        patch("luthien_control.db.database.create_log_db_pool", new_callable=AsyncMock) as mock_create_log_pool,
+    ):  # Patch the actual creation functions
+        # Ensure mocked functions return a mock engine/pool or None to simulate success/failure
+        # Returning None should be sufficient to bypass actual DB connection attempts.
+        mock_create_main_engine.return_value = None  # Or AsyncMock() if needed later
+        mock_create_log_pool.return_value = None
 
         # Now instantiate the TestClient *while the patches are active*
         with TestClient(test_app) as test_client:

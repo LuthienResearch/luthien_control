@@ -4,7 +4,7 @@ import sys
 
 from luthien_control.config.settings import Settings
 from luthien_control.db.database import close_main_db_pool, create_main_db_pool
-from luthien_control.db.policy_crud import list_policy_configs
+from luthien_control.db.sqlmodel_crud import list_policy_configs
 
 # Configure logging to see output
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)

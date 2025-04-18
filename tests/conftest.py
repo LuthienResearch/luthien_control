@@ -1,7 +1,7 @@
 import os
 import uuid
 from pathlib import Path
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Dict, Optional
 from unittest.mock import AsyncMock, MagicMock
 
 import asyncpg
@@ -14,9 +14,10 @@ from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.core.response_builder.interface import ResponseBuilder
-from luthien_control.db.models import ClientApiKey
+from luthien_control.db.sqlmodel_models import ClientApiKey
 from luthien_control.main import app
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Command Line Option ---
 
@@ -30,7 +31,6 @@ def pytest_addoption(parser):
     )
 
 
-# Restore autouse=True
 @pytest.fixture(autouse=True)
 def override_settings_dependency(request):
     """AUTOUSE: Loads the correct .env file (.env.test or .env) based on markers,
@@ -68,7 +68,6 @@ def override_settings_dependency(request):
             print(f"[conftest] Successfully loaded environment from {env_file_path}")
         else:
             print(f"[conftest] Warning: load_dotenv did not find variables in {env_file_path}")
-
 
     yield  # Allow test to run
 
@@ -256,3 +255,15 @@ def mock_api_key_lookup() -> AsyncMock:
     # e.g., async def side_effect(key_value): if key_value == 'valid': return MagicMock(spec=ClientApiKey); return None
     # lookup.side_effect = side_effect
     return lookup
+
+
+@pytest.fixture
+def mock_db_session() -> AsyncMock:
+    """Provides a mock SQLAlchemy AsyncSession."""
+    return AsyncMock(spec=AsyncSession)
+
+
+@pytest.fixture
+def mock_api_key_data() -> Dict[str, Any]:
+    """Provides sample data for an API key."""
+    return MagicMock(spec=ClientApiKey)

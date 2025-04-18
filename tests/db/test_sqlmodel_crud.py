@@ -1,8 +1,6 @@
 from datetime import datetime, timezone
-from typing import AsyncGenerator
 
 import pytest
-import pytest_asyncio
 from luthien_control.db.sqlmodel_crud import (
     create_api_key,
     create_policy,
@@ -14,50 +12,15 @@ from luthien_control.db.sqlmodel_crud import (
     update_policy,
 )
 from luthien_control.db.sqlmodel_models import ClientApiKey, Policy
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlmodel import SQLModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
-# Test database URL - using in-memory SQLite for tests
-TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
+# Test database fixtures (async_engine, async_session) are now expected
+# to be provided by tests/db/conftest.py
 
-
-@pytest_asyncio.fixture(scope="function")
-async def async_engine():
-    """Create a new async engine for each test."""
-    # Ensure SQLModel knows about our models
-
-    engine = create_async_engine(
-        TEST_DB_URL,
-        echo=True,  # Enable echo to see SQL queries
-        future=True,
-    )
-
-    # Create tables
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-
-    yield engine
-
-    # Drop tables
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
-
-    await engine.dispose()
+# Mark all tests as async
+pytestmark = pytest.mark.asyncio
 
 
-@pytest_asyncio.fixture(scope="function")
-async def async_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
-    """Get a session for each test."""
-    async_session_maker = sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
-
-    async with async_session_maker() as session:
-        yield session
-
-
-@pytest.mark.asyncio
 async def test_create_and_get_api_key(async_session: AsyncSession):
     """Test creating and retrieving an API key."""
     # Create a test API key
@@ -66,7 +29,7 @@ async def test_create_and_get_api_key(async_session: AsyncSession):
         name="Test API Key",
         is_active=True,
         created_at=datetime.now(timezone.utc),
-        metadata_={"purpose": "testing"}
+        metadata_={"purpose": "testing"},
     )
 
     # Create the API key
@@ -83,7 +46,6 @@ async def test_create_and_get_api_key(async_session: AsyncSession):
     assert retrieved_key.metadata_ == {"purpose": "testing"}
 
 
-@pytest.mark.asyncio
 async def test_list_api_keys(async_session: AsyncSession):
     """Test listing API keys with filtering."""
     # Create multiple API keys
@@ -106,37 +68,49 @@ async def test_list_api_keys(async_session: AsyncSession):
     assert all(key.is_active for key in active_keys)
 
 
-@pytest.mark.asyncio
 async def test_update_api_key(async_session: AsyncSession):
     """Test updating an API key."""
     # Create an API key
-    api_key = ClientApiKey(
-        key_value="update-key",
-        name="Original Name",
-        is_active=True
-    )
+    api_key = ClientApiKey(key_value="update-key", name="Original Name", is_active=True)
     created_key = await create_api_key(async_session, api_key)
     assert created_key.name == "Original Name"
+    assert created_key.id is not None  # Ensure ID is assigned
 
     # Update the API key
-    updated_data = ClientApiKey(
-        key_value="update-key",  # Same key value
+    # Pass a ClientApiKey model instance for the update payload
+    update_payload = ClientApiKey(
+        key_value="update-key",  # Not strictly needed by update func, but good practice
         name="Updated Name",
         is_active=True,
-        metadata_={"updated": True}
+        metadata_={"updated": True},
     )
 
-    updated_key = await update_api_key(async_session, created_key.id, updated_data)
+    updated_key = await update_api_key(async_session, created_key.id, update_payload)
     assert updated_key is not None
     assert updated_key.name == "Updated Name"
     assert updated_key.metadata_ == {"updated": True}
 
     # Verify the update persisted
     retrieved_key = await get_api_key_by_value(async_session, "update-key")
+    assert retrieved_key is not None
     assert retrieved_key.name == "Updated Name"
+    assert retrieved_key.metadata_ == {"updated": True}
 
 
-@pytest.mark.asyncio
+async def test_update_api_key_not_found(async_session: AsyncSession):
+    """Test updating a non-existent API key."""
+    # Pass a ClientApiKey model instance
+    update_payload = ClientApiKey(name="Updated Name")
+    updated_key = await update_api_key(async_session, 9999, update_payload)  # Non-existent ID
+    assert updated_key is None
+
+
+async def test_get_api_key_by_value_not_found(async_session: AsyncSession):
+    """Test getting a non-existent API key by value."""
+    retrieved_key = await get_api_key_by_value(async_session, "non-existent-key")
+    assert retrieved_key is None
+
+
 async def test_create_and_get_policy(async_session: AsyncSession):
     """Test creating and retrieving a policy."""
     # Create a test policy
@@ -145,7 +119,7 @@ async def test_create_and_get_policy(async_session: AsyncSession):
         policy_class_path="luthien_control.policies.test.TestPolicy",
         config={"setting": "value"},
         is_active=True,
-        description="Test policy description"
+        description="Test policy description",
     )
 
     # Create the policy
@@ -162,7 +136,6 @@ async def test_create_and_get_policy(async_session: AsyncSession):
     assert retrieved_policy.config == {"setting": "value"}
 
 
-@pytest.mark.asyncio
 async def test_list_policies(async_session: AsyncSession):
     """Test listing policies with filtering."""
     # Create multiple policies
@@ -185,33 +158,57 @@ async def test_list_policies(async_session: AsyncSession):
     assert all(policy.is_active for policy in active_policies)
 
 
-@pytest.mark.asyncio
 async def test_update_policy(async_session: AsyncSession):
     """Test updating a policy."""
     # Create a policy
-    policy = Policy(
-        name="update-policy",
-        policy_class_path="original.path",
-        is_active=True
-    )
+    policy = Policy(name="update-policy", policy_class_path="original.path", is_active=True)
     created_policy = await create_policy(async_session, policy)
     assert created_policy.policy_class_path == "original.path"
+    assert created_policy.id is not None  # Ensure ID is assigned
 
     # Update the policy
-    updated_data = Policy(
-        name="update-policy",  # Same name
+    # Pass a Policy model instance for the update payload
+    update_payload = Policy(
+        name="update-policy",  # Not strictly needed by update func
         policy_class_path="updated.path",
         config={"updated": True},
         description="Updated description",
-        is_active=True
+        is_active=False,  # Example change
     )
 
-    updated_policy = await update_policy(async_session, created_policy.id, updated_data)
+    updated_policy = await update_policy(async_session, created_policy.id, update_payload)
     assert updated_policy is not None
     assert updated_policy.policy_class_path == "updated.path"
     assert updated_policy.config == {"updated": True}
     assert updated_policy.description == "Updated description"
+    assert updated_policy.is_active is False
 
     # Verify the update persisted
     retrieved_policy = await get_policy_by_name(async_session, "update-policy")
-    assert retrieved_policy.policy_class_path == "updated.path"
+    assert retrieved_policy is None
+
+
+async def test_update_policy_not_found(async_session: AsyncSession):
+    """Test updating a non-existent policy."""
+    # Pass a Policy model instance
+    update_payload = Policy(description="Updated description")
+    updated_policy = await update_policy(async_session, 9999, update_payload)  # Non-existent ID
+    assert updated_policy is None
+
+
+async def test_get_policy_by_name_not_found(async_session: AsyncSession):
+    """Test getting a non-existent policy by name."""
+    retrieved_policy = await get_policy_by_name(async_session, "non-existent-policy")
+    assert retrieved_policy is None
+
+
+async def test_create_policy_duplicate_name(async_session: AsyncSession):
+    """Test creating a policy with a name that already exists."""
+    policy1 = Policy(name="duplicate-name", policy_class_path="path1")
+    created_policy1 = await create_policy(async_session, policy1)
+    assert created_policy1 is not None  # Ensure first creation succeeded
+
+    policy2 = Policy(name="duplicate-name", policy_class_path="path2")
+    # Expecting None because the function catches the IntegrityError and returns None
+    created_policy2 = await create_policy(async_session, policy2)
+    assert created_policy2 is None

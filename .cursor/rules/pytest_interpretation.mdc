@@ -4,3 +4,6 @@ globs:
 alwaysApply: true
 ---
 PYTEST EXIT CODE=0 JUST MEANS THE TESTS RAN. IT DOES NOT MEAN THEY WERE SUCCESSFUL. Always look for the `pytest` summary line at the end of the output (e.g., `==== X passed, Y failed, Z warnings in S.ss ====`).
+
+Always pipe results to cat so you can see them.
+`poetry run pytest | cat`

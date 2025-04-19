@@ -4,6 +4,7 @@ import logging
 from typing import Any, Awaitable, Callable, Optional
 
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
     ClientAuthenticationNotFoundError,
@@ -14,7 +15,7 @@ from luthien_control.core.context import TransactionContext
 from luthien_control.db.sqlmodel_models import ClientApiKey
 
 # Type alias for the database lookup function
-ApiKeyLookupFunc = Callable[[str], Awaitable[Optional[ClientApiKey]]]
+ApiKeyLookupFunc = Callable[[AsyncSession, str], Awaitable[Optional[ClientApiKey]]]
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,8 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         if api_key_value.startswith(BEARER_PREFIX):
             api_key_value = api_key_value[len(BEARER_PREFIX) :]
 
-        db_key = await self._get_api_key_by_value(api_key_value)
+        with context.session.begin():
+            db_key = await self._get_api_key_by_value(context.session, api_key_value)
 
         if not db_key:
             self.logger.warning(

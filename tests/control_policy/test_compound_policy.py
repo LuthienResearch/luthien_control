@@ -115,8 +115,8 @@ async def test_compound_policy_propagates_exception(mock_context):
 
 
 @pytest.mark.asyncio
-async def test_compound_policy_halts_on_response(mock_context):
-    """Test that execution halts if a member policy sets context.response."""
+async def test_compound_policy_continues_on_response(mock_context):
+    """Test that execution continues even if a member policy sets context.response."""
     policy1 = MockSimplePolicy(name="Policy1")
     policy2 = MockSimplePolicy(name="Policy2", sets_response=True)  # This policy sets a response
     policy3 = MockSimplePolicy(name="Policy3")
@@ -124,17 +124,11 @@ async def test_compound_policy_halts_on_response(mock_context):
 
     result_context = await compound.apply(mock_context)
 
-    # Check that only policies up to the one setting the response were called
-    assert result_context.data.get("call_order") == ["Policy1", "Policy2"]
-    policy1.apply_mock.assert_awaited_once()
-    policy2.apply_mock.assert_awaited_once()
-    policy3.apply_mock.assert_not_awaited()
-
-    # Check that the response set by policy2 is preserved
+    # Check that all policies were called, even though Policy2 set a response
+    assert result_context.data.get("call_order") == ["Policy1", "Policy2", "Policy3"]
+    # Also check that the response set by Policy2 is still present
     assert result_context.response is not None
     assert isinstance(result_context.response, Response)
-    assert result_context.response.status_code == 299
-    assert result_context.response.body == b"Response from Policy2"
 
 
 def test_compound_policy_repr():

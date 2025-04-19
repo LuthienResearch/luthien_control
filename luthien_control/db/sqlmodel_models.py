@@ -14,7 +14,8 @@ class ClientApiKey(SQLModel, table=True):
     name: str = Field(sa_column=Column(String, index=True))
     is_active: bool = Field(default=True)
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        # Generate naive UTC timestamp to match TIMESTAMP WITHOUT TIME ZONE column
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
     # JSON column must be defined explicitly with SQLAlchemy Column
     metadata_: Optional[Dict[str, Any]] = Field(
@@ -37,8 +38,10 @@ class Policy(SQLModel, table=True):
     is_active: bool = Field(default=True)
     description: Optional[str] = Field(default=None, sa_column=Column(String, nullable=True))
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        # Generate naive UTC timestamp to match TIMESTAMP WITHOUT TIME ZONE column
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        # Generate naive UTC timestamp to match TIMESTAMP WITHOUT TIME ZONE column
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )

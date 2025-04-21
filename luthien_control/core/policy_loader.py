@@ -152,11 +152,14 @@ async def _resolve_all_nested_configs(
         raise PolicyLoadError(f"Unexpected error resolving nested config for '{instance_name}'.") from e
 
 
-def _handle_compound_policy_args(
+async def _handle_compound_policy_args(
     policy_class: Type[ControlPolicy],
     instance_args: Dict[str, Any],
     resolved_config: Dict[str, Any],
     instance_name: str,
+    settings: Settings,
+    http_client: httpx.AsyncClient,
+    api_key_lookup: ApiKeyLookupFunc,
 ) -> None:
     """
     Specific handling for mapping configuration to CompoundPolicy constructor arguments.
@@ -167,15 +170,53 @@ def _handle_compound_policy_args(
 
     if "member_policy_configs" in resolved_config:
         if "policies" not in instance_args:  # Check if 'policies' wasn't already populated directly
-            member_policies = resolved_config.get("member_policy_configs")
-            if isinstance(member_policies, list):
-                # Map the resolved list of policies from config to the 'policies' constructor argument
-                instance_args["policies"] = member_policies
-                logger.debug(f"Mapped resolved 'member_policy_configs' list to 'policies' arg for {instance_name}")
-            elif member_policies is not None:  # Error if key exists but isn't a list
+            member_policy_configs = resolved_config.get("member_policy_configs")
+            if isinstance(member_policy_configs, list):
+                # Initialize a list for the instantiated policies
+                policy_instances = []
+                
+                # Instantiate each policy in the member_policy_configs list
+                for member_config in member_policy_configs:
+                    if isinstance(member_config, dict) and "policy_class_path" in member_config:
+                        try:
+                            # Instantiate this member policy
+                            member_policy = await instantiate_policy(
+                                policy_config=member_config,
+                                settings=settings,
+                                http_client=http_client,
+                                api_key_lookup=api_key_lookup,
+                            )
+                            policy_instances.append(member_policy)
+                            logger.debug(
+                                f"Successfully instantiated member policy '{member_config.get('name', 'unnamed')}' "
+                                f"for compound policy '{instance_name}'"
+                            )
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to instantiate member policy '{member_config.get('name', 'unnamed')}' "
+                                f"for compound policy '{instance_name}': {e}"
+                            )
+                            raise PolicyLoadError(
+                                f"Failed to instantiate member policy '{member_config.get('name', 'unnamed')}' "
+                                f"within '{instance_name}'."
+                            ) from e
+                    else:
+                        # Not a policy config dictionary, preserve as-is
+                        policy_instances.append(member_config)
+                        logger.debug(
+                            f"Preserved non-policy item of type {type(member_config).__name__} "
+                            f"in member_policy_configs for '{instance_name}'"
+                        )
+                
+                # Set the instantiated policies to the 'policies' argument
+                instance_args["policies"] = policy_instances
+                logger.debug(
+                    f"Instantiated {len(policy_instances)} member policies for CompoundPolicy '{instance_name}'"
+                )
+            elif member_policy_configs is not None:  # Error if key exists but isn't a list
                 raise PolicyLoadError(
                     f"Configuration error for {instance_name}: 'member_policy_configs' resolved to type "
-                    f"{type(member_policies).__name__}, but expected a list for CompoundPolicy."
+                    f"{type(member_policy_configs).__name__}, but expected a list for CompoundPolicy."
                 )
             # If member_policies is None (key present but value is null), we don't inject anything and don't error yet.
             # Validation later will catch if 'policies' is still missing and required.
@@ -187,7 +228,7 @@ def _handle_compound_policy_args(
             )
 
 
-def _prepare_constructor_args(
+async def _prepare_constructor_args(
     policy_class: Type[ControlPolicy],
     resolved_config: Dict[str, Any],
     settings: Settings,
@@ -226,7 +267,10 @@ def _prepare_constructor_args(
             )
 
     # Apply specific argument handling for known composite types like CompoundPolicy
-    _handle_compound_policy_args(policy_class, instance_args, resolved_config, instance_name)
+    await _handle_compound_policy_args(
+        policy_class, instance_args, resolved_config, instance_name, 
+        settings, http_client, api_key_lookup
+    )
 
     return instance_args
 
@@ -349,7 +393,7 @@ async def instantiate_policy(
     )
 
     # 4. Prepare constructor arguments (dependency injection, config mapping)
-    instance_args = _prepare_constructor_args(
+    instance_args = await _prepare_constructor_args(
         policy_class, resolved_config, settings, http_client, api_key_lookup, instance_name
     )
 

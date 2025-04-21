@@ -1,9 +1,9 @@
 import logging  # Import logging
+import os
 from logging.config import fileConfig
 
 from alembic import context
 from dotenv import load_dotenv
-from luthien_control.config.settings import Settings
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection
 from sqlmodel import SQLModel
@@ -18,42 +18,39 @@ logger = logging.getLogger(__name__)
 # access to the values within the .ini file in use.
 config = context.config
 
-# Determine the final URL to use, prioritizing DATABASE_URL via Settings
-settings = Settings()
-final_db_url = None
-
-database_url = settings.get_database_url()
+# Set database connection URL from environment variables
+# Prioritize DATABASE_URL
+database_url = os.environ.get("DATABASE_URL")
 
 # Determine the final URL to use
 final_db_url = None
 
-# Ensure the URL format is compatible with synchronous psycopg2
-if database_url.startswith("postgresql+asyncpg://"):
-    final_db_url = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
-elif database_url.startswith("postgres+asyncpg://"): # Handle potential variation
-    final_db_url = database_url.replace("postgres+asyncpg://", "postgresql://", 1)
-elif database_url.startswith("postgres://"):
-    final_db_url = database_url.replace("postgres://", "postgresql://", 1)
-    logger.info("Converted 'postgres://' URL to 'postgresql://'")
+if database_url:
+    logger.info("Using DATABASE_URL for Alembic connection.")
+    # Ensure the URL format is compatible with synchronous psycopg2
+    if database_url.startswith("postgresql+asyncpg://"):
+        final_db_url = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    elif database_url.startswith("postgres://"):
+        final_db_url = database_url.replace("postgres://", "postgresql://", 1)
+        logger.info("Converted 'postgres://' URL to 'postgresql://'")
+    else:
+        final_db_url = database_url
+elif os.environ.get("DB_USER") and os.environ.get("DB_PASSWORD") and os.environ.get("DB_NAME_NEW"):
+    logger.warning("DATABASE_URL not set. Falling back to individual DB_* variables for Alembic.")
+    # Fallback to individual variables if DATABASE_URL is not set
+    postgres_user = os.environ.get("DB_USER")
+    postgres_password = os.environ.get("DB_PASSWORD")
+    postgres_host = os.environ.get("DB_HOST", "localhost")
+    postgres_port = os.environ.get("DB_PORT", "5432")
+    postgres_db = os.environ.get("DB_NAME_NEW")
+    final_db_url = f"postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
 else:
-    logger.warning("DATABASE_URL not set. Falling back to individual DB_* variables via Settings for Alembic.")
-    try:
-        # Use the get_db_dsn method which includes validation
-        final_db_url = settings.get_db_dsn()
-        # Ensure it's synchronous format (psycopg2)
-        if final_db_url.startswith("postgresql+asyncpg://"):
-            final_db_url = final_db_url.replace("postgresql+asyncpg://", "postgresql://", 1)
-    except ValueError as e:
-        # Handle missing individual variables if get_db_dsn raises error
-        logger.error(f"Failed to construct DSN from individual settings: {e}")
-        final_db_url = None
-
-if not final_db_url:
     # Raise error if neither DATABASE_URL nor sufficient DB_* vars are set
     raise ValueError(
         "Database connection requires either DATABASE_URL environment variable "
         "or DB_USER, DB_PASSWORD, and DB_NAME_NEW to be set."
     )
+
 
 # Set the final URL in the Alembic config
 config.set_main_option("sqlalchemy.url", final_db_url)

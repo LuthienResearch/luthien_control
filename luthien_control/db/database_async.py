@@ -226,8 +226,33 @@ async def close_log_db_engine() -> None:
         logger.info("Logging database engine was already None or not initialized during shutdown.")
 
 
+import contextlib
+
 async def get_main_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Get a SQLAlchemy async session for the main database."""
+    """Get a SQLAlchemy async session for the main database.
+    
+    Can be used with async for:
+        async for session in get_main_db_session():
+            # Use session
+            break  # Only need one session
+            
+    Or with get_main_db_session_cm() as a context manager:
+        async with get_main_db_session_cm() as session:
+            # Use session
+    """
+    if _main_db_session_factory is None:
+        raise RuntimeError("Main database session factory has not been initialized")
+
+    async with _main_db_session_factory() as session:
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+
+@contextlib.asynccontextmanager
+async def get_main_db_session_cm() -> AsyncGenerator[AsyncSession, None]:
+    """Get a SQLAlchemy async session for the main database as a context manager."""
     if _main_db_session_factory is None:
         raise RuntimeError("Main database session factory has not been initialized")
 

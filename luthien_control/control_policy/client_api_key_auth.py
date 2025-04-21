@@ -12,6 +12,7 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.context import TransactionContext
+from luthien_control.db.database_async import get_main_db_session_cm
 from luthien_control.db.sqlmodel_models import ClientApiKey
 
 # Type alias for the database lookup function
@@ -60,8 +61,10 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         if api_key_value.startswith(BEARER_PREFIX):
             api_key_value = api_key_value[len(BEARER_PREFIX) :]
 
-        with context.session.begin():
-            db_key = await self._get_api_key_by_value(context.session, api_key_value)
+        # Get a database session and use it to look up the API key
+        db_key = None
+        async with get_main_db_session_cm() as session:
+            db_key = await self._get_api_key_by_value(session, api_key_value)
 
         if not db_key:
             self.logger.warning(

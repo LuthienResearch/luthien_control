@@ -4,15 +4,12 @@ from typing import Any, AsyncGenerator, Dict, Optional, Tuple
 from urllib.parse import urlparse, urlunparse, parse_qs
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-from sqlmodel import SQLModel
 
 logger = logging.getLogger(__name__)
 
 # Global variables for async engines and session factories
-_log_db_engine: Optional[AsyncEngine] = None
 _main_db_engine: Optional[AsyncEngine] = None
 
-_log_db_session_factory = None
 _main_db_session_factory = None
 
 
@@ -77,26 +74,6 @@ def _get_main_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
     return async_url, {}
 
 
-def _get_log_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
-    """Determines the logging database URL."""
-    # For logging DB we still use individual vars
-    log_db_user = os.getenv("LOG_DB_USER")
-    log_db_password = os.getenv("LOG_DB_PASSWORD")
-    log_db_host = os.getenv("LOG_DB_HOST")
-    log_db_port = os.getenv("LOG_DB_PORT", "5432")
-    log_db_name = os.getenv("LOG_DB_NAME")
-
-    if all([log_db_user, log_db_password, log_db_host, log_db_name]):
-        async_url = f"postgresql+asyncpg://{log_db_user}:{log_db_password}@{log_db_host}:{log_db_port}/{log_db_name}"
-        logger.info(
-            f"Constructed logging database URL: "
-            f"postgresql+asyncpg://{log_db_user}:***@{log_db_host}:{log_db_port}/{log_db_name}"
-        )
-        return async_url, {}
-    else:
-        logger.error("Missing essential logging database connection environment variables")
-        return None
-
 
 async def create_main_db_engine() -> Optional[AsyncEngine]:
     """Creates the asyncpg engine for the main application DB."""
@@ -147,54 +124,6 @@ async def create_main_db_engine() -> Optional[AsyncEngine]:
         return None
 
 
-async def create_log_db_engine() -> Optional[AsyncEngine]:
-    """Creates the asyncpg engine for the logging DB."""
-    global _log_db_engine, _log_db_session_factory
-    if _log_db_engine:
-        logger.warning("Logging database engine already initialized.")
-        return _log_db_engine
-
-    logger.info("Attempting to create logging database engine...")
-    db_url_result = _get_log_db_url()
-    if not db_url_result:
-        logger.error("Failed to determine logging database URL.")
-        return None
-    
-    db_url, connect_args = db_url_result
-
-    try:
-        # Get and validate pool sizes
-        pool_min_size = int(os.getenv("LOG_DB_POOL_MIN_SIZE", "1"))
-        pool_max_size = int(os.getenv("LOG_DB_POOL_MAX_SIZE", "10"))
-
-        _log_db_engine = create_async_engine(
-            db_url,
-            echo=False,
-            pool_pre_ping=True,
-            pool_size=pool_min_size,
-            max_overflow=pool_max_size - pool_min_size,
-            connect_args=connect_args,
-        )
-
-        _log_db_session_factory = async_sessionmaker(
-            _log_db_engine,
-            expire_on_commit=False,
-            class_=AsyncSession,
-        )
-
-        logger.info("Logging database engine created successfully.")
-        return _log_db_engine
-    except Exception as e:
-        masked_url = db_url
-        if db_url:
-            parsed = urlparse(db_url)
-            if parsed.password:
-                masked_url = urlunparse(
-                    parsed._replace(netloc=f"{parsed.username}:***@{parsed.hostname}:{parsed.port}")
-                )
-        logger.exception(f"Failed to create logging database engine using URL ({masked_url}): {e}")
-        return None
-
 
 async def close_main_db_engine() -> None:
     """Closes the main database engine."""
@@ -209,21 +138,6 @@ async def close_main_db_engine() -> None:
             _main_db_engine = None
     else:
         logger.info("Main database engine was already None or not initialized during shutdown.")
-
-
-async def close_log_db_engine() -> None:
-    """Closes the logging database engine."""
-    global _log_db_engine
-    if _log_db_engine:
-        try:
-            await _log_db_engine.dispose()
-            logger.info("Logging database engine closed successfully.")
-        except Exception as e:
-            logger.error(f"Error closing logging database engine: {e}", exc_info=True)
-        finally:
-            _log_db_engine = None
-    else:
-        logger.info("Logging database engine was already None or not initialized during shutdown.")
 
 
 import contextlib
@@ -262,25 +176,3 @@ async def get_main_db_session_cm() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
-
-
-async def get_log_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Get a SQLAlchemy async session for the logging database."""
-    if _log_db_session_factory is None:
-        raise RuntimeError("Logging database session factory has not been initialized")
-
-    async with _log_db_session_factory() as session:
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise
-
-
-async def create_db_and_tables():
-    """Create all tables defined in SQLModel models if they don't exist."""
-    if _main_db_engine:
-        async with _main_db_engine.begin() as conn:
-            # Import all model classes here to ensure they're included in metadata
-
-            await conn.run_sync(SQLModel.metadata.create_all)

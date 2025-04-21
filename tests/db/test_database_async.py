@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from luthien_control.db.database_async import (
-    _get_log_db_url,
     _get_main_db_url,
     close_main_db_engine,
     create_main_db_engine,
@@ -47,31 +46,6 @@ async def test_get_main_db_url_missing_vars():
         url_result = _get_main_db_url()
         assert url_result is None
 
-
-@pytest.mark.asyncio
-async def test_get_log_db_url():
-    """Test _get_log_db_url with environment variables."""
-    env_vars = {
-        "LOG_DB_USER": "loguser",
-        "LOG_DB_PASSWORD": "logpass",
-        "LOG_DB_HOST": "loghost",
-        "LOG_DB_PORT": "5433",
-        "LOG_DB_NAME": "logdb",
-    }
-    with patch.dict(os.environ, env_vars, clear=True):
-        url_result = _get_log_db_url()
-        assert url_result is not None
-        url, connect_args = url_result
-        assert url == "postgresql+asyncpg://loguser:logpass@loghost:5433/logdb"
-        assert isinstance(connect_args, dict)
-
-
-@pytest.mark.asyncio
-async def test_get_log_db_url_missing_vars():
-    """Test _get_log_db_url with missing required environment variables."""
-    with patch.dict(os.environ, {"LOG_DB_USER": "loguser"}, clear=True):
-        url_result = _get_log_db_url()
-        assert url_result is None
 
 
 @pytest.mark.asyncio

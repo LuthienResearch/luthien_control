@@ -291,7 +291,9 @@ async def test_instantiate_policy_with_list_of_policies(mock_getattr, mock_impor
 @patch("luthien_control.core.policy_loader.getattr")
 @patch("luthien_control.core.policy_loader.issubclass")
 @patch("luthien_control.core.policy_loader.inspect.isclass")
-async def test_compound_policy_db_load_bug(mock_isclass, mock_issubclass, mock_getattr, mock_import_module, mock_dependencies):
+async def test_compound_policy_db_load_bug(
+    mock_isclass, mock_issubclass, mock_getattr, mock_import_module, mock_dependencies
+):
     """Test for a bug where compound policy configs loaded from DB aren't properly instantiated."""
 
     # Configure mocks to bypass class type checking
@@ -304,25 +306,25 @@ async def test_compound_policy_db_load_bug(mock_isclass, mock_issubclass, mock_g
         def __init__(self):
             self.name = "ClientAuth"
             self.policy_class_path = "luthien_control.control_policy.client_api_key_auth.ClientApiKeyAuthPolicy"
-        
+
         async def apply(self, context):
             return context
-            
+
         def serialize_config(self):
             return {
                 "name": self.name,
                 "__policy_type__": "ClientApiKeyAuthPolicy",
                 "policy_class_path": self.policy_class_path
             }
-    
+
     class MockAddKeyPolicy(ControlPolicy):
         def __init__(self):
             self.name = "AddBackendKey"
             self.policy_class_path = "luthien_control.control_policy.add_api_key_header.AddApiKeyHeaderPolicy"
-        
+
         async def apply(self, context):
             return context
-            
+
         def serialize_config(self):
             return {
                 "name": self.name,
@@ -358,7 +360,7 @@ async def test_compound_policy_db_load_bug(mock_isclass, mock_issubclass, mock_g
         "member_policy_configs": [
             {
                 "name": "ClientAuth",
-                "__policy_type__": "ClientApiKeyAuthPolicy", 
+                "__policy_type__": "ClientApiKeyAuthPolicy",
                 "policy_class_path": "luthien_control.control_policy.client_api_key_auth.ClientApiKeyAuthPolicy"
             },
             {
@@ -377,15 +379,15 @@ async def test_compound_policy_db_load_bug(mock_isclass, mock_issubclass, mock_g
     # If things worked correctly, we should have a CompoundPolicy instance
     assert isinstance(instance, CompoundPolicy)
     assert instance.name == "root"
-    
+
     # The policies in the CompoundPolicy should be actual policy instances, not config dicts
     assert len(instance.policies) == 2
-    
+
     # Check that the instantiated policies in CompoundPolicy are actual policy instances
     # not just config dictionaries
     assert isinstance(instance.policies[0], MockClientAuthPolicy)
     assert isinstance(instance.policies[1], MockAddKeyPolicy)
-    
+
     # Check that they have the correct names from the configs
     assert instance.policies[0].name == "ClientAuth"
     assert instance.policies[1].name == "AddBackendKey"

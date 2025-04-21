@@ -1,6 +1,6 @@
+import logging  # Import logging
 import os
 from logging.config import fileConfig
-import logging # Import logging
 
 from alembic import context
 from dotenv import load_dotenv
@@ -104,7 +104,7 @@ def run_migrations_online() -> None:
     """
     # Explicitly register the psycopg2 dialect to bypass entry point discovery issues
     # from sqlalchemy.dialects import postgresql, registry
-    
+
     # Only register the postgresql dialect (not postgres) since that's what we're using in the URL
     # registry.register("postgresql", "sqlalchemy.dialects.postgresql.psycopg2", "PGDialect_psycopg2")
     # logger.info("Explicitly registered postgresql dialect for psycopg2.")

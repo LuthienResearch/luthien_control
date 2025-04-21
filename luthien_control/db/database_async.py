@@ -1,7 +1,8 @@
+import contextlib
 import logging
 import os
 from typing import Any, AsyncGenerator, Dict, Optional, Tuple
-from urllib.parse import urlparse, urlunparse, parse_qs
+from urllib.parse import parse_qs, urlparse, urlunparse
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
@@ -17,31 +18,31 @@ def _get_main_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
     """Determines the main database URL, prioritizing DATABASE_URL."""
     database_url = os.getenv("DATABASE_URL")
     connect_args = {}
-    
+
     if database_url:
         logger.info("Using DATABASE_URL for main database connection.")
-        
+
         # Parse the URL to extract sslmode and other query parameters
         parsed_url = urlparse(database_url)
         query_params = parse_qs(parsed_url.query)
-        
+
         # If sslmode is in the query params, remove it from URL and add to connect_args
         if 'sslmode' in query_params:
             sslmode = query_params.pop('sslmode')[0]
             logger.info(f"Extracted sslmode={sslmode} from DATABASE_URL")
             connect_args['ssl'] = sslmode == 'require'
-            
+
             # Rebuild URL without sslmode
             clean_query = '&'.join([f"{k}={'='.join(v)}" for k, v in query_params.items()])
             parsed_url = parsed_url._replace(query=clean_query)
             database_url = urlunparse(parsed_url)
-        
+
         # Convert to async URL if needed
         if database_url.startswith("postgresql://"):
             database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
         elif database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-        
+
         return database_url, connect_args
 
     logger.warning("DATABASE_URL not found. Falling back to individual DB_* variables.")
@@ -87,7 +88,7 @@ async def create_main_db_engine() -> Optional[AsyncEngine]:
     if not db_url_result:
         logger.error("Failed to determine main database URL.")
         return None
-    
+
     db_url, connect_args = db_url_result
 
     try:
@@ -140,16 +141,16 @@ async def close_main_db_engine() -> None:
         logger.info("Main database engine was already None or not initialized during shutdown.")
 
 
-import contextlib
+
 
 async def get_main_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Get a SQLAlchemy async session for the main database.
-    
+
     Can be used with async for:
         async for session in get_main_db_session():
             # Use session
             break  # Only need one session
-            
+
     Or with get_main_db_session_cm() as a context manager:
         async with get_main_db_session_cm() as session:
             # Use session

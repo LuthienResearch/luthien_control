@@ -61,7 +61,8 @@ async def _ensure_e2e_policy_exists():
                 "policies": [
                     {
                         "name": "E2E_ClientAPIKeyCheck",
-                        "policy_class_path": "luthien_control.control_policy.client_api_key_auth.ClientApiKeyAuthPolicy",
+                        "policy_class_path":
+                            "luthien_control.control_policy.client_api_key_auth.ClientApiKeyAuthPolicy",
                     },
                     {
                         "name": "E2E_AddBackendKey",

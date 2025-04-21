@@ -3,13 +3,6 @@ import argparse
 import asyncio
 import logging
 import sys
-from pathlib import Path
-
-# Add project root to sys.path to allow absolute imports
-project_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
-
-from sqlmodel import SQLModel  # Import SQLModel base
 
 from luthien_control.db.database_async import (
     close_main_db_engine,
@@ -35,7 +28,11 @@ async def main():
     )
     args = parser.parse_args()
 
-    logger.info(f"Attempting to add API key: Name='{args.name}', KeyValue='{args.key_value[:4]}...' Active={not args.inactive}")
+    logger.info(
+        f"Attempting to add API key: Name='{args.name}', "
+        f"KeyValue='{args.key_value[:4]}...' "
+        f"Active={not args.inactive}"
+    )
 
     engine = await create_main_db_engine()
     if not engine:
@@ -77,4 +74,4 @@ if __name__ == "__main__":
     # Ensure Alembic operations aren't run automatically if models are imported
     # This is relevant if this script indirectly causes model imports that trigger Alembic checks
     # os.environ['ALEMBIC_CONTEXT'] = 'false'
-    asyncio.run(main()) 
+    asyncio.run(main())

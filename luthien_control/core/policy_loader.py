@@ -174,7 +174,7 @@ async def _handle_compound_policy_args(
             if isinstance(member_policy_configs, list):
                 # Initialize a list for the instantiated policies
                 policy_instances = []
-                
+
                 # Instantiate each policy in the member_policy_configs list
                 for member_config in member_policy_configs:
                     if isinstance(member_config, dict) and "policy_class_path" in member_config:
@@ -207,7 +207,7 @@ async def _handle_compound_policy_args(
                             f"Preserved non-policy item of type {type(member_config).__name__} "
                             f"in member_policy_configs for '{instance_name}'"
                         )
-                
+
                 # Set the instantiated policies to the 'policies' argument
                 instance_args["policies"] = policy_instances
                 logger.debug(
@@ -268,7 +268,7 @@ async def _prepare_constructor_args(
 
     # Apply specific argument handling for known composite types like CompoundPolicy
     await _handle_compound_policy_args(
-        policy_class, instance_args, resolved_config, instance_name, 
+        policy_class, instance_args, resolved_config, instance_name,
         settings, http_client, api_key_lookup
     )
 

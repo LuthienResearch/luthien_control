@@ -1,9 +1,7 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi import Request
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from luthien_control.control_policy.client_api_key_auth import (
     API_KEY_HEADER,
     BEARER_PREFIX,
@@ -16,6 +14,7 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.core.context import TransactionContext
 from luthien_control.db.sqlmodel_models import ClientApiKey
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.mark.asyncio
@@ -26,7 +25,7 @@ async def test_apply_calls_lookup_with_correct_args(mock_get_session_cm):
     """
     # Arrange
     mock_session = AsyncMock(spec=AsyncSession)
-    
+
     # Set up the mock context manager to return our session
     mock_context = AsyncMock()
     mock_context.__aenter__.return_value = mock_session
@@ -97,7 +96,7 @@ async def test_apply_missing_header_raises_error():
 async def test_apply_key_not_found_raises_error(mock_get_session_cm):
     """Verify ClientAuthenticationError is raised if key is not found in DB."""
     mock_session = AsyncMock(spec=AsyncSession)
-    
+
     # Set up the mock context manager
     mock_context = AsyncMock()
     mock_context.__aenter__.return_value = mock_session
@@ -128,7 +127,7 @@ async def test_apply_key_not_found_raises_error(mock_get_session_cm):
 async def test_apply_inactive_key_raises_error(mock_get_session_cm):
     """Verify ClientAuthenticationError is raised if key is inactive."""
     mock_session = AsyncMock(spec=AsyncSession)
-    
+
     # Set up the mock context manager
     mock_context = AsyncMock()
     mock_context.__aenter__.return_value = mock_session
@@ -164,7 +163,7 @@ async def test_apply_no_bearer_prefix_success(mock_get_session_cm):
     """Verify that apply works correctly if 'Bearer ' prefix is missing."""
     # Arrange
     mock_session = AsyncMock(spec=AsyncSession)
-    
+
     # Set up the mock context manager
     mock_context = AsyncMock()
     mock_context.__aenter__.return_value = mock_session
@@ -193,4 +192,4 @@ async def test_apply_no_bearer_prefix_success(mock_get_session_cm):
     # Assert
     mock_api_key_lookup.assert_awaited_once_with(mock_session, test_api_key)
     assert result_context == context # Should return the same context on success
-    assert context.response is None # Response should not be set on success 
+    assert context.response is None # Response should not be set on success

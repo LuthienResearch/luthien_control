@@ -4,7 +4,6 @@ import logging
 from typing import Any, Awaitable, Callable, Optional
 
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
     ClientAuthenticationNotFoundError,
@@ -14,6 +13,7 @@ from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.context import TransactionContext
 from luthien_control.db.database_async import get_main_db_session_cm
 from luthien_control.db.sqlmodel_models import ClientApiKey
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Type alias for the database lookup function
 ApiKeyLookupFunc = Callable[[AsyncSession, str], Awaitable[Optional[ClientApiKey]]]

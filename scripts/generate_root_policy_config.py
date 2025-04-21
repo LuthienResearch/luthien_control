@@ -11,8 +11,8 @@ import httpx
 # Load environment variables from .env if present BEFORE importing Settings
 from dotenv import load_dotenv
 from luthien_control.db.database_async import (
-    create_main_db_engine,
     close_main_db_engine,
+    create_main_db_engine,
     get_main_db_session,
 )  # noqa: E402
 

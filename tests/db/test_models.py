@@ -5,7 +5,8 @@ from luthien_control.db.sqlmodel_models import Policy
 
 def test_policy_creation():
     """Test successful creation of Policy with all fields, including inherited."""
-    now = datetime.now(timezone.utc)
+    # Get the current time without timezone info, to match the model's behavior
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     data = {
         "id": 1,
         "name": "DbPolicy",

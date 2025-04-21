@@ -30,7 +30,6 @@ class Policy(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(sa_column=Column(String, unique=True, index=True))
     policy_class_path: str = Field(sa_column=Column(String))
-    # JSON column must be defined explicitly with SQLAlchemy Column
     config: Optional[Dict[str, Any]] = Field(
         default=None,
         sa_column=Column(JSON)

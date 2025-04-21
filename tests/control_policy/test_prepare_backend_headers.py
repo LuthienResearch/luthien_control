@@ -6,7 +6,7 @@ import pytest
 from httpx import Headers, Request
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.prepare_backend_headers import PrepareBackendHeadersPolicy
-from luthien_control.core.context import TransactionContext
+from luthien_control.core.transaction_context import TransactionContext
 
 # Mark all tests in this module as async tests
 pytestmark = pytest.mark.asyncio

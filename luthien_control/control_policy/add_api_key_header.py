@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
 from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.core.context import TransactionContext
+from luthien_control.core.transaction_context import TransactionContext
 
 
 class AddApiKeyHeaderPolicy(ControlPolicy):

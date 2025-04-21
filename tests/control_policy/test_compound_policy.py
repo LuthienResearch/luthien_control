@@ -6,7 +6,7 @@ import pytest
 from fastapi import Response
 from luthien_control.control_policy.compound_policy import CompoundPolicy
 from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.core.context import TransactionContext
+from luthien_control.core.transaction_context import TransactionContext
 
 # --- Test Fixtures and Helper Classes ---
 

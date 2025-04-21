@@ -4,8 +4,8 @@ import httpx
 import pytest
 from fastapi import Response
 from httpx import Headers
-from luthien_control.core.context import TransactionContext
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
+from luthien_control.core.transaction_context import TransactionContext
 
 
 @pytest.fixture

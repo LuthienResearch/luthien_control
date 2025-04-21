@@ -1,8 +1,8 @@
 """Simple implementations of the ResponseBuilder interface."""
 
 from fastapi import Response, status
-from luthien_control.core.context import TransactionContext
 from luthien_control.core.response_builder.interface import ResponseBuilder
+from luthien_control.core.transaction_context import TransactionContext
 
 
 class SimpleResponseBuilder(ResponseBuilder):

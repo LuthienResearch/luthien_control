@@ -7,7 +7,7 @@ import pytest
 from fastapi import Request as FastAPIRequest  # Use alias to avoid clash
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
-from luthien_control.core.context import TransactionContext
+from luthien_control.core.transaction_context import TransactionContext
 
 # Mark all tests in this module as async tests
 pytestmark = pytest.mark.asyncio

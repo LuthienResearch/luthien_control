@@ -3,7 +3,7 @@ from typing import Optional, Protocol, runtime_checkable
 
 from fastapi import Response
 from luthien_control.control_policy.exceptions import ControlPolicyError
-from luthien_control.core.context import TransactionContext
+from luthien_control.core.transaction_context import TransactionContext
 
 
 @runtime_checkable

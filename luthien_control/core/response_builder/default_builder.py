@@ -5,8 +5,8 @@ from typing import Optional
 from fastapi import Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 from luthien_control.control_policy.exceptions import ControlPolicyError
-from luthien_control.core.context import TransactionContext
 from luthien_control.core.response_builder.interface import ResponseBuilder
+from luthien_control.core.transaction_context import TransactionContext
 
 
 class DefaultResponseBuilder(ResponseBuilder):

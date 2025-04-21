@@ -4,7 +4,7 @@ import abc
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from luthien_control.core.context import TransactionContext
+    from luthien_control.core.transaction_context import TransactionContext
 
 
 class ControlPolicy(abc.ABC):

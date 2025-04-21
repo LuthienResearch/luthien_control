@@ -10,11 +10,18 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.core.context import TransactionContext
 from luthien_control.core.response_builder.interface import ResponseBuilder
+from luthien_control.core.transaction_context import TransactionContext
 
 # Get a logger for this module
 logger = logging.getLogger(__name__)
+
+def _initialize_context(request: fastapi.Request) -> TransactionContext:
+    context = TransactionContext()
+    context.settings = Settings()
+    context.http_client = httpx.AsyncClient()
+    context.fastapi_request = request
+    return context
 
 
 async def run_policy_flow(

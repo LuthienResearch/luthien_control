@@ -9,7 +9,7 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.core.context import TransactionContext
+from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.proxy.orchestration import run_policy_flow
 
 # Mark all tests in this module as async

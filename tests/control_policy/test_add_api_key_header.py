@@ -6,7 +6,7 @@ import httpx
 import pytest
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
-from luthien_control.core.context import TransactionContext
+from luthien_control.core.transaction_context import TransactionContext
 
 
 @pytest.fixture

@@ -39,7 +39,7 @@ def client(test_app: FastAPI) -> TestClient:  # type: ignore[misc]
     # to prevent slow/failing startup in tests.
     with (
         patch(
-            "luthien_control.db.database_async.create_main_db_engine", new_callable=AsyncMock
+            "luthien_control.db.database_async.create_db_engine", new_callable=AsyncMock
         ) as mock_create_main_engine,
     ):  # Patch the actual creation functions
         # Ensure mocked functions return a mock engine/pool or None to simulate success/failure

@@ -5,9 +5,9 @@ import logging
 import sys
 
 from luthien_control.db.database_async import (
-    close_main_db_engine,
-    create_main_db_engine,
-    get_main_db_session,
+    close_db_engine,
+    create_db_engine,
+    get_db_session,
 )
 from luthien_control.db.sqlmodel_crud import create_api_key
 from luthien_control.db.sqlmodel_models import ClientApiKey
@@ -34,7 +34,7 @@ async def main():
         f"Active={not args.inactive}"
     )
 
-    engine = await create_main_db_engine()
+    engine = await create_db_engine()
     if not engine:
         logger.error("Failed to create database engine. Aborting.")
         sys.exit(1)
@@ -45,8 +45,8 @@ async def main():
         is_active=not args.inactive,
     )
 
-    async for session in get_main_db_session():
-        try:
+    try:
+        async with get_db_session() as session:
             created_key = await create_api_key(session, new_key)
             if created_key:
                 logger.info(f"Successfully added API key ID: {created_key.id}, Name: {created_key.name}")
@@ -56,18 +56,14 @@ async def main():
                 # Note: This check is basic, specific DB errors are logged within create_api_key
                 logger.warning("This might be due to a duplicate key_value or other database constraint.")
                 sys.exit(1) # Exit with error if creation failed
-            break # Exit loop after first successful session use
-        except Exception as e:
-            logger.exception(f"An unexpected error occurred during API key creation: {e}")
-            sys.exit(1) # Exit with error on exception
-        finally:
-            # Ensure engine is closed regardless of success or failure within the loop
-            # Although get_main_db_session typically handles session closure,
-            # we manage the engine lifecycle explicitly here.
-            pass # Session is managed by the context manager
 
-    await close_main_db_engine()
-    logger.info("Database engine closed.")
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred during API key creation: {e}")
+        sys.exit(1) # Exit with error on exception
+    finally:
+        # Ensure engine is closed regardless of success or failure
+        await close_db_engine()
+        logger.info("Database engine closed.")
 
 
 if __name__ == "__main__":

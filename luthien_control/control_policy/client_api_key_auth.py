@@ -11,7 +11,7 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.context import TransactionContext
-from luthien_control.db.database_async import get_main_db_session_cm
+from luthien_control.db.database_async import get_db_session
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,7 +63,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
         # Get a database session and use it to look up the API key
         db_key = None
-        async with get_main_db_session_cm() as session:
+        async with get_db_session() as session:
             db_key = await self._get_api_key_by_value(session, api_key_value)
 
         if not db_key:

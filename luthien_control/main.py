@@ -6,8 +6,8 @@ from fastapi import FastAPI
 
 from luthien_control.config.settings import Settings
 from luthien_control.db.database_async import (
-    close_main_db_engine,
-    create_main_db_engine,
+    close_db_engine,
+    create_db_engine,
 )
 from luthien_control.logging_config import setup_logging
 from luthien_control.proxy.server import router as proxy_router
@@ -34,27 +34,27 @@ async def lifespan(app: FastAPI):
     logger.info("Attempting to create main DB engine...")
     try:
         # Create the engine
-        main_db_engine = await create_main_db_engine()
+        db_engine = await create_db_engine()
         # Check if engine was successfully created
-        if not main_db_engine:
-            # Errors during creation are logged within create_main_db_engine
-            logger.critical("create_main_db_engine() failed (returned None). Halting startup.")
-            raise RuntimeError("Failed to initialize main database connection engine.")
+        if not db_engine:
+            # Errors during creation are logged within create_db_engine
+            logger.critical("create_db_engine() failed (returned None). Halting startup.")
+            raise RuntimeError("Failed to initialize database connection engine.")
         else:
             logger.info("Main DB engine successfully created.")
             # Optionally check via module namespace if needed, though direct check is better
-            # assert luthien_control.db.database_async._main_db_engine is not None
+            # assert luthien_control.db.database_async._db_engine is not None
     except Exception as engine_exc:
         # Catch exceptions during the await itself
         logger.critical(f"Failed to create main DB engine due to exception: {engine_exc}", exc_info=True)
-        raise RuntimeError(f"Failed to initialize main database connection engine: {engine_exc}") from engine_exc
+        raise RuntimeError(f"Failed to initialize database connection engine: {engine_exc}") from engine_exc
 
     yield
 
     # Shutdown: Clean up resources
     logger.info("Application shutdown sequence initiated.")
     # Close main DB engine
-    await close_main_db_engine()
+    await close_db_engine()
 
     # Shutdown: Close the HTTP client
     if hasattr(app.state, "http_client") and app.state.http_client:

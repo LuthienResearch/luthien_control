@@ -5,9 +5,9 @@ import sys
 from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
 from luthien_control.db.database_async import (
-    close_main_db_engine,
-    create_main_db_engine,
-    get_main_db_session,
+    close_db_engine,
+    create_db_engine,
+    get_db_session,
 )
 from luthien_control.db.sqlmodel_crud import list_policies
 
@@ -20,21 +20,21 @@ async def main():
     load_dotenv()  # Load env vars before creating engine
     Settings()  # Initialize settings if needed elsewhere
 
+    logger.info("Attempting to list policy configurations...")
+
     try:
-        # Initialize the engine and session factory
-        engine = await create_main_db_engine()
+        engine = await create_db_engine()
         if not engine:
-            logger.error("Failed to create database engine. Check environment variables.")
+            logger.error("Failed to create database engine.")
             return
 
-        # Use the session factory to get a session via the async generator
-        async for session in get_main_db_session():  # Corrected usage: async for
+        async with get_db_session() as session:
             logger.info("\n--- Listing Policy Configurations ---")
-            policies = await list_policies(session)  # Pass session here
+            policies = await list_policies(session)
             if policies:
                 logger.info(f"Found {len(policies)} policy configurations:")
                 for i, policy in enumerate(policies):
-                    print(f"\nPolicy {i + 1}:")  # Use print for clearer output in script
+                    print(f"\nPolicy {i + 1}:")
                     print(f"  ID: {policy.id}")
                     print(f"  Name: {policy.name}")
                     print(f"  Class Path: {policy.policy_class_path}")
@@ -45,15 +45,13 @@ async def main():
                     print(f"  Updated At: {policy.updated_at}")
             else:
                 logger.info("No policy configurations found in the database.")
-            logger.info("--- End Listing ---\n")
-            # Assuming we only need one session block for this script's purpose
-            break  # Exit the loop after the first session is used
+            logger.info("--- End Listing ---")
 
     except Exception as e:
-        logger.exception(f"An error occurred: {e}")
+        logger.exception(f"An error occurred while listing policies: {e}")
     finally:
-        # Close the engine (uses global variable)
-        await close_main_db_engine()
+        await close_db_engine()
+        logger.info("Database connection closed.")
 
 
 if __name__ == "__main__":

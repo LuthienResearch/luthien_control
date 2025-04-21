@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.control_policy.client_api_key_auth.get_main_db_session_cm")
+@patch("luthien_control.control_policy.client_api_key_auth.get_db_session")
 async def test_apply_calls_lookup_with_correct_args(mock_get_session_cm):
     """
     Verify that apply calls the api_key_lookup with the session and key value.
@@ -58,7 +58,7 @@ async def test_apply_calls_lookup_with_correct_args(mock_get_session_cm):
 @pytest.mark.asyncio
 async def test_apply_no_request_raises_error():
     """Verify NoRequestError is raised if context has no fastapi_request."""
-    # We don't need to mock get_main_db_session here since the code raises
+    # We don't need to mock get_db_session here since the code raises
     # an error before trying to get a session
     mock_api_key_lookup = AsyncMock()
     policy = ClientApiKeyAuthPolicy(api_key_lookup=mock_api_key_lookup)
@@ -72,7 +72,7 @@ async def test_apply_no_request_raises_error():
 @pytest.mark.asyncio
 async def test_apply_missing_header_raises_error():
     """Verify ClientAuthenticationNotFoundError is raised if header is missing."""
-    # We don't need to mock get_main_db_session here since the code raises
+    # We don't need to mock get_db_session here since the code raises
     # an error before trying to get a session
     mock_api_key_lookup = AsyncMock()
     policy = ClientApiKeyAuthPolicy(api_key_lookup=mock_api_key_lookup)
@@ -92,7 +92,7 @@ async def test_apply_missing_header_raises_error():
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.control_policy.client_api_key_auth.get_main_db_session_cm")
+@patch("luthien_control.control_policy.client_api_key_auth.get_db_session")
 async def test_apply_key_not_found_raises_error(mock_get_session_cm):
     """Verify ClientAuthenticationError is raised if key is not found in DB."""
     mock_session = AsyncMock(spec=AsyncSession)
@@ -123,7 +123,7 @@ async def test_apply_key_not_found_raises_error(mock_get_session_cm):
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.control_policy.client_api_key_auth.get_main_db_session_cm")
+@patch("luthien_control.control_policy.client_api_key_auth.get_db_session")
 async def test_apply_inactive_key_raises_error(mock_get_session_cm):
     """Verify ClientAuthenticationError is raised if key is inactive."""
     mock_session = AsyncMock(spec=AsyncSession)
@@ -158,7 +158,7 @@ async def test_apply_inactive_key_raises_error(mock_get_session_cm):
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.control_policy.client_api_key_auth.get_main_db_session_cm")
+@patch("luthien_control.control_policy.client_api_key_auth.get_db_session")
 async def test_apply_no_bearer_prefix_success(mock_get_session_cm):
     """Verify that apply works correctly if 'Bearer ' prefix is missing."""
     # Arrange

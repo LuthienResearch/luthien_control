@@ -15,9 +15,9 @@ from luthien_control.config.settings import Settings
 # Add imports needed for policy creation
 # Add new imports for async engine and session management
 from luthien_control.db.database_async import (
-    close_main_db_engine,
-    create_main_db_engine,
-    get_main_db_session,
+    close_db_engine,
+    create_db_engine,
+    get_db_session,
 )
 from luthien_control.db.sqlmodel_crud import (
     create_policy_config,
@@ -46,13 +46,13 @@ async def _ensure_e2e_policy_exists():
     try:
         # Use the same env vars the server process will use
         # Create the engine instead of the pool
-        engine = await create_main_db_engine()
+        engine = await create_db_engine()
         if not engine:
-            raise RuntimeError("Failed to create main database engine for E2E setup.")
+            raise RuntimeError("Failed to create database engine for E2E setup.")
         engine_created = True
 
         # Use the async session generator
-        async for session in get_main_db_session():
+        async with get_db_session() as session:
             existing_policy = await get_policy_config_by_name(session, E2E_POLICY_NAME)
 
             # Define the desired state
@@ -128,7 +128,7 @@ async def _ensure_e2e_policy_exists():
     finally:
         # Close the engine if it was created
         if engine_created:
-            await close_main_db_engine()
+            await close_db_engine()
             logger.info("Closed temporary DB engine used for E2E policy setup.")
 
 

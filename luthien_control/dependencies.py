@@ -1,4 +1,5 @@
 import logging
+from typing import AsyncGenerator
 
 import httpx
 from fastapi import Depends, HTTPException, Request
@@ -16,7 +17,7 @@ from luthien_control.core.response_builder.default_builder import DefaultRespons
 from luthien_control.core.response_builder.interface import ResponseBuilder
 
 # Import SQLModel database session providers
-from luthien_control.db.database_async import get_main_db_session
+from luthien_control.db.database_async import get_db_session
 from luthien_control.db.sqlmodel_crud import (
     ApiKeyLookupFunc,
     PolicyLoadError,
@@ -46,15 +47,26 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
     return client
 
 
-async def get_db() -> AsyncSession:
-    """
-    Dependency for SQLModel main database session using the new async database.
+# --- Async Database Session Dependency ---
 
-    Yields:
-        AsyncSession: SQLAlchemy async session for database operations.
-    """
-    async for session in get_main_db_session():
-        yield session
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency to get an async database session."""
+    try:
+        async with get_db_session() as session:
+            yield session
+    except RuntimeError as e:
+        # Handle case where session factory isn't initialized (e.g., during startup)
+        logger.error(f"Database session could not be created: {e}")
+        # Depending on the desired behavior, you might:
+        # 1. Re-raise the exception:
+        #    raise HTTPException(status_code=503, detail="Database not available")
+        # 2. Yield None (callers must handle None session):
+        yield None # Be cautious with this, ensure callers check!
+        # 3. Log and continue (if a session isn't strictly required? Risky):
+        #    pass
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred getting DB session: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def get_initial_context_policy() -> InitializeContextPolicy:
@@ -68,7 +80,7 @@ def get_initial_context_policy() -> InitializeContextPolicy:
 async def get_main_control_policy(
     settings: Settings = Depends(Settings),
     http_client: httpx.AsyncClient = Depends(get_http_client),  # Inject http_client correctly
-    session: AsyncSession = Depends(get_db),  # Inject AsyncSession via get_db
+    session: AsyncSession = Depends(get_async_db),  # Inject AsyncSession via get_async_db
 ) -> ControlPolicy:  # Return a single policy instance
     """
     Dependency to load and provide the main, top-level ControlPolicy instance

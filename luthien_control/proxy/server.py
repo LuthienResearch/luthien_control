@@ -29,8 +29,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# === NEW API PROXY ENDPOINT ===
-# Replaces the previous /beta and catch-all endpoints
 @router.api_route(
     "/api/{full_path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
@@ -63,5 +61,5 @@ async def api_proxy_endpoint(
         builder=builder,
     )
 
-    logger.info(f"Returning response for /api/{full_path}")
+    logger.info(f"Returning response for {request.url.path}")
     return response

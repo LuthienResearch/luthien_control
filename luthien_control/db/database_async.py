@@ -74,8 +74,6 @@ def _get_main_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
     )
     return async_url, {}
 
-
-
 async def create_main_db_engine() -> Optional[AsyncEngine]:
     """Creates the asyncpg engine for the main application DB."""
     global _main_db_engine, _main_db_session_factory
@@ -124,8 +122,6 @@ async def create_main_db_engine() -> Optional[AsyncEngine]:
         logger.exception(f"Failed to create main database engine using URL ({masked_url}): {e}")
         return None
 
-
-
 async def close_main_db_engine() -> None:
     """Closes the main database engine."""
     global _main_db_engine
@@ -139,9 +135,6 @@ async def close_main_db_engine() -> None:
             _main_db_engine = None
     else:
         logger.info("Main database engine was already None or not initialized during shutdown.")
-
-
-
 
 async def get_main_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Get a SQLAlchemy async session for the main database.

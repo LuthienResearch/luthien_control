@@ -1,4 +1,3 @@
-import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -8,12 +7,15 @@ from luthien_control.db.database_async import (
     create_db_engine,
     get_db_session,
 )
+from luthien_control.db.database_async import settings as db_async_settings
 
 
 @pytest.mark.asyncio
 async def test_get_db_url_with_database_url():
     """Test _get_db_url with DATABASE_URL environment variable."""
-    with patch.dict(os.environ, {"DATABASE_URL": "postgresql://user:pass@localhost/dbname"}):
+    test_db_url = "postgresql://user:pass@localhost/dbname"
+    # Patch the settings method used by _get_db_url
+    with patch.object(db_async_settings, 'get_database_url', return_value=test_db_url):
         url_result = _get_db_url()
         assert url_result is not None
         url, connect_args = url_result
@@ -21,31 +23,31 @@ async def test_get_db_url_with_database_url():
         assert isinstance(connect_args, dict)
 
 
-@pytest.mark.asyncio
-async def test_get_db_url_with_postgres_vars():
+@patch.object(db_async_settings, 'get_postgres_db', return_value="testdb")
+@patch.object(db_async_settings, 'get_postgres_port', return_value=5433)
+@patch.object(db_async_settings, 'get_postgres_host', return_value="testhost")
+@patch.object(db_async_settings, 'get_postgres_password', return_value="testpass")
+@patch.object(db_async_settings, 'get_postgres_user', return_value="testuser")
+@patch.object(db_async_settings, 'get_database_url', return_value=None)
+async def test_get_db_url_with_postgres_vars(m_db, m_port, m_host, m_pass, m_user, m_db_url):
     """Test _get_db_url with individual DB_* environment variables."""
-    env_vars = {
-        "DB_USER": "testuser",
-        "DB_PASSWORD": "testpass",
-        "DB_HOST": "testhost",
-        "DB_PORT": "5433",
-        "DB_NAME_NEW": "testdb",
-    }
-    with patch.dict(os.environ, env_vars, clear=True):
-        url_result = _get_db_url()
-        assert url_result is not None
-        url, connect_args = url_result
-        assert url == "postgresql+asyncpg://testuser:testpass@testhost:5433/testdb"
-        assert isinstance(connect_args, dict)
+    url_result = _get_db_url()
+    assert url_result is not None
+    url, connect_args = url_result
+    assert url == "postgresql+asyncpg://testuser:testpass@testhost:5433/testdb"
+    assert isinstance(connect_args, dict)
 
 
-@pytest.mark.asyncio
-async def test_get_db_url_missing_vars():
+@patch.object(db_async_settings, 'get_postgres_db', return_value=None)
+@patch.object(db_async_settings, 'get_postgres_port', return_value=5433)
+@patch.object(db_async_settings, 'get_postgres_host', return_value="testhost")
+@patch.object(db_async_settings, 'get_postgres_password', return_value=None)
+@patch.object(db_async_settings, 'get_postgres_user', return_value="testuser")
+@patch.object(db_async_settings, 'get_database_url', return_value=None)
+async def test_get_db_url_missing_vars(m_db, m_port, m_host, m_pass, m_user, m_db_url):
     """Test _get_db_url with missing required environment variables."""
-    with patch.dict(os.environ, {"DB_USER": "testuser"}, clear=True):
-        url_result = _get_db_url()
-        assert url_result is None
-
+    url_result = _get_db_url()
+    assert url_result is None
 
 
 @pytest.mark.asyncio

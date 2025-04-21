@@ -4,7 +4,7 @@ import socket
 import subprocess
 import sys
 import time
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator, Dict
 
 import httpx
 import pytest
@@ -37,10 +37,11 @@ logging.basicConfig(level=logging.INFO, stream=sys.stdout)  # Basic config for v
 
 E2E_POLICY_NAME = "e2e_test_policy"
 
+settings = Settings() # Instantiate settings globally
 
 async def _ensure_e2e_policy_exists():
     """Connects to DB and ensures the E2E test policy exists and is configured correctly."""
-    Settings()
+    # Settings instance is now global
     engine_created = False
     logger.info(f"Ensuring E2E policy '{E2E_POLICY_NAME}' exists in database...")
     try:
@@ -138,7 +139,7 @@ async def _ensure_e2e_policy_exists():
 @pytest.fixture(scope="session")
 def openai_api_key() -> str:
     """Fixture to provide the OpenAI API key from environment variables."""
-    key = os.getenv("OPENAI_API_KEY")
+    key = settings.get_openai_api_key()
     if not key:
         pytest.fail(
             "Missing required environment variable: OPENAI_API_KEY. Ensure it is set in your environment or .env file."
@@ -164,20 +165,38 @@ async def live_local_proxy_server(openai_api_key: str) -> AsyncGenerator[str, No
     """
     port = _find_free_port()
     host = "127.0.0.1"
-    base_url = f"http://{host}:{port}"
+
+    # Prepare environment variables for the subprocess
+    # Use a separate dict, don't modify os.environ directly
+    server_env: Dict[str, Any] = {}
+
+    # Copy relevant env vars from current environment if they exist
+    # These might be set by CI or a local .env file
+    for var in ["DB_USER", "DB_PASSWORD", "DB_HOST", "DB_PORT", "DB_NAME_NEW", "DATABASE_URL",
+                "MAIN_DB_POOL_MIN_SIZE", "MAIN_DB_POOL_MAX_SIZE", "TEST_CLIENT_API_KEY",
+                "BACKEND_URL", "LOG_LEVEL"]:
+        value = os.getenv(var) # Check actual env first
+        if value is not None:
+            server_env[var] = value
 
     # Ensure the necessary policy exists in the DB before starting server
     await _ensure_e2e_policy_exists()
 
-    # Prepare environment variables for the subprocess
-    server_env = os.environ.copy()
     # Explicitly set required env vars for the E2E server,
-    # overriding any potentially inherited values from .env.test
-    server_env["OPENAI_API_KEY"] = openai_api_key
+    # ensuring the correct values are used for the test server process.
+    # Use the fixture value for OPENAI_API_KEY.
+    server_env["OPENAI_API_KEY"] = openai_api_key # From fixture
+
     # Default to real OpenAI backend for E2E tests unless overridden by system env
-    server_env["BACKEND_URL"] = os.environ.get("BACKEND_URL", "https://api.openai.com/v1")
+    # Use the settings getter, which checks the env var
+    backend_url = settings.get_backend_url() or "https://api.openai.com/v1"
+    server_env["BACKEND_URL"] = backend_url
+
     # Tell the server process to load the specific policy created for E2E tests
     server_env["TOP_LEVEL_POLICY_NAME"] = "e2e_test_policy"
+
+    # Define base URL after preparing environment
+    base_url = f"http://{host}:{port}"
 
     # Command to start the server using uvicorn
     # Use sys.executable to ensure the same Python interpreter is used
@@ -270,12 +289,12 @@ def proxy_target_url(request: pytest.FixtureRequest, live_local_proxy_server: st
 
 @pytest.fixture(scope="session")
 def client_api_key() -> str:
-    """Retrieves the client API key from the environment variable."""
-    key = os.environ.get("TEST_CLIENT_API_KEY")
+    """Fixture to provide the client API key for testing from environment variables."""
+    key = os.getenv("TEST_CLIENT_API_KEY") # Test-specific key read directly
     if not key:
-        pytest.skip(
-            "Skipping E2E tests: TEST_CLIENT_API_KEY environment variable not set. "
-            "Set this variable with a valid client key for the target proxy."
+        pytest.fail(
+            "Missing required environment variable: TEST_CLIENT_API_KEY. "
+            "Ensure it is set in your environment or .env file."
         )
     return key
 

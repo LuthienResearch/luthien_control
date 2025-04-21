@@ -3,11 +3,11 @@
 Script to generate an Alembic migration for SQLModel tables.
 """
 
-import os
 import subprocess
 import sys
 
 from dotenv import load_dotenv
+from luthien_control.config.settings import Settings
 
 
 def generate_migration(message="Initial sqlmodel tables"):
@@ -15,9 +15,15 @@ def generate_migration(message="Initial sqlmodel tables"):
     # Load environment variables
     load_dotenv()
 
-    # Check if required environment variables are set
-    required_vars = ["DB_USER", "DB_PASSWORD", "DB_NAME_NEW"]
-    missing_vars = [var for var in required_vars if not os.environ.get(var)]
+    # Check if required environment variables are set using Settings
+    settings = Settings()
+    missing_vars = []
+    if not settings.get_postgres_user():
+        missing_vars.append("DB_USER")
+    if not settings.get_postgres_password():
+        missing_vars.append("DB_PASSWORD")
+    if not settings.get_postgres_db():
+        missing_vars.append("DB_NAME_NEW")
 
     if missing_vars:
         print(f"Error: Missing required environment variables: {', '.join(missing_vars)}")

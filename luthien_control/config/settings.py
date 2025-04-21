@@ -37,6 +37,10 @@ class Settings:
                 raise ValueError(f"Invalid BACKEND_URL format: {url}")
         return url
 
+    def get_database_url(self) -> Optional[str]:
+        """Returns the primary DATABASE_URL, if set."""
+        return os.getenv("DATABASE_URL")
+
     def get_openai_api_key(self) -> str | None:
         """Returns the OpenAI API key, if set."""
         return os.getenv("OPENAI_API_KEY")
@@ -67,6 +71,26 @@ class Settings:
             return int(port_str)
         except ValueError:
             raise ValueError("DB_PORT environment variable must be an integer.")
+
+    # --- DB Pool Size Getters ---
+    def get_main_db_pool_min_size(self) -> int:
+        """Returns the minimum pool size for the main DB."""
+        try:
+            return int(os.getenv("MAIN_DB_POOL_MIN_SIZE", "1"))
+        except ValueError:
+            raise ValueError("MAIN_DB_POOL_MIN_SIZE environment variable must be an integer.")
+
+    def get_main_db_pool_max_size(self) -> int:
+        """Returns the maximum pool size for the main DB."""
+        try:
+            return int(os.getenv("MAIN_DB_POOL_MAX_SIZE", "10"))
+        except ValueError:
+            raise ValueError("MAIN_DB_POOL_MAX_SIZE environment variable must be an integer.")
+
+    # --- Logging Settings --- # Added based on grep results
+    def get_log_level(self, default: str = "INFO") -> str:
+        """Gets the configured log level, defaulting if not set."""
+        return os.getenv("LOG_LEVEL", default).upper()
 
     # --- Database DSN Helper Properties using Getters ---
     @property

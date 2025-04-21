@@ -1,8 +1,9 @@
 """Centralized logging configuration for the luthien_control package."""
 
 import logging
-import os
 import sys
+
+from luthien_control.config.settings import Settings
 
 # Recommended format
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -26,7 +27,8 @@ def setup_logging():
     Sets a standard format and directs logs to stderr.
     Sets louder libraries to WARNING level.
     """
-    log_level_name = os.environ.get("LOG_LEVEL", DEFAULT_LOG_LEVEL).upper()
+    settings = Settings()
+    log_level_name = settings.get_log_level(default=DEFAULT_LOG_LEVEL)
 
     if log_level_name not in VALID_LOG_LEVELS:
         print(

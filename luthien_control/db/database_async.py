@@ -1,10 +1,11 @@
 import contextlib
 import logging
-import os
 from typing import Any, AsyncGenerator, Dict, Optional, Tuple
 from urllib.parse import parse_qs, urlparse, urlunparse
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+
+from luthien_control.config.settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +14,12 @@ _db_engine: Optional[AsyncEngine] = None
 
 _db_session_factory = None
 
+settings = Settings()
+
 
 def _get_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
-    """Determines the database URL, prioritizing DATABASE_URL."""
-    database_url = os.getenv("DATABASE_URL")
+    """Determines the database URL, prioritizing database url."""
+    database_url = settings.get_database_url()
     connect_args = {}
 
     if database_url:
@@ -46,13 +49,11 @@ def _get_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
         return database_url, connect_args
 
     logger.warning("DATABASE_URL not found. Falling back to individual DB_* variables.")
-    db_user = os.getenv("DB_USER")
-    db_password = os.getenv("DB_PASSWORD")
-    db_host = os.getenv("DB_HOST")
-    db_port = os.getenv("DB_PORT", "5432")  # Default port
-
-    # Use DB_NAME_NEW for the database name
-    db_name = os.getenv("DB_NAME_NEW")
+    db_user = settings.get_postgres_user()
+    db_password = settings.get_postgres_password()
+    db_host = settings.get_postgres_host()
+    db_port = settings.get_postgres_port() # Returns int or None
+    db_name = settings.get_postgres_db() # Returns str or None
 
     # Log which database name variable was used
     if db_name:
@@ -65,6 +66,11 @@ def _get_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
             "(DB_USER, DB_PASSWORD, DB_HOST, DB_NAME_NEW) " # Updated error message
             "when DATABASE_URL is not set."
         )
+        return None
+
+    # Ensure db_port is an integer if it was retrieved successfully
+    if db_port is None: # Should not happen if settings validation is robust, but check anyway
+        logger.error("DB_PORT setting could not be determined.")
         return None
 
     async_url = f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
@@ -91,8 +97,8 @@ async def create_db_engine() -> Optional[AsyncEngine]:
 
     try:
         # Get and validate pool sizes
-        pool_min_size = int(os.getenv("MAIN_DB_POOL_MIN_SIZE", "1"))
-        pool_max_size = int(os.getenv("MAIN_DB_POOL_MAX_SIZE", "10"))
+        pool_min_size = settings.get_main_db_pool_min_size()
+        pool_max_size = settings.get_main_db_pool_max_size()
 
         _db_engine = create_async_engine(
             db_url,

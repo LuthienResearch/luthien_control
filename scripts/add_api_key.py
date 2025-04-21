@@ -69,5 +69,4 @@ async def main():
 if __name__ == "__main__":
     # Ensure Alembic operations aren't run automatically if models are imported
     # This is relevant if this script indirectly causes model imports that trigger Alembic checks
-    # os.environ['ALEMBIC_CONTEXT'] = 'false'
     asyncio.run(main())

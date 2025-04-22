@@ -9,7 +9,7 @@ from luthien_control.control_policy.exceptions import (
     ClientAuthenticationNotFoundError,
     NoRequestError,
 )
-from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.database_async import get_db_session
 from luthien_control.db.sqlmodel_models import ClientApiKey

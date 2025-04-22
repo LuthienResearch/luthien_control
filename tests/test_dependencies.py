@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException, Request
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
-from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 from luthien_control.db.sqlmodel_crud import PolicyLoadError, get_api_key_by_value
 from luthien_control.dependencies import (

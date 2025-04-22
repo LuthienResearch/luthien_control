@@ -10,7 +10,7 @@ from luthien_control.config.settings import Settings
 
 # Import Policies
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
-from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 
 # Import Response Builder
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder

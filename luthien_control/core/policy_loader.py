@@ -8,7 +8,7 @@ import httpx
 # Configuration and Policy Interfaces (adjust paths if necessary)
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.compound_policy import CompoundPolicy
-from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.db.sqlmodel_models import ClientApiKey
 
 logger = logging.getLogger(__name__)

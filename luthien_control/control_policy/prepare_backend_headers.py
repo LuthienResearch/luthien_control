@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from httpx import Headers  # Import Headers for type hinting and manipulation
 from luthien_control.config.settings import Settings
-from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.transaction_context import TransactionContext
 
 

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Request
 from luthien_control.config.settings import Settings
 
 # Import new policy framework components
-from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 
 # Import concrete builder
 from luthien_control.core.response_builder.interface import ResponseBuilder

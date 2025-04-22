@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.config.settings import Settings
-from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.policy_loader import (
     ApiKeyLookupFunc,
     PolicyLoadError,

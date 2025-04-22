@@ -8,7 +8,7 @@ from luthien_control.config.settings import Settings
 
 # Import from the new policy_loader module
 from luthien_control.control_policy.compound_policy import CompoundPolicy
-from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.policy_loader import (
     ApiKeyLookupFunc,
     PolicyLoadError,

@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI, Request, Response
 from fastapi.testclient import TestClient
 from luthien_control.config.settings import Settings
-from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.response_builder.interface import ResponseBuilder
 from luthien_control.dependencies import (
     get_main_control_policy,

@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.transaction_context import TransactionContext
 
 

@@ -6,7 +6,7 @@ from typing import Any, Optional
 import httpx
 from fastapi import Request
 from luthien_control.config.settings import Settings  # Keep for potential future use, or policy config
-from luthien_control.control_policy.interface import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.transaction_context import TransactionContext
 
 

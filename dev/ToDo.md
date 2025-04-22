@@ -28,3 +28,14 @@ Items discovered during development that are out of scope for the current task b
 - [X] Eliminate all traces of CONTROL_POLICIES
 - [ ] Eliminate remaining log db cruft
 - [ ] Eliminate redundancy and overabstraction in db connection management
+
+- [ ] **Refactor `SendBackendRequestPolicy`:**
+  - **Goal:** Split into `PrepareBackendRequestPolicy` and `ExecuteBackendRequestPolicy`.
+  - **Reason:** Improve Separation of Concerns (SRP), testability, and flexibility.
+  - **Details:**
+    - `PrepareBackendRequestPolicy`: Handles URL construction, header preparation (copying, excluding, setting Host/Auth/Accept-Encoding), reads original body (if needed), creates a *new* backend `httpx.Request` object. Stores result in `context.backend_request` (new `TransactionContext` attribute).
+    - `ExecuteBackendRequestPolicy`: Takes `context.backend_request`, uses injected `http_client` to send it, stores `httpx.Response` in `context.backend_response` (new `TransactionContext` attribute). Handles network errors.
+    - Update `TransactionContext` with `backend_request: httpx.Request | None = None` and `backend_response: httpx.Response | None = None`.
+    - Remove old `SendBackendRequestPolicy` and its tests.
+    - Update policy chain configurations.
+  - **Origin:** Identified during review of `tests/control_policy/test_send_backend_request.py` due to test length and policy complexity.

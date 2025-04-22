@@ -134,3 +134,44 @@
 - All `ControlPolicy` classes now implement `serialize_config`.
 - Round-trip serialization/deserialization is tested and verified for all policy types.
 - All tests in `test_serialization.py` pass.
+
+---
+
+**Timestamp:** 2025-04-22 14:48
+**Task:** Refactor Test Mocking for Client API Key Auth
+**Status:** Completed
+
+**Changes:**
+- Refactored `tests/control_policy/test_client_api_key_auth.py`.
+- Created a pytest fixture `mock_db_session_cm` to encapsulate the mocking of the `get_db_session` async context manager.
+- Removed `@patch("...")` decorators and manual mock setup from `test_apply_key_not_found_raises_error`, `test_apply_inactive_key_raises_error`, `test_apply_no_bearer_prefix_success`, and `test_apply_valid_active_key_success`.
+- Updated these tests to use the `mock_db_session_cm` fixture.
+- Verified all tests in the file pass after refactoring using `poetry run pytest -vv tests/control_policy/test_client_api_key_auth.py | cat`.
+
+**Rationale:** Improve test readability and maintainability by removing redundant mocking code.
+
+**Next Steps:** Update `dev/current_context.md`, then commit changes.
+
+## 2025-04-22 15:35 - Add Unit Tests for SendBackendRequestPolicy
+
+**Task:** Write comprehensive unit tests for the `SendBackendRequestPolicy` class.
+
+**Changes:**
+- Created `tests/control_policy/test_send_backend_request.py`.
+- Added fixtures for `httpx.AsyncClient`, `Settings`, `SendBackendRequestPolicy`, and `TransactionContext`.
+- Implemented 7 test cases covering:
+    - Successful request/response flow.
+    - Correct backend URL construction (including edge cases like trailing slashes).
+    - Correct backend header preparation (filtering, host, auth, accept-encoding).
+    - Handling of `httpx.RequestError` and `httpx.TimeoutException`.
+    - Handling of missing `context.request`.
+    - Handling of invalid `BACKEND_URL` for host header extraction.
+- Fixed initial `TypeError` in `SendBackendRequestPolicy.apply` due to incorrect argument counts passed to internal methods (`_build_target_url`, `_prepare_backend_headers`).
+- Fixed test logic issues in `test_apply_builds_correct_url` (context mutation) and `test_apply_prepares_correct_headers` (incorrect timing of header capture).
+
+**Status:**
+- All 7 tests in `tests/control_policy/test_send_backend_request.py` now pass.
+- The `SendBackendRequestPolicy` implementation was implicitly verified and corrected through TDD.
+
+**Next Steps:**
+- Commit changes.

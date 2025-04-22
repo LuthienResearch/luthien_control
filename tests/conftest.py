@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.core.response_builder.interface import ResponseBuilder
+from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from luthien_control.main import app
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -144,7 +145,7 @@ async def db_session_fixture():
         # Ensure the script location is correctly set (relative to alembic.ini)
         script_location = Path(alembic_cfg.get_main_option("script_location", "."))
         if not (alembic_cfg_path.parent / script_location).exists():
-             pytest.fail(f"Alembic script location not found: {alembic_cfg_path.parent / script_location}")
+            pytest.fail(f"Alembic script location not found: {alembic_cfg_path.parent / script_location}")
         alembic_cfg.set_main_option("script_location", str(script_location))
 
         command.upgrade(alembic_cfg, "head")
@@ -188,7 +189,7 @@ async def db_session_fixture():
 
 
 @pytest.fixture(scope="session")
-def client():  # No longer depends on override_settings_dependency explicitly
+def client():
     """Pytest fixture for the FastAPI TestClient.
     Uses the main 'app' imported from luthien_control.main.
     Ensures lifespan events are handled correctly by TestClient.
@@ -199,9 +200,6 @@ def client():  # No longer depends on override_settings_dependency explicitly
     # TestClient handles startup/shutdown implicitly when used as context manager
     with TestClient(app) as test_client:
         yield test_client
-
-
-# --- Common Mock Fixtures Moved from test_orchestration --- #
 
 
 @pytest.fixture
@@ -273,3 +271,11 @@ def mock_db_session() -> AsyncMock:
 def mock_api_key_data() -> Dict[str, Any]:
     """Provides sample data for an API key."""
     return MagicMock(spec=ClientApiKey)
+
+
+@pytest.fixture
+def mock_transaction_context() -> MagicMock:
+    """Provides a mock TransactionContext."""
+    return MagicMock(spec=TransactionContext)
+
+

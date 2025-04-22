@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, Request
 from luthien_control.config.settings import Settings
 
 # Import new policy framework components
-from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
 
 # Import concrete builder
@@ -16,7 +15,6 @@ from luthien_control.core.response_builder.interface import ResponseBuilder
 # Import dependency providers from dependencies module
 from luthien_control.dependencies import (
     get_http_client,
-    get_initial_context_policy,
     get_main_control_policy,
     get_response_builder,
 )
@@ -39,8 +37,6 @@ async def api_proxy_endpoint(
     # Common dependencies
     client: httpx.AsyncClient = Depends(get_http_client),
     settings: Settings = Depends(Settings),
-    # New framework dependencies (using implemented providers)
-    initial_context_policy: InitializeContextPolicy = Depends(get_initial_context_policy),
     main_policy: ControlPolicy = Depends(get_main_control_policy),
     builder: ResponseBuilder = Depends(get_response_builder),
 ):
@@ -56,7 +52,6 @@ async def api_proxy_endpoint(
         request=request,
         http_client=client,
         settings=settings,
-        initial_context_policy=initial_context_policy,
         main_policy=main_policy,
         builder=builder,
     )

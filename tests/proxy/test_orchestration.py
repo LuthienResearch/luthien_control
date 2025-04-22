@@ -7,7 +7,6 @@ import httpx
 import pytest
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.exceptions import ControlPolicyError
-from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.interface import ControlPolicy
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.proxy.orchestration import run_policy_flow
@@ -15,11 +14,24 @@ from luthien_control.proxy.orchestration import run_policy_flow
 # Mark all tests in this module as async
 pytestmark = pytest.mark.asyncio
 
+# --- Constants ---
+TEST_REQUEST_BODY = b'{"test": "body"}'
+
 
 @pytest.fixture
 def mock_request() -> MagicMock:
     request = MagicMock(spec=fastapi.Request)
-    request.scope = {"type": "http", "method": "GET", "path": "/test"}
+    request.scope = {"type": "http", "method": "GET", "path": "/test/path"}
+    request.path_params = {"full_path": "/test/path"}
+    request.method = "GET"  # Explicitly set the method attribute
+    request.query_params = MagicMock(spec=fastapi.datastructures.QueryParams) # Use MagicMock for query_params
+    request.headers = MagicMock(spec=fastapi.datastructures.Headers)
+    request.headers.raw = [] # httpx.Request needs list of tuples
+    request.body = AsyncMock(return_value=TEST_REQUEST_BODY)
+    # Add client attribute needed by FastAPI/Starlette internally sometimes
+    request.client = MagicMock()
+    request.client.host = "testclient"
+    request.client.port = 12345
     return request
 
 
@@ -57,24 +69,29 @@ def mock_policy_raising_exception() -> AsyncMock:
 
 
 @pytest.fixture
-def mock_initial_policy_exception() -> AsyncMock:
-    """Fixture for the initial policy that raises an exception."""
-    policy = AsyncMock(spec=InitializeContextPolicy)
-    policy.apply = AsyncMock(side_effect=ValueError("Initial Policy Error"))
-    return policy
+def mock_builder() -> MagicMock:
+    builder = MagicMock()
+    # Store the response object to check identity against
+    response_obj = fastapi.Response(content="built")
+    builder.build_response = MagicMock(return_value=response_obj)
+    # Add the expected object as an attribute for easier access in the test
+    builder._expected_response = response_obj
+    return builder
 
 
-@patch("uuid.uuid4")
+@patch("luthien_control.proxy.orchestration.uuid.uuid4") # Patch uuid within orchestration module
 async def test_run_policy_flow_successful(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy: AsyncMock,
     mock_builder: MagicMock,
-    mock_settings: MagicMock,
-    mock_http_client: AsyncMock,
-    mock_initial_policy: AsyncMock,
+    mock_settings: MagicMock, # Use actual fixture name
+    mock_http_client: AsyncMock, # Use actual fixture name
 ):
-    """Test the successful execution of the policy flow."""
+    """
+    Test Goal: Verify the happy path where context is initialized, the main
+               policy runs successfully, and the response builder is invoked.
+    """
     fixed_test_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
     mock_uuid4.return_value = fixed_test_uuid
 
@@ -85,60 +102,63 @@ async def test_run_policy_flow_successful(
         builder=mock_builder,
         settings=mock_settings,
         http_client=mock_http_client,
-        initial_context_policy=mock_initial_policy,
     )
 
-    # Assertions
+    # --- Assertions ---
+    # 1. Context Initialization Check (Implicit via main_policy call)
     mock_uuid4.assert_called_once()
+    mock_request.body.assert_awaited_once() # Ensure body was read
 
-    # Check initial policy call and capture the context passed to it
-    mock_initial_policy.apply.assert_awaited_once()
-    initial_call_args = mock_initial_policy.apply.await_args
-    context_passed_to_initial = initial_call_args[0][0]  # The context object
-    request_passed_to_initial = initial_call_args[1]["fastapi_request"]  # The request kwarg
+    # 2. Main Policy Call Check
+    mock_policy.apply.assert_awaited_once()
+    context_passed_to_main = mock_policy.apply.await_args[0][0]
 
-    assert isinstance(context_passed_to_initial, TransactionContext)
-    assert context_passed_to_initial.transaction_id == fixed_test_uuid
-    assert request_passed_to_initial is mock_request
+    # Verify context state *before* main policy ran
+    assert isinstance(context_passed_to_main, TransactionContext)
+    assert context_passed_to_main.transaction_id == fixed_test_uuid
+    assert context_passed_to_main.response is None
+    assert context_passed_to_main.request is not None
+    assert context_passed_to_main.request.method == mock_request.method
+    assert context_passed_to_main.request.url == mock_request.path_params["full_path"]
+    # Ensure content was correctly passed
+    # Read the request content within the test context for comparison
+    request_content = await context_passed_to_main.request.aread()
+    assert request_content == TEST_REQUEST_BODY
 
-    # Verify the side effect of the initial policy happened (context was modified)
-    context_after_initial = await mock_initial_policy.apply.side_effect(
-        context_passed_to_initial, request_passed_to_initial
-    )
-    assert context_after_initial.data.get("initialized") is True
-    assert context_after_initial.fastapi_request is mock_request
 
-    # Check that the main policy was called with the context after initialization
-    mock_policy.apply.assert_awaited_once_with(context_after_initial)
-    context_after_main_policy = await mock_policy.apply.side_effect(context_after_initial)
-
-    # Need to await the side effect call if it's async
+    # Simulate the effect of the main policy's side effect for subsequent checks
+    # We need to await the side effect call if it's async
     if inspect.iscoroutinefunction(mock_policy.apply.side_effect):
-        context_after_main_policy = await mock_policy.apply.side_effect(context_after_initial)
+        context_after_main_policy = await mock_policy.apply.side_effect(context_passed_to_main)
     else:
-        context_after_main_policy = mock_policy.apply.side_effect(context_after_initial)
+        context_after_main_policy = mock_policy.apply.side_effect(context_passed_to_main)
 
     # Check the side effect of the main policy
     assert context_after_main_policy.data.get("main_policy_called") is True
 
-    # Check that the builder was called with the context after the last policy ran
+    # 3. Builder Call Check
     mock_builder.build_response.assert_called_once_with(context_after_main_policy)
 
-    # Assert the response matches the builder's output
-    assert response is mock_builder.build_response.return_value
+    # 4. Final Response Check
+    # Retrieve the specific object instance created in the fixture
+    expected_response_object = mock_builder._expected_response
+    assert response is expected_response_object
 
 
-@patch("uuid.uuid4")
+@patch("luthien_control.proxy.orchestration.uuid.uuid4") # Patch uuid within orchestration module
 async def test_run_policy_flow_policy_exception(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy_raising_exception: AsyncMock,
     mock_builder: MagicMock,
-    mock_settings: MagicMock,
-    mock_http_client: AsyncMock,
-    mock_initial_policy: AsyncMock,
+    mock_settings: MagicMock, # Use actual fixture name
+    mock_http_client: AsyncMock, # Use actual fixture name
 ):
-    """Test handling of exceptions raised by a policy during execution."""
+    """
+    Test Goal: Verify that if the main policy raises a ControlPolicyError,
+               the exception is caught, and the builder is called with the
+               context state *before* the exception occurred.
+    """
     fixed_test_uuid = uuid.UUID("abcdefab-cdef-abcd-efab-cdefabcdefab")
     mock_uuid4.return_value = fixed_test_uuid
 
@@ -149,72 +169,72 @@ async def test_run_policy_flow_policy_exception(
         builder=mock_builder,
         settings=mock_settings,
         http_client=mock_http_client,
-        initial_context_policy=mock_initial_policy,
     )
 
-    # Assertions
+    # --- Assertions ---
+    # 1. Context Initialization Check
     mock_uuid4.assert_called_once()
-    mock_initial_policy.apply.assert_awaited_once()
-    # Capture context after successful initial policy call
-    context_after_initial = await mock_initial_policy.apply.side_effect(
-        mock_initial_policy.apply.await_args[0][0], mock_initial_policy.apply.await_args[1]["fastapi_request"]
-    )  # Get context state after init
+    mock_request.body.assert_awaited_once()
 
-    # Verify it has the expected state after initial policy side effect ran
-    assert context_after_initial.data.get("initialized") is True
+    # 2. Failing Policy Call Check
+    mock_policy_raising_exception.apply.assert_awaited_once()
+    context_before_exception = mock_policy_raising_exception.apply.await_args[0][0]
 
-    # Check that the failing policy was called with the context from the initial policy
-    mock_policy_raising_exception.apply.assert_awaited_once_with(context_after_initial)
-
-    # Check builder was called with the context *after* initial policy finished
-    # In case of ControlPolicyError, the builder is called with the context state *before* the exception
-    mock_builder.build_response.assert_called_once_with(context_after_initial)
-
-    # Check final response is the one from the builder
-    assert response is mock_builder.build_response.return_value
+    # Verify context state was correctly initialized before the exception
+    assert isinstance(context_before_exception, TransactionContext)
+    assert context_before_exception.transaction_id == fixed_test_uuid
+    assert context_before_exception.request is not None
+    request_content = await context_before_exception.request.aread()
+    assert request_content == TEST_REQUEST_BODY
 
 
-@patch("uuid.uuid4")
-async def test_run_policy_flow_initial_policy_exception(
+    # 3. Builder Call Check
+    # Crucially, the builder is called with the context *before* the exception
+    # was raised and added to it by the `except ControlPolicyError` block.
+    mock_builder.build_response.assert_called_once_with(context_before_exception)
+
+    # 4. Final Response Check
+    # Retrieve the specific object instance created in the fixture
+    expected_response_object = mock_builder._expected_response
+    assert response is expected_response_object
+
+
+@patch("luthien_control.proxy.orchestration.uuid.uuid4") # Patch uuid within orchestration module
+async def test_run_policy_flow_context_init_exception(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
-    mock_policy: AsyncMock,
+    mock_policy: AsyncMock, # Use the regular policy mock
     mock_builder: MagicMock,
-    mock_settings: MagicMock,
-    mock_http_client: AsyncMock,
-    mock_initial_policy_exception: AsyncMock,
+    mock_settings: MagicMock, # Use actual fixture name
+    mock_http_client: AsyncMock, # Use actual fixture name
 ):
-    """Test handling of exceptions raised by the initial context policy."""
-    fixed_test_uuid = uuid.UUID("aaaaabbb-bbbb-cccc-dddd-eeeeefffff00")
-    mock_uuid4.return_value = fixed_test_uuid
+    """
+    Test Goal: Verify that if an exception occurs during context initialization
+               (specifically, reading the request body), the exception propagates
+               and subsequent steps (policy application, response building) are skipped.
+    """
+    # Simulate failure during request body reading
+    mock_request.body = AsyncMock(side_effect=ValueError("Failed to read body"))
 
-    # Configure the initial policy mock to raise an exception
-    mock_initial_policy_exception.apply.side_effect = ValueError("Initial Policy Error")
-
-    # Expect the call to run_policy_flow to raise the exception from the initial policy
-    with pytest.raises(ValueError, match="Initial Policy Error"):
+    # Expect the call to run_policy_flow to raise the underlying exception
+    with pytest.raises(ValueError, match="Failed to read body"):
         await run_policy_flow(
             request=mock_request,
             main_policy=mock_policy,
             builder=mock_builder,
             settings=mock_settings,
             http_client=mock_http_client,
-            initial_context_policy=mock_initial_policy_exception,
         )
 
-    # Assertions
-    mock_uuid4.assert_called_once()
+    # --- Assertions ---
+    # 1. Body Reading Attempted (and failed)
+    mock_request.body.assert_awaited_once()
 
-    # Check initial policy was called (and raised)
-    mock_initial_policy_exception.apply.assert_awaited_once()
-    initial_call_args = mock_initial_policy_exception.apply.await_args
-    context_at_start = initial_call_args[0][0]
-    assert isinstance(context_at_start, TransactionContext)
-    assert context_at_start.transaction_id == fixed_test_uuid
-    assert initial_call_args[1]["fastapi_request"] == mock_request
+    # 2. UUID Generation NOT Called (occurs after body reading)
+    mock_uuid4.assert_not_called()
 
-    # Check that subsequent policies were NOT called
+    # 3. Main Policy NOT Called
     mock_policy.apply.assert_not_awaited()
 
-    # Check that the builder was NOT called
+    # 4. Builder NOT Called
     mock_builder.build_response.assert_not_called()

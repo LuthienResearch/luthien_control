@@ -34,7 +34,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
     async def apply(self, context: TransactionContext) -> TransactionContext:
         """
-        Verifies the API key from the Authorization header in the context's FastAPI request.
+        Verifies the API key from the Authorization header in the context's request.
 
         Raises:
             NoRequestError: If context.fastapi_request is None.
@@ -46,10 +46,10 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         Returns:
             The unmodified transaction context if authentication is successful.
         """
-        if context.fastapi_request is None:
-            raise NoRequestError(f"[{context.transaction_id}] No FastAPI request in context for API key auth.")
+        if context.request is None:
+            raise NoRequestError(f"[{context.transaction_id}] No request in context for API key auth.")
 
-        api_key_header_value: Optional[str] = context.fastapi_request.headers.get(API_KEY_HEADER)
+        api_key_header_value: Optional[str] = context.request.headers.get(API_KEY_HEADER)
 
         if not api_key_header_value:
             self.logger.warning(f"[{context.transaction_id}] Missing API key in {API_KEY_HEADER} header.")

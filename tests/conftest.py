@@ -13,7 +13,6 @@ from alembic import command
 from alembic.config import Config
 from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
-from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.core.response_builder.interface import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.sqlmodel_models import ClientApiKey
@@ -203,21 +202,6 @@ def client():
 
 
 @pytest.fixture
-def mock_initial_policy() -> AsyncMock:
-    """Provides a mock InitializeContextPolicy that returns the modified context."""
-    policy_mock = AsyncMock(spec=InitializeContextPolicy)
-
-    # Simulate apply modifying and returning the context
-    async def apply_effect(context, fastapi_request):
-        context.data["initialized"] = True
-        context.fastapi_request = fastapi_request  # Ensure request is added
-        return context
-
-    policy_mock.apply = AsyncMock(side_effect=apply_effect)
-    return policy_mock
-
-
-@pytest.fixture
 def mock_builder() -> MagicMock:
     """Provides a mock ResponseBuilder instance."""
     builder = MagicMock(spec=ResponseBuilder)
@@ -277,5 +261,3 @@ def mock_api_key_data() -> Dict[str, Any]:
 def mock_transaction_context() -> MagicMock:
     """Provides a mock TransactionContext."""
     return MagicMock(spec=TransactionContext)
-
-

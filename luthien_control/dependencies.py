@@ -7,11 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import Settings and the policy loader
 from luthien_control.config.settings import Settings
-
-# Import Policies
-from luthien_control.control_policy.initialize_context import InitializeContextPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
 
+# Import Policies
 # Import Response Builder
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 from luthien_control.core.response_builder.interface import ResponseBuilder
@@ -49,6 +47,7 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
 
 # --- Async Database Session Dependency ---
 
+
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency to get an async database session."""
     try:
@@ -61,17 +60,12 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
         # 1. Re-raise the exception:
         #    raise HTTPException(status_code=503, detail="Database not available")
         # 2. Yield None (callers must handle None session):
-        yield None # Be cautious with this, ensure callers check!
+        yield None  # Be cautious with this, ensure callers check!
         # 3. Log and continue (if a session isn't strictly required? Risky):
         #    pass
     except Exception as e:
         logger.exception(f"An unexpected error occurred getting DB session: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-def get_initial_context_policy() -> InitializeContextPolicy:
-    """Provides an instance of the InitializeContextPolicy."""
-    return InitializeContextPolicy()
 
 
 # --- Main Control Policy Dependency ---

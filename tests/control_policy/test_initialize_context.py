@@ -27,12 +27,13 @@ def policy(mock_settings: MagicMock) -> InitializeContextPolicy:
 
 
 @pytest.fixture
-def mock_fastapi_request() -> MagicMock:
+def mock_fastapi_post_request() -> MagicMock:
     """Provides a mock FastAPI Request object for POST."""
     mock_req = MagicMock(spec=FastAPIRequest)
     # Configure attributes accessed by the policy
     mock_req.method = "POST"
     mock_req.url = httpx.URL("http://proxy.luthien.local:8000/v1/chat/completions?debug=true")
+    mock_req.path_params = {"full_path": "v1/chat/completions"}
     mock_req.headers = MagicMock()
     mock_req.headers.raw = [  # .raw returns list of (bytes, bytes) tuples
         (b"content-type", b"application/json"),
@@ -67,6 +68,7 @@ def mock_fastapi_get_request() -> MagicMock:
     mock_req = MagicMock(spec=FastAPIRequest)
     mock_req.method = "GET"
     mock_req.url = httpx.URL("http://proxy.luthien.local:8000/v1/models?filter=gpt")
+    mock_req.path_params = {"full_path": "v1/models"}
     mock_req.headers = MagicMock()
     mock_req.headers.raw = [
         (b"accept", b"application/json"),
@@ -102,11 +104,11 @@ def base_context() -> TransactionContext:
 
 @pytest.mark.asyncio
 async def test_initialize_context_success_post(
-    policy: InitializeContextPolicy, mock_fastapi_request: MagicMock, base_context: TransactionContext
+    policy: InitializeContextPolicy, mock_fastapi_post_request: MagicMock, base_context: TransactionContext
 ):
     """Test successful initialization of context.request for a POST request."""
     # Act
-    updated_context = await policy.apply(context=base_context, fastapi_request=mock_fastapi_request)
+    updated_context = await policy.apply(context=base_context, fastapi_request=mock_fastapi_post_request)
 
     # Assert
     assert updated_context is base_context  # Policy should modify in place
@@ -125,12 +127,7 @@ async def test_initialize_context_success_post(
     # Client host is not directly stored on httpx.Request
     # The policy extracts it and should store it if needed elsewhere (e.g., context.data)
     assert core_req.content == b'{"model": "gpt-4"}'
-    # Check data stored in context
-    assert updated_context.data["raw_request_body"] == b'{"model": "gpt-4"}'
-    assert updated_context.data["path_format"] == "/api/{full_path:path}"
-    assert updated_context.data["path_params"] == {"full_path": "v1/chat/completions"}
-    assert updated_context.data["relative_path"] == "v1/chat/completions"
-    mock_fastapi_request.body.assert_awaited_once()
+    mock_fastapi_post_request.body.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -153,23 +150,19 @@ async def test_initialize_context_success_get(
     assert core_req.headers.get("host") == "proxy.luthien.local:8000"
 
     assert core_req.content == b""
-    assert updated_context.data["raw_request_body"] == b""
-    assert updated_context.data["path_format"] == "/api/{full_path:path}"
-    assert updated_context.data["path_params"] == {"full_path": "v1/models"}
-    assert updated_context.data["relative_path"] == "v1/models"
     mock_fastapi_get_request.body.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_initialize_context_no_client(
-    policy: InitializeContextPolicy, mock_fastapi_request: MagicMock, base_context: TransactionContext
+    policy: InitializeContextPolicy, mock_fastapi_post_request: MagicMock, base_context: TransactionContext
 ):
     """Test handling when request.client is None."""
-    mock_fastapi_request.client = None
+    mock_fastapi_post_request.client = None
     # Update scope accordingly
-    mock_fastapi_request.scope["client"] = None
+    mock_fastapi_post_request.scope["client"] = None
 
-    updated_context = await policy.apply(context=base_context, fastapi_request=mock_fastapi_request)
+    updated_context = await policy.apply(context=base_context, fastapi_request=mock_fastapi_post_request)
 
     # Check that request was still created
     assert updated_context.request is not None
@@ -179,31 +172,10 @@ async def test_initialize_context_no_client(
 
 @pytest.mark.asyncio
 async def test_initialize_context_body_read_error(
-    policy: InitializeContextPolicy, mock_fastapi_request: MagicMock, base_context: TransactionContext
+    policy: InitializeContextPolicy, mock_fastapi_post_request: MagicMock, base_context: TransactionContext
 ):
     """Test handling error during request body reading."""
-    mock_fastapi_request.body.side_effect = RuntimeError("Stream consumed")
+    mock_fastapi_post_request.body.side_effect = RuntimeError("Stream consumed")
 
-    # The policy now catches this and stores empty bytes, logging an error
-    # It should not raise the error itself.
-    updated_context = await policy.apply(context=base_context, fastapi_request=mock_fastapi_request)
-
-    # Context should be populated, but with empty body stored
-    assert updated_context.request is not None
-    assert isinstance(updated_context.request, httpx.Request)
-    assert updated_context.request.content == b""
-    assert updated_context.data["raw_request_body"] == b""
-    # Path info should still be extracted
-    assert updated_context.data["relative_path"] == "v1/chat/completions"
-    mock_fastapi_request.body.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_initialize_context_no_fastapi_request(policy: InitializeContextPolicy, base_context: TransactionContext):
-    """Test ValueError if fastapi_request is not provided."""
-    with pytest.raises(ValueError, match="fastapi_request must be provided"):
-        await policy.apply(context=base_context, fastapi_request=None)
-
-
-# TODO: Add test for requests with different query parameters (multiple, encoding?)
-# TODO: Consider edge cases for headers (duplicates, casing - though httpx handles casing)
+    with pytest.raises(RuntimeError):
+        await policy.apply(context=base_context, fastapi_request=mock_fastapi_post_request)

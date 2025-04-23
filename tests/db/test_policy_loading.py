@@ -10,7 +10,7 @@ from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.db.control_policy_crud import load_policy_from_db
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from luthien_control.db.sqlmodel_models import ControlPolicy as ControlPolicyModel
-from luthien_control.dependencies import ApiKeyLookupFunc
+from luthien_control.types import ApiKeyLookupFunc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 pytestmark = pytest.mark.asyncio

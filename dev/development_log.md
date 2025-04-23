@@ -52,3 +52,21 @@
 **Status:** Completed. User finalized test fixes. All tests are passing.
 
 **Next Steps:** Commit changes.
+
+## 2025-04-23 16:47 - Refactor ApiKeyLookupFunc Type Alias
+
+**Goal:** Centralize the definition of the `ApiKeyLookupFunc` type alias to `luthien_control/types.py` and update all usages across the codebase to import from this central location.
+
+**Changes:**
+- Created `luthien_control/types.py` and defined `ApiKeyLookupFunc` there.
+- Removed local `ApiKeyLookupFunc` definition from `luthien_control/dependencies.py` and imported from `luthien_control/types`.
+- Removed local `ApiKeyLookupFunc` definition from `luthien_control/control_policy/client_api_key_auth.py` and imported from `luthien_control/types`.
+- Updated `scripts/generate_root_policy_config.py` to import `ApiKeyLookupFunc` from `luthien_control/types` instead of `luthien_control.db.control_policy_crud`.
+- Updated `tests/db/mock_policies.py` to import `ApiKeyLookupFunc` from `luthien_control/types` instead of `luthien_control.db.control_policy_crud`.
+- Updated `tests/db/test_policy_loading.py` to import `ApiKeyLookupFunc` from `luthien_control/types` instead of `luthien_control.dependencies`.
+- Removed local `ApiKeyLookupFunc` definition from `tests/conftest.py` and imported from `luthien_control/types`. Updated `AsyncMock` spec usage.
+- Fixed `ImportError` in `tests/conftest.py` caused by incorrect imports added during the refactoring edit.
+
+**Status:** Completed. All tests (112 passed, 1 deselected) pass after refactoring.
+
+**Next Steps:** Update `dev/current_context.md` and commit changes.

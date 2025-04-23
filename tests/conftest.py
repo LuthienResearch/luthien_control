@@ -2,7 +2,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Optional
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import fastapi
 import httpx
@@ -19,6 +19,10 @@ from luthien_control.db.sqlmodel_models import ClientApiKey
 from luthien_control.main import app
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.ext.asyncio import AsyncSession
+from pytest_mock import MockerFixture
+
+# Import centralized type alias
+from luthien_control.types import ApiKeyLookupFunc
 
 # --- Command Line Option ---
 
@@ -213,8 +217,37 @@ def mock_builder() -> MagicMock:
 
 # --- Added Mock Fixtures for Dependencies --- #
 
-# Define the type alias if not already globally available
-ApiKeyLookupFunc = Callable[[str], Awaitable[Optional[ClientApiKey]]]
+
+@pytest.fixture
+def mock_get_api_key_by_value(mocker: MockerFixture) -> Callable[[], AsyncMock]:
+    """Fixture to mock the get_api_key_by_value database function."""
+
+    def _factory() -> AsyncMock:
+        # Remove incorrect local definition
+        # ApiKeyLookupFunc = Callable[[str], Awaitable[Optional[ClientApiKey]]]
+        # Use imported ApiKeyLookupFunc for spec
+        lookup = AsyncMock(spec=ApiKeyLookupFunc)
+        mocker.patch(
+            "luthien_control.dependencies.get_api_key_by_value",
+            return_value=lookup,
+            autospec=True,
+        )
+        # Also patch it where it might be used directly in tests/scripts
+        mocker.patch(
+            "luthien_control.db.client_api_key_crud.get_api_key_by_value",
+            return_value=lookup,
+            autospec=True,
+        )
+        # Patch in generate_root_policy_config script
+        mocker.patch(
+            "scripts.generate_root_policy_config.get_api_key_by_value",
+            return_value=lookup,
+            autospec=True,
+            create=True,  # May not exist at import time
+        )
+        return lookup
+
+    return _factory
 
 
 @pytest.fixture

@@ -1,7 +1,7 @@
 """Control Policy for verifying the client API key."""
 
 import logging
-from typing import Awaitable, Callable, Optional, cast
+from typing import TYPE_CHECKING, Awaitable, Callable, Optional, cast
 
 from fastapi.responses import JSONResponse
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -16,8 +16,11 @@ from luthien_control.db.database_async import get_db_session
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Type alias for the database lookup function
-ApiKeyLookupFunc = Callable[[AsyncSession, str], Awaitable[Optional[ClientApiKey]]]
+# Import the centralized type definition
+from luthien_control.types import ApiKeyLookupFunc
+
+if TYPE_CHECKING:
+    pass  # Keep if needed for other forward refs, otherwise remove
 
 logger = logging.getLogger(__name__)
 

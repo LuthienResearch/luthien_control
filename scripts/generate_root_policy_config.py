@@ -16,18 +16,9 @@ from luthien_control.db.database_async import (
     get_db_session,
 )  # noqa: E402
 
-load_dotenv(verbose=True)  # load_dotenv searches for .env automatically
-
-# Now import settings AFTER dotenv may have loaded variables
-from luthien_control.config.settings import Settings  # noqa: E402
-
 # Now import necessary components
 try:
-    from luthien_control.db.control_policy_crud import (
-        ApiKeyLookupFunc,
-        get_api_key_by_value,
-        load_policy_from_db,
-    )
+    from luthien_control.types import ApiKeyLookupFunc
 except ImportError as e:
     print(f"Error importing project modules: {e}", file=sys.stderr)
     print(
@@ -36,6 +27,12 @@ except ImportError as e:
         file=sys.stderr,
     )
     sys.exit(1)
+
+load_dotenv(verbose=True)  # load_dotenv searches for .env automatically
+
+# Now import settings AFTER dotenv may have loaded variables
+from luthien_control.config.settings import Settings  # noqa: E402
+
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)

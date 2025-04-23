@@ -18,15 +18,12 @@ from luthien_control.db.control_policy_crud import PolicyLoadError, load_policy_
 
 # Import SQLModel database session providers
 from luthien_control.db.database_async import get_db_session
+from luthien_control.types import ApiKeyLookupFunc
 
 if TYPE_CHECKING:
     from luthien_control.db.sqlmodel_models import ClientApiKey
 
 logger = logging.getLogger(__name__)
-
-# TODO: Review potentially redundant type definitions like ApiKeyLookupFunc across modules.
-ApiKeyLookupFunc = Callable[[AsyncSession, str], Awaitable[Optional["ClientApiKey"]]]
-
 
 # --- Dependency Providers --- #
 

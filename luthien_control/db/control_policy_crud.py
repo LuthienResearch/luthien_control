@@ -135,8 +135,8 @@ async def load_policy_from_db(
 
     try:
         # Call the simple loader from control_policy.loader
-        # Note: This loader is currently synchronous.
-        instance = load_policy(policy_data, **available_dependencies)
+        # Note: This loader is now asynchronous.
+        instance = await load_policy(policy_data, **available_dependencies)
         logger.info(f"Successfully loaded and instantiated policy '{name}' from database.")
         return instance
     except PolicyLoadError as e:

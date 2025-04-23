@@ -83,11 +83,11 @@ def create_mock_policy_model(
 
 # Mock the database fetch function used *within* load_policy_from_db
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
-# Mock the new policy loading function (which is synchronous)
-@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=MagicMock)
+# Mock the new policy loading function - *use AsyncMock* because load_policy is async
+@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=AsyncMock)  # Changed MagicMock to AsyncMock
 async def test_load_policy_from_db_success(
-    mock_load_policy,
-    mock_get_policy_by_name,  # Renamed from mock_get_config for clarity
+    mock_load_policy,  # This is now an AsyncMock
+    mock_get_policy_by_name,
     load_db_dependencies,
     mock_db_session: AsyncSession,
 ):
@@ -97,6 +97,7 @@ async def test_load_policy_from_db_success(
     mock_get_policy_by_name.return_value = mock_policy_config_model
 
     # Mock the instantiated policy object that load_policy should return
+    # Since load_policy is awaited, its mock needs a return value
     mock_instantiated_policy = MagicMock(spec=ControlPolicy)
     mock_load_policy.return_value = mock_instantiated_policy
 
@@ -169,7 +170,7 @@ async def test_load_policy_from_db_not_found_real_session(
 # Patch instantiate_policy to simulate failure
 @patch(
     "luthien_control.db.control_policy_crud.load_policy",
-    new_callable=MagicMock,
+    new_callable=AsyncMock,
     side_effect=PolicyLoadError("Instantiation failed"),  # This is the initial error
 )
 async def test_load_policy_from_db_instantiation_fails(
@@ -201,3 +202,31 @@ async def test_load_policy_from_db_instantiation_fails(
 
     # mock_get_policy_by_name.assert_awaited_once_with(async_session, policy_name)
     mock_load_policy.assert_called_once()  # Verify load_policy was called
+
+
+@patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
+# Mock the loader - use AsyncMock
+@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=AsyncMock)  # Changed MagicMock to AsyncMock
+async def test_load_policy_from_db_loader_error(
+    mock_load_policy,
+    mock_get_policy_by_name,
+    load_db_dependencies,
+    mock_db_session,  # Keep using mock session for this specific variation
+):
+    """Test PolicyLoadError using a MOCKED session where the policy doesn't exist."""
+    # This test variant ensures the error is raised even if DB call is mocked
+    policy_name = "non_existent_policy_mock"
+
+    # Configure the mock loader to raise a PolicyLoadError
+    mock_load_policy.side_effect = PolicyLoadError("Mock loader failure")
+
+    # Call the function under test and assert it raises the error
+    with pytest.raises(PolicyLoadError, match="Mock loader failure"):
+        await load_policy_from_db(
+            name=policy_name,
+            session=mock_db_session,
+            settings=load_db_dependencies["settings"],
+            http_client=load_db_dependencies["http_client"],
+            api_key_lookup=load_db_dependencies["api_key_lookup"],
+        )
+    mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)

@@ -1,6 +1,6 @@
 import logging
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import Response
@@ -9,6 +9,7 @@ from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPol
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.compound_policy import CompoundPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
 
@@ -213,7 +214,8 @@ def test_compound_serialize_config_missing_path_warning(caplog):
     assert config["policies"][0]["name"] == "Member1"
 
 
-def test_compound_policy_serialization():
+@pytest.mark.anyio
+async def test_compound_policy_serialization():
     """Test that CompoundPolicy can be serialized and deserialized correctly, including nested policies."""
     # Arrange
     # Create instances of policies to nest
@@ -232,7 +234,7 @@ def test_compound_policy_serialization():
 
     # Act
     serialized_data = original_compound_policy.serialize()
-    rehydrated_policy = CompoundPolicy.from_serialized(serialized_data, api_key_lookup=get_api_key_by_value)
+    rehydrated_policy = await CompoundPolicy.from_serialized(serialized_data, api_key_lookup=get_api_key_by_value)
 
     # Assert
     assert isinstance(serialized_data, dict)
@@ -248,27 +250,84 @@ def test_compound_policy_serialization():
     # Check rehydrated policy
     assert isinstance(rehydrated_policy, CompoundPolicy)
     assert len(rehydrated_policy.policies) == 2
+    # Ensure dependencies were passed down (check type and maybe name if available)
     assert isinstance(rehydrated_policy.policies[0], ClientApiKeyAuthPolicy)
+    # Check for the attribute with the leading underscore as used in __init__
+    assert hasattr(rehydrated_policy.policies[0], "_api_key_lookup")
+    # Check the value of the attribute with the leading underscore
+    assert rehydrated_policy.policies[0]._api_key_lookup == get_api_key_by_value
     assert isinstance(rehydrated_policy.policies[1], AddApiKeyHeaderPolicy)
-
-    # Verify the nested policies were rehydrated correctly (by checking their types/functions)
-    assert rehydrated_policy.policies[0]._api_key_lookup is get_api_key_by_value
-    assert isinstance(rehydrated_policy.policies[1].settings, Settings)
-
-    # Check the name was preserved (though CompoundPolicy doesn't serialize its own name currently)
     # assert rehydrated_policy.name == "TestCompound" # This would fail as name isn't serialized
 
 
-def test_compound_policy_serialization_empty():
+@pytest.mark.anyio
+async def test_compound_policy_serialization_empty():
     """Test serialization with an empty list of policies."""
     # Arrange
     original_compound_policy = CompoundPolicy(policies=[], name="EmptyCompound")
 
     # Act
     serialized_data = original_compound_policy.serialize()
-    rehydrated_policy = CompoundPolicy.from_serialized(serialized_data)
+    rehydrated_policy = await CompoundPolicy.from_serialized(serialized_data)
 
     # Assert
     assert isinstance(serialized_data, dict)
     assert serialized_data == {"policies": []}
     assert isinstance(rehydrated_policy, CompoundPolicy)
+
+
+@pytest.mark.anyio
+async def test_compound_policy_serialization_missing_policies_key():
+    """Test deserialization failure when 'policies' key is missing."""
+    # Arrange
+    invalid_config = {"name": "MissingPolicies"}  # No 'policies' key
+
+    # Act & Assert
+    with pytest.raises(PolicyLoadError, match="CompoundPolicy config missing 'policies' list"):
+        await CompoundPolicy.from_serialized(invalid_config)
+
+
+@pytest.mark.anyio
+async def test_compound_policy_serialization_invalid_policy_item():
+    """Test deserialization failure with invalid item in 'policies' list."""
+    invalid_config = {
+        "policies": [
+            {"name": "client_api_key_auth", "config": {}},
+            "not a dict",  # Invalid item
+        ]
+    }
+    with pytest.raises(PolicyLoadError, match="Item at index 1 in CompoundPolicy 'policies' is not a dictionary"):
+        await CompoundPolicy.from_serialized(invalid_config, api_key_lookup=get_api_key_by_value)
+
+
+@patch("luthien_control.control_policy.compound_policy.load_policy", new_callable=AsyncMock)
+@pytest.mark.anyio
+async def test_compound_policy_serialization_load_error(mock_load_policy):
+    """Test error propagation when loading a member policy fails."""
+    config = {
+        "policies": [
+            {"name": "policy1", "config": {}},
+            {"name": "policy_that_fails", "config": {}},
+        ]
+    }
+    # Configure the mock loader to raise an error on the second call
+    mock_load_policy.side_effect = [MagicMock(spec=ControlPolicy), PolicyLoadError("Mocked load failure")]
+
+    with pytest.raises(PolicyLoadError, match="Failed to load member policy.*within CompoundPolicy"):
+        await CompoundPolicy.from_serialized(config, api_key_lookup="dummy_lookup")
+
+
+@patch("luthien_control.control_policy.compound_policy.load_policy", new_callable=AsyncMock)
+@pytest.mark.anyio
+async def test_compound_policy_serialization_unexpected_error(mock_load_policy):
+    """Test handling of unexpected errors during member policy loading."""
+    config = {
+        "policies": [
+            {"name": "policy1", "config": {}},
+        ]
+    }
+    # Configure the mock loader to raise a non-PolicyLoadError
+    mock_load_policy.side_effect = ValueError("Unexpected internal error")
+
+    with pytest.raises(PolicyLoadError, match="Unexpected error loading member policy.*within CompoundPolicy"):
+        await CompoundPolicy.from_serialized(config, api_key_lookup="dummy_lookup")

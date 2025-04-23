@@ -109,7 +109,7 @@ class CompoundPolicy(ControlPolicy):
         return cast(SerializableDict, {"policies": member_configs})
 
     @classmethod
-    def from_serialized(cls, config: SerializableDict, **kwargs) -> "CompoundPolicy":
+    async def from_serialized(cls, config: SerializableDict, **kwargs) -> "CompoundPolicy":
         """
         Constructs a CompoundPolicy from serialized data, loading member policies.
 
@@ -132,14 +132,13 @@ class CompoundPolicy(ControlPolicy):
 
         instantiated_policies = []
         # Extract api_key_lookup from kwargs to potentially use, and pass all kwargs down
-        kwargs.get("api_key_lookup")  # Example dependency extraction
 
         for i, member_data in enumerate(member_policy_data_list):
             if not isinstance(member_data, dict):
                 raise PolicyLoadError(f"Item at index {i} in CompoundPolicy 'policies' is not a dictionary.")
             try:
                 # Call the simple loader, passing all available dependencies down
-                member_policy = load_policy(member_data, **kwargs)
+                member_policy = await load_policy(member_data, **kwargs)
                 instantiated_policies.append(member_policy)
             except PolicyLoadError as e:
                 # Add context about which member failed

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from .control_policy import ControlPolicy
 
 
-def load_policy(policy_data: Dict[str, SerializableDict], **available_dependencies) -> "ControlPolicy":
+async def load_policy(policy_data: Dict[str, SerializableDict], **available_dependencies) -> "ControlPolicy":
     """
     Loads a ControlPolicy instance from a dictionary containing its name and config,
     injecting required dependencies.

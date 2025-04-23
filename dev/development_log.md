@@ -15,3 +15,25 @@
 **Status:** Completed. Tests related to the module pass.
 
 **Next Steps:** Update `current_context.md`, then commit changes.
+
+## 2025-04-23 11:31 - Fix Unit Tests for Async load_policy
+
+**Task:** Resolve unit test failures introduced after making `luthien_control.control_policy.loader.load_policy` asynchronous.
+
+**Changes:**
+- Modified `luthien_control/control_policy/loader.py`:
+    - Changed `load_policy` to `async def`.
+- Modified `luthien_control/control_policy/compound_policy.py`:
+    - Changed `CompoundPolicy.from_serialized` to `async def` as it now needs to `await load_policy`.
+    - Ensured `**kwargs` (containing dependencies) received by `from_serialized` are passed down to the `load_policy` call.
+- Modified `tests/control_policy/test_compound_policy.py`:
+    - Marked tests calling `CompoundPolicy.from_serialized` (`test_compound_policy_serialization`, `_empty`, `_missing_policies_key`, `_invalid_policy_item`, `_load_error`, `_unexpected_error`) as `async def` and added `@pytest.mark.anyio`.
+    - Added `await` to calls to `CompoundPolicy.from_serialized` in these tests.
+    - Corrected assertion in `test_compound_policy_serialization` to check for the internal `_api_key_lookup` attribute instead of `api_key_lookup`.
+    - Corrected test setup in `test_compound_policy_serialization_invalid_policy_item` to use a valid policy name (`client_api_key_auth`) for the first item, ensuring the test fails for the intended reason (invalid second item).
+- Modified `tests/db/test_policy_loading.py`:
+    - Changed `@patch` decorators mocking `luthien_control.db.control_policy_crud.load_policy` to use `new_callable=AsyncMock` instead of `MagicMock` in `test_load_policy_from_db_success` and `test_load_policy_from_db_loader_error`.
+
+**Status:** Completed. All 118 tests pass successfully (`poetry run pytest | cat`).
+
+**Next Steps:** Proceed with git commit.

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from luthien_control.db.sqlmodel_models import Policy
+from luthien_control.db.sqlmodel_models import ControlPolicy
 
 
 def test_policy_creation():
@@ -13,7 +13,7 @@ def test_policy_creation():
         "policy_class_path": "luthien_control.policies.db_policy.DbPolicy",
         # created_at and updated_at should be set by default factory
     }
-    policy = Policy(**data)
+    policy = ControlPolicy(**data)
     assert policy.id == 1
     assert policy.name == "DbPolicy"
     assert policy.policy_class_path == "luthien_control.policies.db_policy.DbPolicy"
@@ -41,7 +41,7 @@ def test_policy_creation_with_timestamps():
         "created_at": created,
         "updated_at": updated,
     }
-    policy = Policy(**data)
+    policy = ControlPolicy(**data)
     assert policy.id == 2
     assert policy.name == "ExplicitTimePolicy"
     assert policy.is_active is False

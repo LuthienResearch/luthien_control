@@ -5,7 +5,7 @@ import httpx
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.compound_policy import CompoundPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
-from luthien_control.db.sqlmodel_crud import ApiKeyLookupFunc
+from luthien_control.db.control_policy_crud import ApiKeyLookupFunc
 
 # --- Mock Policy Classes for Testing crud.py ---
 

@@ -11,6 +11,11 @@ import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
+from luthien_control.db.control_policy_crud import (
+    get_policy_config_by_name,
+    save_policy_to_db,
+    update_policy,
+)
 
 # Add imports needed for policy creation
 # Add new imports for async engine and session management
@@ -19,12 +24,7 @@ from luthien_control.db.database_async import (
     create_db_engine,
     get_db_session,
 )
-from luthien_control.db.sqlmodel_crud import (
-    get_policy_config_by_name,
-    save_policy_to_db,
-    update_policy,
-)
-from luthien_control.db.sqlmodel_models import Policy
+from luthien_control.db.sqlmodel_models import ControlPolicy
 
 # Load .env file for local development environment variables
 # This ensures OPENAI_API_KEY and potentially BACKEND_URL are loaded if defined there
@@ -90,7 +90,7 @@ async def _ensure_e2e_policy_exists():
                     or not existing_policy.is_active  # Ensure it's active
                 ):
                     logger.info(f"Policy '{E2E_POLICY_NAME}' (ID: {existing_policy.id}) exists but needs update.")
-                    update_data = Policy(
+                    update_data = ControlPolicy(
                         id=existing_policy.id,
                         name=existing_policy.name,
                         policy_class_path=desired_class_path,
@@ -110,7 +110,7 @@ async def _ensure_e2e_policy_exists():
                     logger.info(f"Policy '{E2E_POLICY_NAME}' exists and is up-to-date.")
             else:
                 logger.info(f"Policy '{E2E_POLICY_NAME}' not found. Creating...")
-                e2e_policy_data = Policy(
+                e2e_policy_data = ControlPolicy(
                     name=E2E_POLICY_NAME,
                     policy_class_path=desired_class_path,
                     config=desired_config,

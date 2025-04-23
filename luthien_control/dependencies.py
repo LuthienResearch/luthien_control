@@ -14,10 +14,10 @@ from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 from luthien_control.core.response_builder.interface import ResponseBuilder
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
+from luthien_control.db.control_policy_crud import PolicyLoadError, load_policy_from_db
 
 # Import SQLModel database session providers
 from luthien_control.db.database_async import get_db_session
-from luthien_control.db.sqlmodel_crud import PolicyLoadError, load_policy_from_db
 
 if TYPE_CHECKING:
     from luthien_control.db.sqlmodel_models import ClientApiKey

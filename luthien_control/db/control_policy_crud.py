@@ -10,7 +10,7 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.loader import load_policy
 
-from .sqlmodel_models import Policy
+from .sqlmodel_models import ControlPolicy
 
 if TYPE_CHECKING:
     from luthien_control.control_policy.control_policy import ControlPolicy
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def save_policy_to_db(session: AsyncSession, policy: Policy) -> Optional[Policy]:
+async def save_policy_to_db(session: AsyncSession, policy: ControlPolicy) -> Optional[ControlPolicy]:
     """Create a new policy in the database."""
     try:
         session.add(policy)
@@ -40,12 +40,12 @@ async def save_policy_to_db(session: AsyncSession, policy: Policy) -> Optional[P
         return None
 
 
-async def get_policy_by_name(session: AsyncSession, name: str) -> Optional[Policy]:
+async def get_policy_by_name(session: AsyncSession, name: str) -> Optional[ControlPolicy]:
     """Get a policy by its name."""
     try:
-        stmt = select(Policy).where(
-            Policy.name == name,
-            Policy.is_active == True,  # noqa: E712
+        stmt = select(ControlPolicy).where(
+            ControlPolicy.name == name,
+            ControlPolicy.is_active == True,  # noqa: E712
         )
         result = await session.execute(stmt)
         policy = result.scalar_one_or_none()
@@ -55,13 +55,13 @@ async def get_policy_by_name(session: AsyncSession, name: str) -> Optional[Polic
         return None
 
 
-async def list_policies(session: AsyncSession, active_only: bool = False) -> List[Policy]:
+async def list_policies(session: AsyncSession, active_only: bool = False) -> List[ControlPolicy]:
     """Get a list of all policies."""
     try:
         if active_only:
-            stmt = select(Policy).where(Policy.is_active == True)  # noqa: E712
+            stmt = select(ControlPolicy).where(ControlPolicy.is_active == True)  # noqa: E712
         else:
-            stmt = select(Policy)
+            stmt = select(ControlPolicy)
 
         result = await session.execute(stmt)
         return list(result.scalars().all())
@@ -70,10 +70,10 @@ async def list_policies(session: AsyncSession, active_only: bool = False) -> Lis
         return []
 
 
-async def update_policy(session: AsyncSession, policy_id: int, policy_update: Policy) -> Optional[Policy]:
+async def update_policy(session: AsyncSession, policy_id: int, policy_update: ControlPolicy) -> Optional[ControlPolicy]:
     """Update an existing policy."""
     try:
-        stmt = select(Policy).where(Policy.id == policy_id)
+        stmt = select(ControlPolicy).where(ControlPolicy.id == policy_id)
         result = await session.execute(stmt)
         policy = result.scalar_one_or_none()
 
@@ -148,12 +148,12 @@ async def load_policy_from_db(
         raise PolicyLoadError(f"Unexpected error during loading process for '{name}'.") from e
 
 
-async def get_policy_config_by_name(session: AsyncSession, name: str) -> Optional[Policy]:
+async def get_policy_config_by_name(session: AsyncSession, name: str) -> Optional[ControlPolicy]:
     """Get a policy configuration by its name, regardless of its active status."""
     if not isinstance(session, AsyncSession):
         raise TypeError("Invalid session object provided to get_policy_config_by_name.")
     try:
-        stmt = select(Policy).where(Policy.name == name)
+        stmt = select(ControlPolicy).where(ControlPolicy.name == name)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
     except Exception as e:

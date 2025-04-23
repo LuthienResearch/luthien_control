@@ -23,7 +23,7 @@ from luthien_control.config.settings import Settings  # noqa: E402
 
 # Now import necessary components
 try:
-    from luthien_control.db.sqlmodel_crud import (
+    from luthien_control.db.control_policy_crud import (
         ApiKeyLookupFunc,
         get_api_key_by_value,
         load_policy_from_db,

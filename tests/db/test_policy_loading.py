@@ -6,8 +6,9 @@ import pytest
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
-from luthien_control.db.sqlmodel_crud import load_policy_from_db
-from luthien_control.db.sqlmodel_models import ClientApiKey, Policy
+from luthien_control.db.control_policy_crud import load_policy_from_db
+from luthien_control.db.sqlmodel_models import ClientApiKey
+from luthien_control.db.sqlmodel_models import ControlPolicy as ControlPolicyModel
 from luthien_control.dependencies import ApiKeyLookupFunc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,12 +64,12 @@ def create_mock_policy_model(
     description: str | None = "A test policy",
     created_at: datetime.datetime | None = None,
     updated_at: datetime.datetime | None = None,
-) -> Policy:
-    """Helper to create mock Policy model instances for testing."""
+) -> ControlPolicyModel:
+    """Helper to create mock ControlPolicy model instances for testing."""
     if config is None:
         config = {"timeout": 30}
     now = datetime.datetime.now(datetime.UTC)
-    return Policy(
+    return ControlPolicyModel(
         id=id,
         name=name,
         policy_class_path=policy_class_path,
@@ -81,9 +82,9 @@ def create_mock_policy_model(
 
 
 # Mock the database fetch function used *within* load_policy_from_db
-@patch("luthien_control.db.sqlmodel_crud.get_policy_by_name", new_callable=AsyncMock)
+@patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
 # Mock the new policy loading function (which is synchronous)
-@patch("luthien_control.db.sqlmodel_crud.load_policy", new_callable=MagicMock)
+@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=MagicMock)
 async def test_load_policy_from_db_success(
     mock_load_policy,
     mock_get_policy_by_name,  # Renamed from mock_get_config for clarity
@@ -122,7 +123,7 @@ async def test_load_policy_from_db_success(
     assert loaded_policy == mock_instantiated_policy
 
 
-@patch("luthien_control.db.sqlmodel_crud.get_policy_by_name", new_callable=AsyncMock, return_value=None)
+@patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock, return_value=None)
 async def test_load_policy_from_db_not_found_patch_get(
     mock_get_policy_by_name,
     load_db_dependencies,
@@ -164,10 +165,10 @@ async def test_load_policy_from_db_not_found_real_session(
 
 
 # Keep the original patch for get_policy_by_name to ensure isolation if needed
-# @patch("luthien_control.db.sqlmodel_crud.get_policy_by_name", new_callable=AsyncMock)
+# @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
 # Patch instantiate_policy to simulate failure
 @patch(
-    "luthien_control.db.sqlmodel_crud.load_policy",
+    "luthien_control.db.control_policy_crud.load_policy",
     new_callable=MagicMock,
     side_effect=PolicyLoadError("Instantiation failed"),  # This is the initial error
 )
@@ -182,7 +183,7 @@ async def test_load_policy_from_db_instantiation_fails(
     # Create the policy config in the real DB first
     policy_to_create = create_mock_policy_model(name=policy_name)
     # We need the actual create function now
-    from luthien_control.db.sqlmodel_crud import save_policy_to_db
+    from luthien_control.db.control_policy_crud import save_policy_to_db
 
     created_policy = await save_policy_to_db(async_session, policy_to_create)
     assert created_policy is not None

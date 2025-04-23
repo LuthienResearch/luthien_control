@@ -37,3 +37,18 @@
 **Status:** Completed. All 118 tests pass successfully (`poetry run pytest | cat`).
 
 **Next Steps:** Proceed with git commit.
+
+## 2025-04-23 11:31 - Refactor policy serialization key from 'name' to 'type'
+
+**Date:** $(date +'%Y-%m-%d %H:%M')
+
+**Task:** Refactor policy serialization key from 'name' to 'type'.
+
+**Changes:**
+*   Modified `tests/control_policy/test_compound_policy.py`: Updated assertions to expect 'type' key in serialized policy data.
+*   Modified `luthien_control/control_policy/compound_policy.py`: Changed `serialize` method to output 'type' instead of 'name' in the policy list.
+*   Modified `luthien_control/control_policy/loader.py`: Updated `load_policy` function to read 'type' key instead of 'name', updated docstring and variable names.
+
+**Status:** Completed. User finalized test fixes. All tests are passing.
+
+**Next Steps:** Commit changes.

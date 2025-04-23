@@ -190,8 +190,8 @@ def test_compound_serialize_config():
     # Update expectation to match the current serialize method's output
     expected_config = {
         "policies": [
-            {"name": "Member1", "config": expected_member1_config},
-            {"name": "Member2", "config": expected_member2_config},
+            {"type": "Member1", "config": expected_member1_config},
+            {"type": "Member2", "config": expected_member2_config},
         ]
     }
 
@@ -211,7 +211,7 @@ def test_compound_serialize_config_missing_path_warning(caplog):
     # Verify the basic structure returned.
     assert "policies" in config
     assert len(config["policies"]) == 1
-    assert config["policies"][0]["name"] == "Member1"
+    assert config["policies"][0]["type"] == "Member1"
 
 
 @pytest.mark.anyio
@@ -242,9 +242,9 @@ async def test_compound_policy_serialization():
     assert len(serialized_data["policies"]) == 2
 
     # Check serialized structure (basic check)
-    assert serialized_data["policies"][0]["name"] == "client_api_key_auth"
+    assert serialized_data["policies"][0]["type"] == "client_api_key_auth"
     assert serialized_data["policies"][0]["config"] == {}  # Based on current ClientApiKeyAuthPolicy serialize
-    assert serialized_data["policies"][1]["name"] == "add_api_key_header"
+    assert serialized_data["policies"][1]["type"] == "add_api_key_header"
     assert serialized_data["policies"][1]["config"] == {}  # Based on current AddApiKeyHeaderPolicy serialize
 
     # Check rehydrated policy
@@ -292,7 +292,7 @@ async def test_compound_policy_serialization_invalid_policy_item():
     """Test deserialization failure with invalid item in 'policies' list."""
     invalid_config = {
         "policies": [
-            {"name": "client_api_key_auth", "config": {}},
+            {"type": "client_api_key_auth", "config": {}},
             "not a dict",  # Invalid item
         ]
     }

@@ -101,7 +101,7 @@ class CompoundPolicy(ControlPolicy):
 
             member_configs.append(
                 {
-                    "name": policy_name,
+                    "type": policy_name,
                     "config": p.serialize(),
                 }
             )

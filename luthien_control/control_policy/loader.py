@@ -21,7 +21,7 @@ async def load_policy(policy_data: Dict[str, SerializableDict], **available_depe
     Args:
         policy_data: A dictionary with 'name' (str) and 'config' (SerializableDict).
                      Example: {
-                        'name': 'add_api_key_header',
+                        'type': 'add_api_key_header',
                         'config': {'header_name': 'X-API-Key', 'api_key_env_var': 'BACKEND_API_KEY'}
                     }
         **available_dependencies: Keyword arguments for dependencies potentially needed by policies
@@ -38,18 +38,18 @@ async def load_policy(policy_data: Dict[str, SerializableDict], **available_depe
     # Import the policy registry here to avoid circular import
     from .registry import POLICY_NAME_TO_CLASS  # noqa: F401
 
-    policy_name = policy_data.get("name")
+    policy_type = policy_data.get("type")
     policy_config = policy_data.get("config")
 
-    if not isinstance(policy_name, str):
-        raise PolicyLoadError(f"Policy 'name' must be a string, got: {type(policy_name)}")
+    if not isinstance(policy_type, str):
+        raise PolicyLoadError(f"Policy 'type' must be a string, got: {type(policy_type)}")
     if not isinstance(policy_config, dict):
         raise PolicyLoadError(f"Policy 'config' must be a dictionary, got: {type(policy_config)}")
 
-    policy_class = POLICY_NAME_TO_CLASS.get(policy_name)
+    policy_class = POLICY_NAME_TO_CLASS.get(policy_type)
     if policy_class is None:
         raise PolicyLoadError(
-            f"Unknown policy name: '{policy_name}'. Available policies: {list(POLICY_NAME_TO_CLASS.keys())}"
+            f"Unknown policy type: '{policy_type}'. Available policies: {list(POLICY_NAME_TO_CLASS.keys())}"
         )
 
     # --- Dependency Injection Logic ---
@@ -65,7 +65,7 @@ async def load_policy(policy_data: Dict[str, SerializableDict], **available_depe
 
     if missing_deps:
         raise PolicyLoadError(
-            f"Policy '{policy_name}' requires missing dependencies: {', '.join(missing_deps)}. "
+            f"Policy '{policy_type}' requires missing dependencies: {', '.join(missing_deps)}. "
             f"Available dependencies: {list(available_dependencies.keys())}"
         )
     # --- End Dependency Injection ---
@@ -78,4 +78,4 @@ async def load_policy(policy_data: Dict[str, SerializableDict], **available_depe
     except Exception as e:
         # Re-raise potentially informative errors from the policy's constructor
         # Add context about which policy failed.
-        raise PolicyLoadError(f"Error loading policy '{policy_name}' with config {policy_config}: {e}") from e
+        raise PolicyLoadError(f"Error loading policy '{policy_type}' with config {policy_config}: {e}") from e

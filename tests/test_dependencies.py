@@ -1,3 +1,4 @@
+from typing import Callable
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -71,7 +72,7 @@ def mock_settings() -> MagicMock:
 
 
 @pytest.fixture
-def mock_http_client_dep() -> AsyncMock:
+def mock_http_client() -> AsyncMock:
     """Fixture for a mocked httpx.AsyncClient (dependency)."""
     return AsyncMock(spec=httpx.AsyncClient)
 
@@ -83,7 +84,7 @@ def mock_http_client_dep() -> AsyncMock:
 async def test_get_main_control_policy_success(
     mock_load_from_db: AsyncMock,
     mock_settings: MagicMock,
-    mock_http_client_dep: AsyncMock,
+    mock_http_client: AsyncMock,
 ):
     """Test successful loading of the main control policy."""
     mock_policy = AsyncMock(spec=ControlPolicy)
@@ -97,7 +98,7 @@ async def test_get_main_control_policy_success(
 
     result_policy = await get_main_control_policy(
         settings=mock_settings,
-        http_client=mock_http_client_dep,
+        http_client=mock_http_client,
         session=mock_session,  # Pass the mocked session explicitly
     )
 
@@ -106,7 +107,7 @@ async def test_get_main_control_policy_success(
     mock_load_from_db.assert_awaited_once_with(
         name=policy_name,
         settings=mock_settings,
-        http_client=mock_http_client_dep,
+        http_client=mock_http_client,
         api_key_lookup=get_api_key_by_value,  # Check that the correct function reference is passed
         session=mock_session,  # Add session to the expected call args
     )
@@ -118,7 +119,7 @@ async def test_get_main_control_policy_success(
 async def test_get_main_control_policy_name_not_configured(
     mock_load_from_db: AsyncMock,
     mock_settings: MagicMock,
-    mock_http_client_dep: AsyncMock,
+    mock_http_client: AsyncMock,
 ):
     """Test case where TOP_LEVEL_POLICY_NAME is not set in settings."""
     mock_settings.get_top_level_policy_name.return_value = None
@@ -126,7 +127,7 @@ async def test_get_main_control_policy_name_not_configured(
     with pytest.raises(HTTPException) as exc_info:
         await get_main_control_policy(
             settings=mock_settings,
-            http_client=mock_http_client_dep,
+            http_client=mock_http_client,
         )
 
     assert exc_info.value.status_code == 500
@@ -139,7 +140,7 @@ async def test_get_main_control_policy_name_not_configured(
 async def test_get_main_control_policy_not_found_error(
     mock_load_from_db: AsyncMock,
     mock_settings: MagicMock,
-    mock_http_client_dep: AsyncMock,
+    mock_http_client: AsyncMock,
 ):
     """Test handling when load_policy_from_db raises PolicyLoadError for not found."""
     policy_name = "test-root-policy"
@@ -151,7 +152,7 @@ async def test_get_main_control_policy_not_found_error(
     with pytest.raises(HTTPException) as exc_info:
         await get_main_control_policy(
             settings=mock_settings,
-            http_client=mock_http_client_dep,
+            http_client=mock_http_client,
         )
 
     assert exc_info.value.status_code == 500
@@ -166,7 +167,7 @@ async def test_get_main_control_policy_not_found_error(
 async def test_get_main_control_policy_load_error(
     mock_load_from_db: AsyncMock,
     mock_settings: MagicMock,
-    mock_http_client_dep: AsyncMock,
+    mock_http_client: AsyncMock,
 ):
     """Test handling PolicyLoadError from load_policy_from_db."""
     policy_name = "test-root-policy"
@@ -175,7 +176,7 @@ async def test_get_main_control_policy_load_error(
     with pytest.raises(HTTPException) as exc_info:
         await get_main_control_policy(
             settings=mock_settings,
-            http_client=mock_http_client_dep,
+            http_client=mock_http_client,
         )
 
     assert exc_info.value.status_code == 500
@@ -189,7 +190,7 @@ async def test_get_main_control_policy_load_error(
 async def test_get_main_control_policy_unexpected_error(
     mock_load_from_db: AsyncMock,
     mock_settings: MagicMock,
-    mock_http_client_dep: AsyncMock,
+    mock_http_client: AsyncMock,
 ):
     """Test handling unexpected exceptions from load_policy_from_db."""
     mock_load_from_db.side_effect = ValueError("Something went wrong")
@@ -197,7 +198,7 @@ async def test_get_main_control_policy_unexpected_error(
     with pytest.raises(HTTPException) as exc_info:
         await get_main_control_policy(
             settings=mock_settings,
-            http_client=mock_http_client_dep,
+            http_client=mock_http_client,
         )
 
     assert exc_info.value.status_code == 500

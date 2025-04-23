@@ -19,7 +19,7 @@ class SendBackendRequestPolicy(ControlPolicy):
     and reading the raw response body.
     """
 
-    REQUIRED_DEPENDENCIES = ["http_client_factory", "settings"]
+    REQUIRED_DEPENDENCIES = ["http_client", "settings"]
 
     _EXCLUDED_BACKEND_HEADERS = {
         b"host",
@@ -30,14 +30,13 @@ class SendBackendRequestPolicy(ControlPolicy):
 
     def __init__(
         self,
-        http_client_factory: Callable[[], httpx.AsyncClient],
+        http_client: httpx.AsyncClient,
         settings: Settings,
         name: Optional[str] = None,
     ):
-        self.name = name or self.__class__.__name__
-        self.http_client_factory = http_client_factory
-        self.http_client: Optional[httpx.AsyncClient] = None
-        self.settings = settings
+        self.name: str = name or self.__class__.__name__
+        self.http_client: httpx.AsyncClient = http_client
+        self.settings: Settings = settings
 
     def _build_target_url(self, base_url: str, relative_path: str) -> str:
         """Constructs the full target URL for the backend request."""
@@ -81,12 +80,6 @@ class SendBackendRequestPolicy(ControlPolicy):
 
         return backend_headers
 
-    def get_http_client(self) -> httpx.AsyncClient:
-        """Gets the httpx.AsyncClient instance. Creates it if it doesn't exist."""
-        if self.http_client is None:
-            self.http_client = self.http_client_factory()
-        return self.http_client
-
     async def apply(self, context: TransactionContext) -> TransactionContext:
         """
         Sends context.request to the backend and stores the response as context.data["backend_response"]
@@ -124,7 +117,7 @@ class SendBackendRequestPolicy(ControlPolicy):
                 f"[{context.transaction_id}] Sending request to backend: {context.request.method} {context.request.url}"
             )
             # Send the modified context.request directly
-            response = await self.get_http_client().send(context.request)
+            response = await self.http_client.send(context.request)
             # Read response body immediately to ensure connection is closed
             await response.aread()
             context.data["backend_response"] = response
@@ -159,8 +152,8 @@ class SendBackendRequestPolicy(ControlPolicy):
     async def from_serialized(
         cls,
         config: SerializableDict,
-        http_client_factory: Callable[[], httpx.AsyncClient],
+        http_client: httpx.AsyncClient,
         settings: Settings,
         **kwargs,
     ) -> "SendBackendRequestPolicy":
-        return cls(name=config.get("name"), http_client_factory=http_client_factory, settings=settings)
+        return cls(name=config.get("name"), http_client=http_client, settings=settings)

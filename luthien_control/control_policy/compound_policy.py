@@ -20,7 +20,7 @@ class CompoundPolicy(ControlPolicy):
     the execution stops, and the exception propagates.
     """
 
-    REQUIRED_DEPENDENCIES = ["http_client_factory", "settings", "api_key_lookup"]
+    REQUIRED_DEPENDENCIES = ["http_client", "settings", "api_key_lookup"]
 
     def __init__(self, policies: Sequence[ControlPolicy], name: Optional[str] = None):
         """

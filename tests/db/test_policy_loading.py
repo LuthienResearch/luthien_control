@@ -41,24 +41,16 @@ def load_db_mock_api_key_lookup() -> ApiKeyLookupFunc:
 
 
 @pytest.fixture
-def load_db_mock_http_client_factory() -> Callable:
-    """Provides mock http_client_factory for load_policy_from_db tests."""
-    return MagicMock(spec=Callable)
-
-
-@pytest.fixture
 def load_db_dependencies(
     load_db_mock_settings,
     load_db_mock_http_client,
     load_db_mock_api_key_lookup,
-    load_db_mock_http_client_factory,
 ):
     """Bundles mock dependencies for load_policy_from_db tests."""
     return {
         "settings": load_db_mock_settings,
         "http_client": load_db_mock_http_client,
         "api_key_lookup": load_db_mock_api_key_lookup,
-        "http_client_factory": load_db_mock_http_client_factory,
         "db_session": Mock(spec=AsyncSession),
     }
 

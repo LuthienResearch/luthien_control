@@ -29,20 +29,10 @@ def mock_http_client() -> AsyncMock:
 
 
 @pytest.fixture
-def mock_http_client_factory(mock_http_client: AsyncMock) -> Callable[[], AsyncMock]:
-    """Provides a mock httpx.AsyncClient factory."""
-
-    def _mock_http_client():
-        return mock_http_client
-
-    return _mock_http_client
-
-
-@pytest.fixture
-def policy(mock_http_client_factory: Callable[[], AsyncMock], mock_settings: MagicMock) -> SendBackendRequestPolicy:
+def policy(mock_http_client: AsyncMock, mock_settings: MagicMock) -> SendBackendRequestPolicy:
     """Provides an instance of the policy with a mock client."""
     return SendBackendRequestPolicy(
-        http_client_factory=mock_http_client_factory,
+        http_client=mock_http_client,
         settings=mock_settings,
         name="test-policy",
     )
@@ -323,7 +313,7 @@ async def test_send_backend_request_policy_serialization(
     # Act
     serialized_data = original_policy.serialize()
     rehydrated_policy = await SendBackendRequestPolicy.from_serialized(
-        http_client_factory=mock_http_client_factory, config=serialized_data, settings=mock_settings
+        http_client=mock_http_client, config=serialized_data, settings=mock_settings
     )
 
     # Assert
@@ -332,5 +322,5 @@ async def test_send_backend_request_policy_serialization(
     assert serialized_data == {"name": "test-policy"}
 
     assert isinstance(rehydrated_policy, SendBackendRequestPolicy)
-    # Check if the rehydrated policy has the correct http_client_factory
-    assert rehydrated_policy.http_client_factory is mock_http_client_factory
+    # Check if the rehydrated policy has the correct http_client
+    assert rehydrated_policy.http_client is mock_http_client

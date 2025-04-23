@@ -75,8 +75,8 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
 
 async def get_main_control_policy(
     settings: Settings = Depends(Settings),
-    http_client: httpx.AsyncClient = Depends(get_http_client),  # Inject http_client correctly
     session: AsyncSession = Depends(get_async_db),  # Inject AsyncSession via get_async_db
+    http_client: httpx.AsyncClient = Depends(get_http_client),  # Inject http_client correctly
 ) -> ControlPolicy:  # Return a single policy instance
     """
     Dependency to load and provide the main, top-level ControlPolicy instance

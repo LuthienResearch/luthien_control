@@ -1,7 +1,7 @@
-from typing import Dict, TypeVar, Union
+"""Serialization type definitions."""
 
-T = TypeVar("T", bound="SerializableDict")
+from typing import Dict, Union
 
-SerializableType = Union[str, float, int, "SerializableDict"]
+SerializableType = Union[str, float, int, bool, "SerializableDict"]
 
 SerializableDict = Dict[str, SerializableType]

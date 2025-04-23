@@ -27,7 +27,7 @@ class MockSimplePolicy(ControlPolicy):
         context["simple_timeout"] = self.timeout
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         # In tests, we often manually set these, don\'t include them if None
         config = {"timeout": self.timeout}
         return config
@@ -50,12 +50,12 @@ class MockNestedPolicy(ControlPolicy):
         context = await self.nested_policy.apply(context, request_args)
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         # In tests, we often manually set these, don\'t include them if None
         config = {
             "description": self.description,
             # Use the key the instantiator expects to find in config
-            "nested_policy": self.nested_policy.serialize_config(),
+            "nested_policy": self.nested_policy.serialize(),
         }
         return config
 
@@ -78,9 +78,9 @@ class MockListPolicy(ControlPolicy):
                 context[f"list_member_{i}_name"] = getattr(policy, "name", "unknown")
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         # Filter out non-policy items for serialization
-        policy_configs = [p.serialize_config() for p in self.policies if isinstance(p, ControlPolicy)]
+        policy_configs = [p.serialize() for p in self.policies if isinstance(p, ControlPolicy)]
         config = {
             "mode": self.mode,
             "policies": policy_configs,
@@ -106,7 +106,7 @@ class MockPolicyWithApiKeyLookup(ControlPolicy):
         context["lookup_result_type"] = type(key).__name__
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         config = {"tag": self.tag}
         return config
 
@@ -123,7 +123,7 @@ class MockNoArgsPolicy(ControlPolicy):
         context["no_args_applied"] = True
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         config = {}
         return config
 
@@ -140,7 +140,7 @@ class MockMissingArgPolicy(ControlPolicy):
         context["missing_arg_mandatory"] = self.mandatory
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         config = {"mandatory": self.mandatory}
         return config
 

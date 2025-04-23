@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 import httpx
 from sqlalchemy import select
@@ -7,16 +7,17 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.config.settings import Settings
-from luthien_control.control_policy.control_policy import ControlPolicy
-from luthien_control.core.policy_loader import (
-    ApiKeyLookupFunc,
-    PolicyLoadError,
-    instantiate_policy,
-)
+from luthien_control.control_policy.exceptions import PolicyLoadError
+from luthien_control.control_policy.loader import load_policy
 
 from .sqlmodel_models import ClientApiKey, Policy
 
+if TYPE_CHECKING:
+    from luthien_control.control_policy.control_policy import ControlPolicy
+
 logger = logging.getLogger(__name__)
+
+# ApiKeyLookupFunc type removed, will be defined in dependencies.py
 
 
 # --- ClientApiKey CRUD Operations ---
@@ -33,23 +34,6 @@ async def create_api_key(session: AsyncSession, api_key: ClientApiKey) -> Option
     except Exception as e:
         await session.rollback()
         logger.error(f"Error creating API key: {e}")
-        return None
-
-
-async def get_api_key_by_value(session: AsyncSession, key_value: str) -> Optional[ClientApiKey]:
-    """Get an API key by its value."""
-    if not isinstance(session, AsyncSession):
-        raise TypeError("Invalid session object provided to get_api_key_by_value.")
-    try:
-        stmt = select(ClientApiKey).where(
-            ClientApiKey.key_value == key_value,
-            ClientApiKey.is_active == True,  # noqa: E712
-        )
-        result = await session.execute(stmt)
-        api_key = result.scalar_one_or_none()
-        return api_key
-    except Exception as e:
-        logger.error(f"Error fetching API key by value '{key_value}': {e}", exc_info=True)
         return None
 
 
@@ -173,40 +157,42 @@ async def load_policy_from_db(
     name: str,
     settings: Settings,
     http_client: httpx.AsyncClient,
-    api_key_lookup: ApiKeyLookupFunc,
+    api_key_lookup: Callable,
     session: AsyncSession,
-) -> ControlPolicy:
-    """Load a policy from the database."""
+) -> "ControlPolicy":
+    """Load a policy from the database using the control_policy loader."""
     policy_model = await get_policy_by_name(session, name)
     if not policy_model:
         raise PolicyLoadError(f"Active policy configuration named '{name}' not found in database.")
 
-    if not policy_model.policy_class_path:
-        raise PolicyLoadError(f"Policy configuration for '{name}' fetched from DB is missing 'policy_class_path'.")
+    # Prepare the data for the simple loader
+    policy_data = {
+        "name": policy_model.name,  # The loader uses this to find the class
+        "config": policy_model.config or {},  # Pass the config dict directly
+    }
 
-    # 2. Prepare the initial configuration dictionary for the instantiator
-    # The instantiator expects 'name' and 'policy_class_path' directly in the dict.
-    initial_config = policy_model.config or {}
-    initial_config["name"] = policy_model.name  # Ensure name from DB model is used
-    initial_config["policy_class_path"] = policy_model.policy_class_path
+    # Prepare available dependencies
+    # The loader will filter these based on the policy's requirements
+    available_dependencies = {
+        "api_key_lookup": api_key_lookup,  # This function still expects session
+        "settings": settings,
+        "http_client": http_client,
+        "db_session": session,  # Make session available if needed by future policies
+    }
 
-    # 3. Call the recursive instantiator (imported from core.policy_loader)
     try:
-        instance = await instantiate_policy(
-            policy_config=initial_config,
-            settings=settings,
-            http_client=http_client,
-            api_key_lookup=api_key_lookup,
-        )
+        # Call the simple loader from control_policy.loader
+        # Note: This loader is currently synchronous.
+        instance = load_policy(policy_data, **available_dependencies)
         logger.info(f"Successfully loaded and instantiated policy '{name}' from database.")
         return instance
     except PolicyLoadError as e:
-        logger.error(f"Failed to instantiate policy '{name}' after fetching from DB: {e}")
+        logger.error(f"Failed to load policy '{name}' from database: {e}")
         # Re-raise cleanly, context is already included from instantiate_policy
         raise e
     except Exception as e:
-        logger.exception(f"Unexpected error instantiating '{name}' after fetching from DB: {e}")
-        raise PolicyLoadError(f"Unexpected error during instantiation process for '{name}'.") from e
+        logger.exception(f"Unexpected error loading policy '{name}' from database: {e}")
+        raise PolicyLoadError(f"Unexpected error during loading process for '{name}'.") from e
 
 
 async def create_policy_config(session: AsyncSession, policy_config: Policy) -> Optional[Policy]:

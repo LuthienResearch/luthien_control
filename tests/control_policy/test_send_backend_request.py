@@ -7,6 +7,7 @@ import pytest
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.dependencies import get_http_client
 
 # Mark all tests in this module as async tests
 pytestmark = pytest.mark.asyncio
@@ -274,12 +275,45 @@ async def test_apply_handles_httpx_timeout_error(
 
 
 async def test_apply_raises_if_context_request_is_none(policy: SendBackendRequestPolicy):
-    """Test that apply raises ValueError if context.request is missing."""
-    # Arrange
-    context_no_request = TransactionContext(transaction_id="tx-no-req")
-    context_no_request.request = None  # Explicitly set to None
-
-    # Act & Assert
-    # No need to patch Settings here as it fails before settings are accessed
-    with pytest.raises(ValueError, match="Cannot send request: context.request is None"):
+    """Test that apply raises ValueError if context.request is None."""
+    context_no_request = TransactionContext(transaction_id="tx-no-request")
+    with pytest.raises(ValueError, match="context.request is None"):
         await policy.apply(context_no_request)
+
+
+async def test_apply_handles_invalid_backend_url(
+    policy: SendBackendRequestPolicy,
+    base_context: TransactionContext,
+    mock_http_client: AsyncMock,
+    mock_settings: MagicMock,
+):
+    """Test that apply raises ValueError if BACKEND_URL is invalid for host parsing."""
+    mock_settings.get_backend_url.return_value = "invalid-url"  # Invalid URL
+
+    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
+        with pytest.raises(ValueError, match="Could not determine backend Host"):
+            await policy.apply(base_context)
+
+
+# --- Serialization Tests ---
+
+
+def test_send_backend_request_policy_serialization(policy: SendBackendRequestPolicy):
+    """Test that SendBackendRequestPolicy can be serialized and deserialized correctly."""
+    # Arrange
+    # 'policy' fixture already provides an instance
+    original_policy = policy
+
+    # Act
+    serialized_data = original_policy.serialize()
+    rehydrated_policy = SendBackendRequestPolicy.from_serialized(serialized_data)
+
+    # Assert
+    assert isinstance(serialized_data, dict)
+    # Since serialize returns an empty dict, there's not much to assert on the dict itself
+    assert serialized_data == {}
+
+    assert isinstance(rehydrated_policy, SendBackendRequestPolicy)
+    # Check if the rehydrated policy has the correct http_client factory
+    # Note: We are asserting it's the factory function, not an instance
+    assert rehydrated_policy.http_client is get_http_client

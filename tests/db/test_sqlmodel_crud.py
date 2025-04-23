@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 
 import pytest
+from luthien_control.db.api_key_crud import get_api_key_by_value
 from luthien_control.db.sqlmodel_crud import (
     create_api_key,
     create_policy,
-    get_api_key_by_value,
     get_policy_by_name,
     list_api_keys,
     list_policies,

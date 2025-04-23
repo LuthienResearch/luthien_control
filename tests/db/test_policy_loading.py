@@ -1,12 +1,14 @@
 import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import httpx
 import pytest
 from luthien_control.config.settings import Settings
-from luthien_control.core.policy_loader import ApiKeyLookupFunc, PolicyLoadError
-from luthien_control.db.sqlmodel_crud import ControlPolicy, load_policy_from_db
+from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.exceptions import PolicyLoadError
+from luthien_control.db.sqlmodel_crud import load_policy_from_db
 from luthien_control.db.sqlmodel_models import ClientApiKey, Policy
+from luthien_control.dependencies import ApiKeyLookupFunc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 pytestmark = pytest.mark.asyncio
@@ -28,7 +30,7 @@ def load_db_mock_http_client() -> httpx.AsyncClient:
 def load_db_mock_api_key_lookup() -> ApiKeyLookupFunc:
     """Provides mock ApiKeyLookupFunc for load_policy_from_db tests."""
 
-    async def _mock_lookup(key: str) -> ClientApiKey | None:
+    async def _mock_lookup(session: AsyncSession, key: str) -> ClientApiKey | None:
         if key == "valid-key":
             return ClientApiKey(key_value="valid-key", name="Test Key", is_active=True)
         return None
@@ -46,7 +48,8 @@ def load_db_dependencies(
     return {
         "settings": load_db_mock_settings,
         "http_client": load_db_mock_http_client,
-        "api_key_lookup_func": load_db_mock_api_key_lookup,
+        "api_key_lookup": load_db_mock_api_key_lookup,
+        "db_session": Mock(spec=AsyncSession),
     }
 
 
@@ -79,22 +82,22 @@ def create_mock_policy_model(
 
 # Mock the database fetch function used *within* load_policy_from_db
 @patch("luthien_control.db.sqlmodel_crud.get_policy_by_name", new_callable=AsyncMock)
-# Mock the actual policy instantiation logic
-@patch("luthien_control.db.sqlmodel_crud.instantiate_policy", new_callable=AsyncMock)
+# Mock the new policy loading function (which is synchronous)
+@patch("luthien_control.db.sqlmodel_crud.load_policy", new_callable=MagicMock)
 async def test_load_policy_from_db_success(
-    mock_instantiate,
+    mock_load_policy,
     mock_get_policy_by_name,  # Renamed from mock_get_config for clarity
     load_db_dependencies,
-    mock_db_session,  # Assuming mock_db_session comes from tests/conftest.py
+    mock_db_session: AsyncSession,
 ):
     """Test successfully loading and instantiating a policy from DB config."""
     policy_name = "test_policy_success"
-    mock_policy_config = create_mock_policy_model(name=policy_name)
-    mock_get_policy_by_name.return_value = mock_policy_config
+    mock_policy_config_model = create_mock_policy_model(name=policy_name)
+    mock_get_policy_by_name.return_value = mock_policy_config_model
 
-    # Mock the instantiated policy object that instantiate_policy should return
+    # Mock the instantiated policy object that load_policy should return
     mock_instantiated_policy = MagicMock(spec=ControlPolicy)
-    mock_instantiate.return_value = mock_instantiated_policy
+    mock_load_policy.return_value = mock_instantiated_policy
 
     # Call the function under test
     loaded_policy = await load_policy_from_db(
@@ -102,22 +105,20 @@ async def test_load_policy_from_db_success(
         session=mock_db_session,  # Pass the mock session
         settings=load_db_dependencies["settings"],
         http_client=load_db_dependencies["http_client"],
-        api_key_lookup=load_db_dependencies["api_key_lookup_func"],
+        api_key_lookup=load_db_dependencies["api_key_lookup"],
     )
 
     # Assertions
     mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
-    # Assert instantiate_policy is called with the prepared config dict
-    # (which includes name and class_path internally)
-    expected_policy_config_arg = mock_policy_config.config or {}
-    expected_policy_config_arg["name"] = mock_policy_config.name
-    expected_policy_config_arg["policy_class_path"] = mock_policy_config.policy_class_path
-    mock_instantiate.assert_awaited_once_with(
-        policy_config=expected_policy_config_arg,
-        settings=load_db_dependencies["settings"],
-        http_client=load_db_dependencies["http_client"],
-        api_key_lookup=load_db_dependencies["api_key_lookup_func"],
-    )
+    # Assert load_policy is called with the expected policy_data dict and dependencies
+    expected_policy_data = {"name": mock_policy_config_model.name, "config": mock_policy_config_model.config or {}}
+    expected_dependencies = {
+        "api_key_lookup": load_db_dependencies["api_key_lookup"],
+        "settings": load_db_dependencies["settings"],
+        "http_client": load_db_dependencies["http_client"],
+        "db_session": mock_db_session,  # Assign mock_db_session to the key
+    }
+    mock_load_policy.assert_called_once_with(expected_policy_data, **expected_dependencies)
     assert loaded_policy == mock_instantiated_policy
 
 
@@ -137,7 +138,7 @@ async def test_load_policy_from_db_not_found_patch_get(
             session=mock_db_session,
             settings=load_db_dependencies["settings"],
             http_client=load_db_dependencies["http_client"],
-            api_key_lookup=load_db_dependencies["api_key_lookup_func"],
+            api_key_lookup=load_db_dependencies["api_key_lookup"],
         )
     mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
 
@@ -158,7 +159,7 @@ async def test_load_policy_from_db_not_found_real_session(
             session=async_session,  # Pass the real session
             settings=load_db_dependencies["settings"],
             http_client=load_db_dependencies["http_client"],
-            api_key_lookup=load_db_dependencies["api_key_lookup_func"],
+            api_key_lookup=load_db_dependencies["api_key_lookup"],
         )
 
 
@@ -166,17 +167,17 @@ async def test_load_policy_from_db_not_found_real_session(
 # @patch("luthien_control.db.sqlmodel_crud.get_policy_by_name", new_callable=AsyncMock)
 # Patch instantiate_policy to simulate failure
 @patch(
-    "luthien_control.db.sqlmodel_crud.instantiate_policy",
-    new_callable=AsyncMock,
+    "luthien_control.db.sqlmodel_crud.load_policy",
+    new_callable=MagicMock,
     side_effect=PolicyLoadError("Instantiation failed"),  # This is the initial error
 )
 async def test_load_policy_from_db_instantiation_fails(
-    mock_instantiate,  # Keep patch for instantiate
+    mock_load_policy,
     # mock_get_policy_by_name, # Remove patch for get_policy
     load_db_dependencies,
     async_session: AsyncSession,  # Use real session
 ):
-    """Test PolicyLoadError when instantiate_policy fails, using real session."""
+    """Test PolicyLoadError when load_policy fails, using real session."""
     policy_name = "instantiation_failure_policy"
     # Create the policy config in the real DB first
     policy_to_create = create_mock_policy_model(name=policy_name)
@@ -187,51 +188,15 @@ async def test_load_policy_from_db_instantiation_fails(
     assert created_policy is not None
     assert created_policy.name == policy_name
 
-    # Match the *actual* error raised by the mock's side_effect,
-    # which is caught and re-raised by the first except block.
+    # Match the error raised by the mock's side_effect
     with pytest.raises(PolicyLoadError, match="Instantiation failed"):
         await load_policy_from_db(
             name=policy_name,
             session=async_session,  # Use real session
             settings=load_db_dependencies["settings"],
             http_client=load_db_dependencies["http_client"],
-            api_key_lookup=load_db_dependencies["api_key_lookup_func"],
+            api_key_lookup=load_db_dependencies["api_key_lookup"],
         )
 
     # mock_get_policy_by_name.assert_awaited_once_with(async_session, policy_name)
-    mock_instantiate.assert_awaited_once()  # Verify instantiate was called
-
-
-# Keep the original patch for get_policy_by_name to ensure isolation if needed
-# @patch("luthien_control.db.sqlmodel_crud.get_policy_by_name", new_callable=AsyncMock)
-async def test_load_policy_from_db_missing_class_path(
-    # mock_get_policy_by_name, # Remove patch for get_policy
-    load_db_dependencies,
-    async_session: AsyncSession,  # Use real session
-):
-    """Test PolicyLoadError when fetched policy lacks class path, using real session."""
-    policy_name = "missing_class_path_policy"
-    # Create the policy config with None path in the real DB first
-    policy_to_create = create_mock_policy_model(
-        name=policy_name,
-        policy_class_path=None,  # Explicitly set to None
-    )
-    # We need the actual create function now
-    from luthien_control.db.sqlmodel_crud import create_policy
-
-    created_policy = await create_policy(async_session, policy_to_create)
-    assert created_policy is not None
-    assert created_policy.name == policy_name
-    assert created_policy.policy_class_path is None
-
-    # Revert to pytest.raises with original match pattern (needs escaping for regex)
-    with pytest.raises(PolicyLoadError, match="missing \\'policy_class_path\\'"):
-        await load_policy_from_db(
-            name=policy_name,
-            session=async_session,  # Use real session
-            settings=load_db_dependencies["settings"],
-            http_client=load_db_dependencies["http_client"],
-            api_key_lookup=load_db_dependencies["api_key_lookup_func"],
-        )
-
-    # mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
+    mock_load_policy.assert_called_once()  # Verify load_policy was called

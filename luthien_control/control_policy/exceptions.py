@@ -7,6 +7,14 @@ class ControlPolicyError(Exception):
     pass
 
 
+class PolicyLoadError(ValueError, ControlPolicyError):
+    """Custom exception for errors during policy loading/instantiation."""
+
+    # Inherit from ValueError for semantic meaning (bad value/config)
+    # Inherit from ControlPolicyError for categorization
+    pass
+
+
 class ApiKeyNotFoundError(ControlPolicyError):
     """Exception raised when the API key is not found in the settings."""
 

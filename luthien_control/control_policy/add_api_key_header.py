@@ -1,13 +1,15 @@
 """Control Policy for adding the API key header to requests."""
 
 import logging
-from typing import Any
+from typing import cast
 
 from fastapi.responses import JSONResponse
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
 from luthien_control.core.transaction_context import TransactionContext
+
+from .serialization import SerializableDict
 
 
 class AddApiKeyHeaderPolicy(ControlPolicy):
@@ -45,10 +47,10 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         context.request.headers["Authorization"] = f"Bearer {api_key}"
         return context
 
-    def serialize_config(self) -> dict[str, Any]:
+    def serialize(self) -> SerializableDict:
         """Serializes config. Returns base info as only dependency is settings."""
-        return {
-            "__policy_type__": self.__class__.__name__,
-            "name": self.name,
-            "policy_class_path": self.policy_class_path,
-        }
+        return cast(SerializableDict, {})
+
+    @classmethod
+    def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderPolicy":
+        return cls(settings=Settings())

@@ -175,3 +175,23 @@
 
 **Next Steps:**
 - Commit changes.
+
+## 2025-04-23 10:28: Refactor Policy Loading & Resolve Circular Imports
+
+**Summary of Changes:**
+
+*   Refactored policy loading to use a simpler loader (`control_policy/loader.py`) with dependency injection via `**kwargs` and `REQUIRED_DEPENDENCIES`.
+*   Updated `load_policy_from_db` in `sqlmodel_crud.py` to use the new loader and pass dependencies.
+*   Deleted the old, complex `core/policy_loader.py` and its associated test file (`tests/core/test_policy_loader.py`).
+*   Updated `tests/db/test_policy_loading.py` to align with the new loader.
+*   Resolved several circular import issues by:
+    *   Moving `get_api_key_by_value` to `db/api_key_crud.py`.
+    *   Defining `ApiKeyLookupFunc` type alias in `dependencies.py`.
+    *   Moving `PolicyLoadError` to `control_policy/exceptions.py`.
+    *   Moving `POLICY_NAME_TO_CLASS` registry to `control_policy/registry.py`.
+    *   Moving the import of `POLICY_NAME_TO_CLASS` inside the `load_policy` function (in `loader.py`) to break the final cycle.
+*   Fixed various test failures related to `TypeError: Type Dict cannot be instantiated` (using `isinstance(..., dict)` instead of `isinstance(..., SerializableDict)`), missing `from_serialized` method in `MockSimplePolicy`, incorrect test assertions (repr, serialize), and missing dependencies passed to `from_serialized` calls in tests.
+
+**Status:** Refactoring complete. All tests passing (with one unrelated PytestWarning about `@pytest.mark.asyncio` on a sync function).
+
+**Next Steps:** Commit changes.

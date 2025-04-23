@@ -1,10 +1,17 @@
-""" ""Compound Policy that applies a sequence of other policies."""
+"""Compound Policy that applies a sequence of other policies."""
 
 import logging
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Sequence, cast
 
 from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.exceptions import PolicyLoadError
+from luthien_control.control_policy.loader import load_policy
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
+
+if TYPE_CHECKING:
+    # Import the type hint for the lookup function only for type checking
+    pass  # Adjusted import path
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +23,9 @@ class CompoundPolicy(ControlPolicy):
     Policies are applied sequentially. If any policy raises an exception,
     the execution stops, and the exception propagates.
     """
+
+    # Declare dependency needed (to pass down to members)
+    REQUIRED_DEPENDENCIES = ["api_key_lookup"]
 
     def __init__(self, policies: Sequence[ControlPolicy], name: str = "CompoundPolicy"):
         """
@@ -31,7 +41,7 @@ class CompoundPolicy(ControlPolicy):
         self.logger = logger
         self.name = name
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(self, context: "TransactionContext") -> "TransactionContext":
         """
         Applies the contained policies sequentially to the context.
 
@@ -44,74 +54,109 @@ class CompoundPolicy(ControlPolicy):
         Raises:
             Exception: Propagates any exception raised by a contained policy.
         """
-        self.logger.debug(f"[{context.transaction_id}] Entering CompoundPolicy: {self.name}")
+        policy_name_str = self.name or self.__class__.__name__
+        self.logger.debug(f"[{context.transaction_id}] Entering CompoundPolicy: {policy_name_str}")
         current_context = context
         for i, policy in enumerate(self.policies):
-            policy_name = getattr(policy, "name", policy.__class__.__name__)  # Get policy name if available
+            member_policy_name = getattr(policy, "name", policy.__class__.__name__)  # Get policy name if available
             self.logger.debug(
                 f"[{current_context.transaction_id}] Applying policy {i + 1}/{len(self.policies)} "
-                f"in {self.name}: {policy_name}"
+                f"in {policy_name_str}: {member_policy_name}"
             )
-            current_context = await policy.apply(current_context)
-        self.logger.debug(f"[{context.transaction_id}] Exiting CompoundPolicy: {self.name}")
+            try:
+                current_context = await policy.apply(current_context)
+            except Exception as e:
+                self.logger.error(
+                    f"[{current_context.transaction_id}] Error applying policy {member_policy_name} "
+                    f"within {policy_name_str}: {e}",
+                    exc_info=True,
+                )
+                raise  # Re-raise the exception to halt processing
+        self.logger.debug(f"[{context.transaction_id}] Exiting CompoundPolicy: {policy_name_str}")
         return current_context
 
     def __repr__(self) -> str:
-        policy_names = [getattr(p, "name", p.__class__.__name__) for p in self.policies]
-        return f"<{self.name}(policies={policy_names})>"
+        """Provides a developer-friendly representation."""
+        # Get the name of each policy, using getattr as fallback like in apply
+        policy_reprs = [repr(getattr(p, "name", p.__class__.__name__)) for p in self.policies]
+        policy_list_str = ", ".join(policy_reprs)
+        return f"<{self.name}(policies=[{policy_list_str}])>"
 
-    def serialize_config(self) -> dict[str, Any]:
-        """Serializes the CompoundPolicy configuration including member configurations."""
-        member_policy_configs = []
-        for policy in self.policies:
-            # Ensure member policy has a name before proceeding
-            if policy.name is None:
-                raise ValueError(
-                    f"Cannot serialize CompoundPolicy '{self.name}': member policy "
-                    f"{policy.__class__.__name__} has no name set."
-                )
+    def serialize(self) -> dict:
+        member_configs = []
+        for p in self.policies:
+            policy_name = getattr(p, "name", None)
+            if not policy_name:
+                # Attempt to get name from the class->name registry in the loader
+                try:
+                    from .registry import POLICY_CLASS_TO_NAME  # Import from registry now
 
-            try:
-                member_config = policy.serialize_config()
-                # Ensure the member config includes its type for deserialization
-                if "__policy_type__" not in member_config:
-                    # Add type if the member policy didn't already add it (best practice)
-                    member_config["__policy_type__"] = policy.__class__.__name__
-                # Store the policy name within its config as well, if available
-                if policy.name:
-                    member_config["name"] = policy.name
-                member_policy_configs.append(member_config)
-            except NotImplementedError:
-                # Handle policies that don't implement serialization (if any)
-                policy_name = getattr(policy, "name", policy.__class__.__name__)
-                self.logger.error(
-                    f"[{self.name}] Member policy '{policy_name}' does not implement "
-                    f"serialize_config(). Cannot fully serialize CompoundPolicy."
-                )
-                raise NotImplementedError(
-                    f"Member policy '{policy_name}' in CompoundPolicy '{self.name}' does not support serialization."
-                )
-            except Exception as e:
-                policy_name = getattr(policy, "name", policy.__class__.__name__)
-                self.logger.error(f"[{self.name}] Error serializing member policy '{policy_name}': {e}", exc_info=True)
-                raise RuntimeError(f"Failed to serialize member policy '{policy_name}'.") from e
+                    policy_name = POLICY_CLASS_TO_NAME.get(type(p))
+                except ImportError:  # Should not happen if loader exists
+                    policy_name = p.__class__.__name__  # Fallback
 
-        # Prepare the final dictionary
-        serialized_data = {
-            "__policy_type__": self.__class__.__name__,
-            "name": self.name,
-            "member_policy_configs": member_policy_configs,  # Embed full configs
-        }
+                if not policy_name:
+                    logger.warning(f"Could not determine policy name for {type(p)} during serialization in {self.name}")
+                    policy_name = p.__class__.__name__  # Final fallback
 
-        # Add the class path if it exists on the instance
-        if hasattr(self, "policy_class_path") and self.policy_class_path:
-            serialized_data["policy_class_path"] = self.policy_class_path
-        else:
-            # This indicates the instance wasn't loaded correctly via load_policy_instance
-            # or the attribute wasn't added to the interface/class.
-            self.logger.warning(
-                f"Cannot find 'policy_class_path' attribute on CompoundPolicy '{self.name}' instance. "
-                f"Serialization might be incomplete for direct reloading."
+            member_configs.append(
+                {
+                    "name": policy_name,
+                    "config": p.serialize(),
+                }
             )
+        # Return a dictionary literal conforming to SerializableDict
+        return cast(SerializableDict, {"policies": member_configs})
 
-        return serialized_data
+    @classmethod
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "CompoundPolicy":
+        """
+        Constructs a CompoundPolicy from serialized data, loading member policies.
+
+        Args:
+            config: The serialized configuration dictionary. Expects a 'policies' key
+                    containing a list of dictionaries, each with 'name' and 'config'.
+            **kwargs: Dependencies (e.g., api_key_lookup) passed down to members.
+
+        Returns:
+            An instance of CompoundPolicy.
+
+        Raises:
+            PolicyLoadError: If 'policies' key is missing, not a list, or if loading
+                             a member policy fails.
+        """
+        member_policy_data_list = config.get("policies")
+
+        if not isinstance(member_policy_data_list, list):
+            raise PolicyLoadError("CompoundPolicy config missing 'policies' list or it's not a list.")
+
+        instantiated_policies = []
+        # Extract api_key_lookup from kwargs to potentially use, and pass all kwargs down
+        kwargs.get("api_key_lookup")  # Example dependency extraction
+
+        for i, member_data in enumerate(member_policy_data_list):
+            if not isinstance(member_data, dict):
+                raise PolicyLoadError(f"Item at index {i} in CompoundPolicy 'policies' is not a dictionary.")
+            try:
+                # Call the simple loader, passing all available dependencies down
+                member_policy = load_policy(member_data, **kwargs)
+                instantiated_policies.append(member_policy)
+            except PolicyLoadError as e:
+                # Add context about which member failed
+                raise PolicyLoadError(
+                    f"Failed to load member policy at index {i} "
+                    f"(name: {member_data.get('name', 'unknown')}) "
+                    f"within CompoundPolicy: {e}"
+                ) from e
+            except Exception as e:
+                raise PolicyLoadError(
+                    f"Unexpected error loading member policy at index {i} "
+                    f"(name: {member_data.get('name', 'unknown')}) "
+                    f"within CompoundPolicy: {e}"
+                ) from e
+
+        # Extract the name for the CompoundPolicy itself from the config, if provided
+        compound_policy_name = config.get("name", "CompoundPolicy")  # Default name if not in config
+
+        # Pass only the necessary policies list to the constructor
+        return cls(policies=instantiated_policies, name=compound_policy_name)

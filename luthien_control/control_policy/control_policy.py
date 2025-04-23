@@ -1,10 +1,15 @@
 """Interfaces for the request processing framework."""
 
 import abc
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Type, TypeVar
+
+from luthien_control.control_policy.serialization import SerializableDict
 
 if TYPE_CHECKING:
     from luthien_control.core.transaction_context import TransactionContext
+
+# Type variable for the policy classes
+PolicyT = TypeVar("PolicyT", bound="ControlPolicy")
 
 
 class ControlPolicy(abc.ABC):
@@ -33,13 +38,27 @@ class ControlPolicy(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def serialize_config(self) -> dict[str, Any]:
+    def serialize(self) -> SerializableDict:
         """
         Serialize the policy's instance-specific configuration needed for reloading.
 
         Returns:
-            A dictionary containing configuration parameters. Excludes dependencies
-            like settings, http_client, etc., that are injected during loading.
-            Includes parameters needed for composite policies (like member names).
+            A serializable dictionary containing configuration parameters.
+        """
+        raise NotImplementedError
+
+    # construct from serialization
+    @classmethod
+    @abc.abstractmethod
+    def from_serialized(cls: Type[PolicyT], config: SerializableDict, **kwargs) -> PolicyT:
+        """
+        Construct a policy from a serialized configuration and optional dependencies.
+
+        Args:
+            config: The policy-specific configuration dictionary.
+            **kwargs: Additional dependencies needed for instantiation.
+
+        Returns:
+            An instance of the policy class.
         """
         raise NotImplementedError

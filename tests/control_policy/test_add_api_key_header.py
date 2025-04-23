@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
+from luthien_control.config.settings import Settings
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
 from luthien_control.core.transaction_context import TransactionContext
@@ -72,3 +73,24 @@ async def test_add_api_key_overwrites_existing(mock_settings: MagicMock, base_re
     # Verify the new key is present
     assert result_context.request.headers["authorization"] == "Bearer test-api-key-123"
     mock_settings.get_openai_api_key.assert_called_once()
+
+
+def test_add_api_key_header_policy_serialization():
+    """Test that AddApiKeyHeaderPolicy can be serialized and deserialized correctly."""
+    # Arrange
+    settings = Settings()
+    original_policy = AddApiKeyHeaderPolicy(settings=settings)
+
+    # Act
+    serialized_data = original_policy.serialize()
+    rehydrated_policy = AddApiKeyHeaderPolicy.from_serialized(serialized_data)
+
+    # Assert
+    assert isinstance(serialized_data, dict)
+    # Since serialize returns an empty dict, there's not much to assert on the dict itself
+    assert serialized_data == {}
+
+    assert isinstance(rehydrated_policy, AddApiKeyHeaderPolicy)
+    # Check if the rehydrated policy has the same type of settings object
+    # (We can't easily compare settings instances directly without mocking/more complex setup)
+    assert isinstance(rehydrated_policy.settings, Settings)

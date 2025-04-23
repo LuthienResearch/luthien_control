@@ -1,13 +1,15 @@
 """Core control policy implementations."""
 
 import logging
-from typing import Any
+from typing import cast
 from urllib.parse import urlparse
 
 import httpx
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.dependencies import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -133,10 +135,11 @@ class SendBackendRequestPolicy(ControlPolicy):
 
         return context
 
-    def serialize_config(self) -> dict[str, Any]:
+    def serialize(self) -> SerializableDict:
         """Serializes config. Returns base info as only dependency is http_client."""
-        return {
-            "__policy_type__": self.__class__.__name__,
-            "name": self.name,
-            "policy_class_path": self.policy_class_path,
-        }
+        # Return an empty dictionary literal, cast to SerializableDict for type checker
+        return cast(SerializableDict, {})
+
+    @classmethod
+    def from_serialized(cls, config: SerializableDict) -> "SendBackendRequestPolicy":
+        return cls(http_client=get_http_client)

@@ -5,14 +5,13 @@ Items discovered during development that are out of scope for the current task b
 - [ ] Rework `dev/ProjectPlan.md`:
   - Reorganize sections based on current status and near-term goals (e.g., Testing Framework, Pipeline Refactor).
   - Clarify distinction between major phases and specific tasks.
-  - Ensure alignment with overall project vision.
 
 - [ ] Implement package-wide logging system
 
 - [ ] security scan automation
 - [ ] typehintchecking automation
 - [ ] ruff automation
-- [ ] client api check as policy (instead of in core)
+- [X] client api check as policy (instead of in core)
 
 - [ ] Migrate all datetime columns to use `TIMESTAMP WITH TIME ZONE` instead of the current `TIMESTAMP WITHOUT TIME ZONE`
   - All models would use true timezone-aware datetimes without stripping tzinfo
@@ -26,8 +25,8 @@ Items discovered during development that are out of scope for the current task b
   - Ensures CompoundPolicy can correctly instantiate member policies
 
 - [X] Eliminate all traces of CONTROL_POLICIES
-- [ ] Eliminate remaining log db cruft
-- [ ] Eliminate redundancy and overabstraction in db connection management
+- [X] Eliminate remaining log db cruft
+- [X] Eliminate redundancy and overabstraction in db connection management
 
 - [ ] **Refactor `SendBackendRequestPolicy`:**
   - **Goal:** Split into `PrepareBackendRequestPolicy` and `ExecuteBackendRequestPolicy`.
@@ -39,3 +38,9 @@ Items discovered during development that are out of scope for the current task b
     - Remove old `SendBackendRequestPolicy` and its tests.
     - Update policy chain configurations.
   - **Origin:** Identified during review of `tests/control_policy/test_send_backend_request.py` due to test length and policy complexity.
+
+- [ ] Resolve pytest warning
+- [ ] Make sure all policy serialization/deserialization methods are being tested
+- [ ] Full e2e production demo
+- [ ] Backfill devlog based on git commits
+- [ ] Alembic migrations for default policies using new policy serialization/deserialization format

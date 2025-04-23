@@ -74,7 +74,7 @@ async def main():
 
         # Serialize the loaded instance - this uses the *new* serialize_config logic
         logger.info("Serializing the loaded policy instance...")
-        new_config = root_policy_instance.serialize_config()
+        new_config = root_policy_instance.serialize()
         logger.info("Serialization complete.")
 
         # Print the new config as JSON

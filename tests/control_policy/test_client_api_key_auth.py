@@ -7,6 +7,7 @@ from luthien_control.control_policy.client_api_key_auth import (
     API_KEY_HEADER,
     BEARER_PREFIX,
     ClientApiKeyAuthPolicy,
+    get_api_key_by_value,
 )
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
@@ -155,3 +156,22 @@ async def test_apply_valid_active_key_success(mock_db_session_cm, transaction_co
     mock_api_key_lookup.assert_awaited_once_with(mock_session, test_api_key)
     assert result_context == transaction_context_with_request
     assert transaction_context_with_request.response is None
+
+
+def test_client_api_key_auth_policy_serialization():
+    """Test that ClientApiKeyAuthPolicy can be serialized and deserialized correctly."""
+    # Arrange
+    # ClientApiKeyAuthPolicy requires an api_key_lookup function on init
+    original_policy = ClientApiKeyAuthPolicy(api_key_lookup=get_api_key_by_value)
+
+    # Act
+    serialized_data = original_policy.serialize()
+    # Pass a dummy dependency for deserialization test
+    dummy_lookup = MagicMock()
+    rehydrated_policy = ClientApiKeyAuthPolicy.from_serialized(serialized_data, api_key_lookup=dummy_lookup)
+
+    # Assert
+    assert isinstance(serialized_data, dict)  # Check against dict, not type alias
+    assert isinstance(rehydrated_policy, ClientApiKeyAuthPolicy)
+    # Check if the rehydrated policy uses the correct lookup function
+    assert rehydrated_policy._api_key_lookup is dummy_lookup

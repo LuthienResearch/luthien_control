@@ -1,5 +1,5 @@
 import logging
-from typing import AsyncGenerator
+from typing import TYPE_CHECKING, AsyncGenerator, Awaitable, Callable, Optional
 
 import httpx
 from fastapi import Depends, HTTPException, Request
@@ -13,17 +13,19 @@ from luthien_control.control_policy.control_policy import ControlPolicy
 # Import Response Builder
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 from luthien_control.core.response_builder.interface import ResponseBuilder
+from luthien_control.db.api_key_crud import get_api_key_by_value
 
 # Import SQLModel database session providers
 from luthien_control.db.database_async import get_db_session
-from luthien_control.db.sqlmodel_crud import (
-    ApiKeyLookupFunc,
-    PolicyLoadError,
-    get_api_key_by_value,
-    load_policy_from_db,
-)
+from luthien_control.db.sqlmodel_crud import PolicyLoadError, load_policy_from_db
+
+if TYPE_CHECKING:
+    from luthien_control.db.sqlmodel_models import ClientApiKey
 
 logger = logging.getLogger(__name__)
+
+# TODO: Review potentially redundant type definitions like ApiKeyLookupFunc across modules.
+ApiKeyLookupFunc = Callable[[AsyncSession, str], Awaitable[Optional["ClientApiKey"]]]
 
 
 # --- Dependency Providers --- #
@@ -93,14 +95,14 @@ async def get_main_control_policy(
     # If the name exists, proceed with loading attempt
     try:
         # Pass the injected dependencies and the function reference for lookup
-        api_key_lookup: ApiKeyLookupFunc = get_api_key_by_value  # Use correct type hint
+        api_key_lookup_func: ApiKeyLookupFunc = get_api_key_by_value
 
         # Use the injected session directly
         main_policy = await load_policy_from_db(
             name=top_level_policy_name,
             settings=settings,
             http_client=http_client,  # Pass the client obtained via Depends
-            api_key_lookup=api_key_lookup,  # Pass the lookup function reference
+            api_key_lookup=api_key_lookup_func,  # Pass the lookup function reference
             session=session,  # Use the injected session
         )
         if not main_policy:  # load_policy_from_db might return None if not found

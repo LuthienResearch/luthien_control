@@ -10,7 +10,7 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.loader import load_policy
 
-from .sqlmodel_models import ClientApiKey, Policy
+from .sqlmodel_models import Policy
 
 if TYPE_CHECKING:
     from luthien_control.control_policy.control_policy import ControlPolicy
@@ -23,59 +23,9 @@ logger = logging.getLogger(__name__)
 # --- ClientApiKey CRUD Operations ---
 
 
-async def create_api_key(session: AsyncSession, api_key: ClientApiKey) -> Optional[ClientApiKey]:
-    """Create a new API key in the database."""
-    try:
-        session.add(api_key)
-        await session.commit()
-        await session.refresh(api_key)
-        logger.info(f"Successfully created API key with ID: {api_key.id}")
-        return api_key
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"Error creating API key: {e}")
-        return None
-
-
-async def list_api_keys(session: AsyncSession, active_only: bool = False) -> List[ClientApiKey]:
-    """Get a list of all API keys."""
-    try:
-        if active_only:
-            stmt = select(ClientApiKey).where(ClientApiKey.is_active == True)  # noqa: E712
-        else:
-            stmt = select(ClientApiKey)
-
-        result = await session.execute(stmt)
-        return list(result.scalars().all())
-    except Exception as e:
-        logger.error(f"Error listing API keys: {e}")
-        return []
-
-
-async def update_api_key(session: AsyncSession, key_id: int, api_key_update: ClientApiKey) -> Optional[ClientApiKey]:
-    """Update an existing API key."""
-    try:
-        stmt = select(ClientApiKey).where(ClientApiKey.id == key_id)
-        result = await session.execute(stmt)
-        api_key = result.scalar_one_or_none()
-
-        if not api_key:
-            logger.warning(f"API key with ID {key_id} not found")
-            return None
-
-        # Update fields
-        api_key.name = api_key_update.name
-        api_key.is_active = api_key_update.is_active
-        api_key.metadata_ = api_key_update.metadata_
-
-        await session.commit()
-        await session.refresh(api_key)
-        logger.info(f"Successfully updated API key with ID: {api_key.id}")
-        return api_key
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"Error updating API key: {e}")
-        return None
+# async def create_api_key(...): MOVED
+# async def list_api_keys(...): MOVED
+# async def update_api_key(...): MOVED
 
 
 # --- Policy CRUD Operations ---

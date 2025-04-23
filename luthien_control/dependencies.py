@@ -13,7 +13,7 @@ from luthien_control.control_policy.control_policy import ControlPolicy
 # Import Response Builder
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 from luthien_control.core.response_builder.interface import ResponseBuilder
-from luthien_control.db.api_key_crud import get_api_key_by_value
+from luthien_control.db.client_api_key_crud import get_api_key_by_value
 
 # Import SQLModel database session providers
 from luthien_control.db.database_async import get_db_session

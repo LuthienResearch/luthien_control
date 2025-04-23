@@ -4,14 +4,14 @@ import asyncio
 import logging
 import sys
 
+from luthien_control.config.logging_config import setup_logging
+from luthien_control.db.client_api_key_crud import create_api_key
 from luthien_control.db.database_async import (
     close_db_engine,
     create_db_engine,
     get_db_session,
 )
-from luthien_control.db.sqlmodel_crud import create_api_key
 from luthien_control.db.sqlmodel_models import ClientApiKey
-from luthien_control.logging_config import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -29,9 +29,7 @@ async def main():
     args = parser.parse_args()
 
     logger.info(
-        f"Attempting to add API key: Name='{args.name}', "
-        f"KeyValue='{args.key_value[:4]}...' "
-        f"Active={not args.inactive}"
+        f"Attempting to add API key: Name='{args.name}', KeyValue='{args.key_value[:4]}...' Active={not args.inactive}"
     )
 
     engine = await create_db_engine()
@@ -55,11 +53,11 @@ async def main():
                 # Attempting to provide more context if possible
                 # Note: This check is basic, specific DB errors are logged within create_api_key
                 logger.warning("This might be due to a duplicate key_value or other database constraint.")
-                sys.exit(1) # Exit with error if creation failed
+                sys.exit(1)  # Exit with error if creation failed
 
     except Exception as e:
         logger.exception(f"An unexpected error occurred during API key creation: {e}")
-        sys.exit(1) # Exit with error on exception
+        sys.exit(1)  # Exit with error on exception
     finally:
         # Ensure engine is closed regardless of success or failure
         await close_db_engine()

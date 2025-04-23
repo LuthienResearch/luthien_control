@@ -14,7 +14,7 @@ from luthien_control.control_policy.exceptions import (
     NoRequestError,
 )
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.db.api_key_crud import get_api_key_by_value
+from luthien_control.db.client_api_key_crud import get_api_key_by_value
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from sqlalchemy.ext.asyncio import AsyncSession
 

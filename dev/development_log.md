@@ -195,3 +195,14 @@
 **Status:** Refactoring complete. All tests passing (with one unrelated PytestWarning about `@pytest.mark.asyncio` on a sync function).
 
 **Next Steps:** Commit changes.
+
+---
+**Timestamp:** $(date '+%Y-%m-%d %H:%M:%S')
+**Task:** Refactor ClientApiKey CRUD operations
+**Goal:** Move `create_api_key`, `list_api_keys`, `update_api_key` from `luthien_control/db/sqlmodel_crud.py` to `luthien_control/db/api_key_crud.py`.
+**Changes:**
+- Added `create_api_key`, `list_api_keys`, `update_api_key` functions to `luthien_control/db/api_key_crud.py`.
+- Removed these functions from `luthien_control/db/sqlmodel_crud.py`.
+- Updated import for `create_api_key` in `scripts/add_api_key.py`.
+**Status:** Completed.
+**Next Steps:** Commit changes.

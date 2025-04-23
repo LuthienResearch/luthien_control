@@ -10,7 +10,7 @@ from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthP
 from luthien_control.control_policy.compound_policy import CompoundPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.db.api_key_crud import get_api_key_by_value
+from luthien_control.db.client_api_key_crud import get_api_key_by_value
 
 # --- Test Fixtures and Helper Classes ---
 

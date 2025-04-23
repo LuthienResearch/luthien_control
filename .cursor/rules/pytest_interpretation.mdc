@@ -7,3 +7,5 @@ PYTEST EXIT CODE=0 JUST MEANS THE TESTS RAN. IT DOES NOT MEAN THEY WERE SUCCESSF
 
 Always pipe results to cat so you can see them.
 `poetry run pytest | cat`
+
+For reasons unknown, you sometimes don't see the output of pytest the first time you run it. If the first run of pytest seemingly produces no output, just run it again. This seems to work.

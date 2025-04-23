@@ -1,7 +1,7 @@
 """Interfaces for the request processing framework."""
 
 import abc
-from typing import TYPE_CHECKING, Any, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar
 
 from luthien_control.control_policy.serialization import SerializableDict
 
@@ -15,8 +15,7 @@ PolicyT = TypeVar("PolicyT", bound="ControlPolicy")
 class ControlPolicy(abc.ABC):
     """Abstract Base Class defining the interface for a processing step."""
 
-    name: str | None = None
-    policy_class_path: str | None = None
+    name: Optional[str] = None
 
     def __init__(self, **kwargs: Any) -> None:
         pass

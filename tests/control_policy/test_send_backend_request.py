@@ -1,5 +1,6 @@
 """Unit tests for ControlPolicy SendBackendRequestPolicy."""
 
+from typing import Callable
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -7,7 +8,6 @@ import pytest
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.dependencies import get_http_client
 
 # Mark all tests in this module as async tests
 pytestmark = pytest.mark.asyncio
@@ -29,9 +29,23 @@ def mock_http_client() -> AsyncMock:
 
 
 @pytest.fixture
-def policy(mock_http_client: AsyncMock) -> SendBackendRequestPolicy:
+def mock_http_client_factory(mock_http_client: AsyncMock) -> Callable[[], AsyncMock]:
+    """Provides a mock httpx.AsyncClient factory."""
+
+    def _mock_http_client():
+        return mock_http_client
+
+    return _mock_http_client
+
+
+@pytest.fixture
+def policy(mock_http_client_factory: Callable[[], AsyncMock], mock_settings: MagicMock) -> SendBackendRequestPolicy:
     """Provides an instance of the policy with a mock client."""
-    return SendBackendRequestPolicy(http_client=mock_http_client)
+    return SendBackendRequestPolicy(
+        http_client_factory=mock_http_client_factory,
+        settings=mock_settings,
+        name="test-policy",
+    )
 
 
 @pytest.fixture
@@ -298,7 +312,9 @@ async def test_apply_handles_invalid_backend_url(
 # --- Serialization Tests ---
 
 
-async def test_send_backend_request_policy_serialization(policy: SendBackendRequestPolicy):
+async def test_send_backend_request_policy_serialization(
+    policy: SendBackendRequestPolicy,
+):
     """Test that SendBackendRequestPolicy can be serialized and deserialized correctly."""
     # Arrange
     # 'policy' fixture already provides an instance
@@ -306,14 +322,15 @@ async def test_send_backend_request_policy_serialization(policy: SendBackendRequ
 
     # Act
     serialized_data = original_policy.serialize()
-    rehydrated_policy = SendBackendRequestPolicy.from_serialized(serialized_data)
+    rehydrated_policy = SendBackendRequestPolicy.from_serialized(
+        http_client_factory=mock_http_client_factory, config=serialized_data, settings=mock_settings
+    )
 
     # Assert
     assert isinstance(serialized_data, dict)
     # Since serialize returns an empty dict, there's not much to assert on the dict itself
-    assert serialized_data == {}
+    assert serialized_data == {"name": "test-policy"}
 
     assert isinstance(rehydrated_policy, SendBackendRequestPolicy)
-    # Check if the rehydrated policy has the correct http_client factory
-    # Note: We are asserting it's the factory function, not an instance
-    assert rehydrated_policy.http_client is get_http_client
+    # Check if the rehydrated policy has the correct http_client_factory
+    assert rehydrated_policy.http_client_factory is mock_http_client_factory

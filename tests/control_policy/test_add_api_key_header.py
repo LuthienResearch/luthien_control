@@ -79,16 +79,16 @@ def test_add_api_key_header_policy_serialization():
     """Test that AddApiKeyHeaderPolicy can be serialized and deserialized correctly."""
     # Arrange
     settings = Settings()
-    original_policy = AddApiKeyHeaderPolicy(settings=settings)
+    original_policy = AddApiKeyHeaderPolicy(settings=settings, name="test-policy")
 
     # Act
     serialized_data = original_policy.serialize()
-    rehydrated_policy = AddApiKeyHeaderPolicy.from_serialized(serialized_data)
+    rehydrated_policy = AddApiKeyHeaderPolicy.from_serialized(config=serialized_data, settings=settings)
 
     # Assert
     assert isinstance(serialized_data, dict)
     # Since serialize returns an empty dict, there's not much to assert on the dict itself
-    assert serialized_data == {}
+    assert serialized_data == {"name": "test-policy"}
 
     assert isinstance(rehydrated_policy, AddApiKeyHeaderPolicy)
     # Check if the rehydrated policy has the same type of settings object

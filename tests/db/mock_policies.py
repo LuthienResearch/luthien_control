@@ -16,7 +16,6 @@ class MockSimplePolicy(ControlPolicy):
         self.http_client = http_client
         self.timeout = timeout
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
         # Add mock_init for testing calls
         self.mock_init = MagicMock()
         # Call it to record the call
@@ -38,7 +37,6 @@ class MockNestedPolicy(ControlPolicy):
         self.nested_policy = nested_policy
         self.description = description
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
         # Add mock_init for testing calls
         self.mock_init = MagicMock()
         self.mock_init(nested_policy=nested_policy, description=description)
@@ -66,7 +64,6 @@ class MockListPolicy(ControlPolicy):
         self.policies = policies
         self.mode = mode
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
 
     async def apply(self, context: Dict[str, Any], request_args: Dict[str, Any]) -> Dict[str, Any]:
         context["list_applied"] = True
@@ -93,7 +90,6 @@ class MockPolicyWithApiKeyLookup(ControlPolicy):
         self.api_key_lookup = api_key_lookup
         self.tag = tag
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
         # Add mock_init for testing
         self.mock_init = MagicMock()
         self.mock_init(api_key_lookup=api_key_lookup, tag=tag)
@@ -114,7 +110,6 @@ class MockPolicyWithApiKeyLookup(ControlPolicy):
 class MockNoArgsPolicy(ControlPolicy):
     def __init__(self):
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
         # Add mock_init for testing
         self.mock_init = MagicMock()
         self.mock_init()
@@ -133,7 +128,6 @@ class MockMissingArgPolicy(ControlPolicy):
     def __init__(self, mandatory: str):
         self.mandatory = mandatory
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
 
     async def apply(self, context: Dict[str, Any], request_args: Dict[str, Any]) -> Dict[str, Any]:
         context["missing_arg_applied"] = True

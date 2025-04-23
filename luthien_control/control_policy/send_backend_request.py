@@ -1,7 +1,7 @@
 """Core control policy implementations."""
 
 import logging
-from typing import cast
+from typing import Callable, Optional, cast
 from urllib.parse import urlparse
 
 import httpx
@@ -9,7 +9,6 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.dependencies import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +19,8 @@ class SendBackendRequestPolicy(ControlPolicy):
     and reading the raw response body.
     """
 
+    REQUIRED_DEPENDENCIES = ["http_client_factory", "settings"]
+
     _EXCLUDED_BACKEND_HEADERS = {
         b"host",
         b"transfer-encoding",
@@ -27,8 +28,16 @@ class SendBackendRequestPolicy(ControlPolicy):
         b"authorization",  # We add our own
     }
 
-    def __init__(self, http_client: httpx.AsyncClient):
-        self.http_client = http_client
+    def __init__(
+        self,
+        http_client_factory: Callable[[], httpx.AsyncClient],
+        settings: Settings,
+        name: Optional[str] = None,
+    ):
+        self.name = name or self.__class__.__name__
+        self.http_client_factory = http_client_factory
+        self.http_client: Optional[httpx.AsyncClient] = None
+        self.settings = settings
 
     def _build_target_url(self, base_url: str, relative_path: str) -> str:
         """Constructs the full target URL for the backend request."""
@@ -41,7 +50,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         """Prepares the headers to be sent to the backend."""
         original_request = context.request
         backend_headers: list[tuple[bytes, bytes]] = []
-        backend_url_base = Settings().get_backend_url()  # Already validated in apply
+        backend_url_base = self.settings.get_backend_url()  # Already validated in apply
 
         # Copy necessary headers from original request, excluding problematic ones
         for key_bytes, value_bytes in original_request.headers.raw:
@@ -67,10 +76,16 @@ class SendBackendRequestPolicy(ControlPolicy):
         backend_headers.append((b"accept-encoding", b"identity"))
 
         # Add Backend Authorization Header
-        openai_key = Settings().get_openai_api_key()
+        openai_key = self.settings.get_openai_api_key()
         backend_headers.append((b"authorization", f"Bearer {openai_key}".encode("latin-1")))
 
         return backend_headers
+
+    def get_http_client(self) -> httpx.AsyncClient:
+        """Gets the httpx.AsyncClient instance. Creates it if it doesn't exist."""
+        if self.http_client is None:
+            self.http_client = self.http_client_factory()
+        return self.http_client
 
     async def apply(self, context: TransactionContext) -> TransactionContext:
         """
@@ -82,7 +97,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         if not context.request:
             raise ValueError(f"[{context.transaction_id}] Cannot send request: context.request is None")
 
-        backend_url_base = Settings().get_backend_url()
+        backend_url_base = self.settings.get_backend_url()
 
         # --- Prepare Request Components ---
         try:
@@ -109,7 +124,7 @@ class SendBackendRequestPolicy(ControlPolicy):
                 f"[{context.transaction_id}] Sending request to backend: {context.request.method} {context.request.url}"
             )
             # Send the modified context.request directly
-            response = await self.http_client.send(context.request)
+            response = await self.get_http_client().send(context.request)
             # Read response body immediately to ensure connection is closed
             await response.aread()
             context.data["backend_response"] = response
@@ -138,8 +153,14 @@ class SendBackendRequestPolicy(ControlPolicy):
     def serialize(self) -> SerializableDict:
         """Serializes config. Returns base info as only dependency is http_client."""
         # Return an empty dictionary literal, cast to SerializableDict for type checker
-        return cast(SerializableDict, {})
+        return cast(SerializableDict, {"name": self.name})
 
     @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "SendBackendRequestPolicy":
-        return cls(http_client=get_http_client)
+    def from_serialized(
+        cls,
+        config: SerializableDict,
+        http_client_factory: Callable[[], httpx.AsyncClient],
+        settings: Settings,
+        **kwargs,
+    ) -> "SendBackendRequestPolicy":
+        return cls(name=config.get("name"), http_client_factory=http_client_factory, settings=settings)

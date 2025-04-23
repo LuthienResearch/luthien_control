@@ -58,25 +58,11 @@ async def _ensure_e2e_policy_exists():
             existing_policy = await get_policy_config_by_name(session, E2E_POLICY_NAME)
 
             # Define the desired state
-            desired_class_path = "luthien_control.control_policy.compound_policy.CompoundPolicy"
             desired_config = {
                 "policies": [
-                    {
-                        "name": "E2E_ClientAPIKeyCheck",
-                        "policy_class_path": (
-                            "luthien_control.control_policy.client_api_key_auth.ClientApiKeyAuthPolicy",
-                        ),
-                    },
-                    {
-                        "name": "E2E_AddBackendKey",
-                        "policy_class_path": "luthien_control.control_policy.add_api_key_header.AddApiKeyHeaderPolicy",
-                    },
-                    {
-                        "name": "E2E_ForwardRequest",
-                        "policy_class_path": (
-                            "luthien_control.control_policy.send_backend_request.SendBackendRequestPolicy"
-                        ),
-                    },
+                    {"name": "E2E_ClientAPIKeyCheck", "type": "client_api_key_auth", "config": {}},
+                    {"name": "E2E_AddBackendKey", "type": "add_api_key_header", "config": {}},
+                    {"name": "E2E_ForwardRequest", "type": "send_backend_request", "config": {}},
                 ]
             }
             desired_description = "E2E Test Policy: Adds backend key -> Sends request."
@@ -85,15 +71,13 @@ async def _ensure_e2e_policy_exists():
                 # Check if update is needed
                 if (
                     existing_policy.config != desired_config
-                    or existing_policy.policy_class_path != desired_class_path
                     or existing_policy.description != desired_description
                     or not existing_policy.is_active  # Ensure it's active
                 ):
                     logger.info(f"Policy '{E2E_POLICY_NAME}' (ID: {existing_policy.id}) exists but needs update.")
                     update_data = ControlPolicy(
                         id=existing_policy.id,
-                        name=existing_policy.name,
-                        policy_class_path=desired_class_path,
+                        name=existing_policy.policy_type,
                         config=desired_config,
                         is_active=True,
                         description=desired_description,
@@ -112,7 +96,6 @@ async def _ensure_e2e_policy_exists():
                 logger.info(f"Policy '{E2E_POLICY_NAME}' not found. Creating...")
                 e2e_policy_data = ControlPolicy(
                     name=E2E_POLICY_NAME,
-                    policy_class_path=desired_class_path,
                     config=desired_config,
                     is_active=True,
                     description=desired_description,

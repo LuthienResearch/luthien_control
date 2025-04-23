@@ -36,8 +36,7 @@ async def main():
                 for i, policy in enumerate(policies):
                     print(f"\nPolicy {i + 1}:")
                     print(f"  ID: {policy.id}")
-                    print(f"  Name: {policy.name}")
-                    print(f"  Class Path: {policy.policy_class_path}")
+                    print(f"  Name: {policy.policy_type}")
                     print(f"  Config: {policy.config}")
                     print(f"  Is Active: {policy.is_active}")
                     print(f"  Description: {policy.description}")

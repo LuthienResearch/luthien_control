@@ -9,9 +9,6 @@ from luthien_control.db.sqlmodel_models import ControlPolicy
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Test database fixtures (async_engine, async_session) are now expected
-# to be provided by tests/db/conftest.py
-
 # Mark all tests as async
 pytestmark = pytest.mark.asyncio
 
@@ -21,23 +18,22 @@ async def test_create_and_get_policy(async_session: AsyncSession):
     # Create a test policy
     policy = ControlPolicy(
         name="test-policy",
-        policy_class_path="luthien_control.policies.test.TestPolicy",
         config={"setting": "value"},
         is_active=True,
         description="Test policy description",
+        type="mock_type",
     )
 
     # Create the policy
     created_policy = await save_policy_to_db(async_session, policy)
     assert created_policy is not None
     assert created_policy.id is not None
-    assert created_policy.name == "test-policy"
+    assert created_policy.type == "mock_type"
 
     # Retrieve the policy by name
     retrieved_policy = await get_policy_by_name(async_session, "test-policy")
     assert retrieved_policy is not None
     assert retrieved_policy.id == created_policy.id
-    assert retrieved_policy.policy_class_path == "luthien_control.policies.test.TestPolicy"
     assert retrieved_policy.config == {"setting": "value"}
 
 
@@ -45,9 +41,9 @@ async def test_list_policies(async_session: AsyncSession):
     """Test listing policies with filtering."""
     # Create multiple policies
     policies = [
-        ControlPolicy(name="policy1", policy_class_path="path1", is_active=True),
-        ControlPolicy(name="policy2", policy_class_path="path2", is_active=True),
-        ControlPolicy(name="policy3", policy_class_path="path3", is_active=False),
+        ControlPolicy(name="policy1", is_active=True, type="mock_type"),
+        ControlPolicy(name="policy2", is_active=True, type="mock_type"),
+        ControlPolicy(name="policy3", is_active=False, type="mock_type"),
     ]
 
     for policy in policies:
@@ -66,16 +62,14 @@ async def test_list_policies(async_session: AsyncSession):
 async def test_update_policy(async_session: AsyncSession):
     """Test updating a policy."""
     # Create a policy
-    policy = ControlPolicy(name="update-policy", policy_class_path="original.path", is_active=True)
+    policy = ControlPolicy(name="update-policy", is_active=True, type="mock_type")
     created_policy = await save_policy_to_db(async_session, policy)
-    assert created_policy.policy_class_path == "original.path"
     assert created_policy.id is not None  # Ensure ID is assigned
 
     # Update the policy
     # Pass a Policy model instance for the update payload
     update_payload = ControlPolicy(
         name="update-policy",  # Not strictly needed by update func
-        policy_class_path="updated.path",
         config={"updated": True},
         description="Updated description",
         is_active=False,  # Example change
@@ -83,7 +77,6 @@ async def test_update_policy(async_session: AsyncSession):
 
     updated_policy = await update_policy(async_session, created_policy.id, update_payload)
     assert updated_policy is not None
-    assert updated_policy.policy_class_path == "updated.path"
     assert updated_policy.config == {"updated": True}
     assert updated_policy.description == "Updated description"
     assert updated_policy.is_active is False
@@ -109,11 +102,11 @@ async def test_get_policy_by_name_not_found(async_session: AsyncSession):
 
 async def test_create_policy_duplicate_name(async_session: AsyncSession):
     """Test creating a policy with a name that already exists."""
-    policy1 = ControlPolicy(name="duplicate-name", policy_class_path="path1")
+    policy1 = ControlPolicy(name="duplicate-name", type="mock_type")
     created_policy1 = await save_policy_to_db(async_session, policy1)
     assert created_policy1 is not None  # Ensure first creation succeeded
 
-    policy2 = ControlPolicy(name="duplicate-name", policy_class_path="path2")
+    policy2 = ControlPolicy(name="duplicate-name")
     # Expecting IntegrityError because the function now re-raises it
     with pytest.raises(IntegrityError):
         await save_policy_to_db(async_session, policy2)

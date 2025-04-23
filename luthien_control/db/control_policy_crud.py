@@ -83,7 +83,6 @@ async def update_policy(session: AsyncSession, policy_id: int, policy_update: Co
 
         # Update fields
         policy.name = policy_update.name
-        policy.policy_class_path = policy_update.policy_class_path
         policy.config = policy_update.config
         policy.is_active = policy_update.is_active
         policy.description = policy_update.description
@@ -121,6 +120,7 @@ async def load_policy_from_db(
     # Prepare the data for the simple loader
     policy_data = {
         "name": policy_model.name,  # The loader uses this to find the class
+        "type": policy_model.type,  # The loader uses this to find the class
         "config": policy_model.config or {},  # Pass the config dict directly
     }
 
@@ -153,7 +153,7 @@ async def get_policy_config_by_name(session: AsyncSession, name: str) -> Optiona
     if not isinstance(session, AsyncSession):
         raise TypeError("Invalid session object provided to get_policy_config_by_name.")
     try:
-        stmt = select(ControlPolicy).where(ControlPolicy.name == name)
+        stmt = select(ControlPolicy).where(ControlPolicy.policy_type == name)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
     except Exception as e:

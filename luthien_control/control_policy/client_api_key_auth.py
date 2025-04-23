@@ -30,9 +30,10 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
     REQUIRED_DEPENDENCIES = ["api_key_lookup"]
 
-    def __init__(self, api_key_lookup: ApiKeyLookupFunc):
+    def __init__(self, api_key_lookup: ApiKeyLookupFunc, name: Optional[str] = None):
         """Initializes the policy with a function to look up API keys."""
         self.logger = logging.getLogger(__name__)
+        self.name = name or self.__class__.__name__
         self._api_key_lookup = api_key_lookup
 
     async def apply(self, context: TransactionContext) -> TransactionContext:
@@ -75,21 +76,23 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
         if not db_key:
             self.logger.warning(
-                f"[{context.transaction_id}] Invalid API key provided (key starts with: {api_key_value[:4]}...)."
+                f"[{context.transaction_id}] Invalid API key provided "
+                f"(key starts with: {api_key_value[:4]}...) ({self.name})."
             )
             context.response = JSONResponse(status_code=401, content={"detail": "Invalid API Key"})
             raise ClientAuthenticationError(detail="Invalid API Key")
 
         if not db_key.is_active:
             self.logger.warning(
-                f"[{context.transaction_id}] Inactive API key provided (Name: {db_key.name}, ID: {db_key.id})."
+                f"[{context.transaction_id}] Inactive API key provided "
+                f"(Name: {db_key.name}, ID: {db_key.id}). ({self.name})."
             )
             context.response = JSONResponse(status_code=401, content={"detail": "Inactive API Key"})
             raise ClientAuthenticationError(detail="Inactive API Key")
 
         self.logger.info(
             f"[{context.transaction_id}] Client API key authenticated successfully "
-            f"(Name: {db_key.name}, ID: {db_key.id})."
+            f"(Name: {db_key.name}, ID: {db_key.id}). ({self.name})."
         )
         context.response = None  # Clear any previous error response set above
         # Store client identity in context?
@@ -99,7 +102,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
     def serialize(self) -> SerializableDict:
         """Serializes config. Returns empty dict as dependency is injected."""
         # No configuration needed, the loader injects the api_key_lookup
-        return cast(SerializableDict, {})
+        return cast(SerializableDict, {"name": self.name})
 
     @classmethod
     def from_serialized(cls, config: SerializableDict, **kwargs) -> "ClientApiKeyAuthPolicy":
@@ -123,4 +126,4 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
             )
         # The config dict is ignored for this policy as there are no parameters
         # Pass the extracted dependency to the constructor
-        return cls(api_key_lookup=api_key_lookup)
+        return cls(api_key_lookup=api_key_lookup, name=config.get("name"))

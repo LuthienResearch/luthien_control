@@ -1,7 +1,7 @@
 """Control Policy for adding the API key header to requests."""
 
 import logging
-from typing import cast
+from typing import Optional, cast
 
 from fastapi.responses import JSONResponse
 from luthien_control.config.settings import Settings
@@ -15,8 +15,11 @@ from .serialization import SerializableDict
 class AddApiKeyHeaderPolicy(ControlPolicy):
     """Adds the configured API key (e.g., OpenAI) to the request Authorization header."""
 
-    def __init__(self, settings: Settings):
+    REQUIRED_DEPENDENCIES = ["settings"]
+
+    def __init__(self, settings: Settings, name: Optional[str] = None):
         """Initializes the processor with settings."""
+        self.name = name or self.__class__.__name__
         self.settings = settings
         self.logger = logging.getLogger(__name__)
 
@@ -42,15 +45,19 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
             context.response = JSONResponse(
                 status_code=500, content={"detail": "Server configuration error: API key not configured"}
             )
-            raise ApiKeyNotFoundError(f"[{context.transaction_id}] API key not configured.")
-        self.logger.info(f"[{context.transaction_id}] Adding Authorization header.")
+            raise ApiKeyNotFoundError(f"[{context.transaction_id}] API key not configured ({self.name}).")
+        self.logger.info(f"[{context.transaction_id}] Adding Authorization header ({self.name}).")
         context.request.headers["Authorization"] = f"Bearer {api_key}"
         return context
 
     def serialize(self) -> SerializableDict:
         """Serializes config. Returns base info as only dependency is settings."""
-        return cast(SerializableDict, {})
+        return cast(SerializableDict, {"name": self.name})
 
     @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderPolicy":
-        return cls(settings=Settings())
+    def from_serialized(cls, config: SerializableDict, settings: Settings, **kwargs) -> "AddApiKeyHeaderPolicy":
+        """Instantiates the policy from serialized config and dependencies."""
+        # Ensure settings dependency is provided correctly via kwargs by loader
+        # The 'settings: Settings' type hint ensures it's passed if required by REQUIRED_DEPENDENCIES
+        # The loader (`load_policy`) handles injecting it into kwargs based on REQUIRED_DEPENDENCIES.
+        return cls(settings=settings, name=config.get("name"))

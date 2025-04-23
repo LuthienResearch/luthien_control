@@ -1,11 +1,12 @@
 import pytest
 from luthien_control.db.sqlmodel_crud import (
-    create_policy,
     get_policy_by_name,
     list_policies,
+    save_policy_to_db,
     update_policy,
 )
 from luthien_control.db.sqlmodel_models import Policy
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Test database fixtures (async_engine, async_session) are now expected
@@ -27,7 +28,7 @@ async def test_create_and_get_policy(async_session: AsyncSession):
     )
 
     # Create the policy
-    created_policy = await create_policy(async_session, policy)
+    created_policy = await save_policy_to_db(async_session, policy)
     assert created_policy is not None
     assert created_policy.id is not None
     assert created_policy.name == "test-policy"
@@ -50,7 +51,7 @@ async def test_list_policies(async_session: AsyncSession):
     ]
 
     for policy in policies:
-        await create_policy(async_session, policy)
+        await save_policy_to_db(async_session, policy)
 
     # List all policies
     all_policies = await list_policies(async_session)
@@ -66,7 +67,7 @@ async def test_update_policy(async_session: AsyncSession):
     """Test updating a policy."""
     # Create a policy
     policy = Policy(name="update-policy", policy_class_path="original.path", is_active=True)
-    created_policy = await create_policy(async_session, policy)
+    created_policy = await save_policy_to_db(async_session, policy)
     assert created_policy.policy_class_path == "original.path"
     assert created_policy.id is not None  # Ensure ID is assigned
 
@@ -109,10 +110,10 @@ async def test_get_policy_by_name_not_found(async_session: AsyncSession):
 async def test_create_policy_duplicate_name(async_session: AsyncSession):
     """Test creating a policy with a name that already exists."""
     policy1 = Policy(name="duplicate-name", policy_class_path="path1")
-    created_policy1 = await create_policy(async_session, policy1)
+    created_policy1 = await save_policy_to_db(async_session, policy1)
     assert created_policy1 is not None  # Ensure first creation succeeded
 
     policy2 = Policy(name="duplicate-name", policy_class_path="path2")
-    # Expecting None because the function catches the IntegrityError and returns None
-    created_policy2 = await create_policy(async_session, policy2)
-    assert created_policy2 is None
+    # Expecting IntegrityError because the function now re-raises it
+    with pytest.raises(IntegrityError):
+        await save_policy_to_db(async_session, policy2)

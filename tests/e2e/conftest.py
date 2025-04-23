@@ -20,9 +20,9 @@ from luthien_control.db.database_async import (
     get_db_session,
 )
 from luthien_control.db.sqlmodel_crud import (
-    create_policy_config,
     get_policy_config_by_name,
-    update_policy_config,
+    save_policy_to_db,
+    update_policy,
 )
 from luthien_control.db.sqlmodel_models import Policy
 
@@ -37,7 +37,8 @@ logging.basicConfig(level=logging.INFO, stream=sys.stdout)  # Basic config for v
 
 E2E_POLICY_NAME = "e2e_test_policy"
 
-settings = Settings() # Instantiate settings globally
+settings = Settings()  # Instantiate settings globally
+
 
 async def _ensure_e2e_policy_exists():
     """Connects to DB and ensures the E2E test policy exists and is configured correctly."""
@@ -62,8 +63,9 @@ async def _ensure_e2e_policy_exists():
                 "policies": [
                     {
                         "name": "E2E_ClientAPIKeyCheck",
-                        "policy_class_path":
+                        "policy_class_path": (
                             "luthien_control.control_policy.client_api_key_auth.ClientApiKeyAuthPolicy",
+                        ),
                     },
                     {
                         "name": "E2E_AddBackendKey",
@@ -97,7 +99,7 @@ async def _ensure_e2e_policy_exists():
                         description=desired_description,
                         created_at=existing_policy.created_at,
                     )
-                    updated_policy = await update_policy_config(session, existing_policy.id, update_data)
+                    updated_policy = await update_policy(session, existing_policy.id, update_data)
                     if updated_policy:
                         logger.info(f"Successfully updated policy '{E2E_POLICY_NAME}'.")
                     else:
@@ -115,7 +117,7 @@ async def _ensure_e2e_policy_exists():
                     is_active=True,
                     description=desired_description,
                 )
-                created_policy = await create_policy_config(session, e2e_policy_data)
+                created_policy = await save_policy_to_db(session, e2e_policy_data)
                 if created_policy:
                     logger.info(f"Successfully created policy '{E2E_POLICY_NAME}' (ID: {created_policy.id}).")
                 else:
@@ -172,10 +174,20 @@ async def live_local_proxy_server(openai_api_key: str) -> AsyncGenerator[str, No
 
     # Copy relevant env vars from current environment if they exist
     # These might be set by CI or a local .env file
-    for var in ["DB_USER", "DB_PASSWORD", "DB_HOST", "DB_PORT", "DB_NAME_NEW", "DATABASE_URL",
-                "MAIN_DB_POOL_MIN_SIZE", "MAIN_DB_POOL_MAX_SIZE", "TEST_CLIENT_API_KEY",
-                "BACKEND_URL", "LOG_LEVEL"]:
-        value = os.getenv(var) # Check actual env first
+    for var in [
+        "DB_USER",
+        "DB_PASSWORD",
+        "DB_HOST",
+        "DB_PORT",
+        "DB_NAME_NEW",
+        "DATABASE_URL",
+        "MAIN_DB_POOL_MIN_SIZE",
+        "MAIN_DB_POOL_MAX_SIZE",
+        "TEST_CLIENT_API_KEY",
+        "BACKEND_URL",
+        "LOG_LEVEL",
+    ]:
+        value = os.getenv(var)  # Check actual env first
         if value is not None:
             server_env[var] = value
 
@@ -185,7 +197,7 @@ async def live_local_proxy_server(openai_api_key: str) -> AsyncGenerator[str, No
     # Explicitly set required env vars for the E2E server,
     # ensuring the correct values are used for the test server process.
     # Use the fixture value for OPENAI_API_KEY.
-    server_env["OPENAI_API_KEY"] = openai_api_key # From fixture
+    server_env["OPENAI_API_KEY"] = openai_api_key  # From fixture
 
     # Default to real OpenAI backend for E2E tests unless overridden by system env
     # Use the settings getter, which checks the env var
@@ -290,7 +302,7 @@ def proxy_target_url(request: pytest.FixtureRequest, live_local_proxy_server: st
 @pytest.fixture(scope="session")
 def client_api_key() -> str:
     """Fixture to provide the client API key for testing from environment variables."""
-    key = os.getenv("TEST_CLIENT_API_KEY") # Test-specific key read directly
+    key = os.getenv("TEST_CLIENT_API_KEY")  # Test-specific key read directly
     if not key:
         pytest.fail(
             "Missing required environment variable: TEST_CLIENT_API_KEY. "

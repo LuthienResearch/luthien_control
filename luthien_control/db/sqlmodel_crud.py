@@ -17,21 +17,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# ApiKeyLookupFunc type removed, will be defined in dependencies.py
 
-
-# --- ClientApiKey CRUD Operations ---
-
-
-# async def create_api_key(...): MOVED
-# async def list_api_keys(...): MOVED
-# async def update_api_key(...): MOVED
-
-
-# --- Policy CRUD Operations ---
-
-
-async def create_policy(session: AsyncSession, policy: Policy) -> Optional[Policy]:
+async def save_policy_to_db(session: AsyncSession, policy: Policy) -> Optional[Policy]:
     """Create a new policy in the database."""
     try:
         session.add(policy)
@@ -39,6 +26,14 @@ async def create_policy(session: AsyncSession, policy: Policy) -> Optional[Polic
         await session.refresh(policy)
         logger.info(f"Successfully created policy with ID: {policy.id}")
         return policy
+    except IntegrityError as ie:
+        await session.rollback()
+        logger.error(f"Integrity error creating policy: {ie}")
+        raise  # Re-raise the specific integrity error
+    except SQLAlchemyError as sqla_err:
+        await session.rollback()
+        logger.error(f"SQLAlchemy error creating policy: {sqla_err}")
+        return None  # Or re-raise depending on desired handling
     except Exception as e:
         await session.rollback()
         logger.error(f"Error creating policy: {e}")
@@ -97,6 +92,14 @@ async def update_policy(session: AsyncSession, policy_id: int, policy_update: Po
         await session.refresh(policy)
         logger.info(f"Successfully updated policy with ID: {policy.id}")
         return policy
+    except IntegrityError as ie:
+        await session.rollback()
+        logger.error(f"Integrity error updating policy: {ie}")
+        raise  # Re-raise the specific integrity error
+    except SQLAlchemyError as sqla_err:
+        await session.rollback()
+        logger.error(f"SQLAlchemy error updating policy: {sqla_err}")
+        return None  # Or re-raise
     except Exception as e:
         await session.rollback()
         logger.error(f"Error updating policy: {e}")
@@ -145,30 +148,8 @@ async def load_policy_from_db(
         raise PolicyLoadError(f"Unexpected error during loading process for '{name}'.") from e
 
 
-async def create_policy_config(session: AsyncSession, policy_config: Policy) -> Optional[Policy]:
-    """Create a new policy configuration in the database."""
-    try:
-        session.add(policy_config)
-        await session.commit()
-        await session.refresh(policy_config)
-        logger.info(f"Successfully created policy configuration with ID: {policy_config.id}")
-        return policy_config
-    except IntegrityError as ie:
-        await session.rollback()
-        logger.error(f"Integrity error creating policy configuration: {ie}")
-        raise  # Re-raise the specific integrity error
-    except SQLAlchemyError as sqla_err:
-        await session.rollback()
-        logger.error(f"SQLAlchemy error creating policy configuration: {sqla_err}")
-        return None  # Or re-raise depending on desired handling
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"Unexpected error creating policy configuration: {e}")
-        return None
-
-
 async def get_policy_config_by_name(session: AsyncSession, name: str) -> Optional[Policy]:
-    """Get a policy configuration by its name."""
+    """Get a policy configuration by its name, regardless of its active status."""
     if not isinstance(session, AsyncSession):
         raise TypeError("Invalid session object provided to get_policy_config_by_name.")
     try:
@@ -177,40 +158,4 @@ async def get_policy_config_by_name(session: AsyncSession, name: str) -> Optiona
         return result.scalar_one_or_none()
     except Exception as e:
         logger.error(f"Error fetching policy configuration by name '{name}': {e}", exc_info=True)
-        return None
-
-
-async def update_policy_config(session: AsyncSession, policy_id: int, policy_update: Policy) -> Optional[Policy]:
-    """Update an existing policy configuration."""
-    try:
-        stmt = select(Policy).where(Policy.id == policy_id)
-        result = await session.execute(stmt)
-        policy = result.scalar_one_or_none()
-
-        if not policy:
-            logger.warning(f"Policy configuration with ID {policy_id} not found")
-            return None
-
-        # Update fields
-        policy.name = policy_update.name
-        policy.policy_class_path = policy_update.policy_class_path
-        policy.config = policy_update.config
-        policy.is_active = policy_update.is_active
-        policy.description = policy_update.description
-
-        await session.commit()
-        await session.refresh(policy)
-        logger.info(f"Successfully updated policy configuration with ID: {policy.id}")
-        return policy
-    except IntegrityError as ie:
-        await session.rollback()
-        logger.error(f"Integrity error updating policy configuration: {ie}")
-        raise  # Re-raise the specific integrity error
-    except SQLAlchemyError as sqla_err:
-        await session.rollback()
-        logger.error(f"SQLAlchemy error updating policy configuration: {sqla_err}")
-        return None  # Or re-raise
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"Unexpected error updating policy configuration: {e}")
         return None

@@ -1,7 +1,6 @@
-import pytest
 from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
 
+import pytest
 from luthien_control.db.client_api_key_crud import (
     create_api_key,
     get_api_key_by_value,
@@ -9,6 +8,7 @@ from luthien_control.db.client_api_key_crud import (
     update_api_key,
 )
 from luthien_control.db.sqlmodel_models import ClientApiKey
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Test database fixtures (async_engine, async_session) are now expected
 # to be provided by tests/db/conftest.py

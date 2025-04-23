@@ -182,9 +182,9 @@ async def test_load_policy_from_db_instantiation_fails(
     # Create the policy config in the real DB first
     policy_to_create = create_mock_policy_model(name=policy_name)
     # We need the actual create function now
-    from luthien_control.db.sqlmodel_crud import create_policy
+    from luthien_control.db.sqlmodel_crud import save_policy_to_db
 
-    created_policy = await create_policy(async_session, policy_to_create)
+    created_policy = await save_policy_to_db(async_session, policy_to_create)
     assert created_policy is not None
     assert created_policy.name == policy_name
 

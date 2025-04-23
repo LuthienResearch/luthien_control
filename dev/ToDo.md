@@ -43,4 +43,6 @@ Items discovered during development that are out of scope for the current task b
 - [ ] Make sure all policy serialization/deserialization methods are being tested
 - [ ] Full e2e production demo
 - [ ] Backfill devlog based on git commits
+- [ ] Policy crud aligns with new serialization approach
 - [ ] Alembic migrations for default policies using new policy serialization/deserialization format
+- [ ] Archived devlogs should not be compressed

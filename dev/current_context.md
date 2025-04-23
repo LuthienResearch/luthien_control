@@ -1,21 +1,11 @@
 # Current Task: COMPLETED
 
-**Goal:** Refactor Policy Loading to Simple Loader with Dependency Injection
+**Goal:** Refactor `luthien_control/db/sqlmodel_crud.py` to align policy CRUD operations with the new loader approach.
 
-**Outcome:** Successfully refactored policy loading, removed old loader, resolved circular imports, and fixed related test failures. All tests are passing.
+**Outcome:**
+- Removed redundant policy config CRUD functions.
+- Updated `save_policy_to_db` (formerly `create_policy`) and `update_policy` error handling for `IntegrityError` and `SQLAlchemyError`, ensuring `IntegrityError` is re-raised.
+- Updated `tests/db/test_sqlmodel_crud.py` to match the new error handling.
+- All tests related to the module pass. Development logs (`development_log.md`, `current_context.md`) updated.
 
-Goal: Debug the failing end-to-end test indicated by the user.
-State: Starting the debugging process by running the E2E tests.
-Plan:
-1. Run `poetry run pytest -m e2e | cat`.
-2. Analyze the output for failures.
-3. Investigate the root cause based on the failure message and recent refactors.
-4. Follow TDD and verification protocols for any fixes.
-
-**Current Task:** Refactor DB CRUD tests
-
-**Goal:** Separate `ClientApiKey` tests from `tests/db/test_sqlmodel_crud.py` into `tests/db/test_client_api_key_crud.py`.
-
-**State:** Starting the refactoring.
-
-**Next Steps:** Ready for commit.
+**Next Steps:** Commit the changes.

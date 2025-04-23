@@ -7,7 +7,7 @@ LOG_FILE="$LOG_DIR/development_log.md"
 ARCHIVE_DIR="$LOG_DIR/log_archive"
 MAX_LINES=200 # Rotate when the log exceeds this many lines
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-ARCHIVE_FILE="$ARCHIVE_DIR/development_log_$TIMESTAMP.md.gz"
+ARCHIVE_FILE="$ARCHIVE_DIR/development_log_$TIMESTAMP.md"
 
 # Ensure log directory exists
 if [ ! -d "$LOG_DIR" ]; then
@@ -31,8 +31,8 @@ if [ "$CURRENT_LINES" -gt "$MAX_LINES" ]; then
     # Ensure archive directory exists
     mkdir -p "$ARCHIVE_DIR"
 
-    # Compress and move the current log file to the archive
-    gzip -c "$LOG_FILE" > "$ARCHIVE_FILE"
+    # Move the current log file to the archive (removed compression)
+    mv "$LOG_FILE" "$ARCHIVE_FILE"
     if [ $? -eq 0 ]; then
         echo "Archived log to $ARCHIVE_FILE"
 

@@ -39,10 +39,10 @@ Items discovered during development that are out of scope for the current task b
     - Update policy chain configurations.
   - **Origin:** Identified during review of `tests/control_policy/test_send_backend_request.py` due to test length and policy complexity.
 
-- [ ] Resolve pytest warning
+- [X] Resolve pytest warning
 - [ ] Make sure all policy serialization/deserialization methods are being tested
 - [ ] Full e2e production demo
 - [ ] Backfill devlog based on git commits
-- [ ] Policy crud aligns with new serialization approach
+- [X] Policy crud aligns with new serialization approach
 - [ ] Alembic migrations for default policies using new policy serialization/deserialization format
-- [ ] Archived devlogs should not be compressed
+- [X] Archived devlogs should not be compressed

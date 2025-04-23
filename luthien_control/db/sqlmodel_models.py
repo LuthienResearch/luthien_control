@@ -38,15 +38,19 @@ class ControlPolicy(SQLModel, table=True):
     description: Optional[str] = Field(default=None)
 
     # --- Timestamps ---
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False
+    )
 
     def __init__(self, **data: Any):
         # Ensure timestamps are set on creation if not provided
         if "created_at" not in data:
-            data["created_at"] = datetime.utcnow()
+            data["created_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
         if "updated_at" not in data:
-            data["updated_at"] = datetime.utcnow()
+            data["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
         super().__init__(**data)
 
     @classmethod
@@ -56,5 +60,5 @@ class ControlPolicy(SQLModel, table=True):
     @classmethod
     def validate_timestamps(cls, values):
         """Ensure updated_at is always set/updated."""
-        values["updated_at"] = datetime.utcnow()
+        values["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
         return values

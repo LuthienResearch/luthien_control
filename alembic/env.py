@@ -4,6 +4,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from dotenv import load_dotenv
+from luthien_control.db import sqlmodel_models  # noqa - Ensure models are registered
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection
 from sqlmodel import SQLModel

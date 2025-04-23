@@ -1,7 +1,7 @@
 # Current Development Context
 
-**Current Task:** None. Refactoring of ApiKeyLookupFunc completed.
+**Current Task:** E2E Test Debugging (Completed).
 
-**Goal:** N/A
+**Goal:** Identify and fix the cause of the E2E test failure (`test_e2e_api_chat_completion`).
 
-**State:** All changes related to centralizing the `ApiKeyLookupFunc` type alias are complete and tests pass. Ready for commit.
+**State:** Task complete. Identified missing `async` keywords on `from_serialized` methods for `ClientApiKeyAuthPolicy`, `AddApiKeyHeaderPolicy`, and `SendBackendRequestPolicy`. Applied fixes and verified E2E test passes. Ready for commit or next task.

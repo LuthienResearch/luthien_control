@@ -70,3 +70,42 @@
 **Status:** Completed. All tests (112 passed, 1 deselected) pass after refactoring.
 
 **Next Steps:** Update `dev/current_context.md` and commit changes.
+
+## 2025-04-23 16:50 - Fix DeprecationWarnings from datetime.utcnow()
+
+**Goal:** Eliminate `DeprecationWarning: datetime.datetime.utcnow() is deprecated` warnings raised during pytest runs.
+
+**Changes:**
+- Modified `luthien_control/db/sqlmodel_models.py`:
+    - Replaced `datetime.utcnow()` calls in `ControlPolicy` model (`default_factory`, `__init__`, `validate_timestamps`) with `datetime.now(timezone.utc).replace(tzinfo=None)`.
+    - This aligns the timestamp generation with the existing pattern in the `ClientApiKey` model and uses the recommended timezone-aware approach while keeping the timestamp naive for database compatibility.
+- Ran `pytest` to confirm warnings were resolved and no new errors were introduced (112 passed, 1 deselected).
+
+**Status:** Completed. Warnings fixed, tests pass.
+
+**Next Steps:** Update `dev/current_context.md`, commit changes.
+
+## 2025-04-23 16:51
+
+**Task:** Debug `test_load_policy_from_db_success` in `tests/db/test_policy_loading.py`.
+
+**Changes:**
+- `tests/db/test_policy_loading.py`: Changed `mock_load_policy.assert_called_once_with(...)` to `mock_load_policy.assert_awaited_once_with(...)` to correctly assert against the `AsyncMock`.
+- `luthien_control/db/control_policy_crud.py`: Modified `load_policy_from_db` to include the policy `name` in the `policy_data` dictionary passed to the internal `load_policy` function, resolving an argument mismatch identified by the test assertion.
+
+**Status:** The test `test_load_policy_from_db_success` now passes. The identified issues are resolved.
+
+**Next Steps:** Await further instructions.
+
+---
+Date: 2025-04-23 16:52
+Task: Debug failing End-to-End (E2E) test (`test_e2e_api_chat_completion`).
+Changes:
+- Identified `TypeError: object XPolicy can't be used in 'await' expression` during policy loading in E2E tests.
+- The error occurred because the policy loader (`load_policy`) awaits `from_serialized` methods, but several policies had synchronous implementations.
+- Modified `ClientApiKeyAuthPolicy.from_serialized` in `luthien_control/control_policy/client_api_key_auth.py` to be `async`.
+- Modified `AddApiKeyHeaderPolicy.from_serialized` in `luthien_control/control_policy/add_api_key_header.py` to be `async`.
+- Modified `SendBackendRequestPolicy.from_serialized` in `luthien_control/control_policy/send_backend_request.py` to be `async`.
+Status: Completed.
+Next Steps: Ready for commit or next task.
+---

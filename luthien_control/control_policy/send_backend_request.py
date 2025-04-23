@@ -1,7 +1,7 @@
 """Core control policy implementations."""
 
 import logging
-from typing import Callable, Optional, cast
+from typing import Optional, cast
 from urllib.parse import urlparse
 
 import httpx

@@ -1,8 +1,8 @@
 import os
 import uuid
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any, Callable, Dict
+from unittest.mock import AsyncMock, MagicMock
 
 import fastapi
 import httpx
@@ -17,12 +17,12 @@ from luthien_control.core.response_builder.interface import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from luthien_control.main import app
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from sqlalchemy.ext.asyncio import AsyncSession
-from pytest_mock import MockerFixture
 
 # Import centralized type alias
 from luthien_control.types import ApiKeyLookupFunc
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from pytest_mock import MockerFixture
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Command Line Option ---
 

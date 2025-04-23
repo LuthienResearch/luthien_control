@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, AsyncGenerator, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, AsyncGenerator
 
 import httpx
 from fastapi import Depends, HTTPException, Request
@@ -21,7 +21,7 @@ from luthien_control.db.database_async import get_db_session
 from luthien_control.types import ApiKeyLookupFunc
 
 if TYPE_CHECKING:
-    from luthien_control.db.sqlmodel_models import ClientApiKey
+    pass
 
 logger = logging.getLogger(__name__)
 

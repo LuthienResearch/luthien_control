@@ -1,5 +1,4 @@
 import datetime
-from typing import Callable
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import httpx

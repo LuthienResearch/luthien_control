@@ -1,6 +1,5 @@
 """Unit tests for ControlPolicy SendBackendRequestPolicy."""
 
-from typing import Callable
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx

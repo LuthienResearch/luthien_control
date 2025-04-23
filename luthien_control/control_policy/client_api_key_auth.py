@@ -1,7 +1,7 @@
 """Control Policy for verifying the client API key."""
 
 import logging
-from typing import TYPE_CHECKING, Awaitable, Callable, Optional, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 from fastapi.responses import JSONResponse
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -13,8 +13,6 @@ from luthien_control.control_policy.exceptions import (
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.database_async import get_db_session
-from luthien_control.db.sqlmodel_models import ClientApiKey
-from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import the centralized type definition
 from luthien_control.types import ApiKeyLookupFunc

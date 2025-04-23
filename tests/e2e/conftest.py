@@ -18,7 +18,6 @@ from luthien_control.control_policy.registry import POLICY_CLASS_TO_NAME
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.db.control_policy_crud import (
     get_policy_config_by_name,
-    save_policy_to_db,
     update_policy,
 )
 
@@ -123,21 +122,24 @@ async def _ensure_e2e_policy_exists():
                     await session.commit()
                     await session.refresh(policy_to_create)
                     logger.info(
-                        f"Successfully committed and refreshed new policy '{E2E_POLICY_NAME}' (ID: {policy_to_create.id})."
+                        f"Successfully committed and refreshed new policy '{E2E_POLICY_NAME}' "
+                        f"(ID: {policy_to_create.id})."
                     )
                     # Policy created successfully by this process
                     # No further action needed in this block
                 except IntegrityError as ie:
                     # This likely means another process created it concurrently
                     logger.warning(
-                        f"Commit failed for '{E2E_POLICY_NAME}' due to IntegrityError (likely race condition): {ie}. Rolling back."
+                        f"Commit failed for '{E2E_POLICY_NAME}' due to IntegrityError (likely race condition): "
+                        f"{ie}. Rolling back."
                     )
                     await session.rollback()  # Rollback the failed transaction
                     logger.info(f"Fetching policy '{E2E_POLICY_NAME}' again after IntegrityError...")
                     existing_policy = await get_policy_config_by_name(session, E2E_POLICY_NAME)
                     if existing_policy:
                         logger.info(
-                            f"Successfully fetched policy '{E2E_POLICY_NAME}' (ID: {existing_policy.id}) after concurrent creation."
+                            f"Successfully fetched policy '{E2E_POLICY_NAME}' (ID: {existing_policy.id}) "
+                            "after concurrent creation."
                         )
                         # Optional: Check if the concurrently created policy needs an update
                         if (
@@ -171,7 +173,8 @@ async def _ensure_e2e_policy_exists():
                     else:
                         # This case is problematic - commit failed but policy still not found
                         logger.error(
-                            f"Policy '{E2E_POLICY_NAME}' not found even after commit failed with IntegrityError. DB state issue?",
+                            f"Policy '{E2E_POLICY_NAME}' not found even after commit failed with IntegrityError. "
+                            "DB state issue?",
                             exc_info=True,
                         )
                         raise RuntimeError(

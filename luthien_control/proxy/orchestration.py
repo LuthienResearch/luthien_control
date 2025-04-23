@@ -6,7 +6,6 @@ import httpx
 from fastapi import status  # Added for status codes
 from fastapi.responses import JSONResponse  # Added for generic 500 error
 
-from luthien_control.config.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.core.response_builder.interface import ResponseBuilder

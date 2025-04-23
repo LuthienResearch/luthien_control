@@ -1,7 +1,6 @@
 # tests/proxy/test_server.py
 from unittest.mock import AsyncMock, patch
 
-import httpx
 import pytest
 from fastapi import FastAPI, Request, Response
 from fastapi.testclient import TestClient

@@ -298,7 +298,7 @@ async def test_apply_handles_invalid_backend_url(
 # --- Serialization Tests ---
 
 
-def test_send_backend_request_policy_serialization(policy: SendBackendRequestPolicy):
+async def test_send_backend_request_policy_serialization(policy: SendBackendRequestPolicy):
     """Test that SendBackendRequestPolicy can be serialized and deserialized correctly."""
     # Arrange
     # 'policy' fixture already provides an instance

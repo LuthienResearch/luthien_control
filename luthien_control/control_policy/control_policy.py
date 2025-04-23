@@ -49,7 +49,7 @@ class ControlPolicy(abc.ABC):
     # construct from serialization
     @classmethod
     @abc.abstractmethod
-    def from_serialized(cls: Type[PolicyT], config: SerializableDict, **kwargs) -> PolicyT:
+    async def from_serialized(cls: Type[PolicyT], config: SerializableDict, **kwargs) -> PolicyT:
         """
         Construct a policy from a serialized configuration and optional dependencies.
 

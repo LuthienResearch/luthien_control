@@ -32,9 +32,7 @@ def client(test_app: FastAPI) -> TestClient:  # type: ignore[misc]
     # Patch DB engine/pool creation during TestClient lifespan
     # to prevent slow/failing startup in tests.
     with (
-        patch(
-            "luthien_control.db.database_async.create_db_engine", new_callable=AsyncMock
-        ) as mock_create_main_engine,
+        patch("luthien_control.db.database_async.create_db_engine", new_callable=AsyncMock) as mock_create_main_engine,
     ):  # Patch the actual creation functions
         # Ensure mocked functions return a mock engine/pool or None to simulate success/failure
         # Returning None should be sufficient to bypass actual DB connection attempts.
@@ -126,8 +124,6 @@ async def test_api_proxy_endpoint_calls_orchestrator(
 
     # Check keyword arguments passed to run_policy_flow
     assert "request" in call_kwargs
-    assert "http_client" in call_kwargs
-    assert "settings" in call_kwargs
     assert "main_policy" in call_kwargs
     assert "builder" in call_kwargs
 
@@ -139,8 +135,6 @@ async def test_api_proxy_endpoint_calls_orchestrator(
     assert request_arg.url.path == f"/api/{test_path}"
 
     # Check dependency types (ensure DI worked)
-    assert isinstance(call_kwargs["http_client"], httpx.AsyncClient)
-    assert isinstance(call_kwargs["settings"], Settings)
     assert isinstance(call_kwargs["main_policy"], ControlPolicy)
     assert isinstance(call_kwargs["builder"], ResponseBuilder)
 
@@ -223,14 +217,13 @@ def mock_main_policy_for_e2e() -> ControlPolicy:
         get_test_backend_url()
 
         # Pass original headers from the client request, EXCLUDING Host
-        {
-            k.decode(): v.decode() for k, v in context.fastapi_request.headers.raw if k.lower() != b"host"
-        }
+        {k.decode(): v.decode() for k, v in context.fastapi_request.headers.raw if k.lower() != b"host"}
 
         return context
 
     mock_policy.apply = apply_effect
     mock_policy.name = "MockE2EPolicyFlow"
     return mock_policy
+
 
 # TODO: write integration tests for the /api endpoint with a real policy

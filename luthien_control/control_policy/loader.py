@@ -73,7 +73,8 @@ async def load_policy(serialized_policy: SerializedPolicy, **available_dependenc
         # Pass the filtered, necessary dependencies to the policy
         for dep_name, dep_value in needed_deps.items():
             print(f"Passing dependency {dep_name} to {policy_class.__name__}: {dep_value}")
-        return policy_class.from_serialized(policy_config, **needed_deps)
+        # Always await from_serialized, assuming all implementations are async
+        return await policy_class.from_serialized(policy_config, **needed_deps)
     except Exception as e:
         # Re-raise potentially informative errors from the policy's constructor
         # Add context about which policy failed.

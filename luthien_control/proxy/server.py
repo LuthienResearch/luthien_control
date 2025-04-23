@@ -50,8 +50,6 @@ async def api_proxy_endpoint(
     # Orchestrate the policy flow
     response = await run_policy_flow(
         request=request,
-        http_client=client,
-        settings=settings,
         main_policy=main_policy,
         builder=builder,
     )

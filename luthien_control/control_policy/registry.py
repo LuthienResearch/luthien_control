@@ -15,10 +15,10 @@ if TYPE_CHECKING:
 
 # Registry mapping policy names (as used in serialization/config) to their classes
 POLICY_NAME_TO_CLASS: Dict[str, Type["ControlPolicy"]] = {
-    "add_api_key_header": AddApiKeyHeaderPolicy,
-    "client_api_key_auth": ClientApiKeyAuthPolicy,
-    "compound_policy": CompoundPolicy,
-    "send_backend_request": SendBackendRequestPolicy,
+    "AddApiKeyHeader": AddApiKeyHeaderPolicy,
+    "ClientApiKeyAuth": ClientApiKeyAuthPolicy,
+    "CompoundPolicy": CompoundPolicy,
+    "SendBackendRequest": SendBackendRequestPolicy,
     # Add other policies here as they are created
 }
 

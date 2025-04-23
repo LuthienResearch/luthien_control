@@ -322,7 +322,7 @@ async def test_send_backend_request_policy_serialization(
 
     # Act
     serialized_data = original_policy.serialize()
-    rehydrated_policy = SendBackendRequestPolicy.from_serialized(
+    rehydrated_policy = await SendBackendRequestPolicy.from_serialized(
         http_client_factory=mock_http_client_factory, config=serialized_data, settings=mock_settings
     )
 

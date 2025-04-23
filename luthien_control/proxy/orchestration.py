@@ -15,6 +15,7 @@ from luthien_control.core.transaction_context import TransactionContext
 # Get a logger for this module
 logger = logging.getLogger(__name__)
 
+
 def _initialize_context(fastapi_request: fastapi.Request, body: bytes) -> TransactionContext:
     transaction_id = uuid.uuid4()
     context = TransactionContext(transaction_id=transaction_id)
@@ -31,12 +32,11 @@ def _initialize_context(fastapi_request: fastapi.Request, body: bytes) -> Transa
     )
     return context
 
+
 async def run_policy_flow(
     request: fastapi.Request,
     main_policy: ControlPolicy,
     builder: ResponseBuilder,
-    settings: Settings,
-    http_client: httpx.AsyncClient,
 ) -> fastapi.Response:
     """
     Orchestrates the execution of the main ControlPolicy.

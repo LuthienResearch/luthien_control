@@ -156,7 +156,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         return cast(SerializableDict, {"name": self.name})
 
     @classmethod
-    def from_serialized(
+    async def from_serialized(
         cls,
         config: SerializableDict,
         http_client_factory: Callable[[], httpx.AsyncClient],

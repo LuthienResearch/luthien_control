@@ -175,10 +175,10 @@ async def test_compound_policy_serialization():
     # Arrange
     settings = Settings()
     policy1 = ClientApiKeyAuthPolicy(api_key_lookup=get_api_key_by_value)
-    policy1.policy_type = "client_api_key_auth"
+    policy1.policy_type = "ClientApiKeyAuth"
 
     policy2 = AddApiKeyHeaderPolicy(settings=settings)
-    policy2.policy_type = "add_api_key_header"
+    policy2.policy_type = "AddApiKeyHeader"
 
     original_compound_policy = CompoundPolicy(policies=[policy1, policy2], name="TestCompound")
 
@@ -195,9 +195,9 @@ async def test_compound_policy_serialization():
     assert "policies" in serialized_data
     assert len(serialized_data["policies"]) == 2
 
-    assert serialized_data["policies"][0]["type"] == "client_api_key_auth"
+    assert serialized_data["policies"][0]["type"] == "ClientApiKeyAuth"
     assert serialized_data["policies"][0]["config"] == {"name": "ClientApiKeyAuthPolicy"}
-    assert serialized_data["policies"][1]["type"] == "add_api_key_header"
+    assert serialized_data["policies"][1]["type"] == "AddApiKeyHeader"
     assert serialized_data["policies"][1]["config"] == {"name": "AddApiKeyHeaderPolicy"}
 
     assert isinstance(rehydrated_policy, CompoundPolicy)
@@ -243,7 +243,7 @@ async def test_compound_policy_serialization_invalid_policy_item():
     """Test deserialization failure with invalid item in 'policies' list."""
     invalid_config = {
         "policies": [
-            {"type": "client_api_key_auth", "config": {}},
+            {"type": "ClientApiKeyAuth", "config": {}},
             "not a dict",  # Invalid item
         ]
     }

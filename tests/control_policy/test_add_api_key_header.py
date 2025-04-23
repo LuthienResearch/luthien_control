@@ -75,7 +75,8 @@ async def test_add_api_key_overwrites_existing(mock_settings: MagicMock, base_re
     mock_settings.get_openai_api_key.assert_called_once()
 
 
-def test_add_api_key_header_policy_serialization():
+@pytest.mark.asyncio
+async def test_add_api_key_header_policy_serialization():
     """Test that AddApiKeyHeaderPolicy can be serialized and deserialized correctly."""
     # Arrange
     settings = Settings()
@@ -83,7 +84,7 @@ def test_add_api_key_header_policy_serialization():
 
     # Act
     serialized_data = original_policy.serialize()
-    rehydrated_policy = AddApiKeyHeaderPolicy.from_serialized(config=serialized_data, settings=settings)
+    rehydrated_policy = await AddApiKeyHeaderPolicy.from_serialized(config=serialized_data, settings=settings)
 
     # Assert
     assert isinstance(serialized_data, dict)

@@ -1,4 +1,5 @@
 import datetime
+from typing import Callable
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import httpx
@@ -40,16 +41,24 @@ def load_db_mock_api_key_lookup() -> ApiKeyLookupFunc:
 
 
 @pytest.fixture
+def load_db_mock_http_client_factory() -> Callable:
+    """Provides mock http_client_factory for load_policy_from_db tests."""
+    return MagicMock(spec=Callable)
+
+
+@pytest.fixture
 def load_db_dependencies(
     load_db_mock_settings,
     load_db_mock_http_client,
     load_db_mock_api_key_lookup,
+    load_db_mock_http_client_factory,
 ):
     """Bundles mock dependencies for load_policy_from_db tests."""
     return {
         "settings": load_db_mock_settings,
         "http_client": load_db_mock_http_client,
         "api_key_lookup": load_db_mock_api_key_lookup,
+        "http_client_factory": load_db_mock_http_client_factory,
         "db_session": Mock(spec=AsyncSession),
     }
 
@@ -83,10 +92,9 @@ def create_mock_policy_model(
 
 # Mock the database fetch function used *within* load_policy_from_db
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
-# Mock the new policy loading function - *use AsyncMock* because load_policy is async
-@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=AsyncMock)  # Changed MagicMock to AsyncMock
+@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=AsyncMock)
 async def test_load_policy_from_db_success(
-    mock_load_policy,  # This is now an AsyncMock
+    mock_load_policy,
     mock_get_policy_by_name,
     load_db_dependencies,
     mock_db_session: AsyncSession,
@@ -104,10 +112,8 @@ async def test_load_policy_from_db_success(
     # Call the function under test
     loaded_policy = await load_policy_from_db(
         name=policy_name,
-        session=mock_db_session,  # Pass the mock session
-        settings=load_db_dependencies["settings"],
-        http_client=load_db_dependencies["http_client"],
-        api_key_lookup=load_db_dependencies["api_key_lookup"],
+        session=mock_db_session,
+        **load_db_dependencies,
     )
 
     # Assertions
@@ -118,13 +124,7 @@ async def test_load_policy_from_db_success(
         "type": mock_policy_config_model.type,
         "config": mock_policy_config_model.config,
     }
-    expected_dependencies = {
-        "api_key_lookup": load_db_dependencies["api_key_lookup"],
-        "settings": load_db_dependencies["settings"],
-        "http_client": load_db_dependencies["http_client"],
-        "db_session": mock_db_session,  # Assign mock_db_session to the key
-    }
-    mock_load_policy.assert_called_once_with(expected_policy_data, **expected_dependencies)
+    mock_load_policy.assert_awaited_once_with(expected_policy_data, **load_db_dependencies)
     assert loaded_policy == mock_instantiated_policy
 
 

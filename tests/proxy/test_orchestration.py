@@ -24,9 +24,9 @@ def mock_request() -> MagicMock:
     request.scope = {"type": "http", "method": "GET", "path": "/test/path"}
     request.path_params = {"full_path": "/test/path"}
     request.method = "GET"  # Explicitly set the method attribute
-    request.query_params = MagicMock(spec=fastapi.datastructures.QueryParams) # Use MagicMock for query_params
+    request.query_params = MagicMock(spec=fastapi.datastructures.QueryParams)  # Use MagicMock for query_params
     request.headers = MagicMock(spec=fastapi.datastructures.Headers)
-    request.headers.raw = [] # httpx.Request needs list of tuples
+    request.headers.raw = []  # httpx.Request needs list of tuples
     request.body = AsyncMock(return_value=TEST_REQUEST_BODY)
     # Add client attribute needed by FastAPI/Starlette internally sometimes
     request.client = MagicMock()
@@ -79,14 +79,14 @@ def mock_builder() -> MagicMock:
     return builder
 
 
-@patch("luthien_control.proxy.orchestration.uuid.uuid4") # Patch uuid within orchestration module
+@patch("luthien_control.proxy.orchestration.uuid.uuid4")  # Patch uuid within orchestration module
 async def test_run_policy_flow_successful(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy: AsyncMock,
     mock_builder: MagicMock,
-    mock_settings: MagicMock, # Use actual fixture name
-    mock_http_client: AsyncMock, # Use actual fixture name
+    mock_settings: MagicMock,  # Use actual fixture name
+    mock_http_client: AsyncMock,  # Use actual fixture name
 ):
     """
     Test Goal: Verify the happy path where context is initialized, the main
@@ -100,14 +100,12 @@ async def test_run_policy_flow_successful(
         request=mock_request,
         main_policy=mock_policy,
         builder=mock_builder,
-        settings=mock_settings,
-        http_client=mock_http_client,
     )
 
     # --- Assertions ---
     # 1. Context Initialization Check (Implicit via main_policy call)
     mock_uuid4.assert_called_once()
-    mock_request.body.assert_awaited_once() # Ensure body was read
+    mock_request.body.assert_awaited_once()  # Ensure body was read
 
     # 2. Main Policy Call Check
     mock_policy.apply.assert_awaited_once()
@@ -124,7 +122,6 @@ async def test_run_policy_flow_successful(
     # Read the request content within the test context for comparison
     request_content = await context_passed_to_main.request.aread()
     assert request_content == TEST_REQUEST_BODY
-
 
     # Simulate the effect of the main policy's side effect for subsequent checks
     # We need to await the side effect call if it's async
@@ -145,14 +142,14 @@ async def test_run_policy_flow_successful(
     assert response is expected_response_object
 
 
-@patch("luthien_control.proxy.orchestration.uuid.uuid4") # Patch uuid within orchestration module
+@patch("luthien_control.proxy.orchestration.uuid.uuid4")  # Patch uuid within orchestration module
 async def test_run_policy_flow_policy_exception(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy_raising_exception: AsyncMock,
     mock_builder: MagicMock,
-    mock_settings: MagicMock, # Use actual fixture name
-    mock_http_client: AsyncMock, # Use actual fixture name
+    mock_settings: MagicMock,  # Use actual fixture name
+    mock_http_client: AsyncMock,  # Use actual fixture name
 ):
     """
     Test Goal: Verify that if the main policy raises a ControlPolicyError,
@@ -167,8 +164,6 @@ async def test_run_policy_flow_policy_exception(
         request=mock_request,
         main_policy=mock_policy_raising_exception,
         builder=mock_builder,
-        settings=mock_settings,
-        http_client=mock_http_client,
     )
 
     # --- Assertions ---
@@ -187,7 +182,6 @@ async def test_run_policy_flow_policy_exception(
     request_content = await context_before_exception.request.aread()
     assert request_content == TEST_REQUEST_BODY
 
-
     # 3. Builder Call Check
     # Crucially, the builder is called with the context *before* the exception
     # was raised and added to it by the `except ControlPolicyError` block.
@@ -199,14 +193,14 @@ async def test_run_policy_flow_policy_exception(
     assert response is expected_response_object
 
 
-@patch("luthien_control.proxy.orchestration.uuid.uuid4") # Patch uuid within orchestration module
+@patch("luthien_control.proxy.orchestration.uuid.uuid4")  # Patch uuid within orchestration module
 async def test_run_policy_flow_context_init_exception(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
-    mock_policy: AsyncMock, # Use the regular policy mock
+    mock_policy: AsyncMock,  # Use the regular policy mock
     mock_builder: MagicMock,
-    mock_settings: MagicMock, # Use actual fixture name
-    mock_http_client: AsyncMock, # Use actual fixture name
+    mock_settings: MagicMock,  # Use actual fixture name
+    mock_http_client: AsyncMock,  # Use actual fixture name
 ):
     """
     Test Goal: Verify that if an exception occurs during context initialization
@@ -222,8 +216,6 @@ async def test_run_policy_flow_context_init_exception(
             request=mock_request,
             main_policy=mock_policy,
             builder=mock_builder,
-            settings=mock_settings,
-            http_client=mock_http_client,
         )
 
     # --- Assertions ---

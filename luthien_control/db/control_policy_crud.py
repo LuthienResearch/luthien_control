@@ -107,10 +107,8 @@ async def update_policy(session: AsyncSession, policy_id: int, policy_update: Co
 
 async def load_policy_from_db(
     name: str,
-    settings: Settings,
-    http_client: httpx.AsyncClient,
-    api_key_lookup: Callable,
     session: AsyncSession,
+    **kwargs,
 ) -> "ControlPolicy":
     """Load a policy from the database using the control_policy loader."""
     policy_model = await get_policy_by_name(session, name)
@@ -119,19 +117,14 @@ async def load_policy_from_db(
 
     # Prepare the data for the simple loader
     policy_data = {
-        "name": policy_model.name,  # The loader uses this to find the class
+        "name": policy_model.name,
         "type": policy_model.type,  # The loader uses this to find the class
         "config": policy_model.config or {},  # Pass the config dict directly
     }
 
     # Prepare available dependencies
     # The loader will filter these based on the policy's requirements
-    available_dependencies = {
-        "api_key_lookup": api_key_lookup,  # This function still expects session
-        "settings": settings,
-        "http_client": http_client,
-        "db_session": session,  # Make session available if needed by future policies
-    }
+    available_dependencies = kwargs
 
     try:
         # Call the simple loader from control_policy.loader
@@ -153,7 +146,7 @@ async def get_policy_config_by_name(session: AsyncSession, name: str) -> Optiona
     if not isinstance(session, AsyncSession):
         raise TypeError("Invalid session object provided to get_policy_config_by_name.")
     try:
-        stmt = select(ControlPolicy).where(ControlPolicy.policy_type == name)
+        stmt = select(ControlPolicy).where(ControlPolicy.name == name)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
     except Exception as e:

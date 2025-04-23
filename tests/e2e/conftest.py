@@ -11,6 +11,11 @@ import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
+from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
+from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
+from luthien_control.control_policy.compound_policy import CompoundPolicy
+from luthien_control.control_policy.registry import POLICY_CLASS_TO_NAME
+from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.db.control_policy_crud import (
     get_policy_config_by_name,
     save_policy_to_db,
@@ -25,6 +30,7 @@ from luthien_control.db.database_async import (
     get_db_session,
 )
 from luthien_control.db.sqlmodel_models import ControlPolicy
+from sqlalchemy.exc import IntegrityError  # Add this import
 
 # Load .env file for local development environment variables
 # This ensures OPENAI_API_KEY and potentially BACKEND_URL are loaded if defined there
@@ -60,9 +66,18 @@ async def _ensure_e2e_policy_exists():
             # Define the desired state
             desired_config = {
                 "policies": [
-                    {"name": "E2E_ClientAPIKeyCheck", "type": "client_api_key_auth", "config": {}},
-                    {"name": "E2E_AddBackendKey", "type": "add_api_key_header", "config": {}},
-                    {"name": "E2E_ForwardRequest", "type": "send_backend_request", "config": {}},
+                    {
+                        "type": POLICY_CLASS_TO_NAME[ClientApiKeyAuthPolicy],
+                        "config": {"name": "E2E_ClientAPIKeyCheck"},
+                    },
+                    {
+                        "type": POLICY_CLASS_TO_NAME[AddApiKeyHeaderPolicy],
+                        "config": {"name": "E2E_AddBackendKey"},
+                    },
+                    {
+                        "type": POLICY_CLASS_TO_NAME[SendBackendRequestPolicy],
+                        "config": {"name": "E2E_ForwardRequest"},
+                    },
                 ]
             }
             desired_description = "E2E Test Policy: Adds backend key -> Sends request."
@@ -77,7 +92,8 @@ async def _ensure_e2e_policy_exists():
                     logger.info(f"Policy '{E2E_POLICY_NAME}' (ID: {existing_policy.id}) exists but needs update.")
                     update_data = ControlPolicy(
                         id=existing_policy.id,
-                        name=existing_policy.policy_type,
+                        name=existing_policy.name,
+                        type=existing_policy.type,
                         config=desired_config,
                         is_active=True,
                         description=desired_description,
@@ -93,23 +109,95 @@ async def _ensure_e2e_policy_exists():
                 else:
                     logger.info(f"Policy '{E2E_POLICY_NAME}' exists and is up-to-date.")
             else:
-                logger.info(f"Policy '{E2E_POLICY_NAME}' not found. Creating...")
-                e2e_policy_data = ControlPolicy(
+                logger.info(f"Policy '{E2E_POLICY_NAME}' not found by initial check. Attempting creation...")
+                policy_to_create = ControlPolicy(
                     name=E2E_POLICY_NAME,
                     config=desired_config,
+                    type=POLICY_CLASS_TO_NAME[CompoundPolicy],
                     is_active=True,
                     description=desired_description,
                 )
-                created_policy = await save_policy_to_db(session, e2e_policy_data)
-                if created_policy:
-                    logger.info(f"Successfully created policy '{E2E_POLICY_NAME}' (ID: {created_policy.id}).")
-                else:
-                    logger.error(f"Failed to create policy '{E2E_POLICY_NAME}'.")
-                    # Optionally raise an error to fail the test setup
-                    raise RuntimeError(f"Failed to create E2E policy '{E2E_POLICY_NAME}'")
+                session.add(policy_to_create)
+                try:
+                    logger.info(f"Attempting to commit new policy '{E2E_POLICY_NAME}'...")
+                    await session.commit()
+                    await session.refresh(policy_to_create)
+                    logger.info(
+                        f"Successfully committed and refreshed new policy '{E2E_POLICY_NAME}' (ID: {policy_to_create.id})."
+                    )
+                    # Policy created successfully by this process
+                    # No further action needed in this block
+                except IntegrityError as ie:
+                    # This likely means another process created it concurrently
+                    logger.warning(
+                        f"Commit failed for '{E2E_POLICY_NAME}' due to IntegrityError (likely race condition): {ie}. Rolling back."
+                    )
+                    await session.rollback()  # Rollback the failed transaction
+                    logger.info(f"Fetching policy '{E2E_POLICY_NAME}' again after IntegrityError...")
+                    existing_policy = await get_policy_config_by_name(session, E2E_POLICY_NAME)
+                    if existing_policy:
+                        logger.info(
+                            f"Successfully fetched policy '{E2E_POLICY_NAME}' (ID: {existing_policy.id}) after concurrent creation."
+                        )
+                        # Optional: Check if the concurrently created policy needs an update
+                        if (
+                            existing_policy.config != desired_config
+                            or existing_policy.description != desired_description
+                            or not existing_policy.is_active
+                        ):
+                            logger.warning(
+                                f"Concurrently created policy '{E2E_POLICY_NAME}' needs an update. Applying update..."
+                            )
+                            # Apply the update logic here (similar to the initial update check)
+                            update_data = ControlPolicy(
+                                id=existing_policy.id,
+                                name=existing_policy.name,
+                                type=existing_policy.type,
+                                config=desired_config,
+                                is_active=True,
+                                description=desired_description,
+                                created_at=existing_policy.created_at,  # Keep original creation time
+                            )
+                            updated_policy = await update_policy(session, existing_policy.id, update_data)
+                            if updated_policy:
+                                logger.info(f"Successfully updated concurrently created policy '{E2E_POLICY_NAME}'.")
+                            else:
+                                logger.error(f"Failed to update concurrently created policy '{E2E_POLICY_NAME}'.")
+                                raise RuntimeError(
+                                    f"Failed to update concurrently created E2E policy '{E2E_POLICY_NAME}'"
+                                )
+                        else:
+                            logger.info(f"Concurrently created policy '{E2E_POLICY_NAME}' is already up-to-date.")
+                    else:
+                        # This case is problematic - commit failed but policy still not found
+                        logger.error(
+                            f"Policy '{E2E_POLICY_NAME}' not found even after commit failed with IntegrityError. DB state issue?",
+                            exc_info=True,
+                        )
+                        raise RuntimeError(
+                            f"Failed to create or find E2E policy '{E2E_POLICY_NAME}' after IntegrityError."
+                        )
+
+                except Exception as commit_exc:  # Catch other commit issues
+                    logger.error(
+                        f"DATABASE COMMIT FAILED for policy '{E2E_POLICY_NAME}' with unexpected error: {commit_exc}",
+                        exc_info=True,
+                    )
+                    try:
+                        await session.rollback()
+                    except Exception as rb_exc:
+                        logger.error(f"Failed to rollback after unexpected commit error: {rb_exc}", exc_info=True)
+                    # Re-raise a specific error to fail the test setup clearly
+                    raise RuntimeError(
+                        f"Failed to commit new E2E policy '{E2E_POLICY_NAME}' due to unexpected error: {commit_exc}"
+                    ) from commit_exc
+
+                # Policy creation (or handling of concurrent creation) finished.
+                # We can assume the policy exists and is configured correctly at this point.
 
     except Exception as e:
-        logger.exception(f"Error ensuring E2E policy exists: {e}")
+        # Catch other errors like connection issues, etc.
+        logger.exception(f"General error ensuring E2E policy exists: {e}")
         raise  # Re-raise to fail the test setup
     finally:
         # Close the engine if it was created

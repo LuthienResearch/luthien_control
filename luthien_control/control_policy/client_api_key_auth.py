@@ -105,7 +105,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         return cast(SerializableDict, {"name": self.name})
 
     @classmethod
-    def from_serialized(cls, config: SerializableDict, **kwargs) -> "ClientApiKeyAuthPolicy":
+    async def from_serialized(cls, config: SerializableDict, **kwargs) -> "ClientApiKeyAuthPolicy":
         """
         Constructs the policy, extracting the api_key_lookup function from kwargs.
 

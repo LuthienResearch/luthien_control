@@ -55,7 +55,7 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         return cast(SerializableDict, {"name": self.name})
 
     @classmethod
-    def from_serialized(cls, config: SerializableDict, settings: Settings, **kwargs) -> "AddApiKeyHeaderPolicy":
+    async def from_serialized(cls, config: SerializableDict, settings: Settings, **kwargs) -> "AddApiKeyHeaderPolicy":
         """Instantiates the policy from serialized config and dependencies."""
         # Ensure settings dependency is provided correctly via kwargs by loader
         # The 'settings: Settings' type hint ensures it's passed if required by REQUIRED_DEPENDENCIES

@@ -158,7 +158,8 @@ async def test_apply_valid_active_key_success(mock_db_session_cm, transaction_co
     assert transaction_context_with_request.response is None
 
 
-def test_client_api_key_auth_policy_serialization():
+@pytest.mark.asyncio
+async def test_client_api_key_auth_policy_serialization():
     """Test that ClientApiKeyAuthPolicy can be serialized and deserialized correctly."""
     # Arrange
     # ClientApiKeyAuthPolicy requires an api_key_lookup function on init
@@ -168,7 +169,7 @@ def test_client_api_key_auth_policy_serialization():
     serialized_data = original_policy.serialize()
     # Pass a dummy dependency for deserialization test
     dummy_lookup = MagicMock()
-    rehydrated_policy = ClientApiKeyAuthPolicy.from_serialized(serialized_data, api_key_lookup=dummy_lookup)
+    rehydrated_policy = await ClientApiKeyAuthPolicy.from_serialized(serialized_data, api_key_lookup=dummy_lookup)
 
     # Assert
     assert isinstance(serialized_data, dict)  # Check against dict, not type alias

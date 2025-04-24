@@ -77,7 +77,7 @@ def mock_main_policy_for_simple_tests() -> AsyncMock:
 
 @pytest.mark.asyncio
 async def test_api_proxy_endpoint_calls_orchestrator(
-    test_app: FastAPI, client: TestClient, mock_dependencies: MagicMock, mock_main_policy_for_simple_tests: AsyncMock
+    test_app: FastAPI, client: TestClient, mock_container: MagicMock, mock_main_policy_for_simple_tests: AsyncMock
 ):
     """Verify /api endpoint calls run_policy_flow and returns its response."""
     test_path = "some/api/path"
@@ -99,8 +99,8 @@ async def test_api_proxy_endpoint_calls_orchestrator(
         # --- Override container dependency --- #
         def override_get_container():
             # Configure settings mock within the container if needed for policy name
-            mock_dependencies.settings.get_top_level_policy_name.return_value = "mock-policy-name"
-            return mock_dependencies
+            mock_container.settings.get_top_level_policy_name.return_value = "mock-policy-name"
+            return mock_container  # Return the renamed fixture
 
         test_app.dependency_overrides[get_dependencies] = override_get_container
         # --- End Override --- #
@@ -136,7 +136,7 @@ async def test_api_proxy_endpoint_calls_orchestrator(
 
     # Check that the policy loaded via the (mocked) dependency chain was passed
     assert call_kwargs["main_policy"] is mock_main_policy_for_simple_tests
-    assert call_kwargs["dependencies"] is mock_dependencies
+    assert call_kwargs["dependencies"] is mock_container  # Check against renamed fixture
     assert isinstance(call_kwargs["session"], AsyncMock)
 
     assert request_arg.headers.get("authorization") == "Bearer test-key"
@@ -144,7 +144,7 @@ async def test_api_proxy_endpoint_calls_orchestrator(
 
 @pytest.mark.asyncio
 async def test_api_proxy_endpoint_handles_post(
-    test_app: FastAPI, client: TestClient, mock_dependencies: MagicMock, mock_main_policy_for_simple_tests: AsyncMock
+    test_app: FastAPI, client: TestClient, mock_container: MagicMock, mock_main_policy_for_simple_tests: AsyncMock
 ):
     """Verify /api endpoint handles POST requests correctly."""
     test_path = "some/api/path/post"
@@ -156,8 +156,8 @@ async def test_api_proxy_endpoint_handles_post(
     # --- Override container and main policy dependencies --- #
     # Override get_container
     def override_get_container():
-        mock_dependencies.settings.get_top_level_policy_name.return_value = "mock-post-policy"
-        return mock_dependencies
+        mock_container.settings.get_top_level_policy_name.return_value = "mock-post-policy"
+        return mock_container  # Return the renamed fixture
 
     test_app.dependency_overrides[get_dependencies] = override_get_container
 
@@ -180,7 +180,7 @@ async def test_api_proxy_endpoint_handles_post(
     mock_run_flow.assert_awaited_once()
     call_kwargs = mock_run_flow.await_args[1]
     assert "dependencies" in call_kwargs  # Check container passed
-    assert call_kwargs["dependencies"] is mock_dependencies
+    assert call_kwargs["dependencies"] is mock_container  # Check against renamed fixture
     assert call_kwargs["main_policy"] is mock_main_policy_for_simple_tests
     request_arg = call_kwargs["request"]
     assert isinstance(request_arg, Request)

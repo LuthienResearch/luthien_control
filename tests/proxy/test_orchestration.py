@@ -102,7 +102,7 @@ async def test_run_policy_flow_successful(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy: AsyncMock,
-    mock_dependencies: MagicMock,
+    mock_container: MagicMock,  # Renamed fixture
     mock_session: AsyncMock,
 ):
     """
@@ -120,7 +120,7 @@ async def test_run_policy_flow_successful(
     response = await run_policy_flow(
         request=mock_request,
         main_policy=mock_policy,
-        dependencies=mock_dependencies,
+        dependencies=mock_container,  # Pass mock_container
         session=mock_session,
     )
 
@@ -131,7 +131,7 @@ async def test_run_policy_flow_successful(
     call_args, call_kwargs = mock_policy.apply.await_args
     assert isinstance(call_kwargs.get("context"), TransactionContext)
     assert call_kwargs.get("context").transaction_id == fixed_test_uuid
-    assert call_kwargs.get("container") is mock_dependencies
+    assert call_kwargs.get("container") is mock_container  # Check against mock_container
     assert call_kwargs.get("session") is mock_session
 
     # Builder *is* used in happy path
@@ -163,7 +163,7 @@ async def test_run_policy_flow_policy_exception(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy_raising_exception: AsyncMock,
-    mock_dependencies: MagicMock,
+    mock_container: MagicMock,  # Renamed fixture
     mock_session: AsyncMock,
 ):
     """
@@ -185,7 +185,7 @@ async def test_run_policy_flow_policy_exception(
     response = await run_policy_flow(
         request=mock_request,
         main_policy=mock_policy_raising_exception,
-        dependencies=mock_dependencies,
+        dependencies=mock_container,  # Pass mock_container
         session=mock_session,
     )
 
@@ -195,7 +195,7 @@ async def test_run_policy_flow_policy_exception(
     mock_policy_raising_exception.apply.assert_awaited_once()
     call_args, call_kwargs = mock_policy_raising_exception.apply.await_args
     assert isinstance(call_kwargs.get("context"), TransactionContext)
-    assert call_kwargs.get("container") is mock_dependencies
+    assert call_kwargs.get("container") is mock_container  # Check against mock_container
     assert call_kwargs.get("session") is mock_session
 
     # Logging (Warning for ControlPolicyError)
@@ -232,7 +232,7 @@ async def test_run_policy_flow_unexpected_exception(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy: AsyncMock,  # Use regular mock policy
-    mock_dependencies: MagicMock,
+    mock_container: MagicMock,  # Renamed fixture
     mock_session: AsyncMock,
 ):
     """
@@ -257,7 +257,7 @@ async def test_run_policy_flow_unexpected_exception(
     response = await run_policy_flow(
         request=mock_request,
         main_policy=mock_policy,
-        dependencies=mock_dependencies,
+        dependencies=mock_container,  # Pass mock_container
         session=mock_session,
     )
 
@@ -267,7 +267,7 @@ async def test_run_policy_flow_unexpected_exception(
     mock_policy.apply.assert_awaited_once()
     call_args, call_kwargs = mock_policy.apply.await_args
     assert isinstance(call_kwargs.get("context"), TransactionContext)
-    assert call_kwargs.get("container") is mock_dependencies
+    assert call_kwargs.get("container") is mock_container  # Check against mock_container
     assert call_kwargs.get("session") is mock_session
 
     # Logging (Exception logged for the unexpected error)
@@ -300,7 +300,7 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy: AsyncMock,  # Use regular policy, trigger error in builder
-    mock_dependencies: MagicMock,
+    mock_container: MagicMock,  # Renamed fixture
     mock_session: AsyncMock,
 ):
     """
@@ -327,7 +327,7 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     response = await run_policy_flow(
         request=mock_request,
         main_policy=mock_policy,  # Pass regular policy
-        dependencies=mock_dependencies,
+        dependencies=mock_container,  # Pass mock_container
         session=mock_session,
     )
 
@@ -337,7 +337,7 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     mock_policy.apply.assert_awaited_once()  # Policy called, raised initial error
     call_args, call_kwargs = mock_policy.apply.await_args
     assert isinstance(call_kwargs.get("context"), TransactionContext)
-    assert call_kwargs.get("container") is mock_dependencies
+    assert call_kwargs.get("container") is mock_container  # Check against mock_container
     assert call_kwargs.get("session") is mock_session
 
     # Logging (TWO exceptions logged)
@@ -385,7 +385,7 @@ async def test_run_policy_flow_context_init_exception(
     mock_init_context: MagicMock,
     mock_request: MagicMock,
     mock_policy: AsyncMock,
-    mock_dependencies: MagicMock,
+    mock_container: MagicMock,
     mock_session: AsyncMock,
 ):
     """
@@ -400,7 +400,7 @@ async def test_run_policy_flow_context_init_exception(
         await run_policy_flow(
             request=mock_request,
             main_policy=mock_policy,
-            dependencies=mock_dependencies,
+            dependencies=mock_container,
             session=mock_session,
         )
 

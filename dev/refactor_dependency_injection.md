@@ -70,21 +70,21 @@
         *   Adapt session usage (e.g., `async with container.db_session_factory() as session:`).
         *   If API key lookup is needed within this function, use the obtained `session` to call `get_api_key_by_value` directly (already done in Phase 1, but verify).
     *   **Refactor Policy `apply` Signatures:**
-        *   Modify `ClientApiKeyAuthPolicy.apply` signature to: `async def apply(self, context: dict, container: DependencyContainer, session: AsyncSession) -> ControlPolicyResult:`. Update implementation to use these parameters.
-        *   Modify `CompoundPolicy.apply` signature to: `async def apply(self, context: dict, container: DependencyContainer, session: AsyncSession) -> ControlPolicyResult:`. Update implementation to iterate sub-policies and call their `apply` methods, passing through `context`, `container`, and `session`.
+        *   Modify `ClientApiKeyAuthPolicy.apply` signature to: `async def apply(self, context: TransactionContext, container: DependencyContainer, session: AsyncSession) -> TransactionContext:`. Update implementation to use these parameters.
+        *   Modify `CompoundPolicy.apply` signature to: `async def apply(self, context: TransactionContext, container: DependencyContainer, session: AsyncSession) -> TransactionContext:`. Update implementation to iterate sub-policies and call their `apply` methods, passing through `context`, `container`, and `session`.
 
 11.5. **Update Base Policy Class:**
     *   **File:** `luthien_control/control_policy/control_policy.py`
-    *   Define the `apply` method in the `ControlPolicy` abstract base class with the standard signature: `async def apply(self, context: dict, container: DependencyContainer, session: AsyncSession) -> ControlPolicyResult:`. Ensure it's marked as an abstract method (e.g., using `@abstractmethod`).
+    *   Define the `apply` method in the `ControlPolicy` abstract base class with the standard signature: `async def apply(self, context: TransactionContext, container: DependencyContainer, session: AsyncSession) -> TransactionContext:`. Ensure it's marked as an abstract method (e.g., using `@abstractmethod`).
 
 12. **Update API Route (`proxy/server.py`):**
     *   Modify the `api_proxy_endpoint` signature to include `session: AsyncSession = Depends(get_db_session)`. Ensure `get_db_session` dependency is created/available (see step 10).
     *   Ensure the endpoint retrieves the `container` via `Depends(get_container)`.
-    *   Prepare the `context` dictionary (e.g., containing the `request`).
-    *   Update the call to the orchestration function (e.g., `run_policy_flow`) to pass the resolved `context`, `container`, and `session`.
+    *   Prepare the `TransactionContext` instance (e.g., containing the `request`).
+    *   Update the call to the orchestration function (e.g., `run_policy_flow`) to pass the resolved `context` (as a `TransactionContext`), `container`, and `session`.
 
 12.5. **Update Orchestration Function (`proxy/orchestration.py`):**
-    *   Modify the signature of the function that calls `policy.apply` (e.g., `run_policy_flow`) to accept `context: dict`, `container: DependencyContainer`, and `session: AsyncSession` as parameters.
+    *   Modify the signature of the function that calls `policy.apply` (e.g., `run_policy_flow`) to accept `context: TransactionContext`, `container: DependencyContainer`, and `session: AsyncSession` as parameters.
     *   Update the call site within this function to `await main_policy.apply(context=context, container=container, session=session)`.
 
 13. **Refactor Tests (`tests/`):**

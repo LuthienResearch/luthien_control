@@ -1,6 +1,6 @@
 """Tests for the AddApiKeyHeaderProcessor."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 
 import httpx
 import pytest
@@ -27,12 +27,17 @@ def base_request() -> httpx.Request:
 
 
 @pytest.mark.asyncio
-async def test_add_api_key_success(mock_settings: MagicMock, base_request: httpx.Request):
+async def test_add_api_key_success(
+    mock_settings: MagicMock,
+    base_request: httpx.Request,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+):
     """Test successfully adding the API key header."""
     policy = AddApiKeyHeaderPolicy(settings=mock_settings)
     context = TransactionContext(transaction_id="test-add-key", request=base_request)
 
-    result_context = await policy.apply(context)
+    result_context = await policy.apply(context, container=mock_container, session=mock_db_session)
     assert result_context is context
     assert result_context.request is not None
     assert "authorization" in result_context.request.headers
@@ -41,32 +46,46 @@ async def test_add_api_key_success(mock_settings: MagicMock, base_request: httpx
 
 
 @pytest.mark.asyncio
-async def test_add_api_key_missing_key(mock_settings: MagicMock, base_request: httpx.Request):
+async def test_add_api_key_missing_key(
+    mock_settings: MagicMock,
+    base_request: httpx.Request,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+):
     """Test that it raises an error if the API key is not configured."""
     mock_settings.get_openai_api_key.return_value = None  # Configure mock to return None
     policy = AddApiKeyHeaderPolicy(settings=mock_settings)
     context = TransactionContext(transaction_id="test-missing-key", request=base_request)
     with pytest.raises(ApiKeyNotFoundError):
-        await policy.apply(context)
+        await policy.apply(context, container=mock_container, session=mock_db_session)
 
 
 @pytest.mark.asyncio
-async def test_add_api_key_no_request(mock_settings: MagicMock):
+async def test_add_api_key_no_request(
+    mock_settings: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+):
     """Test that it raises an error if the request is not found in the context."""
     policy = AddApiKeyHeaderPolicy(settings=mock_settings)
     context = TransactionContext(transaction_id="test-no-request")
     with pytest.raises(NoRequestError):
-        await policy.apply(context)
+        await policy.apply(context, container=mock_container, session=mock_db_session)
 
 
 @pytest.mark.asyncio
-async def test_add_api_key_overwrites_existing(mock_settings: MagicMock, base_request: httpx.Request):
+async def test_add_api_key_overwrites_existing(
+    mock_settings: MagicMock,
+    base_request: httpx.Request,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+):
     """Test that an existing Authorization header is overwritten."""
     base_request.headers["Authorization"] = "Bearer old-key"
     processor = AddApiKeyHeaderPolicy(settings=mock_settings)
     context = TransactionContext(transaction_id="test-overwrite-key", request=base_request)
 
-    result_context = await processor.apply(context)
+    result_context = await processor.apply(context, container=mock_container, session=mock_db_session)
     assert result_context is context
     assert result_context.request is not None
     assert "authorization" in result_context.request.headers

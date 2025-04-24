@@ -89,11 +89,11 @@ def create_mock_policy_model(
 async def test_load_policy_from_db_success(
     mock_load_policy,
     mock_get_policy_by_name,
-    mock_dependencies: DependencyContainer,
+    mock_container: DependencyContainer,
+    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
 ):
     """Test successfully loading and instantiating a policy from DB config."""
     policy_name = "test_policy_success"
-    mock_session = mock_dependencies.mock_session
     mock_policy_config_model = create_mock_policy_model(name=policy_name)
     mock_get_policy_by_name.return_value = mock_policy_config_model
 
@@ -102,11 +102,11 @@ async def test_load_policy_from_db_success(
 
     loaded_policy = await load_policy_from_db(
         name=policy_name,
-        container=mock_dependencies,
+        container=mock_container,
     )
 
-    mock_dependencies.db_session_factory.assert_called_once()
-    mock_get_policy_by_name.assert_awaited_once_with(mock_session, policy_name)
+    mock_container.db_session_factory.assert_called_once()
+    mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
 
     expected_policy_data = {
         "name": mock_policy_config_model.name,
@@ -114,8 +114,8 @@ async def test_load_policy_from_db_success(
         "config": mock_policy_config_model.config,
     }
     expected_kwargs = {
-        "settings": mock_dependencies.settings,
-        "http_client": mock_dependencies.http_client,
+        "settings": mock_container.settings,
+        "http_client": mock_container.http_client,
     }
     mock_load_policy.assert_awaited_once_with(expected_policy_data, **expected_kwargs)
     assert loaded_policy == mock_instantiated_policy
@@ -124,19 +124,18 @@ async def test_load_policy_from_db_success(
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock, return_value=None)
 async def test_load_policy_from_db_not_found_patch_get(
     mock_get_policy_by_name,
-    mock_dependencies: DependencyContainer,
+    mock_container: DependencyContainer,
+    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
 ):
     """Test PolicyLoadError using PATCHED get_policy_by_name returning None."""
     policy_name = "non_existent_policy_patch"
-    mock_session = mock_dependencies.mock_session
-
     with pytest.raises(PolicyLoadError, match="not found in database"):
         await load_policy_from_db(
             name=policy_name,
-            container=mock_dependencies,
+            container=mock_container,
         )
-    mock_dependencies.db_session_factory.assert_called_once()
-    mock_get_policy_by_name.assert_awaited_once_with(mock_session, policy_name)
+    mock_container.db_session_factory.assert_called_once()
+    mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
 
 
 # Use the in-memory async_session fixture from tests/db/conftest.py
@@ -217,31 +216,31 @@ async def test_load_policy_from_db_instantiation_fails_in_memory_db(
 async def test_load_policy_from_db_loader_error(
     mock_load_policy,
     mock_get_policy_by_name,
-    mock_dependencies: DependencyContainer,
+    mock_container: DependencyContainer,
+    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
 ):
-    """Test PolicyLoadError is raised when the internal loader fails."""
-    policy_name = "loader_error_policy"
+    """Test PolicyLoadError if load_policy fails internally."""
+    policy_name = "test_policy_loader_error"
     mock_policy_config_model = create_mock_policy_model(name=policy_name)
     mock_get_policy_by_name.return_value = mock_policy_config_model
-    mock_session = mock_dependencies.mock_session
 
     mock_load_policy.side_effect = PolicyLoadError("Mock loader failure")
 
     with pytest.raises(PolicyLoadError, match="Mock loader failure"):
         await load_policy_from_db(
             name=policy_name,
-            container=mock_dependencies,
+            container=mock_container,
         )
 
-    mock_dependencies.db_session_factory.assert_called_once()
-    mock_get_policy_by_name.assert_awaited_once_with(mock_session, policy_name)
+    mock_container.db_session_factory.assert_called_once()
+    mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
     expected_policy_data = {
         "name": mock_policy_config_model.name,
         "type": mock_policy_config_model.type,
         "config": mock_policy_config_model.config,
     }
     expected_kwargs = {
-        "settings": mock_dependencies.settings,
-        "http_client": mock_dependencies.http_client,
+        "settings": mock_container.settings,
+        "http_client": mock_container.http_client,
     }
     mock_load_policy.assert_awaited_once_with(expected_policy_data, **expected_kwargs)

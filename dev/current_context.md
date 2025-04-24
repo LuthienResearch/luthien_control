@@ -1,16 +1,20 @@
-# Current Task: Refactor Dependencies Phase 2 - Debug Test Failures
+# Current Task: Completed - Refactor Dependencies Phase 2
 
-**Goal:** Implement Phase 2 (Dependency Injection Container) of the plan defined in `dev/refactor_dependency_injection.md`.
+**Goal:** Complete Phase 2 (Dependency Injection Container) of the plan defined in `dev/refactor_dependency_injection.md`.
 
-**Overall Plan:**
-1.  Define `DependencyContainer` (Done).
-2.  Integrate into Lifespan (Done).
-3.  Create Container Dependency (`get_dependencies`) (Done).
-4.  Refactor Dependency Providers (`get_settings`, `get_http_client`, `get_db_session`) (Done).
-5.  Refactor `get_main_control_policy` (Done).
-6.  Refactor Core Logic (`load_policy_from_db`) (Done).
-7.  Refactor Policy `apply` Signatures (`ClientApiKeyAuthPolicy`, `CompoundPolicy`) (Done).
-8.  Update Base `ControlPolicy.apply` signature (Done - Step 11.5).
-9.  Update API Route (`proxy/server.py`) signature and `apply` call (Done - Step 12).
-10. Update Orchestration Function (`proxy/orchestration.py`) signature and `apply` call (Done - Step 12.5).
-11. Refactor Tests (`tests/`) (Done - Step 13).
+**Status:**
+*   Successfully refactored core components and tests to use the `DependencyContainer`.
+*   Resolved all associated test failures in:
+    *   `tests/control_policy/test_add_api_key_header.py`
+    *   `tests/control_policy/test_send_backend_request.py`
+    *   `tests/db/test_policy_loading.py`
+    *   Other files updated in previous steps (e.g., `tests/proxy/test_orchestration.py`, `tests/proxy/test_server.py`, `tests/test_dependencies.py`).
+*   All tests (`poetry run pytest`) are passing (131 passed).
+*   Phase 2 is complete.
+
+**Next Step:**
+*   Commit changes.
+*   Define and begin next development task (e.g., Phase 3 if applicable, or other items from `dev/ToDo.md`).
+
+**Original Plan Reference (from `refactor_dependency_injection.md`):**
+1.  Define `DependencyContainer`

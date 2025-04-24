@@ -8,6 +8,8 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
 from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.dependency_container import DependencyContainer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .serialization import SerializableDict
 
@@ -23,17 +25,27 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         self.settings = settings
         self.logger = logging.getLogger(__name__)
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(
+        self,
+        context: TransactionContext,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> TransactionContext:
         """
         Adds the Authorization: Bearer <api_key> header to the context.request.
 
-        Reads API key from settings.
+        Reads API key from settings (injected during initialization).
+        Requires the DependencyContainer and AsyncSession in signature for interface compliance,
+        but they are not directly used in this policy's logic.
+
         Raises:
             NoRequestError if the request is not found in the context.
             ApiKeyNotFoundError if the API key is not configured.
 
         Args:
             context: The current transaction context.
+            container: The application dependency container (unused).
+            session: An active SQLAlchemy AsyncSession (unused).
 
         Returns:
             The potentially modified transaction context.

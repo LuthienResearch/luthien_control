@@ -30,9 +30,10 @@ def mock_http_client() -> AsyncMock:
 @pytest.fixture
 def policy(mock_http_client: AsyncMock, mock_settings: MagicMock) -> SendBackendRequestPolicy:
     """Provides an instance of the policy with a mock client."""
+    # Dependencies are now resolved via the container in apply()
     return SendBackendRequestPolicy(
-        http_client=mock_http_client,
-        settings=mock_settings,
+        # http_client=mock_http_client,  # Removed
+        # settings=mock_settings,     # Removed
         name="test-policy",
     )
 
@@ -66,6 +67,8 @@ async def test_apply_success(
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
     mock_settings: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Test successful request sending and response handling."""
     # Mock the response from the backend
@@ -78,7 +81,7 @@ async def test_apply_success(
 
     # Patch Settings within the test scope
     with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        updated_context = await policy.apply(base_context)
+        updated_context = await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Assert
     assert updated_context is base_context
@@ -113,6 +116,8 @@ async def test_apply_builds_correct_url_no_base_slash(
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
     mock_settings: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Verify URL construction with no trailing slash on the base backend URL."""
 
@@ -123,7 +128,7 @@ async def test_apply_builds_correct_url_no_base_slash(
 
     # Patch Settings and Act
     with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context)
+        await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Assert
     mock_http_client.send.assert_awaited_once()
@@ -136,6 +141,8 @@ async def test_apply_builds_correct_url_with_base_slash(
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
     mock_settings: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Verify URL construction with a trailing slash on the base backend URL."""
 
@@ -146,7 +153,7 @@ async def test_apply_builds_correct_url_with_base_slash(
 
     # Patch Settings and Act
     with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context)
+        await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Assert
     mock_http_client.send.assert_awaited_once()
@@ -159,6 +166,8 @@ async def test_apply_builds_correct_url_root_client_path(
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
     mock_settings: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Verify URL construction when the client request path is '/'."""
 
@@ -169,7 +178,7 @@ async def test_apply_builds_correct_url_root_client_path(
 
     # Patch Settings and Act
     with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context)
+        await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Assert
     mock_http_client.send.assert_awaited_once()
@@ -182,6 +191,8 @@ async def test_apply_prepares_correct_headers(
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
     mock_settings: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Verify headers sent to the backend are prepared correctly."""
 
@@ -194,7 +205,7 @@ async def test_apply_prepares_correct_headers(
 
     # Patch Settings and Act
     with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context)
+        await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Assert
     mock_http_client.send.assert_awaited_once()
@@ -226,6 +237,8 @@ async def test_apply_handles_httpx_request_error(
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
     mock_settings: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Test handling of httpx.RequestError during backend communication."""
     # Arrange
@@ -239,7 +252,7 @@ async def test_apply_handles_httpx_request_error(
     # Patch Settings and Act/Assert
     with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
         with pytest.raises(httpx.RequestError, match=error_message) as exc_info:
-            await policy.apply(base_context)
+            await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Optional: Assert that the raised exception is the same instance
     assert exc_info.value is mock_http_client.send.side_effect
@@ -254,6 +267,8 @@ async def test_apply_handles_httpx_timeout_error(
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
     mock_settings: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Test handling of httpx.TimeoutException during backend communication."""
     # Arrange
@@ -267,7 +282,7 @@ async def test_apply_handles_httpx_timeout_error(
     # Patch Settings and Act/Assert
     with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
         with pytest.raises(httpx.TimeoutException, match=error_message) as exc_info:
-            await policy.apply(base_context)
+            await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Optional: Assert that the raised exception is the same instance
     assert exc_info.value is mock_http_client.send.side_effect
@@ -277,11 +292,16 @@ async def test_apply_handles_httpx_timeout_error(
     assert "backend_response" not in base_context.data
 
 
-async def test_apply_raises_if_context_request_is_none(policy: SendBackendRequestPolicy):
+async def test_apply_raises_if_context_request_is_none(
+    policy: SendBackendRequestPolicy,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+):
     """Test that apply raises ValueError if context.request is None."""
     context_no_request = TransactionContext(transaction_id="tx-no-request")
+    context_no_request.request = None
     with pytest.raises(ValueError, match="context.request is None"):
-        await policy.apply(context_no_request)
+        await policy.apply(context_no_request, container=mock_container, session=mock_db_session)
 
 
 async def test_apply_handles_invalid_backend_url(
@@ -289,13 +309,17 @@ async def test_apply_handles_invalid_backend_url(
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
     mock_settings: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Test that apply raises ValueError if BACKEND_URL is invalid for host parsing."""
     mock_settings.get_backend_url.return_value = "invalid-url"  # Invalid URL
 
     with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        with pytest.raises(ValueError, match="Could not determine backend Host"):
-            await policy.apply(base_context)
+        with pytest.raises(ValueError, match="Could not determine backend Host from BACKEND_URL"):
+            await policy.apply(base_context, container=mock_container, session=mock_db_session)
+
+    mock_http_client.send.assert_not_called()
 
 
 # --- Serialization Tests ---
@@ -311,15 +335,15 @@ async def test_send_backend_request_policy_serialization(
 
     # Act
     serialized_data = original_policy.serialize()
-    rehydrated_policy = await SendBackendRequestPolicy.from_serialized(
-        http_client=mock_http_client, config=serialized_data, settings=mock_settings
-    )
+    rehydrated_policy = await SendBackendRequestPolicy.from_serialized(config=serialized_data)
 
     # Assert
     assert isinstance(serialized_data, dict)
-    # Since serialize returns an empty dict, there's not much to assert on the dict itself
+    # Serialize now only includes the name
     assert serialized_data == {"name": "test-policy"}
 
     assert isinstance(rehydrated_policy, SendBackendRequestPolicy)
-    # Check if the rehydrated policy has the correct http_client
-    assert rehydrated_policy.http_client is mock_http_client
+    assert rehydrated_policy.name == original_policy.name
+    # Remove checks for attributes that are no longer part of the instance
+    # assert rehydrated_policy.http_client is mock_http_client # Removed
+    # assert rehydrated_policy.settings is mock_settings # Removed

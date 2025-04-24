@@ -147,3 +147,25 @@ Next Steps: Ready for commit or next task.
     *   Updated `mock_policy_raising_exception` fixture to use the new `ControlPolicyError` kwargs.
 **Status:** Completed. All tests passed. Bandit scan clean.
 **Next Steps:** Commit changes.
+
+---
+**Timestamp:** 2025-04-24 15:07:00
+**Task:** Refactor Dependencies Phase 2 - Debug Test Failures
+**Branch:** `dependency_container` (Assumed)
+
+**Changes:**
+*   Fixed `Fixture 'mock_session' not found` errors in `tests/control_policy/test_add_api_key_header.py` and `tests/control_policy/test_send_backend_request.py` by renaming the fixture parameter to `mock_db_session`.
+*   Fixed `TypeError` in `tests/control_policy/test_send_backend_request.py` by removing `http_client` and `settings` arguments from `SendBackendRequestPolicy` instantiation in the `policy` fixture, reflecting changes in the policy's `__init__`.
+*   Fixed `AttributeError` in `test_send_backend_request_policy_serialization` by updating the `from_serialized` call and removing assertions for `http_client`/`settings` attributes, as these are no longer stored directly on the policy instance.
+*   Fixed `AssertionError` in `test_apply_handles_invalid_backend_url` by updating the expected `ValueError` message to match the more detailed error now raised by the policy.
+*   Fixed `AttributeError: Mock object has no attribute 'mock_db_session'` in `tests/db/test_policy_loading.py` by injecting the `mock_db_session` fixture directly into tests instead of trying to access it via `mock_container.mock_db_session`.
+
+**Status:**
+*   All previously identified test errors related to Phase 2 dependency injection refactoring have been resolved.
+*   `poetry run pytest` now passes all 131 tests.
+*   Phase 2 (Dependency Injection Container) and associated test refactoring appear complete.
+
+**Next Steps:**
+*   Review the overall changes for Phase 2.
+*   Proceed with git commit as per `git_commit_strategy`.
+*   Plan for Phase 3 (if applicable) or next development task.

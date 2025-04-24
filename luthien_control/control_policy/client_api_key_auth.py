@@ -14,8 +14,11 @@ from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.database_async import get_db_session
 
-# Import the centralized type definition
-from luthien_control.types import ApiKeyLookupFunc
+# Import the function to fetch API key by value
+from luthien_control.db.client_api_key_crud import get_api_key_by_value
+
+# Import the centralized type definition - REMOVED as ApiKeyLookupFunc is no longer used here
+# from luthien_control.types import ApiKeyLookupFunc
 
 if TYPE_CHECKING:
     pass  # Keep if needed for other forward refs, otherwise remove
@@ -29,13 +32,13 @@ BEARER_PREFIX = "Bearer "
 class ClientApiKeyAuthPolicy(ControlPolicy):
     """Verifies the client API key provided in the Authorization header."""
 
-    REQUIRED_DEPENDENCIES = ["api_key_lookup"]
+    REQUIRED_DEPENDENCIES = []  # Removed "api_key_lookup"
 
-    def __init__(self, api_key_lookup: ApiKeyLookupFunc, name: Optional[str] = None):
-        """Initializes the policy with a function to look up API keys."""
+    def __init__(self, name: Optional[str] = None):  # Removed api_key_lookup parameter
+        """Initializes the policy."""
         self.logger = logging.getLogger(__name__)
         self.name = name or self.__class__.__name__
-        self._api_key_lookup = api_key_lookup
+        # Removed self._api_key_lookup assignment
 
     async def apply(self, context: TransactionContext) -> TransactionContext:
         """
@@ -66,14 +69,9 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         if api_key_value.startswith(BEARER_PREFIX):
             api_key_value = api_key_value[len(BEARER_PREFIX) :]
 
-        # Use the lookup function stored during init, assuming it doesn't need the session
-        # based on the type hint definition used by the dependency injector.
-        # The injected _api_key_lookup function expects the session as the first argument
-        # We need to obtain an async session here.
-        # TODO: Review if the session should be passed differently or if the lookup function signature should change
-        # For now, get a new session.
+        # Use the imported get_api_key_by_value function with a session
         async with get_db_session() as session:
-            db_key = await self._api_key_lookup(session, api_key_value)
+            db_key = await get_api_key_by_value(session, api_key_value)  # Changed from self._api_key_lookup
 
         if not db_key:
             self.logger.warning(
@@ -101,30 +99,19 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         return context
 
     def serialize(self) -> SerializableDict:
-        """Serializes config. Returns empty dict as dependency is injected."""
-        # No configuration needed, the loader injects the api_key_lookup
+        """Serializes config. Only includes name as no other config is needed."""
         return cast(SerializableDict, {"name": self.name})
 
     @classmethod
     async def from_serialized(cls, config: SerializableDict, **kwargs) -> "ClientApiKeyAuthPolicy":
         """
-        Constructs the policy, extracting the api_key_lookup function from kwargs.
+        Constructs the policy from serialized data.
 
         Args:
-            config: The serialized configuration (expected to be empty).
-            **kwargs: Dictionary possibly containing dependencies (expects 'api_key_lookup').
+            config: The serialized configuration (expects 'name').
+            **kwargs: Dictionary possibly containing dependencies (ignored).
 
         Returns:
             An instance of ClientApiKeyAuthPolicy.
-
-        Raises:
-            TypeError: If 'api_key_lookup' is missing in kwargs or not callable.
         """
-        api_key_lookup = kwargs.get("api_key_lookup")
-        if not callable(api_key_lookup):
-            raise TypeError(
-                "ClientApiKeyAuthPolicy requires 'api_key_lookup' in dependencies" + f" got: {type(api_key_lookup)}"
-            )
-        # The config dict is ignored for this policy as there are no parameters
-        # Pass the extracted dependency to the constructor
-        return cls(api_key_lookup=api_key_lookup, name=config.get("name"))
+        return cls(name=config.get("name"))

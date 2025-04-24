@@ -174,7 +174,7 @@ async def test_compound_policy_serialization():
     """Test that CompoundPolicy can be serialized and deserialized correctly, including nested policies."""
     # Arrange
     settings = Settings()
-    policy1 = ClientApiKeyAuthPolicy(api_key_lookup=get_api_key_by_value)
+    policy1 = ClientApiKeyAuthPolicy()
     policy1.policy_type = "ClientApiKeyAuth"
 
     policy2 = AddApiKeyHeaderPolicy(settings=settings)
@@ -186,7 +186,6 @@ async def test_compound_policy_serialization():
     serialized_data = original_compound_policy.serialize()
     rehydrated_policy = await CompoundPolicy.from_serialized(
         serialized_data,
-        api_key_lookup=get_api_key_by_value,
         settings=settings,
     )
 
@@ -196,17 +195,14 @@ async def test_compound_policy_serialization():
     assert len(serialized_data["policies"]) == 2
 
     assert serialized_data["policies"][0]["type"] == "ClientApiKeyAuth"
-    assert serialized_data["policies"][0]["config"] == {"name": "ClientApiKeyAuthPolicy"}
+    assert serialized_data["policies"][0]["config"] == {"name": policy1.name}
     assert serialized_data["policies"][1]["type"] == "AddApiKeyHeader"
-    assert serialized_data["policies"][1]["config"] == {"name": "AddApiKeyHeaderPolicy"}
+    assert serialized_data["policies"][1]["config"] == {"name": policy2.name}
 
     assert isinstance(rehydrated_policy, CompoundPolicy)
     assert len(rehydrated_policy.policies) == 2
     assert isinstance(rehydrated_policy.policies[0], ClientApiKeyAuthPolicy)
-    assert hasattr(rehydrated_policy.policies[0], "_api_key_lookup")
-    assert rehydrated_policy.policies[0]._api_key_lookup == get_api_key_by_value
     assert isinstance(rehydrated_policy.policies[1], AddApiKeyHeaderPolicy)
-    assert hasattr(rehydrated_policy.policies[1], "settings")
     assert rehydrated_policy.policies[1].settings is settings
 
 
@@ -248,7 +244,7 @@ async def test_compound_policy_serialization_invalid_policy_item():
         ]
     }
     with pytest.raises(PolicyLoadError, match="Item at index 1 in CompoundPolicy 'policies' is not a dictionary"):
-        await CompoundPolicy.from_serialized(invalid_config, api_key_lookup=get_api_key_by_value)
+        await CompoundPolicy.from_serialized(invalid_config)
 
 
 @patch("luthien_control.control_policy.compound_policy.load_policy", new_callable=AsyncMock)
@@ -264,7 +260,7 @@ async def test_compound_policy_serialization_load_error(mock_load_policy):
     mock_load_policy.side_effect = [MagicMock(spec=ControlPolicy), PolicyLoadError("Mocked load failure")]
 
     with pytest.raises(PolicyLoadError, match="Failed to load member policy.*within CompoundPolicy"):
-        await CompoundPolicy.from_serialized(config, api_key_lookup="dummy_lookup")
+        await CompoundPolicy.from_serialized(config)
 
 
 @patch("luthien_control.control_policy.compound_policy.load_policy", new_callable=AsyncMock)
@@ -279,4 +275,4 @@ async def test_compound_policy_serialization_unexpected_error(mock_load_policy):
     mock_load_policy.side_effect = ValueError("Unexpected internal error")
 
     with pytest.raises(PolicyLoadError, match="Unexpected error loading member policy.*"):
-        await CompoundPolicy.from_serialized(config, api_key_lookup="dummy_lookup")
+        await CompoundPolicy.from_serialized(config)

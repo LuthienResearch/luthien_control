@@ -9,6 +9,8 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.dependency_container import DependencyContainer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +21,6 @@ class SendBackendRequestPolicy(ControlPolicy):
     and reading the raw response body.
     """
 
-    REQUIRED_DEPENDENCIES = ["http_client", "settings"]
-
     _EXCLUDED_BACKEND_HEADERS = {
         b"host",
         b"transfer-encoding",
@@ -28,15 +28,8 @@ class SendBackendRequestPolicy(ControlPolicy):
         b"authorization",  # We add our own
     }
 
-    def __init__(
-        self,
-        http_client: httpx.AsyncClient,
-        settings: Settings,
-        name: Optional[str] = None,
-    ):
+    def __init__(self, name: Optional[str] = None):
         self.name: str = name or self.__class__.__name__
-        self.http_client: httpx.AsyncClient = http_client
-        self.settings: Settings = settings
 
     def _build_target_url(self, base_url: str, relative_path: str) -> str:
         """Constructs the full target URL for the backend request."""
@@ -45,11 +38,11 @@ class SendBackendRequestPolicy(ControlPolicy):
         logger.debug(f"Constructed target URL: {target_url} (from base: {base_url}, relative: {relative_path})")
         return target_url
 
-    def _prepare_backend_headers(self, context: TransactionContext) -> list[tuple[bytes, bytes]]:
+    def _prepare_backend_headers(self, context: TransactionContext, settings: Settings) -> list[tuple[bytes, bytes]]:
         """Prepares the headers to be sent to the backend."""
         original_request = context.request
         backend_headers: list[tuple[bytes, bytes]] = []
-        backend_url_base = self.settings.get_backend_url()  # Already validated in apply
+        backend_url_base = settings.get_backend_url()
 
         # Copy necessary headers from original request, excluding problematic ones
         for key_bytes, value_bytes in original_request.headers.raw:
@@ -68,39 +61,43 @@ class SendBackendRequestPolicy(ControlPolicy):
                 f"[{context.transaction_id}] Invalid BACKEND_URL '{backend_url_base}' for Host header parsing: {e}",
                 extra={"request_id": context.transaction_id},
             )
-            # Raise a more specific internal error if needed, or let apply handle it
             raise ValueError(f"Could not determine backend Host from BACKEND_URL: {e}")
 
         # Force Accept-Encoding: identity (avoids downstream decompression issues)
         backend_headers.append((b"accept-encoding", b"identity"))
 
-        # Add Backend Authorization Header
-        openai_key = self.settings.get_openai_api_key()
+        # Add Backend Authorization Header using passed settings
+        openai_key = settings.get_openai_api_key()
         backend_headers.append((b"authorization", f"Bearer {openai_key}".encode("latin-1")))
 
         return backend_headers
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(
+        self,
+        context: TransactionContext,
+        container: DependencyContainer,
+        session: AsyncSession,  # session is unused but required by interface
+    ) -> TransactionContext:
         """
-        Sends context.request to the backend and stores the response as context.data["backend_response"]
+        Sends context.request to the backend and stores the response as context.data["backend_response"].
+
+        Uses http_client and settings from the DependencyContainer.
+        The session parameter is currently unused but required by the interface.
 
         Handles potential httpx exceptions.
         """
-        # --- Pre-flight Checks ---
+        settings = container.settings
+        http_client = container.http_client
+
         if not context.request:
             raise ValueError(f"[{context.transaction_id}] Cannot send request: context.request is None")
 
-        backend_url_base = self.settings.get_backend_url()
+        backend_url_base = settings.get_backend_url()
 
         # --- Prepare Request Components ---
         try:
             target_url = self._build_target_url(backend_url_base, context.request.url.path)
-            backend_headers = self._prepare_backend_headers(context)
-            # TODO: We should ideally create a *new* request object here
-            # rather than mutating the existing one. Mutating might have
-            # unintended side effects if the original request object is used
-            # elsewhere or if retries happen.
-            # For now, keep mutation for simplicity, but flag for future refactor.
+            backend_headers = self._prepare_backend_headers(context, settings)
             context.request.url = httpx.URL(target_url)  # Ensure it's a URL object
             context.request.headers = httpx.Headers(backend_headers)  # Ensure it's a Headers object
         except ValueError as e:
@@ -116,8 +113,7 @@ class SendBackendRequestPolicy(ControlPolicy):
             logger.debug(
                 f"[{context.transaction_id}] Sending request to backend: {context.request.method} {context.request.url}"
             )
-            # Send the modified context.request directly
-            response = await self.http_client.send(context.request)
+            response = await http_client.send(context.request)
             # Read response body immediately to ensure connection is closed
             await response.aread()
             context.data["backend_response"] = response
@@ -144,16 +140,18 @@ class SendBackendRequestPolicy(ControlPolicy):
         return context
 
     def serialize(self) -> SerializableDict:
-        """Serializes config. Returns base info as only dependency is http_client."""
-        # Return an empty dictionary literal, cast to SerializableDict for type checker
+        """Serializes config. Only name is needed as dependencies come from container."""
         return cast(SerializableDict, {"name": self.name})
 
     @classmethod
-    async def from_serialized(
-        cls,
-        config: SerializableDict,
-        http_client: httpx.AsyncClient,
-        settings: Settings,
-        **kwargs,
-    ) -> "SendBackendRequestPolicy":
-        return cls(name=config.get("name"), http_client=http_client, settings=settings)
+    async def from_serialized(cls, config: SerializableDict) -> "SendBackendRequestPolicy":
+        """
+        Constructs the policy from serialized configuration.
+
+        Args:
+            config: Dictionary possibly containing 'name'.
+
+        Returns:
+            An instance of SendBackendRequestPolicy.
+        """
+        return cls(name=config.get("name"))

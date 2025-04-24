@@ -46,3 +46,8 @@ Items discovered during development that are out of scope for the current task b
 - [X] Policy crud aligns with new serialization approach
 - [ ] Alembic migrations for default policies using new policy serialization/deserialization format
 - [X] Archived devlogs should not be compressed
+
+- [ ] **Investigate Policy Loading Performance:** Profile/analyze frequency and duration of `load_policy_from_db` calls to determine if DB/instantiation overhead is significant.
+- [ ] **Design Policy Caching Strategy:** If performance analysis indicates a need, design a caching mechanism (key strategy, storage, TTL, invalidation) for loaded `ControlPolicy` instances.
+- [ ] **Implement Policy Caching (If Designed):** Build the caching layer decided upon in the previous step, potentially integrating with `DependencyContainer`.
+- [ ] **Determine Optimal `ResponseBuilder` Lifecycle:** Decide if `DefaultResponseBuilder` is stateless (singleton) or needs per-request instantiation. Update `DependencyContainer` setup accordingly.

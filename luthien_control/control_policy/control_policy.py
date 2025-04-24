@@ -7,6 +7,8 @@ from luthien_control.control_policy.serialization import SerializableDict
 
 if TYPE_CHECKING:
     from luthien_control.core.transaction_context import TransactionContext
+    from luthien_control.dependency_container import DependencyContainer
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 # Type variable for the policy classes
 PolicyT = TypeVar("PolicyT", bound="ControlPolicy")
@@ -21,12 +23,16 @@ class ControlPolicy(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def apply(self, context: "TransactionContext") -> "TransactionContext":
+    async def apply(
+        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
+    ) -> "TransactionContext":
         """
-        Apply the policy to the transaction context.
+        Apply the policy to the transaction context using provided dependencies.
 
         Args:
             context: The current transaction context.
+            container: The dependency injection container.
+            session: The database session for the current request.
 
         Returns:
             The potentially modified transaction context.

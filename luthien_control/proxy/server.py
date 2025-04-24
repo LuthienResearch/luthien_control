@@ -1,23 +1,20 @@
 import logging
 
-import httpx
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import Settings class directly for dependency injection
-from luthien_control.config.settings import Settings
-
 # Import new policy framework components
 from luthien_control.control_policy.control_policy import ControlPolicy
 
-# Import concrete builder
-from luthien_control.core.response_builder.interface import ResponseBuilder
-
-# Import dependency providers from dependencies module
+# Import the specific builder class we will instantiate
+from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 from luthien_control.dependencies import (
-    get_http_client,
+    get_db_session,
+    get_dependencies,
     get_main_control_policy,
-    get_response_builder,
 )
+from luthien_control.dependency_container import DependencyContainer
 
 # Import the orchestrator
 from luthien_control.proxy.orchestration import run_policy_flow
@@ -34,24 +31,27 @@ router = APIRouter()
 async def api_proxy_endpoint(
     request: Request,
     full_path: str,
-    # Common dependencies
-    client: httpx.AsyncClient = Depends(get_http_client),
-    settings: Settings = Depends(Settings),
+    # Core dependencies via Container
+    dependencies: DependencyContainer = Depends(get_dependencies),
     main_policy: ControlPolicy = Depends(get_main_control_policy),
-    builder: ResponseBuilder = Depends(get_response_builder),
+    session: AsyncSession = Depends(get_db_session),
 ):
     """
     Main API proxy endpoint using the policy orchestration flow.
     Handles requests starting with /api/.
-    Requires valid API key authentication.
+    Uses Dependency Injection Container and provides a DB session.
     """
     logger.info(f"Authenticated request received for /api/{full_path}")
+
+    # Instantiate the builder directly
+    DefaultResponseBuilder()
 
     # Orchestrate the policy flow
     response = await run_policy_flow(
         request=request,
         main_policy=main_policy,
-        builder=builder,
+        dependencies=dependencies,
+        session=session,
     )
 
     logger.info(f"Returning response for {request.url.path}")

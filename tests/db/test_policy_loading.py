@@ -1,4 +1,6 @@
 import datetime
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import httpx
@@ -9,6 +11,7 @@ from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.db.control_policy_crud import load_policy_from_db
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from luthien_control.db.sqlmodel_models import ControlPolicy as ControlPolicyModel
+from luthien_control.dependency_container import DependencyContainer
 from luthien_control.types import ApiKeyLookupFunc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -81,143 +84,155 @@ def create_mock_policy_model(
     )
 
 
-# Mock the database fetch function used *within* load_policy_from_db
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
 @patch("luthien_control.db.control_policy_crud.load_policy", new_callable=AsyncMock)
 async def test_load_policy_from_db_success(
     mock_load_policy,
     mock_get_policy_by_name,
-    load_db_dependencies,
-    mock_db_session: AsyncSession,
+    mock_container: DependencyContainer,
+    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
 ):
     """Test successfully loading and instantiating a policy from DB config."""
     policy_name = "test_policy_success"
     mock_policy_config_model = create_mock_policy_model(name=policy_name)
     mock_get_policy_by_name.return_value = mock_policy_config_model
 
-    # Mock the instantiated policy object that load_policy should return
-    # Since load_policy is awaited, its mock needs a return value
     mock_instantiated_policy = MagicMock(spec=ControlPolicy)
     mock_load_policy.return_value = mock_instantiated_policy
 
-    # Call the function under test
     loaded_policy = await load_policy_from_db(
         name=policy_name,
-        session=mock_db_session,
-        **load_db_dependencies,
+        container=mock_container,
     )
 
-    # Assertions
+    mock_container.db_session_factory.assert_called_once()
     mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
-    # Assert load_policy is called with the expected policy_data dict and dependencies
+
     expected_policy_data = {
         "name": mock_policy_config_model.name,
         "type": mock_policy_config_model.type,
         "config": mock_policy_config_model.config,
     }
-    mock_load_policy.assert_awaited_once_with(expected_policy_data, **load_db_dependencies)
+    mock_load_policy.assert_awaited_once_with(expected_policy_data)
     assert loaded_policy == mock_instantiated_policy
 
 
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock, return_value=None)
 async def test_load_policy_from_db_not_found_patch_get(
     mock_get_policy_by_name,
-    load_db_dependencies,
-    mock_db_session,  # Keep using mock session for this specific variation
+    mock_container: DependencyContainer,
+    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
 ):
     """Test PolicyLoadError using PATCHED get_policy_by_name returning None."""
-    # This test variant ensures the error is raised even if DB call is mocked
     policy_name = "non_existent_policy_patch"
-
     with pytest.raises(PolicyLoadError, match="not found in database"):
         await load_policy_from_db(
             name=policy_name,
-            session=mock_db_session,
-            settings=load_db_dependencies["settings"],
-            http_client=load_db_dependencies["http_client"],
-            api_key_lookup=load_db_dependencies["api_key_lookup"],
+            container=mock_container,
         )
+    mock_container.db_session_factory.assert_called_once()
     mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
 
 
-# Test using the actual DB session
-async def test_load_policy_from_db_not_found_real_session(
-    load_db_dependencies,
-    async_session: AsyncSession,  # Use real session from tests/db/conftest.py
+# Use the in-memory async_session fixture from tests/db/conftest.py
+async def test_load_policy_from_db_not_found_in_memory_db(
+    async_session: AsyncSession,  # Use in-memory session
+    mock_settings: Settings,  # Use mock settings
+    mock_http_client: httpx.AsyncClient,  # Use mock client
 ):
-    """Test PolicyLoadError using a REAL session where the policy doesn't exist."""
+    """Test PolicyLoadError using an in-memory DB where the policy doesn't exist."""
     policy_name = "non_existent_policy_real"
 
-    # Since the DB is empty, get_policy_by_name inside load_policy_from_db
-    # will return None.
+    # Create a simple factory for the provided in-memory session
+    @asynccontextmanager
+    async def session_factory() -> AsyncGenerator[AsyncSession, None]:
+        yield async_session
+
+    # Construct a container with mocks and the real session factory
+    container = DependencyContainer(
+        settings=mock_settings,
+        http_client=mock_http_client,
+        db_session_factory=session_factory,
+    )
+
+    # Since the DB is empty (function-scoped in-memory session),
+    # get_policy_by_name inside load_policy_from_db will return None.
     with pytest.raises(PolicyLoadError, match="not found in database"):
         await load_policy_from_db(
             name=policy_name,
-            session=async_session,  # Pass the real session
-            settings=load_db_dependencies["settings"],
-            http_client=load_db_dependencies["http_client"],
-            api_key_lookup=load_db_dependencies["api_key_lookup"],
+            container=container,  # Pass the constructed container
         )
 
 
-# Patch load_policy to simulate failure
+# Patch load_policy to simulate failure, use in-memory session
 @patch(
     "luthien_control.db.control_policy_crud.load_policy",
     new_callable=AsyncMock,
-    side_effect=PolicyLoadError("Instantiation failed"),  # This is the initial error
+    side_effect=PolicyLoadError("Instantiation failed"),
 )
-async def test_load_policy_from_db_instantiation_fails(
-    mock_load_policy,  # Removed mock_get_policy_by_name parameter
-    load_db_dependencies,
-    async_session: AsyncSession,  # Use real session
+async def test_load_policy_from_db_instantiation_fails_in_memory_db(
+    mock_load_policy,
+    async_session: AsyncSession,  # Use in-memory session
+    mock_settings: Settings,  # Use mock settings
+    mock_http_client: httpx.AsyncClient,  # Use mock client
 ):
-    """Test PolicyLoadError when load_policy fails, using real session."""
+    """Test PolicyLoadError when load_policy fails, using in-memory session."""
     policy_name = "instantiation_failure_policy"
-    # Create the policy config in the real DB first
+    # Create the policy config in the in-memory DB first
     policy_to_create = create_mock_policy_model(name=policy_name)
-    # We need the actual create function now
     from luthien_control.db.control_policy_crud import save_policy_to_db
 
     created_policy = await save_policy_to_db(async_session, policy_to_create)
     assert created_policy is not None
-    # Assertion removed
+
+    # Create a simple factory for the provided in-memory session
+    @asynccontextmanager
+    async def session_factory() -> AsyncGenerator[AsyncSession, None]:
+        yield async_session
+
+    # Construct a container with mocks and the real session factory
+    container = DependencyContainer(
+        settings=mock_settings,
+        http_client=mock_http_client,
+        db_session_factory=session_factory,
+    )
 
     # Match the error raised by the mock's side_effect
     with pytest.raises(PolicyLoadError, match="Instantiation failed"):
         await load_policy_from_db(
             name=policy_name,
-            session=async_session,  # Use real session
-            settings=load_db_dependencies["settings"],
-            http_client=load_db_dependencies["http_client"],
-            api_key_lookup=load_db_dependencies["api_key_lookup"],
+            container=container,  # Pass the constructed container
         )
 
     mock_load_policy.assert_called_once()  # Verify load_policy was called
 
 
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
-# Mock the loader - use AsyncMock
-@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=AsyncMock)  # Changed MagicMock to AsyncMock
+@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=AsyncMock)
 async def test_load_policy_from_db_loader_error(
     mock_load_policy,
     mock_get_policy_by_name,
-    load_db_dependencies,
-    mock_db_session,  # Keep using mock session for this specific variation
+    mock_container: DependencyContainer,
+    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
 ):
-    """Test PolicyLoadError using a MOCKED session where the policy doesn't exist."""
-    # This test variant ensures the error is raised even if DB call is mocked
-    policy_name = "non_existent_policy_mock"
+    """Test PolicyLoadError if load_policy fails internally."""
+    policy_name = "test_policy_loader_error"
+    mock_policy_config_model = create_mock_policy_model(name=policy_name)
+    mock_get_policy_by_name.return_value = mock_policy_config_model
 
-    # Configure the mock loader to raise a PolicyLoadError
     mock_load_policy.side_effect = PolicyLoadError("Mock loader failure")
 
-    # Call the function under test and assert it raises the error
     with pytest.raises(PolicyLoadError, match="Mock loader failure"):
         await load_policy_from_db(
             name=policy_name,
-            session=mock_db_session,
-            settings=load_db_dependencies["settings"],
-            http_client=load_db_dependencies["http_client"],
-            api_key_lookup=load_db_dependencies["api_key_lookup"],
+            container=mock_container,
         )
+
+    mock_container.db_session_factory.assert_called_once()
     mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
+    expected_policy_data = {
+        "name": mock_policy_config_model.name,
+        "type": mock_policy_config_model.type,
+        "config": mock_policy_config_model.config,
+    }
+    mock_load_policy.assert_awaited_once_with(expected_policy_data)

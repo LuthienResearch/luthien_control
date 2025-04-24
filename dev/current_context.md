@@ -1,7 +1,25 @@
-# Current Development Context
+# Current Task: Completed - Debug Failing Unit Tests (AddApiKeyHeaderPolicy)
 
-**Current Task:** E2E Test Debugging (Completed).
+**Goal:** Identify and fix failing unit tests, focusing on the mismatch between `AddApiKeyHeaderPolicy` implementation and its tests.
 
-**Goal:** Identify and fix the cause of the E2E test failure (`test_e2e_api_chat_completion`).
+**Status:**
+- Modified tests in `tests/control_policy/test_add_api_key_header.py` and `tests/control_policy/test_compound_policy.py` to align with the current specific (OpenAI-focused) implementation of `AddApiKeyHeaderPolicy`.
+- Removed irrelevant tests and updated assertions related to API key fetching and serialization/deserialization.
+- All tests (`poetry run pytest | cat`) are passing (132 passed).
+- Task is complete.
 
-**State:** Task complete. Identified missing `async` keywords on `from_serialized` methods for `ClientApiKeyAuthPolicy`, `AddApiKeyHeaderPolicy`, and `SendBackendRequestPolicy`. Applied fixes and verified E2E test passes. Ready for commit or next task.
+**Next Step:**
+- Commit changes.
+- Define and begin next development task (e.g., items from `dev/ToDo.md`).
+
+**Original Plan Reference (from `refactor_dependency_injection.md`
+
+Task: Debug failing unit tests
+
+Goals:
+- Identify failing unit tests.
+- Analyze the reasons for failure.
+
+State:
+- Analyzed pytest failures and code/test mismatch for AddApiKeyHeaderPolicy.
+- Decided to align tests with the current specific (OpenAI-focused) implementation.

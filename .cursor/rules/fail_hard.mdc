@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+In general, code should NOT 'fallback' to another solution when something doesn't work as expected *unless specifically told otherwise*. Code should default to failing quickly, loudly, and obviously.

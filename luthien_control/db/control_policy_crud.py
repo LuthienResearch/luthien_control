@@ -12,6 +12,7 @@ from .sqlmodel_models import ControlPolicy
 
 if TYPE_CHECKING:
     from luthien_control.control_policy.control_policy import ControlPolicy
+    from luthien_control.dependency_container import DependencyContainer
 
 logger = logging.getLogger(__name__)
 
@@ -105,11 +106,12 @@ async def update_policy(session: AsyncSession, policy_id: int, policy_update: Co
 
 async def load_policy_from_db(
     name: str,
-    session: AsyncSession,
-    **kwargs,
+    container: "DependencyContainer",
 ) -> "ControlPolicy":
-    """Load a policy from the database using the control_policy loader."""
-    policy_model = await get_policy_by_name(session, name)
+    """Load a policy configuration from the database and instantiate it using the control_policy loader."""
+    async with container.db_session_factory() as session:
+        policy_model = await get_policy_by_name(session, name)
+
     if not policy_model:
         raise PolicyLoadError(f"Active policy configuration named '{name}' not found in database.")
 
@@ -117,22 +119,15 @@ async def load_policy_from_db(
     policy_data = {
         "name": policy_model.name,
         "type": policy_model.type,  # The loader uses this to find the class
-        "config": policy_model.config or {},  # Pass the config dict directly
+        "config": policy_model.config or {},
     }
 
-    # Prepare available dependencies
-    # The loader will filter these based on the policy's requirements
-    available_dependencies = kwargs
-
     try:
-        # Call the simple loader from control_policy.loader
-        # Note: This loader is now asynchronous.
-        instance = await load_policy(policy_data, **available_dependencies)
+        instance = await load_policy(policy_data)
         logger.info(f"Successfully loaded and instantiated policy '{name}' from database.")
         return instance
     except PolicyLoadError as e:
         logger.error(f"Failed to load policy '{name}' from database: {e}")
-        # Re-raise cleanly, context is already included from instantiate_policy
         raise e
     except Exception as e:
         logger.exception(f"Unexpected error loading policy '{name}' from database: {e}")

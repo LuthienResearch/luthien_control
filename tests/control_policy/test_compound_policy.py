@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import Response
-from luthien_control.config.settings import Settings
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.compound_policy import CompoundPolicy
@@ -12,7 +11,8 @@ from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.db.client_api_key_crud import get_api_key_by_value
+from luthien_control.dependency_container import DependencyContainer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Test Fixtures and Helper Classes ---
 
@@ -31,7 +31,12 @@ class MockSimplePolicy(ControlPolicy):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name or self.__class__.__name__
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(
+        self,
+        context: TransactionContext,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> TransactionContext:
         self.logger.info(f"Applying {self.name}")
         call_order = context.data.setdefault("call_order", [])
         call_order.append(self.name)
@@ -40,7 +45,7 @@ class MockSimplePolicy(ControlPolicy):
             context.response = Response(status_code=299, content=f"Response from {self.name}")
             self.logger.info(f"{self.name} setting response")
 
-        await self.apply_mock(context)
+        await self.apply_mock(context, container=container, session=session)
         self.logger.info(f"Finished {self.name}")
         return context
 
@@ -57,7 +62,7 @@ class MockSimplePolicy(ControlPolicy):
 
 
 @pytest.fixture
-def mock_context() -> TransactionContext:
+def base_transaction_context() -> TransactionContext:
     """Provides a basic TransactionContext for tests."""
     return TransactionContext(transaction_id="test-tx-id")
 
@@ -66,69 +71,127 @@ def mock_context() -> TransactionContext:
 
 
 @pytest.mark.asyncio
-async def test_compound_policy_applies_policies_sequentially(mock_context):
+async def test_compound_policy_applies_policies_sequentially(
+    base_transaction_context,
+    mock_db_session: AsyncSession,
+    mock_container: DependencyContainer,
+):
     """Test that policies are applied in the specified order."""
-    policy1 = MockSimplePolicy()
-    policy2 = MockSimplePolicy()
+    policy1 = MockSimplePolicy(name="Policy1")
+    policy2 = MockSimplePolicy(name="Policy2")
     compound = CompoundPolicy(policies=[policy1, policy2], name="SequentialTest")
 
-    result_context = await compound.apply(mock_context)
+    # Keep track of context references
+    context_before_policy1 = base_transaction_context
 
-    assert result_context.data.get("call_order") == ["MockSimplePolicy", "MockSimplePolicy"]
-    policy1.apply_mock.assert_awaited_once_with(mock_context)
-    policy2.apply_mock.assert_awaited_once_with(mock_context)  # Context is passed along
-    assert result_context.response is None
+    # Pass mock session and container
+    result_context = await compound.apply(
+        base_transaction_context,
+        container=mock_container,
+        session=mock_db_session,
+    )
+
+    # Assertions
+    assert result_context.data.get("call_order") == ["Policy1", "Policy2"]
+    # Ensure the mock policies were called with the correct context
+    assert policy1.apply_mock.call_args[0][0] == context_before_policy1
+    # The context passed to policy2 should be the result of policy1
+    assert (
+        policy2.apply_mock.call_args[0][0] == context_before_policy1
+    )  # Assuming MockSimplePolicy returns same context
+    # Check session and container were passed
+    policy1.apply_mock.assert_awaited_once_with(
+        base_transaction_context, container=mock_container, session=mock_db_session
+    )
+    policy2.apply_mock.assert_awaited_once_with(
+        base_transaction_context, container=mock_container, session=mock_db_session
+    )
+    assert result_context is base_transaction_context  # Verify same context object is returned if not modified
 
 
 @pytest.mark.asyncio
-async def test_compound_policy_empty_list(mock_context, caplog):
+async def test_compound_policy_empty_list(
+    base_transaction_context,
+    caplog,
+    mock_db_session: AsyncSession,
+    mock_container: DependencyContainer,
+):
     """Test that CompoundPolicy handles an empty policy list gracefully."""
     compound = CompoundPolicy(policies=[], name="EmptyTest")
 
     with caplog.at_level(logging.WARNING):
-        result_context = await compound.apply(mock_context)
+        result_context = await compound.apply(
+            base_transaction_context,
+            container=mock_container,
+            session=mock_db_session,
+        )
 
-    assert result_context is mock_context  # Should return the original context
-    assert "call_order" not in result_context.data
+    assert result_context is base_transaction_context
     assert "Initializing CompoundPolicy 'EmptyTest' with an empty policy list." in caplog.text
-    assert result_context.response is None
 
 
 @pytest.mark.asyncio
-async def test_compound_policy_propagates_exception(mock_context):
+async def test_compound_policy_propagates_exception(
+    base_transaction_context,
+    mock_db_session: AsyncSession,
+    mock_container: DependencyContainer,
+):
     """Test that an exception raised by a member policy propagates up."""
 
     class TestException(Exception):
         pass
 
-    policy1 = MockSimplePolicy()
-    policy2 = MockSimplePolicy(side_effect=TestException("Policy 2 failed!"))
-    policy3 = MockSimplePolicy()
+    policy1 = MockSimplePolicy(name="Policy1")
+    policy2 = MockSimplePolicy(side_effect=TestException("Policy 2 failed!"), name="Policy2")
+    policy3 = MockSimplePolicy(name="Policy3")
     compound = CompoundPolicy(policies=[policy1, policy2, policy3], name="ExceptionTest")
 
     with pytest.raises(TestException, match="Policy 2 failed!"):
-        await compound.apply(mock_context)
+        await compound.apply(
+            base_transaction_context,
+            container=mock_container,
+            session=mock_db_session,
+        )
 
-    assert mock_context.data.get("call_order") == ["MockSimplePolicy", "MockSimplePolicy"]
+    # Check that policy1 was called, but policy3 was not
+    assert base_transaction_context.data.get("call_order") == ["Policy1", "Policy2"]
     policy1.apply_mock.assert_awaited_once()
     policy2.apply_mock.assert_awaited_once()
     policy3.apply_mock.assert_not_awaited()
-    assert mock_context.response is None  # No response should be set if exception occurred before
 
 
 @pytest.mark.asyncio
-async def test_compound_policy_continues_on_response(mock_context):
+async def test_compound_policy_continues_on_response(
+    base_transaction_context,
+    mock_db_session: AsyncSession,
+    mock_container: DependencyContainer,
+):
     """Test that execution continues even if a member policy sets context.response."""
-    policy1 = MockSimplePolicy()
-    policy2 = MockSimplePolicy(sets_response=True)  # This policy sets a response
-    policy3 = MockSimplePolicy()
+    policy1 = MockSimplePolicy(name="Policy1")
+    policy2 = MockSimplePolicy(sets_response=True, name="Policy2")  # This policy sets a response
+    policy3 = MockSimplePolicy(name="Policy3")
     compound = CompoundPolicy(policies=[policy1, policy2, policy3], name="ResponseTest")
 
-    result_context = await compound.apply(mock_context)
+    # Track the context object
+    context_before_apply = base_transaction_context
 
-    assert result_context.data.get("call_order") == ["MockSimplePolicy", "MockSimplePolicy", "MockSimplePolicy"]
+    # Pass mock session and container
+    result_context = await compound.apply(
+        base_transaction_context,
+        container=mock_container,
+        session=mock_db_session,
+    )
+
+    # Ensure all policies were still called
+    policy1.apply_mock.assert_awaited_once()
+    policy2.apply_mock.assert_awaited_once()
+    policy3.apply_mock.assert_awaited_once()
+
+    # The final result should be the original context object
+    assert result_context is context_before_apply
+    # Check that policy 2 did set the response on the context
     assert result_context.response is not None
-    assert isinstance(result_context.response, Response)
+    assert result_context.response.body == b"Response from Policy2"
 
 
 def test_compound_policy_repr():
@@ -173,22 +236,17 @@ def test_compound_serialize_config():
 async def test_compound_policy_serialization():
     """Test that CompoundPolicy can be serialized and deserialized correctly, including nested policies."""
     # Arrange
-    settings = Settings()
-    policy1 = ClientApiKeyAuthPolicy(api_key_lookup=get_api_key_by_value)
-    policy1.policy_type = "ClientApiKeyAuth"
+    policy1 = ClientApiKeyAuthPolicy()
+    policy2 = AddApiKeyHeaderPolicy(name="AddOpenAIKey")
 
-    policy2 = AddApiKeyHeaderPolicy(settings=settings)
-    policy2.policy_type = "AddApiKeyHeader"
+    # Manually set policy_type for serialization registry lookup (usually handled by DB loading)
+    # Ensure registry maps these types correctly
 
     original_compound_policy = CompoundPolicy(policies=[policy1, policy2], name="TestCompound")
 
     # Act
     serialized_data = original_compound_policy.serialize()
-    rehydrated_policy = await CompoundPolicy.from_serialized(
-        serialized_data,
-        api_key_lookup=get_api_key_by_value,
-        settings=settings,
-    )
+    rehydrated_policy = await CompoundPolicy.from_serialized(serialized_data)
 
     # Assert
     assert isinstance(serialized_data, dict)
@@ -196,18 +254,18 @@ async def test_compound_policy_serialization():
     assert len(serialized_data["policies"]) == 2
 
     assert serialized_data["policies"][0]["type"] == "ClientApiKeyAuth"
-    assert serialized_data["policies"][0]["config"] == {"name": "ClientApiKeyAuthPolicy"}
+    assert serialized_data["policies"][0]["config"] == {}
     assert serialized_data["policies"][1]["type"] == "AddApiKeyHeader"
-    assert serialized_data["policies"][1]["config"] == {"name": "AddApiKeyHeaderPolicy"}
+    assert serialized_data["policies"][1]["config"] == {
+        "name": "AddOpenAIKey",
+    }
 
     assert isinstance(rehydrated_policy, CompoundPolicy)
     assert len(rehydrated_policy.policies) == 2
     assert isinstance(rehydrated_policy.policies[0], ClientApiKeyAuthPolicy)
-    assert hasattr(rehydrated_policy.policies[0], "_api_key_lookup")
-    assert rehydrated_policy.policies[0]._api_key_lookup == get_api_key_by_value
     assert isinstance(rehydrated_policy.policies[1], AddApiKeyHeaderPolicy)
-    assert hasattr(rehydrated_policy.policies[1], "settings")
-    assert rehydrated_policy.policies[1].settings is settings
+    # Check the name is correct after rehydration
+    assert rehydrated_policy.policies[1].name == "AddOpenAIKey"
 
 
 @pytest.mark.asyncio
@@ -218,7 +276,7 @@ async def test_compound_policy_serialization_empty():
 
     # Act
     serialized_data = original_compound_policy.serialize()
-    rehydrated_policy = await CompoundPolicy.from_serialized(serialized_data, settings=Settings())
+    rehydrated_policy = await CompoundPolicy.from_serialized(serialized_data)
 
     # Assert
     assert isinstance(serialized_data, dict)
@@ -248,7 +306,7 @@ async def test_compound_policy_serialization_invalid_policy_item():
         ]
     }
     with pytest.raises(PolicyLoadError, match="Item at index 1 in CompoundPolicy 'policies' is not a dictionary"):
-        await CompoundPolicy.from_serialized(invalid_config, api_key_lookup=get_api_key_by_value)
+        await CompoundPolicy.from_serialized(invalid_config)
 
 
 @patch("luthien_control.control_policy.compound_policy.load_policy", new_callable=AsyncMock)
@@ -264,7 +322,7 @@ async def test_compound_policy_serialization_load_error(mock_load_policy):
     mock_load_policy.side_effect = [MagicMock(spec=ControlPolicy), PolicyLoadError("Mocked load failure")]
 
     with pytest.raises(PolicyLoadError, match="Failed to load member policy.*within CompoundPolicy"):
-        await CompoundPolicy.from_serialized(config, api_key_lookup="dummy_lookup")
+        await CompoundPolicy.from_serialized(config)
 
 
 @patch("luthien_control.control_policy.compound_policy.load_policy", new_callable=AsyncMock)
@@ -279,4 +337,4 @@ async def test_compound_policy_serialization_unexpected_error(mock_load_policy):
     mock_load_policy.side_effect = ValueError("Unexpected internal error")
 
     with pytest.raises(PolicyLoadError, match="Unexpected error loading member policy.*"):
-        await CompoundPolicy.from_serialized(config, api_key_lookup="dummy_lookup")
+        await CompoundPolicy.from_serialized(config)

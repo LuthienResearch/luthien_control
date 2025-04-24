@@ -79,8 +79,8 @@ async def get_main_control_policy(
     Dependency to load and provide the main, top-level ControlPolicy instance
     based on the configuration name specified in settings.
 
-    Injects necessary dependencies (settings, http_client, api_key_lookup, session)
-    into the policy loading mechanism.
+    Injects necessary dependencies (settings, http_client, session) into the policy loading mechanism.
+    (api_key_lookup is no longer passed as it's handled internally by policies needing it).
     """
     # First, check if the policy name is configured
     top_level_policy_name = settings.get_top_level_policy_name()
@@ -91,15 +91,16 @@ async def get_main_control_policy(
 
     # If the name exists, proceed with loading attempt
     try:
-        # Pass the injected dependencies and the function reference for lookup
-        api_key_lookup_func: ApiKeyLookupFunc = get_api_key_by_value
+        # Pass the injected dependencies.
+        # api_key_lookup_func is no longer needed here.
+        # api_key_lookup_func: ApiKeyLookupFunc = get_api_key_by_value
 
         # Use the injected session directly
         main_policy = await load_policy_from_db(
             name=top_level_policy_name,
             settings=settings,
             http_client=http_client,  # Pass the client obtained via Depends
-            api_key_lookup=api_key_lookup_func,  # Pass the lookup function reference
+            # api_key_lookup=api_key_lookup_func, # Removed api_key_lookup argument
             session=session,  # Use the injected session
         )
         if not main_policy:  # load_policy_from_db might return None if not found
@@ -118,8 +119,3 @@ async def get_main_control_policy(
         raise HTTPException(
             status_code=500, detail="Internal server error: Unexpected issue loading main control policy."
         )
-
-
-def get_response_builder() -> ResponseBuilder:
-    """Provides an instance of the DefaultResponseBuilder."""
-    return DefaultResponseBuilder()

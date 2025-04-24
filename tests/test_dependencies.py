@@ -11,7 +11,6 @@ from luthien_control.db.client_api_key_crud import get_api_key_by_value
 from luthien_control.dependencies import (
     get_http_client,
     get_main_control_policy,
-    get_response_builder,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import State
@@ -53,10 +52,11 @@ def test_get_http_client_not_found(mock_request_with_state):
 # --- Tests for Simple Dependency Providers ---
 
 
-def test_get_response_builder():
-    """Test that get_response_builder returns the correct builder instance."""
-    builder = get_response_builder()
-    assert isinstance(builder, DefaultResponseBuilder)
+# Remove test for get_response_builder
+# def test_get_response_builder():
+#    \"\"\"Test that get_response_builder returns the correct builder instance.\"\"\"
+#    builder = get_response_builder()
+#    assert isinstance(builder, DefaultResponseBuilder)
 
 
 # --- Tests for get_main_control_policy ---
@@ -107,8 +107,7 @@ async def test_get_main_control_policy_success(
         name=policy_name,
         settings=mock_settings,
         http_client=mock_http_client,
-        api_key_lookup=get_api_key_by_value,  # Check that the correct function reference is passed
-        session=mock_session,  # Add session to the expected call args
+        session=mock_session,  # Ensure session is still expected
     )
     assert result_policy is mock_policy
 

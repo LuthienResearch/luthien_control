@@ -109,7 +109,6 @@ async def load_policy_from_db(
     container: "DependencyContainer",
 ) -> "ControlPolicy":
     """Load a policy configuration from the database and instantiate it using the control_policy loader."""
-    # Use the container's session factory to get a session for DB lookup
     async with container.db_session_factory() as session:
         policy_model = await get_policy_by_name(session, name)
 
@@ -120,7 +119,7 @@ async def load_policy_from_db(
     policy_data = {
         "name": policy_model.name,
         "type": policy_model.type,  # The loader uses this to find the class
-        "config": policy_model.config or {},  # Pass the config dict directly
+        "config": policy_model.config or {},
     }
 
     # Prepare available dependencies for the loader
@@ -130,12 +129,9 @@ async def load_policy_from_db(
     available_dependencies = {
         "settings": container.settings,
         "http_client": container.http_client,
-        # Add other dependencies from the container if load_policy/member policies need them
     }
 
     try:
-        # Call the simple loader from control_policy.loader
-        # Note: This loader is asynchronous.
         instance = await load_policy(policy_data, **available_dependencies)
         logger.info(f"Successfully loaded and instantiated policy '{name}' from database.")
         return instance

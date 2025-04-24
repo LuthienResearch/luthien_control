@@ -69,6 +69,9 @@
         *   Access the required dependencies (settings, client, session factory) from the `container` instance.
         *   Adapt session usage (e.g., `async with container.db_session_factory() as session:`).
         *   If API key lookup is needed within this function, use the obtained `session` to call `get_api_key_by_value` directly (already done in Phase 1, but verify).
+    *   **Refactor `ClientApiKeyAuthPolicy` (`luthien_control/control_policy/client_api_key_auth.py`):**
+        *   Modify `apply` to accept an `AsyncSession` as a parameter instead of creating its own using `get_db_session()`.
+        *   Ensure the policy loading mechanism (likely within `load_policy_from_db` or a related function modified in this phase) provides the session from the container's session factory when instantiating/calling `ClientApiKeyAuthPolicy`.
 
 12. **Verify API Routes (`proxy/server.py`):**
     *   Review endpoint dependencies (e.g., `Depends(get_main_control_policy)`). Should require no changes due to this phase, but verify.

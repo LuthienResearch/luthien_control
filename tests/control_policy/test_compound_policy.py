@@ -238,22 +238,17 @@ def test_compound_serialize_config():
 async def test_compound_policy_serialization():
     """Test that CompoundPolicy can be serialized and deserialized correctly, including nested policies."""
     # Arrange
-    settings = Settings()
     policy1 = ClientApiKeyAuthPolicy()
-    policy1.policy_type = "ClientApiKeyAuth"
+    policy2 = AddApiKeyHeaderPolicy(name="AddOpenAIKey")
 
-    policy2 = AddApiKeyHeaderPolicy(settings=settings)
-    policy2.policy_type = "AddApiKeyHeader"
+    # Manually set policy_type for serialization registry lookup (usually handled by DB loading)
+    # Ensure registry maps these types correctly
 
     original_compound_policy = CompoundPolicy(policies=[policy1, policy2], name="TestCompound")
 
     # Act
     serialized_data = original_compound_policy.serialize()
-
-    # Simulate the dependencies that load_policy_from_db would provide
-    # In this case, only AddApiKeyHeaderPolicy requires 'settings'
-    dependencies_for_load = {"settings": settings}
-    rehydrated_policy = await CompoundPolicy.from_serialized(serialized_data, **dependencies_for_load)
+    rehydrated_policy = await CompoundPolicy.from_serialized(serialized_data)
 
     # Assert
     assert isinstance(serialized_data, dict)
@@ -261,15 +256,18 @@ async def test_compound_policy_serialization():
     assert len(serialized_data["policies"]) == 2
 
     assert serialized_data["policies"][0]["type"] == "ClientApiKeyAuth"
-    assert serialized_data["policies"][0]["config"] == {"name": policy1.name}
+    assert serialized_data["policies"][0]["config"] == {}
     assert serialized_data["policies"][1]["type"] == "AddApiKeyHeader"
-    assert serialized_data["policies"][1]["config"] == {"name": policy2.name}
+    assert serialized_data["policies"][1]["config"] == {
+        "name": "AddOpenAIKey",
+    }
 
     assert isinstance(rehydrated_policy, CompoundPolicy)
     assert len(rehydrated_policy.policies) == 2
     assert isinstance(rehydrated_policy.policies[0], ClientApiKeyAuthPolicy)
     assert isinstance(rehydrated_policy.policies[1], AddApiKeyHeaderPolicy)
-    assert rehydrated_policy.policies[1].settings is settings
+    # Check the name is correct after rehydration
+    assert rehydrated_policy.policies[1].name == "AddOpenAIKey"
 
 
 @pytest.mark.asyncio
@@ -280,7 +278,7 @@ async def test_compound_policy_serialization_empty():
 
     # Act
     serialized_data = original_compound_policy.serialize()
-    rehydrated_policy = await CompoundPolicy.from_serialized(serialized_data, settings=Settings())
+    rehydrated_policy = await CompoundPolicy.from_serialized(serialized_data)
 
     # Assert
     assert isinstance(serialized_data, dict)

@@ -4,7 +4,7 @@ import logging
 from typing import Optional, cast
 
 from fastapi.responses import JSONResponse
-from luthien_control.config.settings import Settings
+
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
 from luthien_control.core.transaction_context import TransactionContext
@@ -15,14 +15,11 @@ from .serialization import SerializableDict
 
 
 class AddApiKeyHeaderPolicy(ControlPolicy):
-    """Adds the configured API key (e.g., OpenAI) to the request Authorization header."""
+    """Adds the configured OpenAI API key to the request Authorization header."""
 
-    REQUIRED_DEPENDENCIES = ["settings"]
-
-    def __init__(self, settings: Settings, name: Optional[str] = None):
-        """Initializes the processor with settings."""
+    def __init__(self, name: Optional[str] = None):
+        """Initializes the policy."""
         self.name = name or self.__class__.__name__
-        self.settings = settings
         self.logger = logging.getLogger(__name__)
 
     async def apply(
@@ -34,17 +31,17 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         """
         Adds the Authorization: Bearer <api_key> header to the context.request.
 
-        Reads API key from settings (injected during initialization).
+        Reads OpenAI API key from settings via the container.
         Requires the DependencyContainer and AsyncSession in signature for interface compliance,
-        but they are not directly used in this policy's logic.
+        but session is not directly used in this policy's logic.
 
         Raises:
             NoRequestError if the request is not found in the context.
-            ApiKeyNotFoundError if the API key is not configured.
+            ApiKeyNotFoundError if the OpenAI API key is not configured.
 
         Args:
             context: The current transaction context.
-            container: The application dependency container (unused).
+            container: The application dependency container.
             session: An active SQLAlchemy AsyncSession (unused).
 
         Returns:
@@ -52,24 +49,33 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         """
         if context.request is None:
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")
-        api_key = self.settings.get_openai_api_key()
+        # Fetch settings from container
+        settings = container.settings
+        api_key = settings.get_openai_api_key()
         if not api_key:
             context.response = JSONResponse(
-                status_code=500, content={"detail": "Server configuration error: API key not configured"}
+                status_code=500,
+                content={"detail": "Server configuration error: OpenAI API key not configured"},
             )
-            raise ApiKeyNotFoundError(f"[{context.transaction_id}] API key not configured ({self.name}).")
-        self.logger.info(f"[{context.transaction_id}] Adding Authorization header ({self.name}).")
+            raise ApiKeyNotFoundError(f"[{context.transaction_id}] OpenAI API key not configured ({self.name}).")
+        self.logger.info(f"[{context.transaction_id}] Adding Authorization header for OpenAI key ({self.name}).")
         context.request.headers["Authorization"] = f"Bearer {api_key}"
         return context
 
     def serialize(self) -> SerializableDict:
-        """Serializes config. Returns base info as only dependency is settings."""
+        """Serializes config. Returns base info as no instance-specific config needed."""
         return cast(SerializableDict, {"name": self.name})
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict, settings: Settings, **kwargs) -> "AddApiKeyHeaderPolicy":
-        """Instantiates the policy from serialized config and dependencies."""
-        # Ensure settings dependency is provided correctly via kwargs by loader
-        # The 'settings: Settings' type hint ensures it's passed if required by REQUIRED_DEPENDENCIES
-        # The loader (`load_policy`) handles injecting it into kwargs based on REQUIRED_DEPENDENCIES.
-        return cls(settings=settings, name=config.get("name"))
+    async def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderPolicy":
+        """
+        Constructs the policy from serialized configuration.
+
+        Args:
+            config: Dictionary possibly containing 'name'.
+
+        Returns:
+            An instance of AddApiKeyHeaderPolicy.
+        """
+        instance_name = config.get("name")
+        return cls(name=instance_name)

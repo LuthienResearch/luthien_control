@@ -21,9 +21,6 @@ class SendBackendRequestPolicy(ControlPolicy):
     and reading the raw response body. Uses dependencies from the container.
     """
 
-    # Dependencies are provided via container, not explicitly required for loading anymore
-    REQUIRED_DEPENDENCIES = []
-
     _EXCLUDED_BACKEND_HEADERS = {
         b"host",
         b"transfer-encoding",
@@ -164,12 +161,15 @@ class SendBackendRequestPolicy(ControlPolicy):
     # Update signature: Remove http_client and settings.
     # The loader will eventually pass the container, but this method doesn't need it directly.
     @classmethod
-    async def from_serialized(
-        cls,
-        config: SerializableDict,
-        # http_client: httpx.AsyncClient, # Removed
-        # settings: Settings, # Removed
-        **kwargs,  # Keep kwargs for potential future use by loader or subclasses
-    ) -> "SendBackendRequestPolicy":
+    async def from_serialized(cls, config: SerializableDict) -> "SendBackendRequestPolicy":
+        """
+        Constructs the policy from serialized configuration.
+
+        Args:
+            config: Dictionary possibly containing 'name'.
+
+        Returns:
+            An instance of SendBackendRequestPolicy.
+        """
         # Only name is needed from config for instantiation now
         return cls(name=config.get("name"))

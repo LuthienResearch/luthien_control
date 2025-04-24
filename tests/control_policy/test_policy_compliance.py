@@ -129,13 +129,11 @@ def test_policy_from_serialized_signature(policy_class: Type[ControlPolicy]):
     sig = inspect.signature(actual_func)
     params = sig.parameters
 
-    # Expected parameters: cls, config, **kwargs
+    # Expected parameters: cls, config
     param_names = list(params.keys())
     assert param_names[0] == "cls", f"{policy_class.__name__}.from_serialized first param should be 'cls'"
     assert param_names[1] == "config", f"{policy_class.__name__}.from_serialized second param should be 'config'"
-    assert any(p.kind == p.VAR_KEYWORD for p in params.values()), (
-        f"{policy_class.__name__}.from_serialized must accept **kwargs"
-    )
+    assert len(param_names) == 2, f"{policy_class.__name__}.from_serialized should only accept 'cls' and 'config'"
 
     # Check return type hint
     try:

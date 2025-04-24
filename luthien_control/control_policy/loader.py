@@ -1,6 +1,7 @@
 """Loads control policies from serialized data."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Type
+import logging
 
 # Import the load error exception
 from .exceptions import PolicyLoadError
@@ -34,6 +35,8 @@ async def load_policy(serialized_policy: SerializedPolicy, **available_dependenc
     # Import the policy registry here to avoid circular import
     from .registry import POLICY_NAME_TO_CLASS  # noqa: F401
 
+    logger = logging.getLogger(__name__)
+
     policy_type = serialized_policy["type"]
     policy_config = serialized_policy["config"]
 
@@ -49,33 +52,13 @@ async def load_policy(serialized_policy: SerializedPolicy, **available_dependenc
             f"Unknown policy type: '{policy_type}'. Available policies: {list(POLICY_NAME_TO_CLASS.keys())}"
         )
 
-    # --- Dependency Injection Logic ---
-    required_deps_set = getattr(policy_class, "REQUIRED_DEPENDENCIES", set())
-    needed_deps = {}
-    missing_deps = []
-
-    for dep_name in required_deps_set:
-        if dep_name in available_dependencies:
-            needed_deps[dep_name] = available_dependencies[dep_name]
-        else:
-            missing_deps.append(dep_name)
-
-    if missing_deps:
-        raise PolicyLoadError(
-            f"Policy '{policy_type}' requires missing dependencies: {', '.join(missing_deps)}. "
-            f"Available dependencies: {list(available_dependencies.keys())}"
-        )
-    # --- End Dependency Injection ---
-
-    # The policy class's from_serialized method handles config validation
-    # and now accepts dependencies.
     try:
-        # Pass the filtered, necessary dependencies to the policy
-        for dep_name, dep_value in needed_deps.items():
-            print(f"Passing dependency {dep_name} to {policy_class.__name__}: {dep_value}")
-        # Always await from_serialized, assuming all implementations are async
-        return await policy_class.from_serialized(policy_config, **needed_deps)
+        instance = await policy_class.from_serialized(policy_config)
+        instance_name = policy_config.get("name", None)
+        if instance_name:
+            instance.name = instance_name
+        logger.info(f"Successfully loaded policy: {getattr(instance, 'name', policy_type)}")
+        return instance
     except Exception as e:
-        # Re-raise potentially informative errors from the policy's constructor
-        # Add context about which policy failed.
-        raise PolicyLoadError(f"Error loading policy '{policy_type}' with config {policy_config}: {e}") from e
+        logger.error(f"Error instantiating policy '{policy_type}': {e}", exc_info=True)
+        raise PolicyLoadError(f"Error instantiating policy '{policy_type}': {e}") from e

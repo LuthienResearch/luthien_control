@@ -22,8 +22,6 @@ class CompoundPolicy(ControlPolicy):
     the execution stops, and the exception propagates.
     """
 
-    REQUIRED_DEPENDENCIES = ["http_client", "settings"]
-
     def __init__(self, policies: Sequence[ControlPolicy], name: Optional[str] = None):
         """
         Initializes the CompoundPolicy.
@@ -96,7 +94,7 @@ class CompoundPolicy(ControlPolicy):
         for p in self.policies:
             try:
                 policy_type = POLICY_CLASS_TO_NAME.get(type(p))
-            except ImportError:  # Should not happen if loader exists
+            except ImportError:
                 raise PolicyLoadError(
                     f"Could not determine policy type for {type(p)} during serialization in {self.name} "
                     "(Not in POLICY_CLASS_TO_NAME)"
@@ -108,18 +106,16 @@ class CompoundPolicy(ControlPolicy):
                     "config": p.serialize(),
                 }
             )
-        # Return a dictionary literal conforming to SerializableDict
         return cast(SerializableDict, {"policies": member_configs})
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict, **kwargs) -> "CompoundPolicy":
+    async def from_serialized(cls, config: SerializableDict) -> "CompoundPolicy":
         """
         Constructs a CompoundPolicy from serialized data, loading member policies.
 
         Args:
             config: The serialized configuration dictionary. Expects a 'policies' key
-                    containing a list of dictionaries, each with 'name' and 'config'.
-            **kwargs: Dependencies (e.g., api_key_lookup) passed down to members.
+                    containing a list of dictionaries, each with 'type' and 'config'.
 
         Returns:
             An instance of CompoundPolicy.
@@ -141,11 +137,9 @@ class CompoundPolicy(ControlPolicy):
             if not isinstance(member_data, dict):
                 raise PolicyLoadError(f"Item at index {i} in CompoundPolicy 'policies' is not a dictionary.")
             try:
-                # Call the simple loader, passing all available dependencies down
-                member_policy = await load_policy(member_data, **kwargs)
+                member_policy = await load_policy(member_data)
                 instantiated_policies.append(member_policy)
             except PolicyLoadError as e:
-                # Add context about which member failed
                 raise PolicyLoadError(
                     f"Failed to load member policy at index {i} "
                     f"(name: {member_data.get('name', 'unknown')}) "
@@ -158,7 +152,6 @@ class CompoundPolicy(ControlPolicy):
                     f"within CompoundPolicy: {e}"
                 ) from e
 
-        # Extract the name for the CompoundPolicy itself from the config, if provided
         compound_policy_name = config.get("name", "CompoundPolicy")  # Default name if not in config
 
         return cls(policies=instantiated_policies, name=compound_policy_name)

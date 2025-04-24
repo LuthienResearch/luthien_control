@@ -207,7 +207,8 @@ async def test_client_api_key_auth_policy_serialization():
     """Test that ClientApiKeyAuthPolicy can be serialized and deserialized correctly."""
     # Arrange
     # ClientApiKeyAuthPolicy no longer requires api_key_lookup on init
-    original_policy = ClientApiKeyAuthPolicy(name="TestAuthPolicy")
+    # And name is no longer an init argument
+    original_policy = ClientApiKeyAuthPolicy()
 
     # Act
     serialized_data = original_policy.serialize()
@@ -216,8 +217,10 @@ async def test_client_api_key_auth_policy_serialization():
 
     # Assert
     assert isinstance(serialized_data, dict)  # Check against dict, not type alias
-    assert serialized_data == {"name": "TestAuthPolicy"}
+    # Default name serialization is now empty dict
+    assert serialized_data == {}
     assert isinstance(rehydrated_policy, ClientApiKeyAuthPolicy)
-    assert rehydrated_policy.name == "TestAuthPolicy"
+    # Default name is class name
+    assert rehydrated_policy.name == "ClientApiKeyAuthPolicy"
     # No internal _api_key_lookup to check anymore
     # assert rehydrated_policy._api_key_lookup is dummy_lookup

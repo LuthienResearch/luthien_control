@@ -4,7 +4,14 @@
 class ControlPolicyError(Exception):
     """Base exception for all control policy errors."""
 
-    pass
+    def __init__(
+        self, *args, policy_name: str | None = None, status_code: int | None = None, detail: str | None = None
+    ):
+        super().__init__(*args)
+        self.policy_name = policy_name
+        self.status_code = status_code
+        # Use the first arg as detail if detail kwarg is not provided and args exist
+        self.detail = detail or (args[0] if args else None)
 
 
 class PolicyLoadError(ValueError, ControlPolicyError):

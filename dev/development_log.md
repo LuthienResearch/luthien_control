@@ -128,3 +128,22 @@ Next Steps: Ready for commit or next task.
 
 **Status:** Phase 1 (Prerequisite Refactoring) completed successfully. All tests pass (`pytest`). Bandit scan clean.
 **Next Steps:** Begin Phase 2: Implement Dependency Injection Container (starting with Step 7: Define `DependencyContainer`).
+
+---
+**Timestamp:** 2025-04-24 14:18
+**Task:** Simplify Orchestration Error Handling and Testing (dev/simplify_orchestration_plan.md)
+**Changes:**
+*   Modified `luthien_control/proxy/orchestration.py`:
+    *   Updated `run_policy_flow` to handle `ControlPolicyError` by directly creating a `JSONResponse` (status code from exception or 400 default) instead of using the `DefaultResponseBuilder`.
+    *   Kept existing logic for handling unexpected `Exception` (attempt builder, fallback to `JSONResponse`).
+*   Modified `luthien_control/control_policy/exceptions.py`:
+    *   Added `__init__` to `ControlPolicyError` to accept optional `policy_name`, `status_code`, `detail` kwargs.
+*   Modified `tests/proxy/test_orchestration.py`:
+    *   Refactored `test_run_policy_flow_policy_exception` to assert direct `JSONResponse` creation, no builder call, and correct warning log.
+    *   Refactored `test_run_policy_flow_unexpected_exception` to assert builder call, no fallback `JSONResponse`, and correct exception log.
+    *   Refactored `test_run_policy_flow_unexpected_exception_during_build` to assert both errors logged and fallback `JSONResponse` used.
+    *   Refactored `test_run_policy_flow_successful` to assert builder call and no direct `JSONResponse` call.
+    *   Corrected `test_run_policy_flow_context_init_exception` to assert that the initial `ValueError` propagates out (using `pytest.raises`).
+    *   Updated `mock_policy_raising_exception` fixture to use the new `ControlPolicyError` kwargs.
+**Status:** Completed. All tests passed. Bandit scan clean.
+**Next Steps:** Commit changes.

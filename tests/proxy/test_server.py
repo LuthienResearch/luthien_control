@@ -126,8 +126,8 @@ async def test_api_proxy_endpoint_calls_orchestrator(
     call_kwargs = mock_run_flow.await_args[1]  # Get keyword args
     assert "request" in call_kwargs
     assert "main_policy" in call_kwargs
-    assert "builder" in call_kwargs
     assert "dependencies" in call_kwargs  # Check container was passed
+    assert "session" in call_kwargs  # Check session was passed
 
     request_arg = call_kwargs["request"]
     assert isinstance(request_arg, Request)
@@ -136,9 +136,8 @@ async def test_api_proxy_endpoint_calls_orchestrator(
 
     # Check that the policy loaded via the (mocked) dependency chain was passed
     assert call_kwargs["main_policy"] is mock_main_policy_for_simple_tests
-    assert isinstance(call_kwargs["builder"], ResponseBuilder)
-    # Check that the overridden dependencies were passed
     assert call_kwargs["dependencies"] is mock_dependencies
+    assert isinstance(call_kwargs["session"], AsyncMock)
 
     assert request_arg.headers.get("authorization") == "Bearer test-key"
 

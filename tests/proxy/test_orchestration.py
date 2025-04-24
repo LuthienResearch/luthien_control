@@ -77,8 +77,11 @@ def mock_policy() -> AsyncMock:
 def mock_policy_raising_exception() -> AsyncMock:
     """Provides a single mock ControlPolicy that raises ControlPolicyError."""
     policy_mock = AsyncMock(spec=ControlPolicy)
-    # Update side effect to match new apply signature
-    policy_mock.apply.side_effect = ControlPolicyError("Policy Failed!")
+    # Provide more details in the mock error for testing
+    policy_mock.apply.side_effect = ControlPolicyError(
+        "Policy Failed!", policy_name="MockPolicy", status_code=418, detail="Test Detail"
+    )
+    policy_mock.name = "MockPolicy"  # Ensure name attribute exists
     return policy_mock
 
 
@@ -90,170 +93,202 @@ def mock_session() -> AsyncMock:
 
 @patch("luthien_control.proxy.orchestration.uuid.uuid4")
 @patch("luthien_control.proxy.orchestration.DefaultResponseBuilder")  # Patch the builder where it's used
+@patch("luthien_control.proxy.orchestration.logger")  # Patch logger
+@patch("luthien_control.proxy.orchestration.JSONResponse")  # Patch JSONResponse used directly now
 async def test_run_policy_flow_successful(
-    MockDefaultBuilder: MagicMock,  # Inject the patched class
+    MockJSONResponse: MagicMock,
+    mock_logger: MagicMock,
+    MockDefaultBuilder: MagicMock,
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy: AsyncMock,
     mock_dependencies: MagicMock,
-    mock_session: AsyncMock,  # Add session fixture
+    mock_session: AsyncMock,
 ):
     """
-    Test Goal: Verify the happy path: context init, policy runs with container/session,
-               and the default builder is invoked.
+    Test Goal: Verify the happy path: context init, policy runs, builder invoked.
+    (Added logger/JSONResponse patches for consistency, though not strictly needed here)
     """
     fixed_test_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
     mock_uuid4.return_value = fixed_test_uuid
 
-    # Configure the mocked DefaultResponseBuilder instance
     mock_builder_instance = MockDefaultBuilder.return_value
     expected_final_response = Response(content=b"built response")
     mock_builder_instance.build_response.return_value = expected_final_response
 
-    # Call the orchestrator, passing container and session
+    # Call the orchestrator
     response = await run_policy_flow(
         request=mock_request,
         main_policy=mock_policy,
         dependencies=mock_dependencies,
-        session=mock_session,  # Pass session
+        session=mock_session,
     )
 
     # Assertions
-    # 1. Context Initialization
     mock_request.body.assert_awaited_once()
     mock_uuid4.assert_called_once()
-    # 2. Policy Application
-    # Check policy was called with context, container, and session
     mock_policy.apply.assert_awaited_once()
     call_args, call_kwargs = mock_policy.apply.await_args
-    assert isinstance(call_args[0], TransactionContext)
-    assert call_args[0].transaction_id == fixed_test_uuid
-    assert call_kwargs.get("container") is mock_dependencies  # Check container
-    assert call_kwargs.get("session") is mock_session  # Check session
-    # 3. Response Building (using the internal DefaultResponseBuilder instance)
-    MockDefaultBuilder.assert_called_once_with()  # Check builder was instantiated
+    assert isinstance(call_kwargs.get("context"), TransactionContext)
+    assert call_kwargs.get("context").transaction_id == fixed_test_uuid
+    assert call_kwargs.get("container") is mock_dependencies
+    assert call_kwargs.get("session") is mock_session
+
+    # Builder *is* used in happy path
+    MockDefaultBuilder.assert_called_once_with()
     mock_builder_instance.build_response.assert_called_once()
     context_arg = mock_builder_instance.build_response.call_args[0][0]
     assert isinstance(context_arg, TransactionContext)
     assert context_arg.transaction_id == fixed_test_uuid
     assert context_arg.data.get("main_policy_called") is True
-    # 4. Final Response
+
+    # Direct JSONResponse should *not* be called in happy path
+    MockJSONResponse.assert_not_called()
+    # Warning/exception logger should not be called
+    mock_logger.warning.assert_not_called()
+    mock_logger.exception.assert_not_called()
+
+    # Final response check
     assert response is expected_final_response
 
 
 @patch("luthien_control.proxy.orchestration.uuid.uuid4")
-@patch("luthien_control.proxy.orchestration.DefaultResponseBuilder")  # Patch the builder where it's used
+@patch("luthien_control.proxy.orchestration.DefaultResponseBuilder")  # Patch builder, it's instantiated but not used
+@patch("luthien_control.proxy.orchestration.logger")  # Patch logger
+@patch("luthien_control.proxy.orchestration.JSONResponse")  # Patch JSONResponse used directly now
 async def test_run_policy_flow_policy_exception(
+    MockJSONResponse: MagicMock,
+    mock_logger: MagicMock,
     MockDefaultBuilder: MagicMock,
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy_raising_exception: AsyncMock,
     mock_dependencies: MagicMock,
-    mock_session: AsyncMock,  # Add session fixture
+    mock_session: AsyncMock,
 ):
     """
-    Test Goal: Verify that if the policy raises ControlPolicyError, the exception
-               is caught, and the builder is called with the context state.
+    Test Goal: Verify ControlPolicyError is caught, logged, *direct* JSONResponse used.
+    Builder should NOT be called.
     """
     fixed_test_uuid = uuid.UUID("abcdefab-cdef-abcd-efab-cdefabcdefab")
     mock_uuid4.return_value = fixed_test_uuid
 
-    # Configure the mocked DefaultResponseBuilder instance
+    # Configure the mocked JSONResponse (used directly in this path)
+    expected_error_response = Response(content=b"direct json error response")
+    MockJSONResponse.return_value = expected_error_response
+
+    # Configure the mocked DefaultResponseBuilder instance (should not be called)
     mock_builder_instance = MockDefaultBuilder.return_value
-    expected_error_response = Response(content=b"error response")
-    mock_builder_instance.build_response.return_value = expected_error_response
+    mock_builder_instance.build_response.return_value = Response(content=b"builder response NOT USED")
 
     # Call the orchestrator
     response = await run_policy_flow(
         request=mock_request,
         main_policy=mock_policy_raising_exception,
         dependencies=mock_dependencies,
-        session=mock_session,  # Pass session
+        session=mock_session,
     )
 
     # Assertions
-    # 1. Context Initialization
     mock_request.body.assert_awaited_once()
     mock_uuid4.assert_called_once()
-    # 2. Policy Application (raised exception)
     mock_policy_raising_exception.apply.assert_awaited_once()
     call_args, call_kwargs = mock_policy_raising_exception.apply.await_args
-    assert isinstance(call_args[0], TransactionContext)
-    assert call_kwargs.get("container") is mock_dependencies  # Check container
-    assert call_kwargs.get("session") is mock_session  # Check session
-    # 3. Response Building (called even after exception)
-    MockDefaultBuilder.assert_called_once_with()  # Check builder was instantiated
-    mock_builder_instance.build_response.assert_called_once()
-    context_arg = mock_builder_instance.build_response.call_args[0][0]
-    assert isinstance(context_arg, TransactionContext)
-    assert context_arg.transaction_id == fixed_test_uuid
-    # 4. Final Response
+    assert isinstance(call_kwargs.get("context"), TransactionContext)
+    assert call_kwargs.get("container") is mock_dependencies
+    assert call_kwargs.get("session") is mock_session
+
+    # Logging (Warning for ControlPolicyError)
+    mock_logger.warning.assert_called_once()
+    log_message = mock_logger.warning.call_args[0][0]
+    assert f"[{fixed_test_uuid}] Control policy error halted execution:" in log_message
+    assert "Policy Failed!" in log_message  # Check original exception message
+    mock_logger.exception.assert_not_called()  # No unexpected exceptions logged
+
+    # Response Building (Builder NOT called, direct JSONResponse IS called)
+    MockDefaultBuilder.assert_called_once_with()  # Builder is instantiated
+    mock_builder_instance.build_response.assert_not_called()  # But build_response is NOT called
+    MockJSONResponse.assert_called_once()
+
+    # Check args passed to JSONResponse
+    json_call_kwargs = MockJSONResponse.call_args.kwargs
+    assert json_call_kwargs.get("status_code") == 418  # Status from mock exception
+    content = json_call_kwargs.get("content")
+    assert content["transaction_id"] == str(fixed_test_uuid)
+    assert "Policy error in 'MockPolicy': Test Detail" in content["detail"]
+
+    # Final Response
     assert response is expected_error_response
 
 
 @patch("luthien_control.proxy.orchestration.uuid.uuid4")
 @patch("luthien_control.proxy.orchestration.DefaultResponseBuilder")  # Patch the builder
 @patch("luthien_control.proxy.orchestration.logger")  # Patch logger
+@patch("luthien_control.proxy.orchestration.JSONResponse")  # Patch JSONResponse fallback
 async def test_run_policy_flow_unexpected_exception(
+    MockJSONResponse: MagicMock,
     mock_logger: MagicMock,
     MockDefaultBuilder: MagicMock,
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy: AsyncMock,  # Use regular mock policy
     mock_dependencies: MagicMock,
-    mock_session: AsyncMock,  # Add session fixture
+    mock_session: AsyncMock,
 ):
     """
-    Test Goal: Verify unexpected Exception is caught, logged, builder called,
-               and error response returned.
+    Test Goal: Verify unexpected Exception is caught, logged, builder *is* called,
+               and builder's response returned. Fallback JSONResponse not used.
     """
     fixed_test_uuid = uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
     mock_uuid4.return_value = fixed_test_uuid
 
-    # Simulate unexpected error during policy apply
     unexpected_error = ValueError("Something went very wrong")
     mock_policy.apply.side_effect = unexpected_error
 
-    # Configure the mocked DefaultResponseBuilder instance
+    # Configure the mocked DefaultResponseBuilder instance (this path *tries* to use it)
     mock_builder_instance = MockDefaultBuilder.return_value
-    expected_generic_error_response = Response(content=b"generic error")
-    mock_builder_instance.build_response.return_value = expected_generic_error_response
+    expected_builder_error_response = Response(content=b"builder error response")
+    mock_builder_instance.build_response.return_value = expected_builder_error_response
+
+    # Configure fallback JSONResponse (should not be called here)
+    MockJSONResponse.return_value = Response(content=b"fallback json response NOT USED")
 
     # Call the orchestrator
     response = await run_policy_flow(
         request=mock_request,
         main_policy=mock_policy,
         dependencies=mock_dependencies,
-        session=mock_session,  # Pass session
+        session=mock_session,
     )
 
     # Assertions
-    # 1. Context Init, Policy Apply (attempted)
     mock_request.body.assert_awaited_once()
     mock_uuid4.assert_called_once()
-    mock_policy.apply.assert_awaited_once()  # Ensure the policy was called
-    # Check args passed to policy apply
+    mock_policy.apply.assert_awaited_once()
     call_args, call_kwargs = mock_policy.apply.await_args
-    assert isinstance(call_args[0], TransactionContext)
+    assert isinstance(call_kwargs.get("context"), TransactionContext)
     assert call_kwargs.get("container") is mock_dependencies
     assert call_kwargs.get("session") is mock_session
 
-    # 2. Logging (Check the exception was logged)
+    # Logging (Exception logged for the unexpected error)
     mock_logger.exception.assert_called_once()
     log_message = mock_logger.exception.call_args[0][0]
     assert f"[{fixed_test_uuid}] Unhandled exception during policy flow:" in log_message
+    assert "Something went very wrong" in log_message  # Check original exception message
+    mock_logger.warning.assert_not_called()  # No policy warnings logged
 
-    # 3. Response Building (using internal builder)
+    # Response Building (Builder *is* called, fallback JSONResponse is NOT)
     MockDefaultBuilder.assert_called_once_with()
     mock_builder_instance.build_response.assert_called_once()
     context_arg = mock_builder_instance.build_response.call_args[0][0]
     assert isinstance(context_arg, TransactionContext)
+    assert context_arg.transaction_id == fixed_test_uuid
+    MockJSONResponse.assert_not_called()  # Fallback not used
 
-    # 4. Final Response
-    assert response is expected_generic_error_response
+    # Final Response (should be the one from the builder)
+    assert response is expected_builder_error_response
 
 
-# Test for exception during response building (remains largely the same, uses internal builder)
 @patch("luthien_control.proxy.orchestration.uuid.uuid4")
 @patch("luthien_control.proxy.orchestration.DefaultResponseBuilder")  # Patch builder
 @patch("luthien_control.proxy.orchestration.logger")  # Patch logger
@@ -264,67 +299,85 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     MockDefaultBuilder: MagicMock,
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
-    mock_policy_raising_exception: AsyncMock,  # Policy raises known error
+    mock_policy: AsyncMock,  # Use regular policy, trigger error in builder
     mock_dependencies: MagicMock,
-    mock_session: AsyncMock,  # Add session
+    mock_session: AsyncMock,
 ):
     """
-    Test Goal: Verify exception during builder.build_response is caught,
-               logged, and a fallback JSONResponse is returned.
+    Test Goal: Verify if builder fails *after* an unexpected policy error,
+               both errors are logged, and the fallback JSONResponse is used.
     """
     fixed_test_uuid = uuid.UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
     mock_uuid4.return_value = fixed_test_uuid
 
-    # Simulate exception *during* build_response call
-    build_exception = RuntimeError("Builder failed!")
-    mock_builder_instance = MockDefaultBuilder.return_value
-    mock_builder_instance.build_response.side_effect = build_exception
+    # Simulate initial unexpected error during policy apply
+    initial_unexpected_error = TypeError("Initial policy error")
+    mock_policy.apply.side_effect = initial_unexpected_error
 
-    # Mock the fallback JSONResponse
-    expected_fallback_response = MagicMock(spec=JSONResponse)
+    # Configure the mocked DefaultResponseBuilder instance to fail
+    mock_builder_instance = MockDefaultBuilder.return_value
+    builder_error = RuntimeError("Builder failed!")
+    mock_builder_instance.build_response.side_effect = builder_error
+
+    # Configure the mocked JSONResponse (fallback)
+    expected_fallback_response = Response(content=b"fallback json response")
     MockJSONResponse.return_value = expected_fallback_response
 
-    # Call the orchestrator (policy raises ControlPolicyError, triggers builder)
+    # Call the orchestrator
     response = await run_policy_flow(
         request=mock_request,
-        main_policy=mock_policy_raising_exception,
+        main_policy=mock_policy,  # Pass regular policy
         dependencies=mock_dependencies,
-        session=mock_session,  # Pass session
+        session=mock_session,
     )
 
     # Assertions
-    # 1. Context Init, Policy Apply
     mock_request.body.assert_awaited_once()
     mock_uuid4.assert_called_once()
-    mock_policy_raising_exception.apply.assert_awaited_once()
+    mock_policy.apply.assert_awaited_once()  # Policy called, raised initial error
+    call_args, call_kwargs = mock_policy.apply.await_args
+    assert isinstance(call_kwargs.get("context"), TransactionContext)
+    assert call_kwargs.get("container") is mock_dependencies
+    assert call_kwargs.get("session") is mock_session
 
-    # 2. Logging (Check builder exception was logged)
-    mock_logger.exception.assert_called_once()
-    log_message = mock_logger.exception.call_args[0][0]
-    assert f"[{fixed_test_uuid}] Exception occurred *during* error response building:" in log_message
+    # Logging (TWO exceptions logged)
+    assert mock_logger.exception.call_count == 2
+    # Log 1: Initial unexpected error
+    log_call_1 = mock_logger.exception.call_args_list[0]
+    log_message_1 = log_call_1[0][0]
+    assert f"[{fixed_test_uuid}] Unhandled exception during policy flow:" in log_message_1
+    assert "Initial policy error" in log_message_1
+    # Log 2: Builder error
+    log_call_2 = mock_logger.exception.call_args_list[1]
+    log_message_2 = log_call_2[0][0]
+    assert f"[{fixed_test_uuid}] Exception occurred *during* error response building:" in log_message_2
+    assert "Builder failed!" in log_message_2  # Builder error message
+    assert "Initial policy error" in log_message_2  # Original error mentioned
 
-    # 3. Response Building Attempt (using internal builder)
+    # Response Building (Builder called and failed, JSONResponse fallback IS called)
     MockDefaultBuilder.assert_called_once_with()
     mock_builder_instance.build_response.assert_called_once()  # Builder was called
+    MockJSONResponse.assert_called_once()  # Fallback JSONResponse was called
 
-    # 4. Fallback JSONResponse Creation
-    MockJSONResponse.assert_called_once()
-    kwargs = MockJSONResponse.call_args[1]
-    assert kwargs["status_code"] == 500
-    assert "content" in kwargs
-    assert "detail" in kwargs["content"]
-    assert str(fixed_test_uuid) in kwargs["content"]["detail"]
-    assert "Builder failed!" in kwargs["content"]["detail"]
-    assert "Policy Failed!" in kwargs["content"]["detail"]  # Original policy error included
+    # Check args passed to fallback JSONResponse
+    json_call_kwargs = MockJSONResponse.call_args.kwargs
+    assert json_call_kwargs.get("status_code") == 500
+    content = json_call_kwargs.get("content")
+    assert content["transaction_id"] == str(fixed_test_uuid)
+    # Check detail message mentions both errors
+    assert "Initial error: Initial policy error" in content["detail"]
+    assert "Error during response building: Builder failed!" in content["detail"]
 
-    # 5. Final Response (is the fallback)
+    # Final Response
     assert response is expected_fallback_response
 
 
 @patch("luthien_control.proxy.orchestration._initialize_context")
 @patch("luthien_control.proxy.orchestration.DefaultResponseBuilder")
 @patch("luthien_control.proxy.orchestration.logger")
-@patch("luthien_control.proxy.orchestration.JSONResponse")
+@patch(
+    "luthien_control.proxy.orchestration.JSONResponse"
+)  # Keep patch for other tests, but it shouldn't be called here
 async def test_run_policy_flow_context_init_exception(
     MockJSONResponse: MagicMock,
     mock_logger: MagicMock,
@@ -333,49 +386,35 @@ async def test_run_policy_flow_context_init_exception(
     mock_request: MagicMock,
     mock_policy: AsyncMock,
     mock_dependencies: MagicMock,
-    mock_session: AsyncMock,  # Add session
+    mock_session: AsyncMock,
 ):
     """
-    Test Goal: Verify exception during context init is caught, logged,
-               and a fallback JSONResponse is returned.
+    Test Goal: Verify if _initialize_context fails, the exception propagates OUT.
+    The orchestrator's try/except should NOT catch this.
     """
-    init_exception = ValueError("Context creation failed!")
-    mock_init_context.side_effect = init_exception
+    context_error = ValueError("Context creation failed!")
+    mock_init_context.side_effect = context_error
 
-    # Mock the fallback JSONResponse
-    expected_fallback_response = MagicMock(spec=JSONResponse)
-    MockJSONResponse.return_value = expected_fallback_response
+    # Call the orchestrator and assert the correct exception is raised
+    with pytest.raises(ValueError, match="Context creation failed!"):
+        await run_policy_flow(
+            request=mock_request,
+            main_policy=mock_policy,
+            dependencies=mock_dependencies,
+            session=mock_session,
+        )
 
-    # Call the orchestrator
-    response = await run_policy_flow(
-        request=mock_request,
-        main_policy=mock_policy,
-        dependencies=mock_dependencies,
-        session=mock_session,  # Pass session
-    )
+    # Assertions: Ensure things *didn't* happen past the point of failure
+    mock_request.body.assert_awaited_once()  # Body read before context init attempt
+    mock_init_context.assert_called_once_with(mock_request, TEST_REQUEST_BODY)
+    mock_policy.apply.assert_not_awaited()  # Policy not called
+    mock_logger.exception.assert_not_called()  # Logger within run_policy_flow not called
+    mock_logger.warning.assert_not_called()
+    MockDefaultBuilder.assert_not_called()  # Builder instance not created
+    MockJSONResponse.assert_not_called()  # Fallback JSONResponse not created
 
-    # Assertions
-    # 1. Context Init Attempt
-    mock_request.body.assert_awaited_once()
-    mock_init_context.assert_called_once()
-    # 2. Policy Apply NOT called
-    mock_policy.apply.assert_not_called()
-    # 3. Builder NOT instantiated or called
-    MockDefaultBuilder.assert_not_called()
-    # 4. Logging (Check init exception was logged)
-    mock_logger.exception.assert_called_once()
-    log_message = mock_logger.exception.call_args[0][0]
-    assert "Unhandled exception during policy flow:" in log_message
-    assert "Context creation failed!" in str(mock_logger.exception.call_args[0][1])
-    # 5. Fallback JSONResponse Creation
-    MockJSONResponse.assert_called_once()
-    kwargs = MockJSONResponse.call_args[1]
-    assert kwargs["status_code"] == 500
-    assert "content" in kwargs
-    assert "detail" in kwargs["content"]
-    assert "Context creation failed!" in kwargs["content"]["detail"]
-    # Transaction ID might not be available if context init failed early
-    assert "transaction_id" not in kwargs["content"] or kwargs["content"]["transaction_id"] is None
 
-    # 6. Final Response (is the fallback)
-    assert response is expected_fallback_response
+# TODO: Add test case for error during request.body() await?
+# TODO: Add test case for policy setting context.response successfully
+# TODO: Add test case for policy setting context.response + builder error (should still return context.response)
+# TODO: Add test case for policy error + builder success

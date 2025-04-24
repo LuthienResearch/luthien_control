@@ -83,8 +83,18 @@ async def run_policy_flow(
 
     except ControlPolicyError as e:
         logger.warning(f"[{context.transaction_id}] Control policy error halted execution: {e}")
-        # Attempt to build error response using the current context state
-        final_response = builder.build_response(context)
+        # Directly build a JSONResponse for policy errors
+        policy_name_for_error = getattr(e, "policy_name", "unknown")
+        status_code = getattr(e, "status_code", status.HTTP_400_BAD_REQUEST)  # Use 400 if not specified
+        error_detail = getattr(e, "detail", str(e))  # Use str(e) if no detail attribute
+
+        final_response = JSONResponse(
+            status_code=status_code,
+            content={
+                "detail": f"Policy error in '{policy_name_for_error}': {error_detail}",
+                "transaction_id": str(context.transaction_id),
+            },
+        )
 
     except Exception as e:
         # Handle unexpected errors during initialization or policy execution

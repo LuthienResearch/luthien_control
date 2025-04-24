@@ -66,8 +66,6 @@ class CompoundPolicy(ControlPolicy):
                 f"in {self.name}: {member_policy_name}"
             )
             try:
-                # Pass context, container, and session to all member policies
-                # Assuming all policies now conform to the apply(context, container, session) signature
                 current_context = await policy.apply(current_context, container=container, session=session)
             except Exception as e:
                 self.logger.error(

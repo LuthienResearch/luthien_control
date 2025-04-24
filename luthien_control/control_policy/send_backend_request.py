@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class SendBackendRequestPolicy(ControlPolicy):
     """
     Policy responsible for sending the request to the backend, storing the response,
-    and reading the raw response body. Uses dependencies from the container.
+    and reading the raw response body.
     """
 
     _EXCLUDED_BACKEND_HEADERS = {
@@ -29,9 +29,7 @@ class SendBackendRequestPolicy(ControlPolicy):
     }
 
     def __init__(self, name: Optional[str] = None):
-        """Initializes the policy. Dependencies (http_client, settings) are accessed via the container in apply."""
         self.name: str = name or self.__class__.__name__
-        # Removed self.http_client and self.settings
 
     def _build_target_url(self, base_url: str, relative_path: str) -> str:
         """Constructs the full target URL for the backend request."""
@@ -40,12 +38,11 @@ class SendBackendRequestPolicy(ControlPolicy):
         logger.debug(f"Constructed target URL: {target_url} (from base: {base_url}, relative: {relative_path})")
         return target_url
 
-    # Pass settings explicitly as it's no longer on self
     def _prepare_backend_headers(self, context: TransactionContext, settings: Settings) -> list[tuple[bytes, bytes]]:
         """Prepares the headers to be sent to the backend."""
         original_request = context.request
         backend_headers: list[tuple[bytes, bytes]] = []
-        backend_url_base = settings.get_backend_url()  # Use passed settings
+        backend_url_base = settings.get_backend_url()
 
         # Copy necessary headers from original request, excluding problematic ones
         for key_bytes, value_bytes in original_request.headers.raw:
@@ -64,7 +61,6 @@ class SendBackendRequestPolicy(ControlPolicy):
                 f"[{context.transaction_id}] Invalid BACKEND_URL '{backend_url_base}' for Host header parsing: {e}",
                 extra={"request_id": context.transaction_id},
             )
-            # Raise a more specific internal error if needed, or let apply handle it
             raise ValueError(f"Could not determine backend Host from BACKEND_URL: {e}")
 
         # Force Accept-Encoding: identity (avoids downstream decompression issues)
@@ -76,7 +72,6 @@ class SendBackendRequestPolicy(ControlPolicy):
 
         return backend_headers
 
-    # Update signature and use container
     async def apply(
         self,
         context: TransactionContext,
@@ -91,8 +86,6 @@ class SendBackendRequestPolicy(ControlPolicy):
 
         Handles potential httpx exceptions.
         """
-        # --- Pre-flight Checks ---
-        # Use container for dependencies
         settings = container.settings
         http_client = container.http_client
 
@@ -104,13 +97,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         # --- Prepare Request Components ---
         try:
             target_url = self._build_target_url(backend_url_base, context.request.url.path)
-            # Pass settings to helper method
             backend_headers = self._prepare_backend_headers(context, settings)
-            # TODO: We should ideally create a *new* request object here
-            # rather than mutating the existing one. Mutating might have
-            # unintended side effects if the original request object is used
-            # elsewhere or if retries happen.
-            # For now, keep mutation for simplicity, but flag for future refactor.
             context.request.url = httpx.URL(target_url)  # Ensure it's a URL object
             context.request.headers = httpx.Headers(backend_headers)  # Ensure it's a Headers object
         except ValueError as e:
@@ -126,7 +113,6 @@ class SendBackendRequestPolicy(ControlPolicy):
             logger.debug(
                 f"[{context.transaction_id}] Sending request to backend: {context.request.method} {context.request.url}"
             )
-            # Send the modified context.request directly using client from container
             response = await http_client.send(context.request)
             # Read response body immediately to ensure connection is closed
             await response.aread()
@@ -155,11 +141,8 @@ class SendBackendRequestPolicy(ControlPolicy):
 
     def serialize(self) -> SerializableDict:
         """Serializes config. Only name is needed as dependencies come from container."""
-        # Return an empty dictionary literal, cast to SerializableDict for type checker
         return cast(SerializableDict, {"name": self.name})
 
-    # Update signature: Remove http_client and settings.
-    # The loader will eventually pass the container, but this method doesn't need it directly.
     @classmethod
     async def from_serialized(cls, config: SerializableDict) -> "SendBackendRequestPolicy":
         """
@@ -171,5 +154,4 @@ class SendBackendRequestPolicy(ControlPolicy):
         Returns:
             An instance of SendBackendRequestPolicy.
         """
-        # Only name is needed from config for instantiation now
         return cls(name=config.get("name"))

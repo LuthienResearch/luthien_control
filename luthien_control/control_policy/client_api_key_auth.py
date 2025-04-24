@@ -16,7 +16,6 @@ from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.dependency_container import DependencyContainer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-# Import the function to fetch API key by value
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
 
 logger = logging.getLogger(__name__)

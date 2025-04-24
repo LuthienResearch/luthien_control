@@ -49,7 +49,6 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         """
         if context.request is None:
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")
-        # Fetch settings from container
         settings = container.settings
         api_key = settings.get_openai_api_key()
         if not api_key:

@@ -5,10 +5,15 @@ import fastapi
 import httpx
 from fastapi import status  # Added for status codes
 from fastapi.responses import JSONResponse  # Added for generic 500 error
+from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
-from luthien_control.core.response_builder.interface import ResponseBuilder
+
+# Import the default builder as it's no longer passed in
+from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
+
+# from luthien_control.core.response_builder.interface import ResponseBuilder # No longer needed
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.dependency_container import DependencyContainer
 
@@ -36,18 +41,19 @@ def _initialize_context(fastapi_request: fastapi.Request, body: bytes) -> Transa
 async def run_policy_flow(
     request: fastapi.Request,
     main_policy: ControlPolicy,
-    builder: ResponseBuilder,
+    # builder: ResponseBuilder, # Removed builder parameter
     dependencies: DependencyContainer,
+    session: AsyncSession,  # Added session parameter
 ) -> fastapi.Response:
     """
-    Orchestrates the execution of the main ControlPolicy.
+    Orchestrates the execution of the main ControlPolicy using injected dependencies.
     Exceptions raised by policies are expected to be caught by FastAPI exception handlers.
 
     Args:
         request: The incoming FastAPI request.
         main_policy: The main policy instance to execute.
-        builder: The response builder to generate the final response.
         dependencies: The application's dependency container.
+        session: The database session for this request.
 
     Returns:
         The final FastAPI response.
@@ -56,27 +62,16 @@ async def run_policy_flow(
     body = await request.body()
     context = _initialize_context(request, body)
 
-    # 2. Apply the sequence of policies within a DB session context
+    # Instantiate a builder here (assuming DefaultResponseBuilder for now)
+    builder = DefaultResponseBuilder()
+
+    # 2. Apply the main policy
     try:
         policy_name = getattr(main_policy, "name", main_policy.__class__.__name__)
         logger.info(f"[{context.transaction_id}] Applying main policy: {policy_name}")
 
-        # Get a session from the container's factory
-        async with dependencies.db_session_factory() as session:
-            # Check if the main policy requires a session
-            if "session" in main_policy.apply.__code__.co_varnames:
-                context = await main_policy.apply(context, session=session)
-            else:
-                # If the top-level policy doesn't need a session, but sub-policies might,
-                # this logic might need adjustment. However, the current change to
-                # CompoundPolicy.apply handles passing the session down if needed.
-                # So, if the top-level policy doesn't take session, we assume none below it do either
-                # without the CompoundPolicy intermediary.
-                # Revisit if policies directly applied here start needing session.
-                logger.warning(
-                    f"[{context.transaction_id}] Main policy {policy_name} does not accept a session argument directly."
-                )
-                context = await main_policy.apply(context)
+        # Call apply directly with context, container (dependencies), and session
+        context = await main_policy.apply(context=context, container=dependencies, session=session)
 
         # 3. Build Response (if no policy set one)
         if context.response:

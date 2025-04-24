@@ -16,6 +16,10 @@ from luthien_control.control_policy.exceptions import (
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from sqlalchemy.ext.asyncio import AsyncSession
+from luthien_control.dependency_container import DependencyContainer
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -53,29 +57,49 @@ def mock_session() -> AsyncMock:
 
 
 @pytest.mark.asyncio
-async def test_apply_no_request_raises_error(transaction_context, mock_session):
+async def test_apply_no_request_raises_error(
+    transaction_context,
+    mock_session,
+    mock_dependencies: DependencyContainer,
+):
     """Verify NoRequestError is raised if context has no request."""
     policy = ClientApiKeyAuthPolicy()
 
     with pytest.raises(NoRequestError):
-        await policy.apply(transaction_context, session=mock_session)
+        await policy.apply(
+            transaction_context,
+            session=mock_session,
+            container=mock_dependencies,
+        )
 
 
 @pytest.mark.asyncio
-async def test_apply_missing_header_raises_error(transaction_context_with_request, mock_session):
+async def test_apply_missing_header_raises_error(
+    transaction_context_with_request,
+    mock_session,
+    mock_dependencies: DependencyContainer,
+):
     """Verify ClientAuthenticationNotFoundError is raised if header is missing."""
     policy = ClientApiKeyAuthPolicy()
 
     transaction_context_with_request.request.headers = {}  # Set empty headers
 
     with pytest.raises(ClientAuthenticationNotFoundError):
-        await policy.apply(transaction_context_with_request, session=mock_session)
+        await policy.apply(
+            transaction_context_with_request,
+            session=mock_session,
+            container=mock_dependencies,
+        )
     assert transaction_context_with_request.response is not None
     assert transaction_context_with_request.response.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_apply_key_not_found_raises_error(transaction_context_with_request, mock_session):
+async def test_apply_key_not_found_raises_error(
+    transaction_context_with_request,
+    mock_session,
+    mock_dependencies: DependencyContainer,
+):
     """Verify ClientAuthenticationError is raised if key is not found in DB."""
     with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_key_func:
         mock_get_key_func.return_value = None  # Key not found
@@ -86,7 +110,11 @@ async def test_apply_key_not_found_raises_error(transaction_context_with_request
         transaction_context_with_request.request.headers = headers
 
         with pytest.raises(ClientAuthenticationError, match="Invalid API Key"):
-            await policy.apply(transaction_context_with_request, session=mock_session)
+            await policy.apply(
+                transaction_context_with_request,
+                session=mock_session,
+                container=mock_dependencies,
+            )
 
         mock_get_key_func.assert_awaited_once_with(mock_session, test_api_key)
 
@@ -95,7 +123,11 @@ async def test_apply_key_not_found_raises_error(transaction_context_with_request
 
 
 @pytest.mark.asyncio
-async def test_apply_inactive_key_raises_error(transaction_context_with_request, mock_session):
+async def test_apply_inactive_key_raises_error(
+    transaction_context_with_request,
+    mock_session,
+    mock_dependencies: DependencyContainer,
+):
     """Verify ClientAuthenticationError is raised if key is inactive."""
     mock_db_key = MagicMock(spec=ClientApiKey)
     mock_db_key.is_active = False
@@ -111,7 +143,11 @@ async def test_apply_inactive_key_raises_error(transaction_context_with_request,
         transaction_context_with_request.request.headers = headers
 
         with pytest.raises(ClientAuthenticationError, match="Inactive API Key"):
-            await policy.apply(transaction_context_with_request, session=mock_session)
+            await policy.apply(
+                transaction_context_with_request,
+                session=mock_session,
+                container=mock_dependencies,
+            )
 
         mock_get_key_func.assert_awaited_once_with(mock_session, test_api_key)
 
@@ -120,7 +156,11 @@ async def test_apply_inactive_key_raises_error(transaction_context_with_request,
 
 
 @pytest.mark.asyncio
-async def test_apply_no_bearer_prefix_success(transaction_context_with_request, mock_session):
+async def test_apply_no_bearer_prefix_success(
+    transaction_context_with_request,
+    mock_session,
+    mock_dependencies: DependencyContainer,
+):
     """Verify that apply works correctly if 'Bearer ' prefix is missing."""
     mock_db_key = MagicMock(spec=ClientApiKey)
     mock_db_key.is_active = True
@@ -135,7 +175,11 @@ async def test_apply_no_bearer_prefix_success(transaction_context_with_request, 
         headers = {API_KEY_HEADER: test_api_key}  # No Bearer prefix
         transaction_context_with_request.request.headers = headers
 
-        result_context = await policy.apply(transaction_context_with_request, session=mock_session)
+        result_context = await policy.apply(
+            transaction_context_with_request,
+            session=mock_session,
+            container=mock_dependencies,
+        )
 
         mock_get_key_func.assert_awaited_once_with(mock_session, test_api_key)
 
@@ -144,7 +188,11 @@ async def test_apply_no_bearer_prefix_success(transaction_context_with_request, 
 
 
 @pytest.mark.asyncio
-async def test_apply_valid_active_key_success(transaction_context_with_request, mock_session):
+async def test_apply_valid_active_key_success(
+    transaction_context_with_request,
+    mock_session,
+    mock_dependencies: DependencyContainer,
+):
     """Verify apply succeeds with a valid, active API key and Bearer prefix."""
     mock_db_key = MagicMock(spec=ClientApiKey)
     mock_db_key.is_active = True
@@ -159,7 +207,11 @@ async def test_apply_valid_active_key_success(transaction_context_with_request, 
         headers = {API_KEY_HEADER: f"{BEARER_PREFIX}{test_api_key_value}"}
         transaction_context_with_request.request.headers = headers
 
-        result_context = await policy.apply(transaction_context_with_request, session=mock_session)
+        result_context = await policy.apply(
+            transaction_context_with_request,
+            session=mock_session,
+            container=mock_dependencies,
+        )
 
         mock_get_key_func.assert_awaited_once_with(mock_session, test_api_key_value)
 

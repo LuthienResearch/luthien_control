@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import Settings class directly for dependency injection
 # Import new policy framework components
@@ -11,6 +12,7 @@ from luthien_control.core.response_builder.default_builder import DefaultRespons
 from luthien_control.dependencies import (
     get_dependencies,
     get_main_control_policy,
+    get_db_session,
 )
 from luthien_control.dependency_container import DependencyContainer
 
@@ -32,11 +34,12 @@ async def api_proxy_endpoint(
     # Core dependencies via Container
     dependencies: DependencyContainer = Depends(get_dependencies),
     main_policy: ControlPolicy = Depends(get_main_control_policy),
+    session: AsyncSession = Depends(get_db_session),
 ):
     """
     Main API proxy endpoint using the policy orchestration flow.
     Handles requests starting with /api/.
-    Uses Dependency Injection Container.
+    Uses Dependency Injection Container and provides a DB session.
     """
     logger.info(f"Authenticated request received for /api/{full_path}")
 
@@ -47,8 +50,8 @@ async def api_proxy_endpoint(
     response = await run_policy_flow(
         request=request,
         main_policy=main_policy,
-        builder=builder,
         dependencies=dependencies,
+        session=session,
     )
 
     logger.info(f"Returning response for {request.url.path}")

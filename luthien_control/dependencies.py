@@ -54,15 +54,10 @@ def get_http_client(dependencies: DependencyContainer = Depends(get_dependencies
 # --- Async Database Session Dependency using Container ---
 
 
-@asynccontextmanager
-async def get_async_db_session_from_dependencies(
+async def get_db_session(
     dependencies: DependencyContainer = Depends(get_dependencies),
 ) -> AsyncGenerator[AsyncSession, None]:
-    """
-    FastAPI dependency (as an async context manager) to get an async database session
-    using the factory provided by the DependencyContainer.
-    Handles session creation, yield, rollback on error, and closing implicitly.
-    """
+    """FastAPI dependency to get an async database session using the container's factory."""
     session_factory = dependencies.db_session_factory
     if session_factory is None:
         # This shouldn't happen if the container is initialized correctly
@@ -72,15 +67,16 @@ async def get_async_db_session_from_dependencies(
             detail="Internal server error: Database session factory not available.",
         )
 
-    try:
-        async with session_factory() as session:
+    async with session_factory() as session:
+        try:
             yield session
-    except RuntimeError as e:
-        logger.error(f"Database session could not be created via container factory: {e}")
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not available")
-    except Exception as e:
-        logger.exception(f"An unexpected error occurred getting DB session via container: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            # The session context manager should handle commit/close,
+            # but rollback is explicit on exception.
+            pass
 
 
 # --- Main Control Policy Dependency using Container ---
@@ -104,14 +100,16 @@ async def get_main_control_policy(
         raise HTTPException(status_code=500, detail="Internal server error: Control policy name not configured.")
 
     try:
-        # Get a session using the container's factory
-        async with session_factory() as session:
-            main_policy = await load_policy_from_db(
-                name=top_level_policy_name,
-                settings=settings,  # Pass settings explicitly (needed by load_policy_from_db)
-                http_client=http_client,  # Pass client explicitly (needed by load_policy_from_db)
-                session=session,  # Pass the newly created session
-            )
+        # Get a session using the container's factory - No longer needed here, load_policy_from_db handles it
+        # async with session_factory() as session:
+        # Pass the container directly to load_policy_from_db
+        main_policy = await load_policy_from_db(
+            name=top_level_policy_name,
+            container=dependencies,  # Pass the whole container
+            # settings=settings,  # Removed
+            # http_client=http_client,  # Removed
+            # session=session,  # Removed
+        )
 
         if not main_policy:
             logger.error(f"Main control policy '{top_level_policy_name}' could not be loaded (not found or inactive).")

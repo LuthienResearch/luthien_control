@@ -12,6 +12,7 @@ from .sqlmodel_models import ControlPolicy
 
 if TYPE_CHECKING:
     from luthien_control.control_policy.control_policy import ControlPolicy
+    from luthien_control.control_policy.dependency_container import DependencyContainer
 
 logger = logging.getLogger(__name__)
 
@@ -105,11 +106,13 @@ async def update_policy(session: AsyncSession, policy_id: int, policy_update: Co
 
 async def load_policy_from_db(
     name: str,
-    session: AsyncSession,
-    **kwargs,
+    container: "DependencyContainer",
 ) -> "ControlPolicy":
-    """Load a policy from the database using the control_policy loader."""
-    policy_model = await get_policy_by_name(session, name)
+    """Load a policy configuration from the database and instantiate it using the control_policy loader."""
+    # Use the container's session factory to get a session for DB lookup
+    async with container.db_session_factory() as session:
+        policy_model = await get_policy_by_name(session, name)
+
     if not policy_model:
         raise PolicyLoadError(f"Active policy configuration named '{name}' not found in database.")
 
@@ -120,13 +123,19 @@ async def load_policy_from_db(
         "config": policy_model.config or {},  # Pass the config dict directly
     }
 
-    # Prepare available dependencies
+    # Prepare available dependencies for the loader
     # The loader will filter these based on the policy's requirements
-    available_dependencies = kwargs
+    # We pass the container's components individually for now, as load_policy expects kwargs
+    # TODO: Refactor load_policy itself to potentially accept the container
+    available_dependencies = {
+        "settings": container.settings,
+        "http_client": container.http_client,
+        # Add other dependencies from the container if load_policy/member policies need them
+    }
 
     try:
         # Call the simple loader from control_policy.loader
-        # Note: This loader is now asynchronous.
+        # Note: This loader is asynchronous.
         instance = await load_policy(policy_data, **available_dependencies)
         logger.info(f"Successfully loaded and instantiated policy '{name}' from database.")
         return instance

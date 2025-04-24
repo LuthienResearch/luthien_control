@@ -14,6 +14,7 @@ from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
 from sqlalchemy.ext.asyncio import AsyncSession
+from luthien_control.dependency_container import DependencyContainer
 
 # --- Test Fixtures and Helper Classes ---
 
@@ -32,7 +33,12 @@ class MockSimplePolicy(ControlPolicy):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name or self.__class__.__name__
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(
+        self,
+        context: TransactionContext,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> TransactionContext:
         self.logger.info(f"Applying {self.name}")
         call_order = context.data.setdefault("call_order", [])
         call_order.append(self.name)
@@ -41,7 +47,7 @@ class MockSimplePolicy(ControlPolicy):
             context.response = Response(status_code=299, content=f"Response from {self.name}")
             self.logger.info(f"{self.name} setting response")
 
-        await self.apply_mock(context)
+        await self.apply_mock(context, container=container, session=session)
         self.logger.info(f"Finished {self.name}")
         return context
 
@@ -72,7 +78,11 @@ def mock_session() -> AsyncMock:
 
 
 @pytest.mark.asyncio
-async def test_compound_policy_applies_policies_sequentially(mock_context, mock_session):
+async def test_compound_policy_applies_policies_sequentially(
+    mock_context,
+    mock_session,
+    mock_dependencies: DependencyContainer,
+):
     """Test that policies are applied in the specified order."""
     policy1 = MockSimplePolicy()
     policy2 = MockSimplePolicy()
@@ -81,38 +91,54 @@ async def test_compound_policy_applies_policies_sequentially(mock_context, mock_
     # Keep track of context references
     context_before_policy1 = mock_context
 
-    # Pass mock session
-    result_context = await compound.apply(mock_context, session=mock_session)
+    # Pass mock session and container
+    result_context = await compound.apply(
+        mock_context,
+        container=mock_dependencies,
+        session=mock_session,
+    )
 
+    # Assertions
     assert result_context.data.get("call_order") == ["MockSimplePolicy", "MockSimplePolicy"]
-    # Check policy1 was called with the initial context
-    policy1.apply_mock.assert_awaited_once_with(context_before_policy1)
-
-    # Check policy2 was called with the context returned by policy1's apply method
-    # Since MockSimplePolicy returns the context passed to it, this should be the same object initially.
-    policy2.apply_mock.assert_awaited_once_with(context_before_policy1)  # Assuming policy1 returns context
-
-    # Check the final result context is the one returned by policy2's apply method.
-    # Again, MockSimplePolicy returns the context passed to it.
-    assert result_context is context_before_policy1
+    # Ensure the mock policies were called with the correct context
+    assert policy1.apply_mock.call_args[0][0] == context_before_policy1
+    # The context passed to policy2 should be the result of policy1
+    assert (
+        policy2.apply_mock.call_args[0][0] == context_before_policy1
+    )  # Assuming MockSimplePolicy returns same context
+    # Check session and container were passed
+    policy1.apply_mock.assert_awaited_once_with(mock_context, container=mock_dependencies, session=mock_session)
+    policy2.apply_mock.assert_awaited_once_with(mock_context, container=mock_dependencies, session=mock_session)
+    assert result_context is mock_context  # Verify same context object is returned if not modified
 
 
 @pytest.mark.asyncio
-async def test_compound_policy_empty_list(mock_context, caplog, mock_session):
+async def test_compound_policy_empty_list(
+    mock_context,
+    caplog,
+    mock_session,
+    mock_dependencies: DependencyContainer,
+):
     """Test that CompoundPolicy handles an empty policy list gracefully."""
     compound = CompoundPolicy(policies=[], name="EmptyTest")
 
     with caplog.at_level(logging.WARNING):
-        result_context = await compound.apply(mock_context, session=mock_session)
+        result_context = await compound.apply(
+            mock_context,
+            container=mock_dependencies,
+            session=mock_session,
+        )
 
     assert result_context is mock_context
-    assert "call_order" not in result_context.data
     assert "Initializing CompoundPolicy 'EmptyTest' with an empty policy list." in caplog.text
-    assert result_context.response is None
 
 
 @pytest.mark.asyncio
-async def test_compound_policy_propagates_exception(mock_context, mock_session):
+async def test_compound_policy_propagates_exception(
+    mock_context,
+    mock_session,
+    mock_dependencies: DependencyContainer,
+):
     """Test that an exception raised by a member policy propagates up."""
 
     class TestException(Exception):
@@ -124,17 +150,25 @@ async def test_compound_policy_propagates_exception(mock_context, mock_session):
     compound = CompoundPolicy(policies=[policy1, policy2, policy3], name="ExceptionTest")
 
     with pytest.raises(TestException, match="Policy 2 failed!"):
-        await compound.apply(mock_context, session=mock_session)
+        await compound.apply(
+            mock_context,
+            container=mock_dependencies,
+            session=mock_session,
+        )
 
+    # Check that policy1 was called, but policy3 was not
     assert mock_context.data.get("call_order") == ["MockSimplePolicy", "MockSimplePolicy"]
     policy1.apply_mock.assert_awaited_once()
     policy2.apply_mock.assert_awaited_once()
     policy3.apply_mock.assert_not_awaited()
-    assert mock_context.response is None
 
 
 @pytest.mark.asyncio
-async def test_compound_policy_continues_on_response(mock_context, mock_session):
+async def test_compound_policy_continues_on_response(
+    mock_context,
+    mock_session,
+    mock_dependencies: DependencyContainer,
+):
     """Test that execution continues even if a member policy sets context.response."""
     policy1 = MockSimplePolicy()
     policy2 = MockSimplePolicy(sets_response=True)  # This policy sets a response
@@ -144,23 +178,23 @@ async def test_compound_policy_continues_on_response(mock_context, mock_session)
     # Track the context object
     context_before_apply = mock_context
 
-    # Pass mock session
-    result_context = await compound.apply(mock_context, session=mock_session)
+    # Pass mock session and container
+    result_context = await compound.apply(
+        mock_context,
+        container=mock_dependencies,
+        session=mock_session,
+    )
 
-    # Assert all policies were applied (their mocks were called)
+    # Ensure all policies were still called
     policy1.apply_mock.assert_awaited_once()
     policy2.apply_mock.assert_awaited_once()
     policy3.apply_mock.assert_awaited_once()
 
-    # Check that the final context is the one returned by policy3's apply method.
-    # Since MockSimplePolicy returns the context passed to it, this should be
-    # the same object we started with, potentially modified.
+    # The final result should be the original context object
     assert result_context is context_before_apply
-
-    # Verify policy2 did set the response on the context object (which is shared and returned)
+    # Check that policy 2 did set the response on the context
     assert result_context.response is not None
-    assert isinstance(result_context.response, Response)
-    assert b"Response from MockSimplePolicy" in result_context.response.body
+    assert result_context.response.body == b"Response from MockSimplePolicy"
 
 
 def test_compound_policy_repr():

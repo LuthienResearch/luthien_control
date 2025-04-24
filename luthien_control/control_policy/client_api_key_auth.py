@@ -1,7 +1,7 @@
 """Control Policy for verifying the client API key."""
 
-import logging
 import json
+import logging
 from typing import Optional, cast
 
 import httpx
@@ -13,6 +13,7 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.dependency_container import DependencyContainer
 
 # Import the function to fetch API key by value
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
@@ -34,10 +35,15 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         self.logger = logging.getLogger(__name__)
         self.name = name or self.__class__.__name__
 
-    async def apply(self, context: TransactionContext, session: AsyncSession) -> TransactionContext:
+    async def apply(
+        self,
+        context: TransactionContext,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> TransactionContext:
         """
         Verifies the API key from the Authorization header in the context's request.
-        Requires an active SQLAlchemy AsyncSession.
+        Requires the DependencyContainer and an active SQLAlchemy AsyncSession.
 
         Raises:
             NoRequestError: If context.fastapi_request is None.
@@ -45,6 +51,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
         Args:
             context: The current transaction context.
+            container: The application dependency container.
             session: An active SQLAlchemy AsyncSession.
 
         Returns:

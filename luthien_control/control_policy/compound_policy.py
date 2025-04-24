@@ -8,6 +8,7 @@ from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.loader import load_policy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.dependency_container import DependencyContainer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -37,13 +38,19 @@ class CompoundPolicy(ControlPolicy):
         self.logger = logger
         self.name = name or self.__class__.__name__
 
-    async def apply(self, context: "TransactionContext", session: AsyncSession) -> "TransactionContext":
+    async def apply(
+        self,
+        context: "TransactionContext",
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> "TransactionContext":
         """
         Applies the contained policies sequentially to the context.
-        Requires an active SQLAlchemy AsyncSession.
+        Requires the DependencyContainer and an active SQLAlchemy AsyncSession.
 
         Args:
             context: The current transaction context.
+            container: The application dependency container.
             session: An active SQLAlchemy AsyncSession, passed to member policies.
 
         Returns:
@@ -61,14 +68,9 @@ class CompoundPolicy(ControlPolicy):
                 f"in {self.name}: {member_policy_name}"
             )
             try:
-                # Check if the policy requires a session
-                # This is a simple check based on parameter name; might need refinement
-                # if other policies start needing session without the same signature.
-                # A more robust approach might involve checking method signature or adding a flag.
-                if "session" in policy.apply.__code__.co_varnames:
-                    current_context = await policy.apply(current_context, session=session)
-                else:
-                    current_context = await policy.apply(current_context)
+                # Pass context, container, and session to all member policies
+                # Assuming all policies now conform to the apply(context, container, session) signature
+                current_context = await policy.apply(current_context, container=container, session=session)
             except Exception as e:
                 self.logger.error(
                     f"[{current_context.transaction_id}] Error applying policy {member_policy_name} "

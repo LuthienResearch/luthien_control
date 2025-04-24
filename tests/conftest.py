@@ -216,6 +216,7 @@ def mock_builder() -> MagicMock:
 
 # --- End Moved Fixtures --- #
 
+
 # --- Mock Fixtures for Dependencies --- #
 
 # Keep individual mocks as they can be useful and are used by mock_dependencies
@@ -248,12 +249,12 @@ def mock_db_session() -> AsyncMock:
 def mock_db_session_factory(mock_db_session: AsyncMock) -> MagicMock:
     """Provides a mock database session factory context manager."""
     # The factory itself is a callable
-    factory = MagicMock()
+    factory_mock = MagicMock()
     # The factory returns an async context manager
-    mock_context_manager = AsyncMock()
-    mock_context_manager.__aenter__.return_value = mock_db_session
-    factory.return_value = mock_context_manager
-    return factory
+    factory_cm = AsyncMock()
+    factory_cm.__aenter__.return_value = mock_db_session
+    factory_mock.return_value = factory_cm
+    return factory_mock
 
 
 @pytest.fixture
@@ -261,18 +262,17 @@ def mock_dependencies(
     mock_settings: MagicMock,
     mock_http_client: AsyncMock,
     mock_db_session_factory: MagicMock,
+    mock_db_session: AsyncMock,
 ) -> MagicMock:
-    """Provides a mock DependencyContainer instance with mocked dependencies."""
-    dependencies = MagicMock(spec=DependencyContainer)
-    dependencies.settings = mock_settings
-    dependencies.http_client = mock_http_client
-    dependencies.db_session_factory = mock_db_session_factory
-    # Provide direct access to the session mock via the container mock if needed
-    dependencies.mock_session = mock_db_session_factory.return_value.__aenter__.return_value
-    return dependencies
+    """Provides a mock DependencyContainer instance with mocked components."""
+    container = MagicMock(spec=DependencyContainer)
+    container.settings = mock_settings
+    container.http_client = mock_http_client
+    container.db_session_factory = mock_db_session_factory
+    container.mock_session = mock_db_session
+    return container
 
 
-# Deprecate this if no longer directly used by tests? Keep for now.
 @pytest.fixture
 def mock_api_key_lookup() -> AsyncMock:
     """Provides a mock for the API key lookup function (now less relevant)."""
@@ -302,3 +302,6 @@ def mock_transaction_context() -> MagicMock:
     context.request = None
     context.response = None
     return context
+
+
+# --- Other Helper Fixtures ---

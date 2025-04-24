@@ -109,3 +109,22 @@ Changes:
 Status: Completed.
 Next Steps: Ready for commit or next task.
 ---
+
+---
+**Date:** 2025-04-24 10:27
+**Goal:** Refactor Dependency Injection (Phase 1 Completion)
+**Plan:** `dev/refactor_dependency_injection.md`
+
+**Changes:**
+*   Refactored `ClientApiKeyAuthPolicy` to use `get_api_key_by_value` directly, removing `api_key_lookup` dependency (`luthien_control/control_policy/client_api_key_auth.py`).
+*   Updated tests (`tests/control_policy/test_client_api_key_auth.py`) to patch `get_api_key_by_value` and remove `api_key_lookup` mocking/injection. Fixed related test failures (`TypeError`).
+*   Removed `api_key_lookup` from `REQUIRED_DEPENDENCIES` in `CompoundPolicy` (`luthien_control/control_policy/compound_policy.py`).
+*   Removed `api_key_lookup` passing from `get_main_control_policy` in `luthien_control/dependencies.py`.
+*   Updated test assertion (`tests/test_dependencies.py::test_get_main_control_policy_success`) to reflect removed `api_key_lookup` argument.
+*   Deleted `get_response_builder` function from `luthien_control/dependencies.py`.
+*   Removed `Depends(get_response_builder)` from `api_proxy_endpoint` in `luthien_control/proxy/server.py`, instantiating `DefaultResponseBuilder` directly.
+*   Removed tests for `get_response_builder` from `tests/test_dependencies.py`.
+*   Added note to `dev/refactor_dependency_injection.md` under Step 11 to explicitly refactor `ClientApiKeyAuthPolicy` to accept a session dependency during Phase 2.
+
+**Status:** Phase 1 (Prerequisite Refactoring) completed successfully. All tests pass (`pytest`). Bandit scan clean.
+**Next Steps:** Begin Phase 2: Implement Dependency Injection Container (starting with Step 7: Define `DependencyContainer`).

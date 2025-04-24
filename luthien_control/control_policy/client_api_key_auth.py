@@ -1,9 +1,10 @@
 """Control Policy for verifying the client API key."""
 
 import logging
-from typing import TYPE_CHECKING, Optional, cast
+import json
+from typing import Optional, cast
 
-from fastapi.responses import JSONResponse
+import httpx
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
@@ -12,16 +13,10 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.db.database_async import get_db_session
 
 # Import the function to fetch API key by value
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
-
-# Import the centralized type definition - REMOVED as ApiKeyLookupFunc is no longer used here
-# from luthien_control.types import ApiKeyLookupFunc
-
-if TYPE_CHECKING:
-    pass  # Keep if needed for other forward refs, otherwise remove
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +27,17 @@ BEARER_PREFIX = "Bearer "
 class ClientApiKeyAuthPolicy(ControlPolicy):
     """Verifies the client API key provided in the Authorization header."""
 
-    REQUIRED_DEPENDENCIES = []  # Removed "api_key_lookup"
+    REQUIRED_DEPENDENCIES = []
 
-    def __init__(self, name: Optional[str] = None):  # Removed api_key_lookup parameter
+    def __init__(self, name: Optional[str] = None):
         """Initializes the policy."""
         self.logger = logging.getLogger(__name__)
         self.name = name or self.__class__.__name__
-        # Removed self._api_key_lookup assignment
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(self, context: TransactionContext, session: AsyncSession) -> TransactionContext:
         """
         Verifies the API key from the Authorization header in the context's request.
+        Requires an active SQLAlchemy AsyncSession.
 
         Raises:
             NoRequestError: If context.fastapi_request is None.
@@ -50,6 +45,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
         Args:
             context: The current transaction context.
+            session: An active SQLAlchemy AsyncSession.
 
         Returns:
             The unmodified transaction context if authentication is successful.
@@ -61,7 +57,11 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
         if not api_key_header_value:
             self.logger.warning(f"[{context.transaction_id}] Missing API key in {API_KEY_HEADER} header.")
-            context.response = JSONResponse(status_code=401, content={"detail": "Not authenticated: Missing API key."})
+            context.response = httpx.Response(
+                status_code=401,
+                headers={"Content-Type": "application/json"},
+                content=json.dumps({"detail": "Not authenticated: Missing API key."}).encode("utf-8"),
+            )
             raise ClientAuthenticationNotFoundError(detail="Not authenticated: Missing API key.")
 
         # Strip "Bearer " prefix if present
@@ -69,16 +69,18 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         if api_key_value.startswith(BEARER_PREFIX):
             api_key_value = api_key_value[len(BEARER_PREFIX) :]
 
-        # Use the imported get_api_key_by_value function with a session
-        async with get_db_session() as session:
-            db_key = await get_api_key_by_value(session, api_key_value)  # Changed from self._api_key_lookup
+        db_key = await get_api_key_by_value(session, api_key_value)
 
         if not db_key:
             self.logger.warning(
                 f"[{context.transaction_id}] Invalid API key provided "
                 f"(key starts with: {api_key_value[:4]}...) ({self.name})."
             )
-            context.response = JSONResponse(status_code=401, content={"detail": "Invalid API Key"})
+            context.response = httpx.Response(
+                status_code=401,
+                headers={"Content-Type": "application/json"},
+                content=json.dumps({"detail": "Invalid API Key"}).encode("utf-8"),
+            )
             raise ClientAuthenticationError(detail="Invalid API Key")
 
         if not db_key.is_active:
@@ -86,7 +88,11 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
                 f"[{context.transaction_id}] Inactive API key provided "
                 f"(Name: {db_key.name}, ID: {db_key.id}). ({self.name})."
             )
-            context.response = JSONResponse(status_code=401, content={"detail": "Inactive API Key"})
+            context.response = httpx.Response(
+                status_code=401,
+                headers={"Content-Type": "application/json"},
+                content=json.dumps({"detail": "Inactive API Key"}).encode("utf-8"),
+            )
             raise ClientAuthenticationError(detail="Inactive API Key")
 
         self.logger.info(
@@ -94,8 +100,6 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
             f"(Name: {db_key.name}, ID: {db_key.id}). ({self.name})."
         )
         context.response = None  # Clear any previous error response set above
-        # Store client identity in context?
-        context.client_identity = {"api_key_name": db_key.name, "api_key_id": db_key.id}
         return context
 
     def serialize(self) -> SerializableDict:

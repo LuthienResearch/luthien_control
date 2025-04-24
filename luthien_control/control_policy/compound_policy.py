@@ -8,6 +8,7 @@ from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.loader import load_policy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +37,14 @@ class CompoundPolicy(ControlPolicy):
         self.logger = logger
         self.name = name or self.__class__.__name__
 
-    async def apply(self, context: "TransactionContext") -> "TransactionContext":
+    async def apply(self, context: "TransactionContext", session: AsyncSession) -> "TransactionContext":
         """
         Applies the contained policies sequentially to the context.
+        Requires an active SQLAlchemy AsyncSession.
 
         Args:
             context: The current transaction context.
+            session: An active SQLAlchemy AsyncSession, passed to member policies.
 
         Returns:
             The transaction context after all contained policies have been applied.
@@ -58,7 +61,14 @@ class CompoundPolicy(ControlPolicy):
                 f"in {self.name}: {member_policy_name}"
             )
             try:
-                current_context = await policy.apply(current_context)
+                # Check if the policy requires a session
+                # This is a simple check based on parameter name; might need refinement
+                # if other policies start needing session without the same signature.
+                # A more robust approach might involve checking method signature or adding a flag.
+                if "session" in policy.apply.__code__.co_varnames:
+                    current_context = await policy.apply(current_context, session=session)
+                else:
+                    current_context = await policy.apply(current_context)
             except Exception as e:
                 self.logger.error(
                     f"[{current_context.transaction_id}] Error applying policy {member_policy_name} "

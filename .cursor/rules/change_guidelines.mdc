@@ -1,5 +1,5 @@
 ---
-description: 
+description: Change Guidelines
 globs: 
 alwaysApply: true
 ---
@@ -19,7 +19,11 @@ When making changes to the codebase:
    - Adhere to the scope of changes specified by the user and/or current_context.
    - Test each file's functionality after changes
    - Ensure changes don't break existing features
-5. Do not leave comments about code changes (e.g. "# Removed X" or "# Moved X to Y")
+5. DO NOT WRITE COMMENTS ABOUT CODE CHANGES. Examples to AVOID:
+<dont_do_this>
+   - `# Removed X as its no longer used`
+   - `# Moved X to Y`
+</dont_do_this>
 6. Package management:
    - Always use Poetry for dependency management
    - Run tests using `poetry run pytest`

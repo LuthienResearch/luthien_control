@@ -17,6 +17,7 @@ from luthien_control.core.response_builder.interface import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from luthien_control.main import app
+from luthien_control.dependency_container import DependencyContainer
 
 # Import centralized type alias
 from luthien_control.types import ApiKeyLookupFunc
@@ -215,82 +216,89 @@ def mock_builder() -> MagicMock:
 
 # --- End Moved Fixtures --- #
 
-# --- Added Mock Fixtures for Dependencies --- #
+# --- Mock Fixtures for Dependencies --- #
 
-
-@pytest.fixture
-def mock_get_api_key_by_value(mocker: MockerFixture) -> Callable[[], AsyncMock]:
-    """Fixture to mock the get_api_key_by_value database function."""
-
-    def _factory() -> AsyncMock:
-        # Remove incorrect local definition
-        # ApiKeyLookupFunc = Callable[[str], Awaitable[Optional[ClientApiKey]]]
-        # Use imported ApiKeyLookupFunc for spec
-        lookup = AsyncMock(spec=ApiKeyLookupFunc)
-        mocker.patch(
-            "luthien_control.dependencies.get_api_key_by_value",
-            return_value=lookup,
-            autospec=True,
-        )
-        # Also patch it where it might be used directly in tests/scripts
-        mocker.patch(
-            "luthien_control.db.client_api_key_crud.get_api_key_by_value",
-            return_value=lookup,
-            autospec=True,
-        )
-        # Patch in generate_root_policy_config script
-        mocker.patch(
-            "scripts.generate_root_policy_config.get_api_key_by_value",
-            return_value=lookup,
-            autospec=True,
-            create=True,  # May not exist at import time
-        )
-        return lookup
-
-    return _factory
+# Keep individual mocks as they can be useful and are used by mock_dependencies
 
 
 @pytest.fixture
 def mock_settings() -> MagicMock:
-    """Provides a mock Settings object."""
+    """Provides a mock Settings instance."""
     settings = MagicMock(spec=Settings)
-    # Add specific return values if needed by tests using this fixture
-    # e.g., settings.get_backend_url.return_value = "http://mock-backend.com"
+    # Add common default return values if needed by most tests
+    settings.get_top_level_policy_name.return_value = "test_policy"
     return settings
 
 
 @pytest.fixture
 def mock_http_client() -> AsyncMock:
-    """Provides a mock httpx.AsyncClient."""
+    """Provides a mock httpx.AsyncClient instance."""
     client = AsyncMock(spec=httpx.AsyncClient)
-    # Add specific mock responses or behaviors if needed
-    # e.g., client.send.return_value = AsyncMock(spec=httpx.Response, status_code=200)
     return client
 
 
 @pytest.fixture
+def mock_db_session() -> AsyncMock:
+    """Provides a mock SQLAlchemy AsyncSession instance."""
+    session = AsyncMock(spec=AsyncSession)
+    return session
+
+
+@pytest.fixture
+def mock_db_session_factory(mock_db_session: AsyncMock) -> MagicMock:
+    """Provides a mock database session factory context manager."""
+    # The factory itself is a callable
+    factory = MagicMock()
+    # The factory returns an async context manager
+    mock_context_manager = AsyncMock()
+    mock_context_manager.__aenter__.return_value = mock_db_session
+    factory.return_value = mock_context_manager
+    return factory
+
+
+@pytest.fixture
+def mock_dependencies(
+    mock_settings: MagicMock,
+    mock_http_client: AsyncMock,
+    mock_db_session_factory: MagicMock,
+) -> MagicMock:
+    """Provides a mock DependencyContainer instance with mocked dependencies."""
+    dependencies = MagicMock(spec=DependencyContainer)
+    dependencies.settings = mock_settings
+    dependencies.http_client = mock_http_client
+    dependencies.db_session_factory = mock_db_session_factory
+    # Provide direct access to the session mock via the container mock if needed
+    dependencies.mock_session = mock_db_session_factory.return_value.__aenter__.return_value
+    return dependencies
+
+
+# Deprecate this if no longer directly used by tests? Keep for now.
+@pytest.fixture
 def mock_api_key_lookup() -> AsyncMock:
-    """Provides a mock api_key_lookup function."""
+    """Provides a mock for the API key lookup function (now less relevant)."""
+    # This was used when lookup was injected directly
     lookup = AsyncMock(spec=ApiKeyLookupFunc)
-    # Add specific return values for mock keys if needed
-    # e.g., async def side_effect(key_value): if key_value == 'valid': return MagicMock(spec=ClientApiKey); return None
-    # lookup.side_effect = side_effect
+    lookup.return_value = None  # Default to not found
     return lookup
 
 
 @pytest.fixture
-def mock_db_session() -> AsyncMock:
-    """Provides a mock SQLAlchemy AsyncSession."""
-    return AsyncMock(spec=AsyncSession)
-
-
-@pytest.fixture
 def mock_api_key_data() -> Dict[str, Any]:
-    """Provides sample data for an API key."""
-    return MagicMock(spec=ClientApiKey)
+    """Provides sample data for a ClientApiKey."""
+    return {
+        "id": uuid.uuid4(),
+        "name": "Test Key",
+        "hashed_api_key": "hashed_test_key_value",
+        "is_active": True,
+        "description": "A key for testing",
+    }
 
 
 @pytest.fixture
 def mock_transaction_context() -> MagicMock:
-    """Provides a mock TransactionContext."""
-    return MagicMock(spec=TransactionContext)
+    """Provides a basic mock TransactionContext."""
+    context = MagicMock(spec=TransactionContext)
+    context.transaction_id = uuid.uuid4()
+    context.request = None
+    context.response = None
+    return context

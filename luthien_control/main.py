@@ -8,7 +8,9 @@ from luthien_control.config.settings import Settings
 from luthien_control.db.database_async import (
     close_db_engine,
     create_db_engine,
+    get_db_session,
 )
+from luthien_control.dependency_container import DependencyContainer
 from luthien_control.logging_config import setup_logging
 from luthien_control.proxy.server import router as proxy_router
 
@@ -17,51 +19,81 @@ setup_logging()
 
 logger = logging.getLogger(__name__)
 
-settings = Settings()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage the lifespan of the application resources."""
     logger.info("Application startup sequence initiated.")
 
+    # Startup: Load Settings
+    app_settings = Settings()
+    logger.info("Settings loaded.")
+
     # Startup: Initialize HTTP client
     timeout = httpx.Timeout(5.0, connect=5.0, read=60.0, write=5.0)
-    app.state.http_client = httpx.AsyncClient(timeout=timeout)
+    http_client = httpx.AsyncClient(timeout=timeout)
     logger.info("HTTP Client initialized.")
 
-    # Startup: Initialize Database Pools
-    logger.info("Attempting to create main DB engine...")
+    # Startup: Initialize Database Engine and Session Factory
+    logger.info("Attempting to create main DB engine and session factory...")
     try:
-        # Create the engine
         db_engine = await create_db_engine()
-        # Check if engine was successfully created
         if not db_engine:
-            # Errors during creation are logged within create_db_engine
-            logger.critical("create_db_engine() failed (returned None). Halting startup.")
+            logger.critical("create_db_engine() failed. Halting startup.")
             raise RuntimeError("Failed to initialize database connection engine.")
-        else:
-            logger.info("Main DB engine successfully created.")
-            # Optionally check via module namespace if needed, though direct check is better
-            # assert luthien_control.db.database_async._db_engine is not None
-    except Exception as engine_exc:
-        # Catch exceptions during the await itself
-        logger.critical(f"Failed to create main DB engine due to exception: {engine_exc}", exc_info=True)
-        raise RuntimeError(f"Failed to initialize database connection engine: {engine_exc}") from engine_exc
+        logger.info("Main DB engine successfully created.")
+        # get_db_session itself uses the factory initialized by create_db_engine
+        db_session_factory = get_db_session
+        logger.info("DB Session Factory reference obtained.")
 
-    yield
+    except Exception as engine_exc:
+        logger.critical(f"Failed to initialize database due to exception: {engine_exc}", exc_info=True)
+        # Ensure client is closed if DB setup fails mid-startup
+        await http_client.aclose()
+        logger.info("HTTP Client closed due to startup failure.")
+        raise RuntimeError(f"Failed to initialize database: {engine_exc}") from engine_exc
+
+    # Startup: Create and store Dependency Container
+    try:
+        dependencies = DependencyContainer(
+            settings=app_settings,
+            http_client=http_client,
+            db_session_factory=db_session_factory,
+        )
+        app.state.dependencies = dependencies
+        logger.info("Dependency Container created and stored in app state.")
+    except Exception as dependencies_exc:
+        logger.critical(f"Failed to create Dependency Container: {dependencies_exc}", exc_info=True)
+        # Clean up already created resources
+        await http_client.aclose()
+        logger.info("HTTP Client closed due to dependencies container creation failure.")
+        await close_db_engine()  # Close DB engine as well
+        logger.info("DB Engine closed due to dependencies container creation failure.")
+        raise RuntimeError(f"Failed to create Dependency Container: {dependencies_exc}") from dependencies_exc
+
+    yield  # Application runs here
 
     # Shutdown: Clean up resources
     logger.info("Application shutdown sequence initiated.")
-    # Close main DB engine
+
+    # Retrieve container and client from app state for cleanup
+    container_to_close = app.state.container if hasattr(app.state, "container") else None
+    http_client_to_close = container_to_close.http_client if container_to_close else None
+
+    # Close main DB engine (handles its own check if already closed)
     await close_db_engine()
 
-    # Shutdown: Close the HTTP client
-    if hasattr(app.state, "http_client") and app.state.http_client:
+    # Shutdown: Close the HTTP client via the container if available
+    if http_client_to_close:
+        await http_client_to_close.aclose()
+        logger.info("HTTP Client closed via container.")
+    elif hasattr(app.state, "http_client"):  # Fallback if container wasn't created/stored properly
+        # This fallback might be removable if container creation is robust
+        logger.warning("Closing HTTP Client via direct app.state access (fallback).")
         await app.state.http_client.aclose()
-        logger.info("HTTP Client closed.")
+        logger.info("HTTP Client closed (fallback).")
     else:
-        logger.warning("HTTP Client not found in app state during shutdown.")
+        logger.warning("HTTP Client not found in app state or container during shutdown.")
 
     logger.info("Application shutdown complete.")
 
@@ -96,10 +128,13 @@ async def read_root():
 if __name__ == "__main__":
     import uvicorn
 
+    # Load settings here specifically for running uvicorn if needed,
+    # otherwise rely on the lifespan settings
+    dev_settings = Settings()
     uvicorn.run(
         "luthien_control.main:app",
-        host=settings.get_app_host(),
-        port=settings.get_app_port(),
-        reload=settings.get_app_reload(),
-        log_level=settings.get_app_log_level().lower(),
+        host=dev_settings.get_app_host(),
+        port=dev_settings.get_app_port(),
+        reload=dev_settings.get_app_reload(),
+        log_level=dev_settings.get_app_log_level().lower(),
     )

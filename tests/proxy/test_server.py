@@ -1,5 +1,5 @@
 # tests/proxy/test_server.py
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI, Request, Response
@@ -8,6 +8,7 @@ from luthien_control.config.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.response_builder.interface import ResponseBuilder
 from luthien_control.dependencies import (
+    get_dependencies,
     get_main_control_policy,
 )
 from luthien_control.main import app  # Import your main FastAPI app
@@ -76,35 +77,38 @@ def mock_main_policy_for_simple_tests() -> AsyncMock:
 
 @pytest.mark.asyncio
 async def test_api_proxy_endpoint_calls_orchestrator(
-    test_app: FastAPI, client: TestClient, mock_main_policy_for_simple_tests: AsyncMock
+    test_app: FastAPI, client: TestClient, mock_dependencies: MagicMock, mock_main_policy_for_simple_tests: AsyncMock
 ):
     """Verify /api endpoint calls run_policy_flow and returns its response."""
     test_path = "some/api/path"
     expected_content = b"Response from mocked run_policy_flow"
     expected_status = 201
-    # Create a realistic Response object to be returned by the mock
     mock_response = Response(
         content=expected_content,
         status_code=expected_status,
         headers={"X-Mock-Header": "MockValue"},
         media_type="text/plain",
     )
-
-    # Add a dummy auth header for the test client request
     auth_headers = {"Authorization": "Bearer test-key"}
 
-    # --- Override main policy dependency --- #
-    async def override_get_main_policy():
-        return mock_main_policy_for_simple_tests
+    # --- Mock the policy loading within the container --- #
+    # Patch load_policy_from_db where get_main_control_policy uses it
+    with patch("luthien_control.dependencies.load_policy_from_db", new_callable=AsyncMock) as mock_load_policy:
+        mock_load_policy.return_value = mock_main_policy_for_simple_tests
 
-    test_app.dependency_overrides[get_main_control_policy] = override_get_main_policy
-    # --- End Override --- #
+        # --- Override container dependency --- #
+        def override_get_container():
+            # Configure settings mock within the container if needed for policy name
+            mock_dependencies.settings.get_top_level_policy_name.return_value = "mock-policy-name"
+            return mock_dependencies
 
-    with patch("luthien_control.proxy.server.run_policy_flow", new_callable=AsyncMock) as mock_run_flow:
-        mock_run_flow.return_value = mock_response
+        test_app.dependency_overrides[get_dependencies] = override_get_container
+        # --- End Override --- #
 
-        # Make a request to the /api endpoint with auth header
-        actual_response = client.get(f"/api/{test_path}", headers=auth_headers)
+        # Mock run_policy_flow and make request
+        with patch("luthien_control.proxy.server.run_policy_flow", new_callable=AsyncMock) as mock_run_flow:
+            mock_run_flow.return_value = mock_response
+            actual_response = client.get(f"/api/{test_path}", headers=auth_headers)
 
     # Clean up override AFTER request
     test_app.dependency_overrides = {}
@@ -118,32 +122,30 @@ async def test_api_proxy_endpoint_calls_orchestrator(
     # 2. Assert run_policy_flow was called once
     mock_run_flow.assert_awaited_once()
 
-    # 3. Assert run_policy_flow was called with expected argument types
-    call_kwargs = mock_run_flow.await_args[1]  # Get keyword args from the call
-
-    # Check keyword arguments passed to run_policy_flow
+    # 3. Assert run_policy_flow was called with expected arguments
+    call_kwargs = mock_run_flow.await_args[1]  # Get keyword args
     assert "request" in call_kwargs
     assert "main_policy" in call_kwargs
     assert "builder" in call_kwargs
+    assert "dependencies" in call_kwargs  # Check container was passed
 
-    # Check request object details
     request_arg = call_kwargs["request"]
     assert isinstance(request_arg, Request)
     assert request_arg.method == "GET"
-    # TestClient uses http://testserver as base URL
     assert request_arg.url.path == f"/api/{test_path}"
 
-    # Check dependency types (ensure DI worked)
-    assert isinstance(call_kwargs["main_policy"], ControlPolicy)
+    # Check that the policy loaded via the (mocked) dependency chain was passed
+    assert call_kwargs["main_policy"] is mock_main_policy_for_simple_tests
     assert isinstance(call_kwargs["builder"], ResponseBuilder)
+    # Check that the overridden dependencies were passed
+    assert call_kwargs["dependencies"] is mock_dependencies
 
-    # Verify the auth header was received by the endpoint
     assert request_arg.headers.get("authorization") == "Bearer test-key"
 
 
 @pytest.mark.asyncio
 async def test_api_proxy_endpoint_handles_post(
-    test_app: FastAPI, client: TestClient, mock_main_policy_for_simple_tests: AsyncMock
+    test_app: FastAPI, client: TestClient, mock_dependencies: MagicMock, mock_main_policy_for_simple_tests: AsyncMock
 ):
     """Verify /api endpoint handles POST requests correctly."""
     test_path = "some/api/path/post"
@@ -152,33 +154,39 @@ async def test_api_proxy_endpoint_handles_post(
     mock_response = Response(content=expected_content, status_code=expected_status)
     auth_headers = {"Authorization": "Bearer test-key-post"}
 
-    # --- Override main policy dependency --- #
+    # --- Override container and main policy dependencies --- #
+    # Override get_container
+    def override_get_container():
+        mock_dependencies.settings.get_top_level_policy_name.return_value = "mock-post-policy"
+        return mock_dependencies
+
+    test_app.dependency_overrides[get_dependencies] = override_get_container
+
+    # Override get_main_control_policy directly
     async def override_get_main_policy():
+        # Return the already created mock policy instance
         return mock_main_policy_for_simple_tests
 
     test_app.dependency_overrides[get_main_control_policy] = override_get_main_policy
-    # --- End Override --- #
+    # --- End Setup --- #
 
     with patch("luthien_control.proxy.server.run_policy_flow", new_callable=AsyncMock) as mock_run_flow:
         mock_run_flow.return_value = mock_response
-
-        # Make a POST request to the /api endpoint with auth header
         response = client.post(f"/api/{test_path}", content=b"Test POST body", headers=auth_headers)
 
-    # Clean up override AFTER request
-    test_app.dependency_overrides = {}
+    test_app.dependency_overrides = {}  # Clear overrides
 
     assert response.status_code == expected_status
     assert response.content == expected_content
     mock_run_flow.assert_awaited_once()
-    # Check kwargs passed to the mocked function
     call_kwargs = mock_run_flow.await_args[1]
+    assert "dependencies" in call_kwargs  # Check container passed
+    assert call_kwargs["dependencies"] is mock_dependencies
+    assert call_kwargs["main_policy"] is mock_main_policy_for_simple_tests
     request_arg = call_kwargs["request"]
     assert isinstance(request_arg, Request)
     assert request_arg.method == "POST"
     assert request_arg.url.path == f"/api/{test_path}"
-
-    # Verify the auth header was received
     assert request_arg.headers.get("authorization") == "Bearer test-key-post"
 
 

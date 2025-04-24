@@ -113,11 +113,7 @@ async def test_load_policy_from_db_success(
         "type": mock_policy_config_model.type,
         "config": mock_policy_config_model.config,
     }
-    expected_kwargs = {
-        "settings": mock_container.settings,
-        "http_client": mock_container.http_client,
-    }
-    mock_load_policy.assert_awaited_once_with(expected_policy_data, **expected_kwargs)
+    mock_load_policy.assert_awaited_once_with(expected_policy_data)
     assert loaded_policy == mock_instantiated_policy
 
 
@@ -239,8 +235,4 @@ async def test_load_policy_from_db_loader_error(
         "type": mock_policy_config_model.type,
         "config": mock_policy_config_model.config,
     }
-    expected_kwargs = {
-        "settings": mock_container.settings,
-        "http_client": mock_container.http_client,
-    }
-    mock_load_policy.assert_awaited_once_with(expected_policy_data, **expected_kwargs)
+    mock_load_policy.assert_awaited_once_with(expected_policy_data)

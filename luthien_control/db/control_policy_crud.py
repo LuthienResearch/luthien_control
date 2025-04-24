@@ -12,7 +12,7 @@ from .sqlmodel_models import ControlPolicy
 
 if TYPE_CHECKING:
     from luthien_control.control_policy.control_policy import ControlPolicy
-    from luthien_control.control_policy.dependency_container import DependencyContainer
+    from luthien_control.dependency_container import DependencyContainer
 
 logger = logging.getLogger(__name__)
 
@@ -122,22 +122,12 @@ async def load_policy_from_db(
         "config": policy_model.config or {},
     }
 
-    # Prepare available dependencies for the loader
-    # The loader will filter these based on the policy's requirements
-    # We pass the container's components individually for now, as load_policy expects kwargs
-    # TODO: Refactor load_policy itself to potentially accept the container
-    available_dependencies = {
-        "settings": container.settings,
-        "http_client": container.http_client,
-    }
-
     try:
-        instance = await load_policy(policy_data, **available_dependencies)
+        instance = await load_policy(policy_data)
         logger.info(f"Successfully loaded and instantiated policy '{name}' from database.")
         return instance
     except PolicyLoadError as e:
         logger.error(f"Failed to load policy '{name}' from database: {e}")
-        # Re-raise cleanly, context is already included from instantiate_policy
         raise e
     except Exception as e:
         logger.exception(f"Unexpected error loading policy '{name}' from database: {e}")

@@ -1,7 +1,7 @@
 """Loads control policies from serialized data."""
 
-from typing import TYPE_CHECKING, Dict, Type
 import logging
+from typing import TYPE_CHECKING, Type
 
 # Import the load error exception
 from .exceptions import PolicyLoadError
@@ -14,15 +14,13 @@ if TYPE_CHECKING:
     from .control_policy import ControlPolicy
 
 
-async def load_policy(serialized_policy: SerializedPolicy, **available_dependencies) -> "ControlPolicy":
+async def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
     """
     Loads a ControlPolicy instance from a dictionary containing its name and config,
     injecting required dependencies.
 
     Args:
         serialized_policy: A SerializedPolicy object.
-        **available_dependencies: Keyword arguments for dependencies potentially needed by policies
-                                (e.g., api_key_lookup=ApiKeyLookup(...)).
 
     Returns:
         An instantiated ControlPolicy object.

@@ -40,16 +40,12 @@ RUN poetry config virtualenvs.create false
 
 WORKDIR /app
 
-# Copy project definition files needed by poetry run
+# Copy project definition files needed by poetry run AND the full project context
 COPY pyproject.toml poetry.lock ./
+COPY . .
 
-# Install dependencies directly in runtime stage
-RUN poetry install --no-interaction --no-ansi --no-root --without dev
-
-# Copy the application code and db scripts
-COPY luthien_control/ ./luthien_control/
-COPY alembic/ ./alembic/
-COPY alembic.ini ./alembic.ini
+# Install dependencies AND the project itself
+RUN poetry install --no-interaction --no-ansi --without dev
 
 # Expose the port the app runs on
 EXPOSE 8000

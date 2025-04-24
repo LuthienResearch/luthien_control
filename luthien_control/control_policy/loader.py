@@ -1,7 +1,7 @@
 """Loads control policies from serialized data."""
 
 import logging
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING
 
 # Import the load error exception
 from .exceptions import PolicyLoadError

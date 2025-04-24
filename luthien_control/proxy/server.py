@@ -10,9 +10,9 @@ from luthien_control.control_policy.control_policy import ControlPolicy
 # Import the specific builder class we will instantiate
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
 from luthien_control.dependencies import (
+    get_db_session,
     get_dependencies,
     get_main_control_policy,
-    get_db_session,
 )
 from luthien_control.dependency_container import DependencyContainer
 
@@ -44,7 +44,7 @@ async def api_proxy_endpoint(
     logger.info(f"Authenticated request received for /api/{full_path}")
 
     # Instantiate the builder directly
-    builder = DefaultResponseBuilder()
+    DefaultResponseBuilder()
 
     # Orchestrate the policy flow
     response = await run_policy_flow(

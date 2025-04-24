@@ -1,7 +1,7 @@
 import datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import httpx
 import pytest
@@ -11,9 +11,9 @@ from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.db.control_policy_crud import load_policy_from_db
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from luthien_control.db.sqlmodel_models import ControlPolicy as ControlPolicyModel
+from luthien_control.dependency_container import DependencyContainer
 from luthien_control.types import ApiKeyLookupFunc
 from sqlalchemy.ext.asyncio import AsyncSession
-from luthien_control.dependency_container import DependencyContainer
 
 pytestmark = pytest.mark.asyncio
 

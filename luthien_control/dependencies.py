@@ -1,5 +1,4 @@
 import logging
-from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, AsyncGenerator
 
 import httpx
@@ -91,8 +90,6 @@ async def get_main_control_policy(
     Uses the DependencyContainer to access settings, http_client, and a database session.
     """
     settings = dependencies.settings
-    http_client = dependencies.http_client
-    session_factory = dependencies.db_session_factory
 
     top_level_policy_name = settings.get_top_level_policy_name()
     if not top_level_policy_name:

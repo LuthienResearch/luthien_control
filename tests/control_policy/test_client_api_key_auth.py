@@ -1,5 +1,6 @@
+import logging
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import Request as HttpxRequest
@@ -15,9 +16,8 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.sqlmodel_models import ClientApiKey
-from sqlalchemy.ext.asyncio import AsyncSession
 from luthien_control.dependency_container import DependencyContainer
-import logging
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

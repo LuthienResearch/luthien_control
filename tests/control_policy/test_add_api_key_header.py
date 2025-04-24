@@ -1,12 +1,11 @@
 """Tests for the AddApiKeyHeaderProcessor."""
 
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
-from luthien_control.config.settings import Settings
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
-from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError, PolicyLoadError
+from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
 from luthien_control.core.transaction_context import TransactionContext
 
 

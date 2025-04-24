@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import Response
-from luthien_control.config.settings import Settings
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.compound_policy import CompoundPolicy
@@ -12,9 +11,8 @@ from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.db.client_api_key_crud import get_api_key_by_value
-from sqlalchemy.ext.asyncio import AsyncSession
 from luthien_control.dependency_container import DependencyContainer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Test Fixtures and Helper Classes ---
 

@@ -1,7 +1,7 @@
 import os
 import uuid
 from pathlib import Path
-from typing import Any, Callable, Dict
+from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock
 
 import fastapi
@@ -15,14 +15,12 @@ from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
 from luthien_control.core.response_builder.interface import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.db.sqlmodel_models import ClientApiKey
-from luthien_control.main import app
 from luthien_control.dependency_container import DependencyContainer
+from luthien_control.main import app
 
 # Import centralized type alias
 from luthien_control.types import ApiKeyLookupFunc
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Command Line Option ---
@@ -324,9 +322,7 @@ def override_app_dependencies(
     """
     # Avoid overriding for end-to-end tests which use the real app/dependencies
     # We access the `request` object implicitly available to fixtures
-    import pytest
 
-    request = pytest.FixtureRequest
 
     # Check if the current test item has the 'e2e' marker
     # This requires access to the 'request' fixture implicitly or explicitly

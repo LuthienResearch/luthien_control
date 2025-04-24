@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Optional, cast, Dict, Any
+from typing import Any, Dict, Optional, cast
 
 import httpx
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -13,10 +13,9 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.dependency_container import DependencyContainer
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
+from luthien_control.dependency_container import DependencyContainer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

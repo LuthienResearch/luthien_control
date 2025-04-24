@@ -5,7 +5,6 @@ from fastapi import HTTPException, Request, status
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.dependencies import (
-    get_db_session,
     get_dependencies,
     get_http_client,
     get_main_control_policy,

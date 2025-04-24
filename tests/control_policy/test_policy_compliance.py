@@ -1,15 +1,15 @@
+import importlib
 import inspect
 import pkgutil
-import importlib
-from typing import List, Type, Any, get_type_hints, ForwardRef
-import pytest
+from typing import ForwardRef, List, Type, get_type_hints
 
+import luthien_control.control_policy  # Import the package
+import pytest
 from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.dependency_container import DependencyContainer
 from sqlalchemy.ext.asyncio import AsyncSession
-from luthien_control.control_policy.serialization import SerializableDict
-import luthien_control.control_policy  # Import the package
 
 
 def discover_policy_classes() -> List[Type[ControlPolicy]]:
@@ -148,11 +148,13 @@ def test_policy_from_serialized_signature(policy_class: Type[ControlPolicy]):
     if isinstance(return_hint, ForwardRef):
         # Check if the ForwardRef refers to the policy class name
         assert return_hint.__forward_arg__ == policy_class.__name__, (
-            f"{policy_class.__name__}.from_serialized return hint is ForwardRef('{return_hint.__forward_arg__}'), expected '{policy_class.__name__}'"
+            f"{policy_class.__name__}.from_serialized return hint is ForwardRef('{return_hint.__forward_arg__}'), "
+            f"expected '{policy_class.__name__}'"
         )
     elif hasattr(return_hint, "__origin__") and return_hint.__origin__ is Type:  # Handles Type[PolicyClass]
         assert return_hint.__args__[0] is expected_return, (
-            f"{policy_class.__name__}.from_serialized return hint is {return_hint}, expected Type[{expected_return.__name__}]"
+            f"{policy_class.__name__}.from_serialized return hint is {return_hint}, "
+            f"expected Type[{expected_return.__name__}]"
         )
     else:  # Direct type hint
         assert return_hint is expected_return, (

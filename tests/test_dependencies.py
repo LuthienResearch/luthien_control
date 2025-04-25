@@ -6,9 +6,7 @@ from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.dependencies import (
     get_dependencies,
-    get_http_client,
     get_main_control_policy,
-    get_settings,
 )
 from starlette.datastructures import State
 
@@ -43,21 +41,6 @@ def test_get_dependencies_not_found(mock_request_with_state):
         get_dependencies(mock_request_with_state)
     assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
     assert "Application dependencies not initialized" in exc_info.value.detail
-
-
-# --- Tests for Simple Dependency Providers (using Container) ---
-
-
-def test_get_settings(mock_container):
-    """Test getting settings from the dependencies container."""
-    settings = get_settings(mock_container)
-    assert settings is mock_container.settings
-
-
-def test_get_http_client(mock_container):
-    """Test getting http_client from the dependencies container."""
-    client = get_http_client(mock_container)
-    assert client is mock_container.http_client
 
 
 # --- Tests for get_main_control_policy (using Container) ---

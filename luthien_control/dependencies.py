@@ -1,12 +1,10 @@
 import logging
 from typing import TYPE_CHECKING, AsyncGenerator
 
-import httpx
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import Settings and the policy loader
-from luthien_control.config.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
 
 # Import Policies
@@ -37,17 +35,6 @@ def get_dependencies(request: Request) -> DependencyContainer:
             detail="Internal server error: Application dependencies not initialized.",
         )
     return dependencies
-
-
-# TODO: Remove these, consolidate into container
-def get_settings(dependencies: DependencyContainer = Depends(get_dependencies)) -> Settings:
-    """Dependency to get the Settings instance from the container."""
-    return dependencies.settings
-
-
-def get_http_client(dependencies: DependencyContainer = Depends(get_dependencies)) -> httpx.AsyncClient:
-    """Dependency to get the shared httpx.AsyncClient from the container."""
-    return dependencies.http_client
 
 
 # --- Async Database Session Dependency using Container ---

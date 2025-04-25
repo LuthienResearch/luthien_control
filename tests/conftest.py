@@ -13,7 +13,7 @@ from alembic import command
 from alembic.config import Config
 from dotenv import load_dotenv
 from luthien_control.config.settings import Settings
-from luthien_control.core.response_builder.interface import ResponseBuilder
+from luthien_control.core.response_builder import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.dependency_container import DependencyContainer
 from luthien_control.main import app
@@ -206,10 +206,11 @@ def client():
 
 @pytest.fixture
 def mock_builder() -> MagicMock:
-    """Provides a mock ResponseBuilder instance."""
-    builder = MagicMock(spec=ResponseBuilder)
-    builder.build_response.return_value = MagicMock(spec=fastapi.Response)
-    return builder
+    """Fixture to provide a mock ResponseBuilder."""
+    # Mock the single ResponseBuilder class now
+    mock = MagicMock(spec=ResponseBuilder)
+    mock.build_response.return_value = fastapi.Response(status_code=299, content=b"mocked response")
+    return mock
 
 
 # --- End Moved Fixtures --- #
@@ -322,7 +323,6 @@ def override_app_dependencies(
     """
     # Avoid overriding for end-to-end tests which use the real app/dependencies
     # We access the `request` object implicitly available to fixtures
-
 
     # Check if the current test item has the 'e2e' marker
     # This requires access to the 'request' fixture implicitly or explicitly

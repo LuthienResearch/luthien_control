@@ -3,19 +3,16 @@ import uuid
 
 import fastapi
 import httpx
-from fastapi import status  # Added for status codes
-from fastapi.responses import JSONResponse  # Added for generic 500 error
-from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
+from fastapi import status
+from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
-
-# Import the default builder as it's no longer passed in
-from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
+from luthien_control.core.response_builder import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.dependency_container import DependencyContainer
 
-# Get a logger for this module
 logger = logging.getLogger(__name__)
 
 
@@ -40,7 +37,7 @@ async def run_policy_flow(
     request: fastapi.Request,
     main_policy: ControlPolicy,
     dependencies: DependencyContainer,
-    session: AsyncSession,  # Added session parameter
+    session: AsyncSession,
 ) -> fastapi.Response:
     """
     Orchestrates the execution of the main ControlPolicy using injected dependencies.
@@ -59,8 +56,7 @@ async def run_policy_flow(
     body = await request.body()
     context = _initialize_context(request, body)
 
-    # Instantiate a builder here (assuming DefaultResponseBuilder for now)
-    builder = DefaultResponseBuilder()
+    builder = ResponseBuilder()
 
     # 2. Apply the main policy
     try:

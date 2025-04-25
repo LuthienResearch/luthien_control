@@ -1,15 +1,16 @@
 """Default implementation for the ResponseBuilder interface."""
 
+import logging
 from typing import Optional
 
 from fastapi import Response
 from fastapi.responses import JSONResponse, PlainTextResponse
+
 from luthien_control.control_policy.exceptions import ControlPolicyError
-from luthien_control.core.response_builder.interface import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
 
 
-class DefaultResponseBuilder(ResponseBuilder):
+class ResponseBuilder:
     """
     Builds a FastAPI response from the TransactionContext based on successful policy execution.
 
@@ -25,7 +26,7 @@ class DefaultResponseBuilder(ResponseBuilder):
     """
 
     def __init__(self):
-        super().__init__()  # Initializes self.logger
+        self.logger = logging.getLogger(__name__)
         # Headers that should not be forwarded from backend response to client
         # Based on https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers#hop-by-hop_headers
         # Stored as lowercase strings for case-insensitive matching

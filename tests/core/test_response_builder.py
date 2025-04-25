@@ -1,16 +1,16 @@
-"""Unit tests for DefaultResponseBuilder."""
+"""Unit tests for ResponseBuilder."""
 
 import httpx
 import pytest
 from fastapi import Response
 from httpx import Headers
-from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
+from luthien_control.core.response_builder import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
 
 
 @pytest.fixture
-def builder() -> DefaultResponseBuilder:
-    return DefaultResponseBuilder()
+def builder() -> ResponseBuilder:
+    return ResponseBuilder()
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def backend_response() -> httpx.Response:
                 ("date", "some-date"),  # Example standard header
             ]
         ),
-        content=b'{"result": "from response content"}',  # Add actual content here
+        content=b'{"result": "from response content"}',
         request=httpx.Request("GET", "http://backend.test"),
     )
 
@@ -48,7 +48,6 @@ def context_with_response_content(backend_response: httpx.Response) -> Transacti
     """Context where response exists, but raw_backend_response_body is not in data."""
     ctx = TransactionContext(transaction_id="tx-build-resp-content")
     ctx.response = backend_response
-    # raw_backend_response_body is missing
     return ctx
 
 
@@ -60,7 +59,6 @@ def context_with_empty_content(backend_response: httpx.Response) -> TransactionC
         status_code=204, headers=backend_response.headers, content=None, request=backend_response.request
     )
     ctx.response = empty_response
-    # raw_backend_response_body is missing
     return ctx
 
 
@@ -70,7 +68,7 @@ def context_without_response() -> TransactionContext:
     return TransactionContext(transaction_id="tx-build-no-resp")
 
 
-def test_build_response_from_raw_body(builder: DefaultResponseBuilder, context_with_raw_body: TransactionContext):
+def test_build_response_from_raw_body(builder: ResponseBuilder, context_with_raw_body: TransactionContext):
     """Test building response
 
     Test building response using context.response status/headers and
@@ -96,7 +94,7 @@ def test_build_response_from_raw_body(builder: DefaultResponseBuilder, context_w
 
 
 def test_build_response_from_response_content(
-    builder: DefaultResponseBuilder, context_with_response_content: TransactionContext
+    builder: ResponseBuilder, context_with_response_content: TransactionContext
 ):
     """Test building response using context.response status/headers and response.content for content."""
     # Act
@@ -115,7 +113,7 @@ def test_build_response_from_response_content(
     assert fastapi_response.headers.get("content-length") == str(expected_len)
 
 
-def test_build_response_empty_content(builder: DefaultResponseBuilder, context_with_empty_content: TransactionContext):
+def test_build_response_empty_content(builder: ResponseBuilder, context_with_empty_content: TransactionContext):
     """Test building response when content sources are empty (e.g., 204 No Content)."""
     # Act
     fastapi_response = builder.build_response(context_with_empty_content)
@@ -132,9 +130,7 @@ def test_build_response_empty_content(builder: DefaultResponseBuilder, context_w
     assert "content-length" not in fastapi_response.headers
 
 
-def test_build_response_no_context_response(
-    builder: DefaultResponseBuilder, context_without_response: TransactionContext
-):
+def test_build_response_no_context_response(builder: ResponseBuilder, context_without_response: TransactionContext):
     """Test building response when context.response is None (error case)."""
     # Act
     fastapi_response = builder.build_response(context_without_response)
@@ -147,9 +143,3 @@ def test_build_response_no_context_response(
     assert b"Failed to construct final response" in fastapi_response.body
     assert f"TXID: {context_without_response.transaction_id}".encode() in fastapi_response.body
     assert fastapi_response.headers.get("content-type") == "text/plain; charset=utf-8"
-
-
-# TODO: Add test case where response exists but body is None/missing in data (should probably error or use empty body?)
-# TODO: Add test case with different header casing in backend response / final_headers
-# TODO: Add test case where final_content is not bytes (should it try to encode? error?)
-# TODO: Test media_type determination based on Content-Type header?

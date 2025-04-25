@@ -4,15 +4,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import fastapi
 import httpx
 import pytest
-from fastapi import Response  # Import Response for direct creation
+from fastapi import Response
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
-
-# Import DefaultResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.proxy.orchestration import run_policy_flow
-from sqlalchemy.ext.asyncio import AsyncSession  # Import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Mark all tests in this module as async
 pytestmark = pytest.mark.asyncio
@@ -89,7 +87,7 @@ def mock_session() -> AsyncMock:
 
 
 @patch("luthien_control.proxy.orchestration.uuid.uuid4")
-@patch("luthien_control.proxy.orchestration.DefaultResponseBuilder")  # Patch the builder where it's used
+@patch("luthien_control.proxy.orchestration.ResponseBuilder")  # Patch the builder where it's used
 @patch("luthien_control.proxy.orchestration.logger")  # Patch logger
 @patch("luthien_control.proxy.orchestration.JSONResponse")  # Patch JSONResponse used directly now
 async def test_run_policy_flow_successful(
@@ -150,7 +148,7 @@ async def test_run_policy_flow_successful(
 
 
 @patch("luthien_control.proxy.orchestration.uuid.uuid4")
-@patch("luthien_control.proxy.orchestration.DefaultResponseBuilder")  # Patch builder, it's instantiated but not used
+@patch("luthien_control.proxy.orchestration.ResponseBuilder")  # Patch builder, it's instantiated but not used
 @patch("luthien_control.proxy.orchestration.logger")  # Patch logger
 @patch("luthien_control.proxy.orchestration.JSONResponse")  # Patch JSONResponse used directly now
 async def test_run_policy_flow_policy_exception(
@@ -174,7 +172,7 @@ async def test_run_policy_flow_policy_exception(
     expected_error_response = Response(content=b"direct json error response")
     MockJSONResponse.return_value = expected_error_response
 
-    # Configure the mocked DefaultResponseBuilder instance (should not be called)
+    # Configure the mocked ResponseBuilder instance (should not be called)
     mock_builder_instance = MockDefaultBuilder.return_value
     mock_builder_instance.build_response.return_value = Response(content=b"builder response NOT USED")
 
@@ -219,7 +217,7 @@ async def test_run_policy_flow_policy_exception(
 
 
 @patch("luthien_control.proxy.orchestration.uuid.uuid4")
-@patch("luthien_control.proxy.orchestration.DefaultResponseBuilder")  # Patch the builder
+@patch("luthien_control.proxy.orchestration.ResponseBuilder")  # Patch the builder
 @patch("luthien_control.proxy.orchestration.logger")  # Patch logger
 @patch("luthien_control.proxy.orchestration.JSONResponse")  # Patch JSONResponse fallback
 async def test_run_policy_flow_unexpected_exception(
@@ -228,8 +226,8 @@ async def test_run_policy_flow_unexpected_exception(
     MockDefaultBuilder: MagicMock,
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
-    mock_policy: AsyncMock,  # Use regular mock policy
-    mock_container: MagicMock,  # Renamed fixture
+    mock_policy: AsyncMock,
+    mock_container: MagicMock,
     mock_session: AsyncMock,
 ):
     """
@@ -242,7 +240,7 @@ async def test_run_policy_flow_unexpected_exception(
     unexpected_error = ValueError("Something went very wrong")
     mock_policy.apply.side_effect = unexpected_error
 
-    # Configure the mocked DefaultResponseBuilder instance (this path *tries* to use it)
+    # Configure the mocked ResponseBuilder instance (this path *tries* to use it)
     mock_builder_instance = MockDefaultBuilder.return_value
     expected_builder_error_response = Response(content=b"builder error response")
     mock_builder_instance.build_response.return_value = expected_builder_error_response
@@ -254,7 +252,7 @@ async def test_run_policy_flow_unexpected_exception(
     response = await run_policy_flow(
         request=mock_request,
         main_policy=mock_policy,
-        dependencies=mock_container,  # Pass mock_container
+        dependencies=mock_container,
         session=mock_session,
     )
 
@@ -264,7 +262,7 @@ async def test_run_policy_flow_unexpected_exception(
     mock_policy.apply.assert_awaited_once()
     call_args, call_kwargs = mock_policy.apply.await_args
     assert isinstance(call_kwargs.get("context"), TransactionContext)
-    assert call_kwargs.get("container") is mock_container  # Check against mock_container
+    assert call_kwargs.get("container") is mock_container
     assert call_kwargs.get("session") is mock_session
 
     # Logging (Exception logged for the unexpected error)
@@ -287,7 +285,7 @@ async def test_run_policy_flow_unexpected_exception(
 
 
 @patch("luthien_control.proxy.orchestration.uuid.uuid4")
-@patch("luthien_control.proxy.orchestration.DefaultResponseBuilder")  # Patch builder
+@patch("luthien_control.proxy.orchestration.ResponseBuilder")  # Patch builder
 @patch("luthien_control.proxy.orchestration.logger")  # Patch logger
 @patch("luthien_control.proxy.orchestration.JSONResponse")  # Patch JSONResponse fallback
 async def test_run_policy_flow_unexpected_exception_during_build(
@@ -297,7 +295,7 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy: AsyncMock,  # Use regular policy, trigger error in builder
-    mock_container: MagicMock,  # Renamed fixture
+    mock_container: MagicMock,
     mock_session: AsyncMock,
 ):
     """
@@ -311,7 +309,7 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     initial_unexpected_error = TypeError("Initial policy error")
     mock_policy.apply.side_effect = initial_unexpected_error
 
-    # Configure the mocked DefaultResponseBuilder instance to fail
+    # Configure the mocked ResponseBuilder instance to fail
     mock_builder_instance = MockDefaultBuilder.return_value
     builder_error = RuntimeError("Builder failed!")
     mock_builder_instance.build_response.side_effect = builder_error
@@ -324,7 +322,7 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     response = await run_policy_flow(
         request=mock_request,
         main_policy=mock_policy,  # Pass regular policy
-        dependencies=mock_container,  # Pass mock_container
+        dependencies=mock_container,
         session=mock_session,
     )
 
@@ -334,7 +332,7 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     mock_policy.apply.assert_awaited_once()  # Policy called, raised initial error
     call_args, call_kwargs = mock_policy.apply.await_args
     assert isinstance(call_kwargs.get("context"), TransactionContext)
-    assert call_kwargs.get("container") is mock_container  # Check against mock_container
+    assert call_kwargs.get("container") is mock_container
     assert call_kwargs.get("session") is mock_session
 
     # Logging (TWO exceptions logged)
@@ -370,7 +368,7 @@ async def test_run_policy_flow_unexpected_exception_during_build(
 
 
 @patch("luthien_control.proxy.orchestration._initialize_context")
-@patch("luthien_control.proxy.orchestration.DefaultResponseBuilder")
+@patch("luthien_control.proxy.orchestration.ResponseBuilder")
 @patch("luthien_control.proxy.orchestration.logger")
 @patch(
     "luthien_control.proxy.orchestration.JSONResponse"
@@ -409,9 +407,3 @@ async def test_run_policy_flow_context_init_exception(
     mock_logger.warning.assert_not_called()
     MockDefaultBuilder.assert_not_called()  # Builder instance not created
     MockJSONResponse.assert_not_called()  # Fallback JSONResponse not created
-
-
-# TODO: Add test case for error during request.body() await?
-# TODO: Add test case for policy setting context.response successfully
-# TODO: Add test case for policy setting context.response + builder error (should still return context.response)
-# TODO: Add test case for policy error + builder success

@@ -1,6 +1,12 @@
 import logging  # Import logging
 import os
+import sys  # <-- Add this
 from logging.config import fileConfig
+
+# Add project root to Python path <-- Add these lines
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from alembic import context
 from dotenv import load_dotenv

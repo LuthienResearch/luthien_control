@@ -1,7 +1,7 @@
 """Rename policy_class_path to type and update values
 
 Revision ID: e19a50fe197b
-Revises: 93bd05330754
+Revises: 6e27f83a84ac
 Create Date: 2025-04-23 15:02:40.368425
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "e19a50fe197b"
-down_revision: Union[str, None] = "93bd05330754"
+down_revision: Union[str, None] = "6e27f83a84ac"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

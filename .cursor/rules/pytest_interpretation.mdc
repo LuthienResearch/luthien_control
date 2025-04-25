@@ -1,4 +1,9 @@
 ---
+description: Notes on interpreting pytest output, including the 'run again' quirk
+globs:
+alwaysApply: false
+---
+---
 description: 
 globs: 
 alwaysApply: true

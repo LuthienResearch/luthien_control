@@ -1,6 +1,6 @@
 ---
 description: Guidelines for Git commit messages and procedure
-globs:
+globs: 
 alwaysApply: false
 ---
 # Git Commit Strategy

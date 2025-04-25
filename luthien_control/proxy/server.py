@@ -1,7 +1,7 @@
 import logging
-from typing import Optional
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Request, Security
+from fastapi import APIRouter, Body, Depends, Request, Security
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,24 +20,29 @@ router = APIRouter()
 
 # Define the security scheme using HTTPBearer for 'Authorization: Bearer <token>'
 # auto_error=False because our ClientApiKeyAuthPolicy handles the missing/invalid key error
+# We do this because we want to enable (but not require)
+# token authentication, depending on the control policy.
 http_bearer_auth = HTTPBearer(auto_error=False)
 
 
-@router.api_route(
+@router.post(
     "/api/{full_path:path}",
-    methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
 )
 async def api_proxy_endpoint(
     request: Request,
     full_path: str,
-    # Use the HTTPBearer scheme. The variable 'token' isn't used directly here,
-    # but FastAPI uses this to enable the 'Authorize' button (expecting Bearer token) in Swagger UI.
-    # The actual token is extracted from the request header within the policy.
-    token: Optional[str] = Security(http_bearer_auth),
-    # Core dependencies via Container
+    # --- Core Dependencies ---
     dependencies: DependencyContainer = Depends(get_dependencies),
     main_policy: ControlPolicy = Depends(get_main_control_policy),
     session: AsyncSession = Depends(get_db_session),
+    # --- Swagger UI Enhancements ---
+    # The 'payload' and 'token' parameters enhance the Swagger UI:
+    # - 'payload' (dict[str, Any], optional): Provides a schema for the request body.
+    #   Actual body content is read directly from the 'request' object.
+    # - 'token' (Optional[str]): Enables the 'Authorize' button (Bearer token).
+    #   Actual token validation is handled by the policy flow.
+    payload: dict[str, Any] = Body(None),
+    token: Optional[str] = Security(http_bearer_auth),
 ):
     """
     Main API proxy endpoint using the policy orchestration flow.

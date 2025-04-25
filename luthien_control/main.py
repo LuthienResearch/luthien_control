@@ -13,6 +13,7 @@ from luthien_control.db.database_async import (
 from luthien_control.dependency_container import DependencyContainer
 from luthien_control.logging_config import setup_logging
 from luthien_control.proxy.server import router as proxy_router
+from luthien_control.utils import create_custom_openapi
 
 setup_logging()
 
@@ -122,6 +123,12 @@ app.include_router(proxy_router)
 async def read_root():
     return {"message": "Luthien Control Proxy is running."}
 
+
+# --- OpenAPI Customization --- #
+
+# Assign the custom OpenAPI function generator
+# Use a lambda to pass the app instance when the schema is requested
+app.openapi = lambda: create_custom_openapi(app)
 
 # --- Run with Uvicorn (for local development) --- #
 

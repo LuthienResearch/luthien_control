@@ -27,3 +27,11 @@
 **Next Steps:**
 - Commit changes.
 - Define and begin next development task.
+
+## 2025-04-25 14:32 - OpenAPI/Swagger Customization
+
+**Changes:**
+* Created `create_custom_openapi` in luthien_control/utils.py`.
+* Fixes for swagger UI
+
+**Status:** Completed. Tests passed.

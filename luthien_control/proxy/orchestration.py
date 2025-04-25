@@ -12,8 +12,6 @@ from luthien_control.control_policy.exceptions import ControlPolicyError
 
 # Import the default builder as it's no longer passed in
 from luthien_control.core.response_builder.default_builder import DefaultResponseBuilder
-
-# from luthien_control.core.response_builder.interface import ResponseBuilder # No longer needed
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.dependency_container import DependencyContainer
 
@@ -41,7 +39,6 @@ def _initialize_context(fastapi_request: fastapi.Request, body: bytes) -> Transa
 async def run_policy_flow(
     request: fastapi.Request,
     main_policy: ControlPolicy,
-    # builder: ResponseBuilder, # Removed builder parameter
     dependencies: DependencyContainer,
     session: AsyncSession,  # Added session parameter
 ) -> fastapi.Response:
@@ -73,13 +70,9 @@ async def run_policy_flow(
         # Call apply directly with context, container (dependencies), and session
         context = await main_policy.apply(context=context, container=dependencies, session=session)
 
-        # 3. Build Response (if no policy set one)
-        if context.response:
-            logger.info(f"[{context.transaction_id}] The main policy set the response directly. Skipping builder.")
-            final_response = context.response
-        else:
-            logger.info(f"[{context.transaction_id}] Policy execution complete. Building final response.")
-            final_response = builder.build_response(context)
+        # Always call the builder after successful policy execution
+        logger.info(f"[{context.transaction_id}] Policy execution complete. Building final response.")
+        final_response = builder.build_response(context)
 
     except ControlPolicyError as e:
         logger.warning(f"[{context.transaction_id}] Control policy error halted execution: {e}")
@@ -102,9 +95,6 @@ async def run_policy_flow(
         # Try to build an error response using the builder
         policy_name_for_error = getattr(main_policy, "name", main_policy.__class__.__name__)
         try:
-            # Pass the caught exception to the builder if it accepts it
-            # Builder interface might need adjustment if it *needs* the exception object.
-            # DefaultResponseBuilder currently ignores it unless it's the only arg.
             final_response = builder.build_response(context)
         except Exception as build_e:
             # Log the exception that occurred *during response building*
@@ -125,6 +115,3 @@ async def run_policy_flow(
             )
 
     return final_response
-
-    # Note: Errors during the *initial* policy or *response building itself* might still propagate
-    # depending on the builder implementation and FastAPI's overarching handlers.

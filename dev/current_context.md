@@ -1,25 +1,14 @@
-# Current Task: Completed - Debug Failing Unit Tests (AddApiKeyHeaderPolicy)
+# Current Task: Completed - Fix Test Failure After Editor Glitch
 
-**Goal:** Identify and fix failing unit tests, focusing on the mismatch between `AddApiKeyHeaderPolicy` implementation and its tests.
+**Goal:** Resolve test failure (`assert 500 == 200`) in `test_api_proxy_no_auth_policy_no_key_success` caused by apparent editor glitch reverting test setup.
 
-**Status:**
-- Modified tests in `tests/control_policy/test_add_api_key_header.py` and `tests/control_policy/test_compound_policy.py` to align with the current specific (OpenAI-focused) implementation of `AddApiKeyHeaderPolicy`.
-- Removed irrelevant tests and updated assertions related to API key fetching and serialization/deserialization.
-- All tests (`poetry run pytest | cat`) are passing (132 passed).
-- Task is complete.
+**Status:** Completed
+- Restored correct `CompoundPolicy` structure in `tests/proxy/test_server.py`.
+- Verified fix in `luthien_control/proxy/orchestration.py` (always using ResponseBuilder) was still present.
+- Test now passes.
 
 **Next Step:**
 - Commit changes.
-- Define and begin next development task (e.g., items from `dev/ToDo.md`).
+- Define and begin next development task.
 
-**Original Plan Reference (from `refactor_dependency_injection.md`
-
-Task: Debug failing unit tests
-
-Goals:
-- Identify failing unit tests.
-- Analyze the reasons for failure.
-
-State:
-- Analyzed pytest failures and code/test mismatch for AddApiKeyHeaderPolicy.
-- Decided to align tests with the current specific (OpenAI-focused) implementation.
+**Original Plan Reference (from `

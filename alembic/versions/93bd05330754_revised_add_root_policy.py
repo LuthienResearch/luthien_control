@@ -6,7 +6,6 @@ Create Date: 2025-04-18 17:55:16.262055
 
 """
 
-import json
 from datetime import datetime, timezone
 from typing import Sequence, Union
 
@@ -97,28 +96,14 @@ def downgrade() -> None:
     )
 
     # Use SQLAlchemy Core expression language for safety
-    delete_stmt = sa.delete(policies_table).where(
+    sa.delete(policies_table).where(
         sa.and_(
             policies_table.c.name == sa.bindparam("name"),
             policies_table.c.type == sa.bindparam("type"),
-            # JSON comparison needs care; direct equality check might work
-            # depending on DB/driver, but comparing the serialized form is safer
-            # if we expect an exact match of the config *as defined here*.
-            # However, since we upserted, just deleting by name is likely sufficient
-            # and avoids potential JSON comparison pitfalls.
-            # policies_table.c.config == sa.bindparam('config', type_=sa.JSON) # Less reliable
         )
     )
 
     # Execute the delete statement with parameters
-    # Simpler downgrade: Just delete by name, assuming we "own" the root policy.
     simple_delete_stmt = sa.delete(policies_table).where(policies_table.c.name == sa.bindparam("name"))
 
     bind.execute(simple_delete_stmt, {"name": ROOT_POLICY_NAME})
-
-    # If strict matching (like original downgrade) is needed:
-    # bind.execute(delete_stmt, {
-    #     "name": ROOT_POLICY_NAME,
-    #     "type": ROOT_POLICY_TYPE,
-    #     # "config": ROOT_POLICY_CONFIG # Passing dict might work for bindparam with JSON type
-    # })

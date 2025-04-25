@@ -1,19 +1,19 @@
-import logging  # Import logging
+import logging
 import os
-import sys  # <-- Add this
+import sys
 from logging.config import fileConfig
-
-# Add project root to Python path <-- Add these lines
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
 from alembic import context
 from dotenv import load_dotenv
-from luthien_control.db import sqlmodel_models  # noqa - Ensure models are registered
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection
 from sqlmodel import SQLModel
+
+# Add project root to Python path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+from luthien_control.db import sqlmodel_models  # noqa - Ensure models are registered
 
 # Load environment variables from .env file
 load_dotenv()

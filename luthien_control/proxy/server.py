@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Body, Depends, Request, Security
+from fastapi import APIRouter, Body, Depends, Path, Request, Security
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,13 +24,41 @@ router = APIRouter()
 # token authentication, depending on the control policy.
 http_bearer_auth = HTTPBearer(auto_error=False)
 
+default_path: str = Path(
+    ...,
+    description="The full path to the backend API endpoint (e.g., 'chat/completions')",
+    openapi_examples={
+        "chat/completions": {
+            "value": "chat/completions",
+        }
+    },
+)
+
+default_payload: dict[str, Any] = Body(
+    None,
+    openapi_examples={
+        "sqrt(64)": {
+            "value": {
+                "model": "gpt-3.5-turbo",
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": "What is the square root of 64?"},
+                ],
+                "max_tokens": 30,
+            },
+        },
+    },
+)
+
+default_token: Optional[str] = Security(http_bearer_auth)
+
 
 @router.post(
     "/api/{full_path:path}",
 )
 async def api_proxy_endpoint(
     request: Request,
-    full_path: str,
+    full_path: str = default_path,
     # --- Core Dependencies ---
     dependencies: DependencyContainer = Depends(get_dependencies),
     main_policy: ControlPolicy = Depends(get_main_control_policy),
@@ -41,7 +69,7 @@ async def api_proxy_endpoint(
     #   Actual body content is read directly from the 'request' object.
     # - 'token' (Optional[str]): Enables the 'Authorize' button (Bearer token).
     #   Actual token validation is handled by the policy flow.
-    payload: dict[str, Any] = Body(None),
+    payload: dict[str, Any] = default_payload,
     token: Optional[str] = Security(http_bearer_auth),
 ):
     """

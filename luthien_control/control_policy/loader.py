@@ -43,9 +43,10 @@ async def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
     if not isinstance(policy_config, dict):
         raise PolicyLoadError(f"Policy 'config' must be a dictionary, got: {type(policy_config)}")
 
-    try:
-        policy_class = POLICY_NAME_TO_CLASS.get(policy_type)
-    except KeyError:
+    policy_class = POLICY_NAME_TO_CLASS.get(policy_type)
+
+    # Explicitly check if the policy type was found in the registry
+    if policy_class is None:
         raise PolicyLoadError(
             f"Unknown policy type: '{policy_type}'. Available policies: {list(POLICY_NAME_TO_CLASS.keys())}"
         )

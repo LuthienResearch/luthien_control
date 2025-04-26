@@ -60,7 +60,6 @@ async def test_load_policy_success_no_name_in_config():
 
 @pytest.mark.asyncio
 @patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", MOCK_REGISTRY)
-@pytest.mark.skip(reason="Requires fix in loader.py to raise specific error early for unknown type. See dev/ToDo.md")
 async def test_load_policy_unknown_type():
     """Test loading fails for an unknown policy type."""
     serialized_policy: SerializedPolicy = {"type": "unknown_policy", "config": {}}

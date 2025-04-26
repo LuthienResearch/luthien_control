@@ -45,9 +45,7 @@ class ClientAuthenticationError(ControlPolicyError):
     """Exception raised when client API key authentication fails."""
 
     def __init__(self, detail: str, status_code: int = 401):
-        self.detail = detail
-        self.status_code = status_code  # Keep this for clarity if needed, but super() sets it
-        # Pass status_code and detail to the base class initializer
+        # Pass detail positionally for Exception.__str__ and keywords for ControlPolicyError attributes
         super().__init__(detail, status_code=status_code, detail=detail)
 
 
@@ -55,7 +53,5 @@ class ClientAuthenticationNotFoundError(ControlPolicyError):
     """Exception raised when the client API key is not found in the request."""
 
     def __init__(self, detail: str, status_code: int = 401):
-        self.detail = detail
-        self.status_code = status_code  # Keep this for clarity if needed, but super() sets it
-        # Pass status_code and detail to the base class initializer
+        # Pass detail positionally for Exception.__str__ and keywords for ControlPolicyError attributes
         super().__init__(detail, status_code=status_code, detail=detail)

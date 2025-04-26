@@ -35,3 +35,20 @@
 * Fixes for swagger UI
 
 **Status:** Completed. Tests passed.
+
+## 2025-04-25 14:32 - Fix Policy Loader Error Handling for Unknown Types
+
+**Date:** 2025-04-25
+**Task:** Fix Policy Loader Error Handling for Unknown Types
+**Files Modified:**
+- `luthien_control/control_policy/loader.py`: Added check `if policy_class is None:` after registry lookup to raise `PolicyLoadError` immediately for unknown types.
+- `tests/control_policy/test_loader.py`: Removed `@pytest.mark.skip` from `test_load_policy_unknown_type`.
+- `dev/ToDo.md`: Checked off the corresponding item.
+- `dev/current_context.md`: Updated context before and after task.
+**Summary:** Implemented the fix described in `ToDo.md` to ensure the policy loader provides immediate and specific feedback when encountering an unknown policy type. Verified with existing unit test.
+**Testing:** Ran specific test (`test_load_policy_unknown_type`), all loader tests (`test_loader.py`), and all project tests (`pytest`). All passed.
+
+## 2025-04-25 14:32 - Fix exception initializers in `luthien_control/control_policy/exceptions.py`
+
+**Task:** Fix exception initializers in `luthien_control/control_policy/exceptions.py`
+**Timestamp:** $(date +"%Y-%m-%d %H:%M:%S %Z")\n**Changes:**\n- Modified `__init__` methods of `ClientAuthenticationError` and `ClientAuthenticationNotFoundError`.\n- Ensured `detail` argument is passed positionally to `super().__init__` for correct `str()` representation, while still passing `status_code` and `detail` via keyword arguments for `ControlPolicyError` attribute handling.\n- Verified fix by running all unit tests (`poetry run pytest`).\n**Outcome:** All tests passed. Corrected exception behavior as per ToDo item.

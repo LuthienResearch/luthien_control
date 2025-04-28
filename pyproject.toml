@@ -13,29 +13,30 @@ dependencies = [
     "asyncpg (>=0.30.0,<0.31.0)",
     "httpx (>=0.28.1,<0.29.0)",
     "psycopg2-binary (>=2.9.10,<3.0.0)",
-    "pytest (>=8.3.5,<9.0.0)",
     "pre-commit (>=4.2.0,<5.0.0)",
     "brotli (>=1.1.0,<2.0.0)",
-    "python-dotenv (>=1.1.0,<2.0.0)",
+    "sqlalchemy[asyncio] (>=2.0.40,<3.0.0)",
+    "alembic (>=1.15.2,<2.0.0)",
+    "sqlmodel (>=0.0.24,<0.0.25)",
 ]
 
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.3.5,<9.0.0"
+pytest-cov = ">=6.0.0,<7.0.0"
+ruff = ">=0.11.2,<0.12.0"
+bandit = ">=1.8.3,<2.0.0"
+respx = ">=0.22.0,<0.23.0"
+pytest-asyncio = ">=0.26.0,<0.27.0"
+python-dotenv = ">=1.1.0,<2.0.0"
+pytest-mock = ">=3.14.0,<4.0.0"
+radon = ">=6.0.1,<7.0.0"
+pydeps = ">=3.0.1,<4.0.0"
+pytest-profiling = ">=1.8.1,<2.0.0"
+aiosqlite = ">=0.21.0,<0.22.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.5"
-pytest-cov = "^6.0.0"
-ruff = "^0.11.2"
-bandit = "^1.8.3"
-respx = "^0.22.0"
-pytest-asyncio = "^0.26.0"
-python-dotenv = "^1.1.0"
-pytest-mock = "^3.14.0"
-radon = "^6.0.1"
-pydeps = "^3.0.1"
-pytest-profiling = "^1.8.1"
 
 [tool.pytest.ini_options]
 pythonpath = [

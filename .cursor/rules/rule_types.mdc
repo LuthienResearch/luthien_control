@@ -1,6 +1,6 @@
 ---
 description: Documentation of Cursor rule types and header configuration
-globs: []
+globs: 
 alwaysApply: false
 ---
 ## Rule Types and Header Configuration

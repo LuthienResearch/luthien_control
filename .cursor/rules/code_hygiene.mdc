@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+.  **No Redundant Comments:** Only comment non-trivial logic. Avoid comments that merely state the obvious (e.g., `# Import module`, `# Loop through items`). Adhere strictly to the global `<comments>` instruction provided during generation.
+2.  **No Change Explanations in Code:** NEVER add comments to explain *why* a code change was made (e.g., `# Removed X`, `# Moved Y to Z`, `# Refactored this section`). Explain changes in the chat discussion only. This reinforces `change_guidelines` point 5.
+3.  **Delete, Don't Comment Out:** NEVER leave commented-out blocks of code in the source files. Delete unused or obsolete code directly. Use version control (Git) to track history.

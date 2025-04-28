@@ -3,8 +3,8 @@ import logging
 import httpx
 from fastapi import status
 from luthien_control.config.settings import Settings
-from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.core.context import TransactionContext
+from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.core.transaction_context import TransactionContext
 
 logger = logging.getLogger(__name__)
 

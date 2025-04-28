@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 import httpx
 from luthien_control.config.settings import Settings
 from luthien_control.control_policy.compound_policy import CompoundPolicy
-from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.db.policy_crud import ApiKeyLookupFunc
+from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.types import ApiKeyLookupFunc
 
 # --- Mock Policy Classes for Testing crud.py ---
 
@@ -16,7 +16,6 @@ class MockSimplePolicy(ControlPolicy):
         self.http_client = http_client
         self.timeout = timeout
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
         # Add mock_init for testing calls
         self.mock_init = MagicMock()
         # Call it to record the call
@@ -27,7 +26,7 @@ class MockSimplePolicy(ControlPolicy):
         context["simple_timeout"] = self.timeout
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         # In tests, we often manually set these, don\'t include them if None
         config = {"timeout": self.timeout}
         return config
@@ -38,7 +37,6 @@ class MockNestedPolicy(ControlPolicy):
         self.nested_policy = nested_policy
         self.description = description
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
         # Add mock_init for testing calls
         self.mock_init = MagicMock()
         self.mock_init(nested_policy=nested_policy, description=description)
@@ -50,12 +48,12 @@ class MockNestedPolicy(ControlPolicy):
         context = await self.nested_policy.apply(context, request_args)
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         # In tests, we often manually set these, don\'t include them if None
         config = {
             "description": self.description,
             # Use the key the instantiator expects to find in config
-            "nested_policy": self.nested_policy.serialize_config(),
+            "nested_policy": self.nested_policy.serialize(),
         }
         return config
 
@@ -66,7 +64,6 @@ class MockListPolicy(ControlPolicy):
         self.policies = policies
         self.mode = mode
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
 
     async def apply(self, context: Dict[str, Any], request_args: Dict[str, Any]) -> Dict[str, Any]:
         context["list_applied"] = True
@@ -78,9 +75,9 @@ class MockListPolicy(ControlPolicy):
                 context[f"list_member_{i}_name"] = getattr(policy, "name", "unknown")
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         # Filter out non-policy items for serialization
-        policy_configs = [p.serialize_config() for p in self.policies if isinstance(p, ControlPolicy)]
+        policy_configs = [p.serialize() for p in self.policies if isinstance(p, ControlPolicy)]
         config = {
             "mode": self.mode,
             "policies": policy_configs,
@@ -93,7 +90,6 @@ class MockPolicyWithApiKeyLookup(ControlPolicy):
         self.api_key_lookup = api_key_lookup
         self.tag = tag
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
         # Add mock_init for testing
         self.mock_init = MagicMock()
         self.mock_init(api_key_lookup=api_key_lookup, tag=tag)
@@ -106,7 +102,7 @@ class MockPolicyWithApiKeyLookup(ControlPolicy):
         context["lookup_result_type"] = type(key).__name__
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         config = {"tag": self.tag}
         return config
 
@@ -114,7 +110,6 @@ class MockPolicyWithApiKeyLookup(ControlPolicy):
 class MockNoArgsPolicy(ControlPolicy):
     def __init__(self):
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
         # Add mock_init for testing
         self.mock_init = MagicMock()
         self.mock_init()
@@ -123,7 +118,7 @@ class MockNoArgsPolicy(ControlPolicy):
         context["no_args_applied"] = True
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         config = {}
         return config
 
@@ -133,14 +128,13 @@ class MockMissingArgPolicy(ControlPolicy):
     def __init__(self, mandatory: str):
         self.mandatory = mandatory
         self.name: Optional[str] = None
-        self.policy_class_path: Optional[str] = None
 
     async def apply(self, context: Dict[str, Any], request_args: Dict[str, Any]) -> Dict[str, Any]:
         context["missing_arg_applied"] = True
         context["missing_arg_mandatory"] = self.mandatory
         return context
 
-    def serialize_config(self) -> Dict[str, Any]:
+    def serialize(self) -> Dict[str, Any]:
         config = {"mandatory": self.mandatory}
         return config
 
@@ -163,5 +157,3 @@ class MockCompoundPolicy(CompoundPolicy):
     # apply method is inherited from CompoundPolicy
     # serialize_config can be overridden if needed for tests, but maybe not necessary.
     # Let's remove the custom serialize_config for now, inherit from parent.
-    # def serialize_config(self) -> Dict[str, Any]:
-    #     ...

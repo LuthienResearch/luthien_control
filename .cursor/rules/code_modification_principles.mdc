@@ -1,0 +1,11 @@
+---
+description: Guiding principles for modifying code (refactoring, cleanup, imports, comments).
+globs:
+alwaysApply: true
+---
+---
+description:
+globs:
+alwaysApply: false
+---
+

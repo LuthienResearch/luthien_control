@@ -14,7 +14,9 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
 *   **Package Management:** Poetry
 *   **Web Framework:** FastAPI
 *   **Server:** Uvicorn
-*   **Database:** PostgreSQL (using `asyncpg`)
+*   **Database:** 
+    * PostgreSQL (using `asyncpg`) - Legacy system
+    * SQLModel (SQLAlchemy + Pydantic) with Alembic - New system (in transition)
 *   **HTTP Client:** HTTPX
 *   **Configuration:** Environment variables via `python-dotenv`
 *   **Linting/Formatting:** Ruff
@@ -55,7 +57,8 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
     *   **Optional Variables:**
         *   `OPENAI_API_KEY`: API key for the backend service (required if the backend needs authentication, like OpenAI).
         *   `POLICY_MODULE`: Python path to the policy class to load (defaults to `luthien_control.policies.examples.no_op.NoOpPolicy`).
-        *   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`: Database connection details for the *main* application database (if needed in the future, currently unused by core proxy but potentially used by tests/fixtures).
+        *   `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME_NEW`: Database connection details for the *main* application database.
+        *   `DB_NAME_NEW`: Database name for the new SQLModel database (see [SQLModel Migration](docs/sqlmodel_migration.md)).
         *   `LOG_DB_USER`, `LOG_DB_PASSWORD`, `LOG_DB_HOST`, `LOG_DB_PORT`, `LOG_DB_NAME`: Database connection details for the *request/response logging* database. The defaults match the `docker-compose.yml` setup (`LOG_DB_USER=luthien`, `LOG_DB_PASSWORD=secret`, `LOG_DB_HOST=localhost`, `LOG_DB_PORT=5432`, `LOG_DB_NAME=luthien_log_db`).
         *   `LOG_DB_POOL_MIN_SIZE`, `LOG_DB_POOL_MAX_SIZE`: Optional pool size settings for the logging database connection.
 
@@ -71,14 +74,19 @@ The `--reload` flag enables auto-reloading when code changes are detected, usefu
 ## Development Practices
 
 ### Testing
-This project uses Pytest. Tests are categorized using markers:
-*   **Unit Tests:** Run by default. They typically mock external dependencies.
-*   **End-to-End (E2E) Tests (`e2e` marker):** Excluded by default. These tests run against a live proxy server (either local or deployed) which connects to a *real backend API* (e.g., OpenAI). They require network access and potentially incur API costs.
+This project uses Pytest. Tests are categorized using markers defined in `pyproject.toml`:
+*   **Unit Tests (`unit` marker or no marker):** Run by default (`poetry run pytest`). They typically mock external dependencies and use `.env.test` if it exists.
+*   **Integration Tests (`integration` marker):** Excluded by default. These tests might interact with local services like the database defined in `docker-compose.yml` and use `.env`.
+*   **End-to-End (E2E) Tests (`e2e` marker):** Excluded by default. These tests run against a live proxy server (either local or deployed) which connects to a *real backend API* (e.g., OpenAI). They require network access, `OPENAI_API_KEY` in the environment, and potentially incur API costs.
 
 **Running Tests:**
-*   **Run unit tests:**
+*   **Run default tests (unit tests):**
     ```bash
     poetry run pytest
+    ```
+*   **Run integration tests:**
+    ```bash
+    poetry run pytest -m integration
     ```
 *   **Run End-to-End (E2E) tests against a locally started server:**
     *Ensure `OPENAI_API_KEY` is set in your environment or `.env` file.*
@@ -91,15 +99,20 @@ This project uses Pytest. Tests are categorized using markers:
     ```bash
     poetry run pytest -m e2e --e2e-target-url https://your-deployed-proxy.example.com
     ```
-*   **Run all tests (Unit & E2E) with coverage:**
+*   **Run all non-E2E tests (Unit & Integration) with coverage:**
     ```bash
-    poetry run pytest --cov=luthien_control -m "unit or e2e"
+    poetry run pytest --cov=luthien_control -m "not e2e"
+    ```
+*   **Run all tests (Unit, Integration & E2E) with coverage:**
+    ```bash
+    poetry run pytest --cov=luthien_control
     ```
     *(Note: Coverage reporting might be less meaningful for E2E tests involving separate processes.)*
 
 **Test Configuration:**
-*   Unit tests primarily use environment variables defined in `.env.test` (if it exists).
-*   E2E tests require the `OPENAI_API_KEY` environment variable.
+*   Tests without the `integration` or `e2e` marker primarily use environment variables defined in `.env.test` (if it exists).
+*   Integration tests use environment variables from `.env`.
+*   E2E tests require the `OPENAI_API_KEY` environment variable and potentially others depending on the target backend and policies.
 *   The E2E local server fixture defaults to using `https://api.openai.com/v1` as the `BACKEND_URL` unless overridden by an existing environment variable.
 
 ### Linting & Formatting
@@ -117,10 +130,12 @@ Radon is used to analyze code complexity (e.g., cyclomatic complexity). This hel
 *   Check maintainability index: `poetry run radon mi luthien_control -s`
 
 ### Directory Structure
-*   `luthien_control/`: Main package code (submodules: `proxy/`, `db/`, `config/`, `logging/`, etc.).
+*   `luthien_control/`: Main package code (submodules: `proxy/`, `db/`, `config/`, `logging/`, `core/`, etc.).
 *   `tests/`: Top-level test directory mirroring `luthien_control`.
 *   `dev/`: Development tracking files (`ProjectPlan.md`, `current_context.md`, `development_log.md`, `ToDo.md`).
-*   `scripts/`: Helper scripts (e.g., log rotation).
+*   `docs/`: Documentation files, including migration guides.
+*   `scripts/`: Helper scripts (database creation, log rotation, etc.).
+*   `alembic/`: Database migration files for SQLModel.
 *   `docker-compose.yml`: Configuration for local development database.
 *   `.env.example`: Example environment variable file.
 *   `pyproject.toml`: Project metadata and dependencies (Poetry).

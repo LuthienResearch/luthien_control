@@ -16,12 +16,12 @@ class Settings:
     # Comma-separated list of control policies for the beta framework
 
     # --- Database Settings ---
-    POSTGRES_SERVER: str = "localhost"
-    POSTGRES_USER: Optional[str] = None
-    POSTGRES_PASSWORD: Optional[str] = None
-    POSTGRES_DB: Optional[str] = None
-    POSTGRES_HOST: Optional[str] = None
-    POSTGRES_PORT: Optional[int] = 5432
+    DB_SERVER: str = "localhost"
+    DB_USER: Optional[str] = None
+    DB_PASSWORD: Optional[str] = None
+    DB_NAME_NEW: Optional[str] = None
+    DB_HOST: Optional[str] = None
+    DB_PORT: Optional[int] = 5432
 
     # --- OpenAI Settings ---
     OPENAI_API_KEY: Optional[str] = None
@@ -37,6 +37,10 @@ class Settings:
                 raise ValueError(f"Invalid BACKEND_URL format: {url}")
         return url
 
+    def get_database_url(self) -> Optional[str]:
+        """Returns the primary DATABASE_URL, if set."""
+        return os.getenv("DATABASE_URL")
+
     def get_openai_api_key(self) -> str | None:
         """Returns the OpenAI API key, if set."""
         return os.getenv("OPENAI_API_KEY")
@@ -47,49 +51,46 @@ class Settings:
 
     # --- Database settings Getters using os.getenv ---
     def get_postgres_user(self) -> str | None:
-        return os.getenv("POSTGRES_USER")
+        return os.getenv("DB_USER")
 
     def get_postgres_password(self) -> str | None:
-        return os.getenv("POSTGRES_PASSWORD")
+        return os.getenv("DB_PASSWORD")
 
     def get_postgres_db(self) -> str | None:
-        return os.getenv("POSTGRES_DB")
+        return os.getenv("DB_NAME_NEW")
 
     def get_postgres_host(self) -> str | None:
-        return os.getenv("POSTGRES_HOST")
+        return os.getenv("DB_HOST")
 
     def get_postgres_port(self) -> int | None:
         """Returns the PostgreSQL port as an integer, or None if not set."""
-        port_str = os.getenv("POSTGRES_PORT")
+        port_str = os.getenv("DB_PORT")
         if port_str is None:
             return None
         try:
             return int(port_str)
         except ValueError:
-            raise ValueError("POSTGRES_PORT environment variable must be an integer.")
+            raise ValueError("DB_PORT environment variable must be an integer.")
 
-    # --- Logging Database settings Getters using os.getenv ---
-    def get_log_db_user(self) -> str | None:
-        return os.getenv("LOG_DB_USER")
-
-    def get_log_db_password(self) -> str | None:
-        return os.getenv("LOG_DB_PASSWORD")
-
-    def get_log_db_name(self) -> str | None:
-        return os.getenv("LOG_DB_NAME")
-
-    def get_log_db_host(self) -> str | None:
-        return os.getenv("LOG_DB_HOST")
-
-    def get_log_db_port(self) -> int | None:
-        """Returns the Log DB port as an integer, or None if not set."""
-        port_str = os.getenv("LOG_DB_PORT")
-        if port_str is None:
-            return None
+    # --- DB Pool Size Getters ---
+    def get_main_db_pool_min_size(self) -> int:
+        """Returns the minimum pool size for the main DB."""
         try:
-            return int(port_str)
+            return int(os.getenv("MAIN_DB_POOL_MIN_SIZE", "1"))
         except ValueError:
-            raise ValueError("LOG_DB_PORT environment variable must be an integer.")
+            raise ValueError("MAIN_DB_POOL_MIN_SIZE environment variable must be an integer.")
+
+    def get_main_db_pool_max_size(self) -> int:
+        """Returns the maximum pool size for the main DB."""
+        try:
+            return int(os.getenv("MAIN_DB_POOL_MAX_SIZE", "10"))
+        except ValueError:
+            raise ValueError("MAIN_DB_POOL_MAX_SIZE environment variable must be an integer.")
+
+    # --- Logging Settings --- # Added based on grep results
+    def get_log_level(self, default: str = "INFO") -> str:
+        """Gets the configured log level, defaulting if not set."""
+        return os.getenv("LOG_LEVEL", default).upper()
 
     # --- Database DSN Helper Properties using Getters ---
     @property
@@ -133,11 +134,11 @@ class Settings:
         return f"postgresql://{user}:{password}@{host}:{port}"
 
     def get_db_dsn(self, db_name: str | None = None) -> str:
-        """Returns the DSN for a specific database name, or the default POSTGRES_DB.
+        """Returns the DSN for a specific database name, or the default DB_NAME_NEW.
         Raises ValueError if required DB settings or the target db_name are missing.
         """
         target_db = db_name or self.get_postgres_db()
         if not target_db:
-            raise ValueError("Missing target database name (either provide db_name or set POSTGRES_DB env var)")
+            raise ValueError("Missing target database name (either provide db_name or set DB_NAME_NEW env var)")
         base = self.base_dsn  # Use property
         return f"{base}/{target_db}"

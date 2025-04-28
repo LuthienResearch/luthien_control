@@ -1,0 +1,34 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+summary: Protocol for verifying code edits using git diff before debugging logic errors.
+
+objective: Prevent bad edits, ensure verification via diff.
+
+generation:
+  edit_directive: MUST use ONLY exact changes + `// ... existing code ...`.
+  constraint: NEVER add unrequested code. Implement requested change altering fewest lines/structures necessary.
+
+verification:
+  tool: git diff HEAD <target_file> | cat
+  trigger_condition: MANDATORY IF ANY Condition Met
+  conditions:
+    - SyntaxError in target file.
+    - Pytest fixture/parameter error involving symbols modified/added by the edit.
+    - ImportError or NameError possibly caused by the edit (e.g., changes to imports, renames, definition moves).
+    - User explicitly questions the applied edit.
+    - Error traceback shows no execution path through the modified code sections.
+  note: If failure mode aligns with the *intended* logic change of the edit AND no triggers above are met, direct logic debugging may precede diff verification.
+
+conflict_resolution:
+  ground_truth: `git diff` IS GROUND TRUTH over intent/preview.
+  actions:
+    - Discard conflicting state/preview if diff differs.
+    - If diff differs: Acknowledge, explain diff vs intent, fix edit FIRST.
+
+debug_flow:
+  - step: Post-edit failure - Check verification triggers.
+  - step: IF trigger met - VERIFY EDIT FIRST (`git diff`). If diff incorrect -> fix edit. If diff correct -> debug logic.
+  - step: IF NO trigger met - Debug logic (assess if failure aligns with edit intent; remain vigilant for latent edit errors).

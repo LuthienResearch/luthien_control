@@ -1,20 +1,21 @@
 """Control Policy for verifying the client API key."""
 
+import json
 import logging
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Dict, Optional, cast
 
-from fastapi.responses import JSONResponse
+import httpx
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
     ClientAuthenticationNotFoundError,
     NoRequestError,
 )
-from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.core.context import TransactionContext
-from luthien_control.db.models import ClientApiKey
-
-# Type alias for the database lookup function
-ApiKeyLookupFunc = Callable[[str], Awaitable[Optional[ClientApiKey]]]
+from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.db.client_api_key_crud import get_api_key_by_value
+from luthien_control.dependency_container import DependencyContainer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +26,20 @@ BEARER_PREFIX = "Bearer "
 class ClientApiKeyAuthPolicy(ControlPolicy):
     """Verifies the client API key provided in the Authorization header."""
 
-    def __init__(self, api_key_lookup: ApiKeyLookupFunc):
-        """Initializes the policy with a function to look up API keys."""
-        self._get_api_key_by_value = api_key_lookup
+    def __init__(self, name: Optional[str] = None):
+        """Initializes the policy."""
+        self.name = name or self.__class__.__name__
         self.logger = logging.getLogger(__name__)
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(
+        self,
+        context: TransactionContext,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> TransactionContext:
         """
-        Verifies the API key from the Authorization header in the context's FastAPI request.
+        Verifies the API key from the Authorization header in the context's request.
+        Requires the DependencyContainer and an active SQLAlchemy AsyncSession.
 
         Raises:
             NoRequestError: If context.fastapi_request is None.
@@ -40,18 +47,24 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
         Args:
             context: The current transaction context.
+            container: The application dependency container.
+            session: An active SQLAlchemy AsyncSession.
 
         Returns:
             The unmodified transaction context if authentication is successful.
         """
-        if context.fastapi_request is None:
-            raise NoRequestError(f"[{context.transaction_id}] No FastAPI request in context for API key auth.")
+        if context.request is None:
+            raise NoRequestError(f"[{context.transaction_id}] No request in context for API key auth.")
 
-        api_key_header_value: Optional[str] = context.fastapi_request.headers.get(API_KEY_HEADER)
+        api_key_header_value: Optional[str] = context.request.headers.get(API_KEY_HEADER)
 
         if not api_key_header_value:
             self.logger.warning(f"[{context.transaction_id}] Missing API key in {API_KEY_HEADER} header.")
-            context.response = JSONResponse(status_code=401, content={"detail": "Not authenticated: Missing API key."})
+            context.response = httpx.Response(
+                status_code=401,
+                headers={"Content-Type": "application/json"},
+                content=json.dumps({"detail": "Not authenticated: Missing API key."}).encode("utf-8"),
+            )
             raise ClientAuthenticationNotFoundError(detail="Not authenticated: Missing API key.")
 
         # Strip "Bearer " prefix if present
@@ -59,32 +72,61 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         if api_key_value.startswith(BEARER_PREFIX):
             api_key_value = api_key_value[len(BEARER_PREFIX) :]
 
-        db_key = await self._get_api_key_by_value(api_key_value)
+        db_key = await get_api_key_by_value(session, api_key_value)
 
         if not db_key:
             self.logger.warning(
-                f"[{context.transaction_id}] Invalid API key provided (key starts with: {api_key_value[:4]}...)."
+                f"[{context.transaction_id}] Invalid API key provided "
+                f"(key starts with: {api_key_value[:4]}...) ({self.__class__.__name__})."
             )
-            context.response = JSONResponse(status_code=401, content={"detail": "Invalid API Key"})
+            context.response = httpx.Response(
+                status_code=401,
+                headers={"Content-Type": "application/json"},
+                content=json.dumps({"detail": "Invalid API Key"}).encode("utf-8"),
+            )
             raise ClientAuthenticationError(detail="Invalid API Key")
 
         if not db_key.is_active:
             self.logger.warning(
-                f"[{context.transaction_id}] Inactive API key provided (Name: {db_key.name}, ID: {db_key.id})."
+                f"[{context.transaction_id}] Inactive API key provided "
+                f"(Name: {db_key.name}, ID: {db_key.id}). ({self.__class__.__name__})."
             )
-            context.response = JSONResponse(status_code=401, content={"detail": "Inactive API Key"})
+            context.response = httpx.Response(
+                status_code=401,
+                headers={"Content-Type": "application/json"},
+                content=json.dumps({"detail": "Inactive API Key"}).encode("utf-8"),
+            )
             raise ClientAuthenticationError(detail="Inactive API Key")
 
         self.logger.info(
             f"[{context.transaction_id}] Client API key authenticated successfully "
-            f"(Name: {db_key.name}, ID: {db_key.id})."
+            f"(Name: {db_key.name}, ID: {db_key.id}). ({self.__class__.__name__})."
         )
+        context.response = None  # Clear any previous error response set above
         return context
 
-    def serialize_config(self) -> dict[str, Any]:
-        """Serializes config. Returns base info as only dependency is api_key_lookup."""
-        return {
-            "__policy_type__": self.__class__.__name__,
-            "name": self.name,
-            "policy_class_path": self.policy_class_path,
-        }
+    def serialize(self) -> SerializableDict:
+        """Serializes config. Includes name only if non-default."""
+        config: Dict[str, Any] = {}
+        # Include name if it's not the default class name
+        if self.name != self.__class__.__name__:
+            config["name"] = self.name
+        return cast(SerializableDict, config)
+
+    @classmethod
+    async def from_serialized(cls, config: SerializableDict) -> "ClientApiKeyAuthPolicy":
+        """
+        Constructs the policy from serialized data.
+
+        Args:
+            config: The serialized configuration (expects 'name').
+
+        Returns:
+            An instance of ClientApiKeyAuthPolicy.
+        """
+        # Name is handled by the __init__ default or set from config if present
+        instance = cls()
+        instance_name = config.get("name")
+        if instance_name:
+            instance.name = instance_name
+        return instance

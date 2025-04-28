@@ -1,67 +1,97 @@
 import logging
+from typing import Any, Optional
 
-import httpx
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Body, Depends, Path, Request, Security
+from fastapi.security import HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
-# Import Settings class directly for dependency injection
-from luthien_control.config.settings import Settings
-
-# Import new policy framework components
-from luthien_control.control_policy.initialize_context import InitializeContextPolicy
-from luthien_control.control_policy.interface import ControlPolicy
-
-# Import concrete builder
-from luthien_control.core.response_builder.interface import ResponseBuilder
-
-# Import dependency providers from dependencies module
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.dependencies import (
-    get_http_client,
-    get_initial_context_policy,
+    get_db_session,
+    get_dependencies,
     get_main_control_policy,
-    get_response_builder,
 )
-
-# Import the orchestrator
+from luthien_control.dependency_container import DependencyContainer
 from luthien_control.proxy.orchestration import run_policy_flow
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Define the security scheme using HTTPBearer for 'Authorization: Bearer <token>'
+# auto_error=False because our ClientApiKeyAuthPolicy handles the missing/invalid key error
+# We do this because we want to enable (but not require)
+# token authentication, depending on the control policy.
+http_bearer_auth = HTTPBearer(auto_error=False)
 
-# === NEW API PROXY ENDPOINT ===
-# Replaces the previous /beta and catch-all endpoints
-@router.api_route(
+default_path: str = Path(
+    ...,
+    description="The full path to the backend API endpoint (e.g., 'chat/completions')",
+    openapi_examples={
+        "chat/completions": {
+            "value": "chat/completions",
+        }
+    },
+)
+
+default_payload: dict[str, Any] = Body(
+    None,
+    openapi_examples={
+        "sqrt(64)": {
+            "value": {
+                "model": "gpt-3.5-turbo",
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": "What is the square root of 64?"},
+                ],
+                "max_tokens": 30,
+            },
+        },
+    },
+)
+
+default_token: Optional[str] = Security(http_bearer_auth)
+
+
+@router.post(
     "/api/{full_path:path}",
-    methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
 )
 async def api_proxy_endpoint(
     request: Request,
-    full_path: str,
-    # Common dependencies
-    client: httpx.AsyncClient = Depends(get_http_client),
-    settings: Settings = Depends(Settings),
-    # New framework dependencies (using implemented providers)
-    initial_context_policy: InitializeContextPolicy = Depends(get_initial_context_policy),
+    full_path: str = default_path,
+    # --- Core Dependencies ---
+    dependencies: DependencyContainer = Depends(get_dependencies),
     main_policy: ControlPolicy = Depends(get_main_control_policy),
-    builder: ResponseBuilder = Depends(get_response_builder),
+    session: AsyncSession = Depends(get_db_session),
+    # --- Swagger UI Enhancements ---
+    # The 'payload' and 'token' parameters enhance the Swagger UI:
+    # - 'payload' (dict[str, Any], optional): Provides a schema for the request body.
+    #   Actual body content is read directly from the 'request' object.
+    # - 'token' (Optional[str]): Enables the 'Authorize' button (Bearer token).
+    #   Actual token validation is handled by the policy flow.
+    payload: dict[str, Any] = default_payload,
+    token: Optional[str] = Security(http_bearer_auth),
 ):
     """
     Main API proxy endpoint using the policy orchestration flow.
     Handles requests starting with /api/.
-    Requires valid API key authentication.
+    Uses Dependency Injection Container and provides a DB session.
+
+    **Authentication Note:** This endpoint uses Bearer Token authentication
+    (Authorization: Bearer <token>). However, the requirement for a valid token
+    depends on whether the currently configured control policy includes client
+    authentication (e.g., ClientApiKeyAuthPolicy). If the policy does not require
+    authentication, the token field can be left blank.
     """
     logger.info(f"Authenticated request received for /api/{full_path}")
 
     # Orchestrate the policy flow
     response = await run_policy_flow(
         request=request,
-        http_client=client,
-        settings=settings,
-        initial_context_policy=initial_context_policy,
         main_policy=main_policy,
-        builder=builder,
+        dependencies=dependencies,
+        session=session,
     )
 
-    logger.info(f"Returning response for /api/{full_path}")
+    logger.info(f"Returning response for {request.url.path}")
     return response

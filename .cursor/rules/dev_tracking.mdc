@@ -3,7 +3,7 @@ description: Follow these steps whenever an important feature, bugfix, or other 
 globs: 
 alwaysApply: false
 ---
-Mandatory dev tracking updates prior to git commits
+# Mandatory dev tracking updates prior to git commits
 
 ### 1. Rotate Log (If Necessary)
 

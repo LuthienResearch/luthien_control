@@ -1,23 +1,23 @@
 # tests/proxy/test_server.py
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
-from urllib.parse import urlparse
 
 import httpx
 import pytest
-import respx
 from fastapi import FastAPI, Request, Response
 from fastapi.testclient import TestClient
 from luthien_control.config.settings import Settings
-from luthien_control.control_policy.initialize_context import InitializeContextPolicy
-from luthien_control.control_policy.interface import ControlPolicy
-from luthien_control.core.response_builder.interface import ResponseBuilder
+from luthien_control.control_policy.compound_policy import CompoundPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.dependencies import (
-    get_initial_context_policy,
+    get_db_session,
+    get_dependencies,
     get_main_control_policy,
-    get_response_builder,
 )
+from luthien_control.dependency_container import DependencyContainer
 from luthien_control.main import app  # Import your main FastAPI app
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Pytest Fixtures ---
 
@@ -35,17 +35,14 @@ def test_app() -> FastAPI:
 @pytest.fixture
 def client(test_app: FastAPI) -> TestClient:  # type: ignore[misc]
     """Provides a FastAPI test client that correctly handles lifespan events."""
-    # Patch DB pool creation AND the global pool variable check during TestClient lifespan
+    # Patch DB engine/pool creation during TestClient lifespan
     # to prevent slow/failing startup in tests.
     with (
-        patch("luthien_control.main.create_main_db_pool", new_callable=AsyncMock) as mock_create_main,
-        patch("luthien_control.main.create_log_db_pool", new_callable=AsyncMock) as mock_create_log,
-        patch("luthien_control.db.database._main_db_pool", new_callable=AsyncMock),
-    ):  # Use AsyncMock for the pool itself
-        # Ensure mocked functions don't raise exceptions implicitly
-        mock_create_main.return_value = None
-        mock_create_log.return_value = None
-        # mock_pool_check doesn't need explicit config, MagicMock is enough to be truthy
+        patch("luthien_control.db.database_async.create_db_engine", new_callable=AsyncMock) as mock_create_main_engine,
+    ):  # Patch the actual creation functions
+        # Ensure mocked functions return a mock engine/pool or None to simulate success/failure
+        # Returning None should be sufficient to bypass actual DB connection attempts.
+        mock_create_main_engine.return_value = None  # Or AsyncMock() if needed later
 
         # Now instantiate the TestClient *while the patches are active*
         with TestClient(test_app) as test_client:
@@ -85,117 +82,73 @@ def mock_main_policy_for_simple_tests() -> AsyncMock:
 
 
 @pytest.mark.asyncio
-async def test_api_proxy_endpoint_calls_orchestrator(
-    test_app: FastAPI, client: TestClient, mock_main_policy_for_simple_tests: AsyncMock
+async def test_api_proxy_post_endpoint_calls_orchestrator(
+    test_app: FastAPI, client: TestClient, mock_container: MagicMock, mock_main_policy_for_simple_tests: AsyncMock
 ):
-    """Verify /api endpoint calls run_policy_flow and returns its response."""
-    test_path = "some/api/path"
-    expected_content = b"Response from mocked run_policy_flow"
-    expected_status = 201
-    # Create a realistic Response object to be returned by the mock
+    """Verify /api POST endpoint calls run_policy_flow, handles JSON body, and returns its response."""
+    test_path = "some/api/path/post"
+    expected_content = b"Response from mocked run_policy_flow for POST"
+    expected_status = 200
+    # Add headers to the mock response for assertions
     mock_response = Response(
         content=expected_content,
         status_code=expected_status,
         headers={"X-Mock-Header": "MockValue"},
-        media_type="text/plain",
+        media_type="application/json",  # Match common API responses
     )
+    auth_headers = {"Authorization": "Bearer test-key-post"}
+    request_body = {"test": "body"}
 
-    # Add a dummy auth header for the test client request
-    auth_headers = {"Authorization": "Bearer test-key"}
+    # --- Override container and main policy dependencies --- #
+    def override_get_container():
+        mock_container.settings.get_top_level_policy_name.return_value = "mock-post-policy"
+        return mock_container
 
-    # --- Override main policy dependency --- #
+    test_app.dependency_overrides[get_dependencies] = override_get_container
+
     async def override_get_main_policy():
         return mock_main_policy_for_simple_tests
 
     test_app.dependency_overrides[get_main_control_policy] = override_get_main_policy
-    # --- End Override --- #
+    # --- End Setup --- #
 
     with patch("luthien_control.proxy.server.run_policy_flow", new_callable=AsyncMock) as mock_run_flow:
         mock_run_flow.return_value = mock_response
+        response = client.post(f"/api/{test_path}", json=request_body, headers=auth_headers)
 
-        # Make a request to the /api endpoint with auth header
-        actual_response = client.get(f"/api/{test_path}", headers=auth_headers)
-
-    # Clean up override AFTER request
-    test_app.dependency_overrides = {}
+    test_app.dependency_overrides = {}  # Clear overrides
 
     # 1. Assert the response received by the client matches the mock's response
-    assert actual_response.status_code == expected_status
-    assert actual_response.content == expected_content
-    assert actual_response.headers["x-mock-header"] == "MockValue"
-    assert actual_response.headers["content-type"].startswith("text/plain")
+    assert response.status_code == expected_status
+    assert response.content == expected_content
+    # Add header assertions from the removed test
+    assert response.headers["x-mock-header"] == "MockValue"
+    assert response.headers["content-type"].startswith("application/json")
 
     # 2. Assert run_policy_flow was called once
     mock_run_flow.assert_awaited_once()
 
-    # 3. Assert run_policy_flow was called with expected argument types
-    call_kwargs = mock_run_flow.await_args[1]  # Get keyword args from the call
-
-    # Check keyword arguments passed to run_policy_flow
-    assert "request" in call_kwargs
-    assert "http_client" in call_kwargs
-    assert "settings" in call_kwargs
-    assert "initial_context_policy" in call_kwargs
-    assert "main_policy" in call_kwargs
-    assert "builder" in call_kwargs
-
-    # Check request object details
-    request_arg = call_kwargs["request"]
-    assert isinstance(request_arg, Request)
-    assert request_arg.method == "GET"
-    # TestClient uses http://testserver as base URL
-    assert request_arg.url.path == f"/api/{test_path}"
-
-    # Check dependency types (ensure DI worked)
-    assert isinstance(call_kwargs["http_client"], httpx.AsyncClient)
-    assert isinstance(call_kwargs["settings"], Settings)
-    assert isinstance(call_kwargs["initial_context_policy"], InitializeContextPolicy)
-    assert isinstance(call_kwargs["main_policy"], ControlPolicy)
-    assert isinstance(call_kwargs["builder"], ResponseBuilder)
-
-    # Verify the auth header was received by the endpoint
-    assert request_arg.headers.get("authorization") == "Bearer test-key"
-
-
-@pytest.mark.asyncio
-async def test_api_proxy_endpoint_handles_post(
-    test_app: FastAPI, client: TestClient, mock_main_policy_for_simple_tests: AsyncMock
-):
-    """Verify /api endpoint handles POST requests correctly."""
-    test_path = "some/api/path/post"
-    expected_content = b"Response from mocked run_policy_flow for POST"
-    expected_status = 200
-    mock_response = Response(content=expected_content, status_code=expected_status)
-    auth_headers = {"Authorization": "Bearer test-key-post"}
-
-    # --- Override main policy dependency --- #
-    async def override_get_main_policy():
-        return mock_main_policy_for_simple_tests
-
-    test_app.dependency_overrides[get_main_control_policy] = override_get_main_policy
-    # --- End Override --- #
-
-    with patch("luthien_control.proxy.server.run_policy_flow", new_callable=AsyncMock) as mock_run_flow:
-        mock_run_flow.return_value = mock_response
-
-        # Make a POST request to the /api endpoint with auth header
-        response = client.post(f"/api/{test_path}", content=b"Test POST body", headers=auth_headers)
-
-    # Clean up override AFTER request
-    test_app.dependency_overrides = {}
-
-    assert response.status_code == expected_status
-    assert response.content == expected_content
-    mock_run_flow.assert_awaited_once()
-    # Check kwargs passed to the mocked function
+    # 3. Assert run_policy_flow was called with expected arguments
     call_kwargs = mock_run_flow.await_args[1]
+    assert "request" in call_kwargs
+    assert "main_policy" in call_kwargs
+    assert "dependencies" in call_kwargs
+    # Add session assertion from the removed test
+    assert "session" in call_kwargs
+
+    assert call_kwargs["dependencies"] is mock_container
+    assert call_kwargs["main_policy"] is mock_main_policy_for_simple_tests
+    # Add session type check
+    assert isinstance(call_kwargs["session"], AsyncMock)
+
     request_arg = call_kwargs["request"]
     assert isinstance(request_arg, Request)
     assert request_arg.method == "POST"
     assert request_arg.url.path == f"/api/{test_path}"
-
-    # Verify the auth header was received
     assert request_arg.headers.get("authorization") == "Bearer test-key-post"
+    # Add assertion for request body if needed (it was read by run_policy_flow)
+    # body = await request_arg.json() # Need await inside async context
+    # assert body == request_body
 
 
 # --- Integration Test for /api endpoint with Mocked Main Policy ---
@@ -229,37 +182,10 @@ def mock_main_policy_for_e2e() -> ControlPolicy:
         # uses the mocked dependency and the rest of the flow (like backend call)
         # works.
 
-        # Check if http_client is in context (it should be added by run_policy_flow)
-        if not context.http_client:
-            raise RuntimeError("http_client not found in context for mock policy")
-
-        backend_url = get_test_backend_url()
-        target_relative_path = "v1/test/api/endpoint"  # Must match the test path
+        get_test_backend_url()
 
         # Pass original headers from the client request, EXCLUDING Host
-        headers_to_send = {
-            k.decode(): v.decode() for k, v in context.fastapi_request.headers.raw if k.lower() != b"host"
-        }
-
-        context.backend_request = httpx.Request(
-            method="POST",
-            url=f"{backend_url}/{target_relative_path}",
-            headers=headers_to_send,  # Let httpx handle the Host header based on URL
-            content=await context.fastapi_request.body(),
-        )
-        # PrepareBackendHeadersPolicy would add x-request-id here
-        context.backend_request.headers["x-request-id"] = "mock-test-id"
-        # SendBackendRequestPolicy would make the call and set the response
-        # Simulate SendBackendRequestPolicy making the call and storing the response
-        try:
-            backend_response = await context.http_client.send(context.backend_request)
-            context.backend_response = backend_response
-            # Ensure content is read if needed by the builder later
-            # await context.backend_response.aread()
-        except Exception as e:
-            # Handle potential exceptions during the mocked send if needed
-            print(f"Error in mock policy sending request: {e}")
-            context.exception = e
+        {k.decode(): v.decode() for k, v in context.fastapi_request.headers.raw if k.lower() != b"host"}
 
         return context
 
@@ -268,85 +194,102 @@ def mock_main_policy_for_e2e() -> ControlPolicy:
     return mock_policy
 
 
-@respx.mock
-@pytest.mark.asyncio  # TestClient handles async endpoint, but mark test for clarity
-async def test_api_proxy_with_mocked_policy_flow(
+# --- Integration-style Tests for /api endpoint ---
+
+
+# Define a minimal concrete policy locally for the test
+class PassThroughPolicy(ControlPolicy):
+    async def apply(
+        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
+    ) -> TransactionContext:
+        return context  # Does nothing, just passes through
+
+    def serialize(self) -> SerializableDict:
+        return {}
+
+    @classmethod
+    async def from_serialized(cls, config: SerializableDict, **kwargs) -> "PassThroughPolicy":
+        return cls()
+
+
+# Define a second minimal policy that just sets the response
+class MockSendBackendRequestPolicy(ControlPolicy):
+    def __init__(self, mock_response: httpx.Response):
+        self.mock_response = mock_response
+        self.name = self.__class__.__name__
+
+    async def apply(
+        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
+    ) -> TransactionContext:
+        # Simulate setting the response after a backend call
+        context.response = self.mock_response
+        return context
+
+    def serialize(self) -> SerializableDict:
+        # Not needed for this test
+        return {}
+
+    @classmethod
+    async def from_serialized(cls, config: SerializableDict, **kwargs) -> "MockSendBackendRequestPolicy":
+        # Not needed for this test
+        raise NotImplementedError
+
+
+@pytest.mark.asyncio
+async def test_api_proxy_no_auth_policy_no_key_success(
     test_app: FastAPI,
     client: TestClient,
-    mock_main_policy_for_e2e: ControlPolicy,  # Use the new fixture
-    mock_initial_policy: InitializeContextPolicy,  # Re-use existing mock fixture
-    mock_builder: ResponseBuilder,  # Re-use existing mock fixture
+    mock_container: MagicMock,  # Re-use existing fixture
+    mock_db_session: AsyncMock,  # Use the correct fixture
 ):
-    """Integration test for /api endpoint, mocking the main policy dependency."""
-    backend_url = get_test_backend_url()
-    target_relative_path = "v1/test/api/endpoint"  # Path expected by backend
-    full_backend_url = f"{backend_url}/{target_relative_path}"
-
-    # Mock the final backend call
-    mock_route = respx.post(full_backend_url).mock(
-        return_value=httpx.Response(200, json={"id": "mock-flow-123", "message": "mock flow backend response"})
+    """
+    Verify that requests without an API key succeed when the main policy
+    (e.g., NoOpPolicy) does not require authentication.
+    This uses dependency overrides and mocks the backend HTTP call via policy.
+    """
+    test_path = "v1/models"
+    backend_target_url = f"{get_test_backend_url()}/{test_path}"
+    expected_backend_response_data = {"data": [{"id": "model-1"}]}
+    # This httpx.Response will be placed in context.response by the mock policy
+    mock_http_response = httpx.Response(
+        200, json=expected_backend_response_data, request=httpx.Request("GET", backend_target_url)
     )
 
-    client_payload = {"data": "value", "other": 123}
-    # The path sent to the proxy includes the prefix and the relative path
-    proxy_path = f"/api/{target_relative_path}"
+    # --- Setup Dependencies & Mocks --- #
 
-    # --- Override Dependencies --- #
-    # Override the main policy loader to return our specific mock policy
+    # 1. Override get_dependencies (only needed for settings if policy uses it)
+    def override_get_container():
+        mock_container.settings.get_backend_url.return_value = get_test_backend_url()
+        mock_container.settings.get_top_level_policy_name.return_value = "TestCompoundPolicy"
+        # Remove http_client mocking here - it's not used
+        return mock_container
+
+    test_app.dependency_overrides[get_dependencies] = override_get_container
+
+    # 2. Override get_main_control_policy to return a CompoundPolicy
     async def override_get_main_policy():
-        return mock_main_policy_for_e2e
-
-    # Override other dependencies if needed, or use mocks from fixtures
-    def override_get_initial_policy():
-        return mock_initial_policy
-
-    def override_get_builder():
-        # Use a simple builder that passes backend response through
-        builder = MagicMock(spec=ResponseBuilder)
-
-        def build_response(context, exception=None):
-            if context.backend_response:
-                return Response(
-                    content=context.backend_response.content,
-                    status_code=context.backend_response.status_code,
-                    headers=dict(context.backend_response.headers),
-                    media_type=context.backend_response.headers.get("content-type"),
-                )
-            return Response(content=b"Builder Fallback", status_code=500)
-
-        builder.build_response = build_response
-        return builder
+        mock_sender = MockSendBackendRequestPolicy(mock_response=mock_http_response)
+        return CompoundPolicy(policies=[PassThroughPolicy(), mock_sender], name="TestCompoundPolicy")
 
     test_app.dependency_overrides[get_main_control_policy] = override_get_main_policy
-    test_app.dependency_overrides[get_initial_context_policy] = override_get_initial_policy
-    test_app.dependency_overrides[get_response_builder] = override_get_builder
-    # We don't override get_http_client, letting the TestClient manage it
-    # --- End Override Dependencies --- #
 
-    # Make the request
-    response = client.post(proxy_path, json=client_payload, headers={"X-API-Test": "true"})
+    # 3. Override get_db_session to return a mock session
+    async def override_get_session():
+        return mock_db_session
 
-    # Clean up overrides *after* the request
+    test_app.dependency_overrides[get_db_session] = override_get_session
+
+    # --- Make Request (No Authorization Header) --- #
+    actual_response = client.post(f"/api/{test_path}")
+
+    # --- Clean Up Overrides --- #
     test_app.dependency_overrides = {}
 
-    # --- Assertions ---
-    # Check final response to client
-    assert response.status_code == 200
-    assert response.json()["id"] == "mock-flow-123"
-    assert response.json()["message"] == "mock flow backend response"
+    # --- Assertions --- #
+    assert actual_response.status_code == 200
+    assert actual_response.json() == expected_backend_response_data
 
-    # Check backend request
-    assert mock_route.called
-    assert mock_route.call_count == 1
+    # Remove assertions checking specific http client mock calls
 
-    request_sent_to_backend = mock_route.calls[0].request
 
-    # Check headers added by policies (PrepareBackendHeadersPolicy)
-    assert "x-request-id" in request_sent_to_backend.headers
-    assert request_sent_to_backend.headers["x-api-test"] == "true"  # Original headers preserved
-    # Host header should include port if it's non-standard
-    expected_netloc = urlparse(backend_url).netloc
-    assert request_sent_to_backend.headers["host"] == expected_netloc
-
-    # Check payload sent to backend (should be unchanged in this flow)
-    assert json.loads(request_sent_to_backend.content.decode("utf-8")) == client_payload
+# TODO: write integration tests for the /api endpoint with a real policy

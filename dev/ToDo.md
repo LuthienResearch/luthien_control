@@ -51,3 +51,14 @@ Items discovered during development that are out of scope for the current task b
 - [ ] **Design Policy Caching Strategy:** If performance analysis indicates a need, design a caching mechanism (key strategy, storage, TTL, invalidation) for loaded `ControlPolicy` instances.
 - [ ] **Implement Policy Caching (If Designed):** Build the caching layer decided upon in the previous step, potentially integrating with `DependencyContainer`.
 - [ ] **Determine Optimal `ResponseBuilder` Lifecycle:** Decide if `DefaultResponseBuilder` is stateless (singleton) or needs per-request instantiation. Update `DependencyContainer` setup accordingly.
+
+## Application Logic Fixes Identified During Testing (2025-04-25)
+
+- [X] **`luthien_control/control_policy/exceptions.py`:**
+    - Review `__init__` methods of `PolicyLoadError`, `ClientAuthenticationError`, and `ClientAuthenticationNotFoundError`.
+    - Ensure they correctly handle and propagate `policy_name` and `status_code` arguments to the `ControlPolicyError` base class initializer, consistent with the base class definition and expected usage in tests (e.g., `test_exceptions.py::test_policy_load_error`, `test_exceptions.py::test_client_authentication_error`). Currently, attributes like `status_code` might be overwritten or not set as expected.
+
+- [X] **`luthien_control/control_policy/loader.py`:**
+    - In `load_policy` function, after the line `policy_class = POLICY_NAME_TO_CLASS.get(policy_type)`, add a check: `if policy_class is None:`.
+    - If it is `None`, raise `PolicyLoadError(f"Unknown policy type: '{policy_type}'. ...")` immediately.
+    - Currently, the code proceeds with `policy_class` as `None`, leading to an `AttributeError` later, which is then wrapped in a less specific `PolicyLoadError`. This fix provides earlier and more specific error feedback (as expected by `test_loader.py::test_load_policy_unknown_type`).

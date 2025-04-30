@@ -19,7 +19,14 @@ class PolicyLoadError(ValueError, ControlPolicyError):
 
     # Inherit from ValueError for semantic meaning (bad value/config)
     # Inherit from ControlPolicyError for categorization
-    pass
+    def __init__(
+        self, *args, policy_name: str | None = None, status_code: int | None = None, detail: str | None = None
+    ):
+        # Explicitly call ControlPolicyError.__init__ to handle kwargs
+        ControlPolicyError.__init__(self, *args, policy_name=policy_name, status_code=status_code, detail=detail)
+        # We might still want to call ValueError's init if it does something useful,
+        # but for now, prioritizing ControlPolicyError's handling seems correct.
+        # super(ValueError, self).__init__(*args) # Potentially add if needed
 
 
 class ApiKeyNotFoundError(ControlPolicyError):
@@ -38,15 +45,13 @@ class ClientAuthenticationError(ControlPolicyError):
     """Exception raised when client API key authentication fails."""
 
     def __init__(self, detail: str, status_code: int = 401):
-        self.detail = detail
-        self.status_code = status_code
-        super().__init__(self.detail)
+        # Pass detail positionally for Exception.__str__ and keywords for ControlPolicyError attributes
+        super().__init__(detail, status_code=status_code, detail=detail)
 
 
 class ClientAuthenticationNotFoundError(ControlPolicyError):
     """Exception raised when the client API key is not found in the request."""
 
     def __init__(self, detail: str, status_code: int = 401):
-        self.detail = detail
-        self.status_code = status_code
-        super().__init__(self.detail)
+        # Pass detail positionally for Exception.__str__ and keywords for ControlPolicyError attributes
+        super().__init__(detail, status_code=status_code, detail=detail)

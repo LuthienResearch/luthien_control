@@ -46,9 +46,30 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
     
     **Note:** Ensure Docker is running before executing the following command.
     ```bash
-    docker-compose up -d
+    docker compose up -d   # Note: Use 'docker-compose' if using older Docker versions
     ```
-    This will start a PostgreSQL container named `luthien-db-1` in the background.
+    This will start a PostgreSQL container named `luthien-control-db-1` in the background.
+    
+    **Using a Different Container/Port:**
+    If you need to run multiple instances or avoid conflicts with existing containers:
+    ```bash
+    # Create a custom docker-compose file
+    cp docker-compose.yml docker-compose.custom.yml
+    
+    # Edit docker-compose.custom.yml as needed
+    
+    # Start your custom container
+    docker compose -f docker-compose.custom.yml up -d
+    
+    # Don't forget to update your .env file
+    ```
+    
+    **Apply Database Migrations:**
+    After setting up the database container, apply the migrations to create the required schema:
+    ```bash
+    # Apply all migrations
+    poetry run alembic upgrade head
+    ```
 
 4.  **Configuration:**
     Configuration is managed via environment variables, loaded using `python-dotenv` from a `.env` file in the project root during development.
@@ -91,7 +112,13 @@ This project uses Pytest. Tests are categorized using markers defined in `pyproj
     ```
 *   **Run End-to-End (E2E) tests against a locally started server:**
     *Ensure `OPENAI_API_KEY` and `TEST_CLIENT_API_KEY` are set in your environment or `.env` file.*
+    
+    **Important:** Before running E2E tests, you must add the test client API key to the database:
     ```bash
+    # Use the script in the scripts directory
+    poetry run python scripts/add_api_key.py --key-value="YOUR_TEST_CLIENT_API_KEY" --name="E2E Test Key"
+    
+    # Then run the E2E tests
     poetry run pytest -m e2e
     ```
 *   **Run E2E tests against a deployed proxy server:**

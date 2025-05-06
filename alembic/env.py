@@ -42,20 +42,20 @@ if database_url:
         logger.info("Converted 'postgres://' URL to 'postgresql://'")
     else:
         final_db_url = database_url
-elif os.environ.get("DB_USER") and os.environ.get("DB_PASSWORD") and os.environ.get("DB_NAME_NEW"):
+elif os.environ.get("DB_USER") and os.environ.get("DB_PASSWORD") and os.environ.get("DB_NAME"):
     logger.warning("DATABASE_URL not set. Falling back to individual DB_* variables for Alembic.")
     # Fallback to individual variables if DATABASE_URL is not set
     postgres_user = os.environ.get("DB_USER")
     postgres_password = os.environ.get("DB_PASSWORD")
     postgres_host = os.environ.get("DB_HOST", "localhost")
     postgres_port = os.environ.get("DB_PORT", "5432")
-    postgres_db = os.environ.get("DB_NAME_NEW")
+    postgres_db = os.environ.get("DB_NAME")
     final_db_url = f"postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
 else:
     # Raise error if neither DATABASE_URL nor sufficient DB_* vars are set
     raise ValueError(
         "Database connection requires either DATABASE_URL environment variable "
-        "or DB_USER, DB_PASSWORD, and DB_NAME_NEW to be set."
+        "or DB_USER, DB_PASSWORD, and DB_NAME to be set."
     )
 
 

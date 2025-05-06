@@ -23,7 +23,7 @@ def generate_migration(message="Initial sqlmodel tables"):
     if not settings.get_postgres_password():
         missing_vars.append("DB_PASSWORD")
     if not settings.get_postgres_db():
-        missing_vars.append("DB_NAME_NEW")
+        missing_vars.append("DB_NAME")
 
     if missing_vars:
         print(f"Error: Missing required environment variables: {', '.join(missing_vars)}")

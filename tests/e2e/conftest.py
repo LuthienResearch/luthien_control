@@ -253,7 +253,7 @@ async def live_local_proxy_server(openai_api_key: str) -> AsyncGenerator[str, No
         "DB_PASSWORD",
         "DB_HOST",
         "DB_PORT",
-        "DB_NAME_NEW",
+        "DB_NAME",
         "DATABASE_URL",
         "MAIN_DB_POOL_MIN_SIZE",
         "MAIN_DB_POOL_MAX_SIZE",

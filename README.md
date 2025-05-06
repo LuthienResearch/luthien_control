@@ -43,6 +43,8 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
     ```
 3.  **Database Setup (Local Development):**
     This project uses PostgreSQL for logging request/response data. A `docker-compose.yml` file is provided for easy local setup.
+    
+    **Note:** Ensure Docker is running before executing the following command.
     ```bash
     docker-compose up -d
     ```
@@ -51,16 +53,15 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
 4.  **Configuration:**
     Configuration is managed via environment variables, loaded using `python-dotenv` from a `.env` file in the project root during development.
     *   Copy the example file: `cp .env.example .env`
-    *   Edit the `.env` file and provide the necessary values.
+    *   The example file includes reasonable defaults for local development that should work with the Docker setup.
+    *   Edit the `.env` file if you need to customize any values.
     *   **Required Variables:**
         *   `BACKEND_URL`: The URL of the backend OpenAI-compatible API you want to proxy requests to (e.g., `https://api.openai.com/v1`).
-    *   **Optional Variables:**
         *   `OPENAI_API_KEY`: API key for the backend service (required if the backend needs authentication, like OpenAI).
-        *   `POLICY_MODULE`: Python path to the policy class to load (defaults to `luthien_control.policies.examples.no_op.NoOpPolicy`).
-        *   `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME_NEW`: Database connection details for the *main* application database.
-        *   `DB_NAME_NEW`: Database name for the new SQLModel database (see [SQLModel Migration](docs/sqlmodel_migration.md)).
-        *   `LOG_DB_USER`, `LOG_DB_PASSWORD`, `LOG_DB_HOST`, `LOG_DB_PORT`, `LOG_DB_NAME`: Database connection details for the *request/response logging* database. The defaults match the `docker-compose.yml` setup (`LOG_DB_USER=luthien`, `LOG_DB_PASSWORD=secret`, `LOG_DB_HOST=localhost`, `LOG_DB_PORT=5432`, `LOG_DB_NAME=luthien_log_db`).
-        *   `LOG_DB_POOL_MIN_SIZE`, `LOG_DB_POOL_MAX_SIZE`: Optional pool size settings for the logging database connection.
+    *   **Database Variables:**
+        *   `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME_NEW`: Database connection details for the main application database. The defaults in `.env.example` match the `docker-compose.yml` setup.
+    *   **Testing Variables:**
+        *   `TEST_CLIENT_API_KEY`: Required for running E2E tests.
 
 ## Usage
 
@@ -89,12 +90,12 @@ This project uses Pytest. Tests are categorized using markers defined in `pyproj
     poetry run pytest -m integration
     ```
 *   **Run End-to-End (E2E) tests against a locally started server:**
-    *Ensure `OPENAI_API_KEY` is set in your environment or `.env` file.*
+    *Ensure `OPENAI_API_KEY` and `TEST_CLIENT_API_KEY` are set in your environment or `.env` file.*
     ```bash
     poetry run pytest -m e2e
     ```
 *   **Run E2E tests against a deployed proxy server:**
-    *Ensure `OPENAI_API_KEY` is set in your environment.*
+    *Ensure `OPENAI_API_KEY` and `TEST_CLIENT_API_KEY` are set in your environment.*
     *(The current development deployment is on Fly.io under the app name `luthien-control`)*
     ```bash
     poetry run pytest -m e2e --e2e-target-url https://your-deployed-proxy.example.com
@@ -112,7 +113,7 @@ This project uses Pytest. Tests are categorized using markers defined in `pyproj
 **Test Configuration:**
 *   Tests without the `integration` or `e2e` marker primarily use environment variables defined in `.env.test` (if it exists).
 *   Integration tests use environment variables from `.env`.
-*   E2E tests require the `OPENAI_API_KEY` environment variable and potentially others depending on the target backend and policies.
+*   E2E tests require the `OPENAI_API_KEY` and `TEST_CLIENT_API_KEY` environment variables and potentially others depending on the target backend and policies.
 *   The E2E local server fixture defaults to using `https://api.openai.com/v1` as the `BACKEND_URL` unless overridden by an existing environment variable.
 
 ### Linting & Formatting

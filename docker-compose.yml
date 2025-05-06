@@ -5,18 +5,18 @@ services:
     environment:
       # Default credentials for local development ONLY.
       # Consider using a .env file for more sensitive scenarios.
-      DB_USER: luthien_user
-      DB_PASSWORD: luthien_pass
-      DB_NAME_NEW: luthien_dev_db
+      POSTGRES_USER: ${DB_USER:-luthien_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-luthien_pass}
+      POSTGRES_DB: ${DB_NAME:-luthien_dev_db}
     ports:
       # Map host port 5432 to container port 5432
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       # Persist database data using a named volume
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       # Optional: Check if the database is ready
-      test: ["CMD-SHELL", "pg_isready -U luthien_user -d luthien_dev_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-luthien_user} -d ${DB_NAME:-luthien_dev_db}"]
       interval: 10s
       timeout: 5s
       retries: 5

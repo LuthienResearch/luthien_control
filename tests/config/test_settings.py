@@ -19,7 +19,7 @@ def settings():
         ("OPENAI_API_KEY", "get_openai_api_key", "sk-12345", "sk-12345"),
         ("DB_USER", "get_postgres_user", "pg_user", "pg_user"),
         ("DB_PASSWORD", "get_postgres_password", "pg_pass", "pg_pass"),
-        ("DB_NAME_NEW", "get_postgres_db", "pg_db", "pg_db"),
+        ("DB_NAME", "get_postgres_db", "pg_db", "pg_db"),
         ("DB_HOST", "get_postgres_host", "pg_host", "pg_host"),
         ("DB_PORT", "get_postgres_port", "5433", 5433),  # Input str, output int
     ],
@@ -39,9 +39,9 @@ def test_getter_set(settings, monkeypatch, env_var, method_name, test_value, exp
         ("OPENAI_API_KEY", "get_openai_api_key", None),
         ("DB_USER", "get_postgres_user", None),
         ("DB_PASSWORD", "get_postgres_password", None),
-        ("DB_NAME_NEW", "get_postgres_db", None),
+        ("DB_NAME", "get_postgres_db", None),
         ("DB_HOST", "get_postgres_host", None),
-        ("DB_PORT", "get_postgres_port", None),  # Changed expectation from 5432 to None
+        ("DB_PORT", "get_postgres_port", None),
     ],
 )
 def test_getter_not_set(settings, monkeypatch, env_var, method_name, expected_value):
@@ -75,7 +75,6 @@ def test_get_postgres_port_invalid(settings, monkeypatch):
         settings.get_postgres_port()
 
 
-
 # --- Tests for DSN Properties ---
 
 
@@ -86,7 +85,7 @@ def set_postgres_env(monkeypatch):
     monkeypatch.setenv("DB_PASSWORD", "test_pass")
     monkeypatch.setenv("DB_HOST", "test_host")
     monkeypatch.setenv("DB_PORT", "5432")
-    monkeypatch.setenv("DB_NAME_NEW", "test_db")
+    monkeypatch.setenv("DB_NAME", "test_db")
 
 
 # --- Test admin_dsn ---
@@ -127,7 +126,7 @@ def test_base_dsn_missing_var(settings, set_postgres_env, monkeypatch, missing_v
 
 
 def test_get_db_dsn_happy_path_default_db(settings, set_postgres_env):
-    """Test get_db_dsn using the default DB_NAME_NEW from env."""
+    """Test get_db_dsn using the default DB_NAME from env."""
     expected_dsn = "postgresql://test_user:test_pass@test_host:5432/test_db"
     assert settings.get_db_dsn() == expected_dsn
 

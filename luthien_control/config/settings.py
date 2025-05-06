@@ -19,7 +19,7 @@ class Settings:
     DB_SERVER: str = "localhost"
     DB_USER: Optional[str] = None
     DB_PASSWORD: Optional[str] = None
-    DB_NAME_NEW: Optional[str] = None
+    DB_NAME: Optional[str] = None
     DB_HOST: Optional[str] = None
     DB_PORT: Optional[int] = 5432
 
@@ -57,7 +57,7 @@ class Settings:
         return os.getenv("DB_PASSWORD")
 
     def get_postgres_db(self) -> str | None:
-        return os.getenv("DB_NAME_NEW")
+        return os.getenv("DB_NAME")
 
     def get_postgres_host(self) -> str | None:
         return os.getenv("DB_HOST")
@@ -134,11 +134,11 @@ class Settings:
         return f"postgresql://{user}:{password}@{host}:{port}"
 
     def get_db_dsn(self, db_name: str | None = None) -> str:
-        """Returns the DSN for a specific database name, or the default DB_NAME_NEW.
+        """Returns the DSN for a specific database name, or the default DB_NAME.
         Raises ValueError if required DB settings or the target db_name are missing.
         """
         target_db = db_name or self.get_postgres_db()
         if not target_db:
-            raise ValueError("Missing target database name (either provide db_name or set DB_NAME_NEW env var)")
+            raise ValueError("Missing target database name (either provide db_name or set DB_NAME env var)")
         base = self.base_dsn  # Use property
         return f"{base}/{target_db}"

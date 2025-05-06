@@ -120,7 +120,7 @@ poetry run alembic stamp <revision>
 If you encounter errors about modules not being found, ensure you're running the commands with `poetry run` to use the correct Python environment.
 
 If your database connection fails, check that:
-1. The DB_NAME_NEW environment variable is set
+1. The DB_NAME environment variable is set
 2. Your database user has the proper permissions
 3. The database exists
 

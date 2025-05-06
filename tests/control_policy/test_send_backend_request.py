@@ -32,8 +32,6 @@ def policy(mock_http_client: AsyncMock, mock_settings: MagicMock) -> SendBackend
     """Provides an instance of the policy with a mock client."""
     # Dependencies are now resolved via the container in apply()
     return SendBackendRequestPolicy(
-        # http_client=mock_http_client,  # Removed
-        # settings=mock_settings,     # Removed
         name="test-policy",
     )
 
@@ -344,6 +342,3 @@ async def test_send_backend_request_policy_serialization(
 
     assert isinstance(rehydrated_policy, SendBackendRequestPolicy)
     assert rehydrated_policy.name == original_policy.name
-    # Remove checks for attributes that are no longer part of the instance
-    # assert rehydrated_policy.http_client is mock_http_client # Removed
-    # assert rehydrated_policy.settings is mock_settings # Removed

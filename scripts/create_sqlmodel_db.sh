@@ -12,7 +12,7 @@ fi
 
 # Required environment variables
 DB_USER=${DB_USER:-postgres}  # Default to postgres if not set
-DB_NAME_NEW=${DB_NAME_NEW:-luthien_sqlmodel}  # Default name if not set
+DB_NAME=${DB_NAME:-luthien_sqlmodel}  # Default name if not set
 APP_USER=${APP_USER:-luthien}  # The application user that needs permissions
 DB_HOST=${DB_HOST:-localhost}
 DB_PORT=${DB_PORT:-5432}
@@ -28,19 +28,19 @@ else
     export PGPASSWORD
 fi
 
-echo "Creating database $DB_NAME_NEW..."
-psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "CREATE DATABASE $DB_NAME_NEW;"
+echo "Creating database $DB_NAME..."
+psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "CREATE DATABASE $DB_NAME;"
 
-echo "Granting permissions to $APP_USER on $DB_NAME_NEW..."
-psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME_NEW TO $APP_USER;"
-psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME_NEW -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $APP_USER;"
-psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME_NEW -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO $APP_USER;"
-psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME_NEW -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO $APP_USER;"
-psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME_NEW -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON FUNCTIONS TO $APP_USER;"
-psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME_NEW -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TYPES TO $APP_USER;"
+echo "Granting permissions to $APP_USER on $DB_NAME..."
+psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $APP_USER;"
+psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $APP_USER;"
+psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO $APP_USER;"
+psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO $APP_USER;"
+psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON FUNCTIONS TO $APP_USER;"
+psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TYPES TO $APP_USER;"
 
-echo "Database $DB_NAME_NEW created and permissions granted to $APP_USER."
-echo "You can now set the DB_NAME_NEW environment variable to $DB_NAME_NEW in your .env file."
+echo "Database $DB_NAME created and permissions granted to $APP_USER."
+echo "You can now set the DB_NAME environment variable to $DB_NAME in your .env file."
 
 # Clean up password from environment
 unset PGPASSWORD

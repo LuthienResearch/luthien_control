@@ -35,3 +35,4 @@ logs/
 # ruff
 .ruff_cache/
 scratch/
+**/.claude/settings.local.json

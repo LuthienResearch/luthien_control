@@ -30,13 +30,13 @@ def _get_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
         query_params = parse_qs(parsed_url.query)
 
         # If sslmode is in the query params, remove it from URL and add to connect_args
-        if 'sslmode' in query_params:
-            sslmode = query_params.pop('sslmode')[0]
+        if "sslmode" in query_params:
+            sslmode = query_params.pop("sslmode")[0]
             logger.info(f"Extracted sslmode={sslmode} from DATABASE_URL")
-            connect_args['ssl'] = sslmode == 'require'
+            connect_args["ssl"] = sslmode == "require"
 
             # Rebuild URL without sslmode
-            clean_query = '&'.join([f"{k}={'='.join(v)}" for k, v in query_params.items()])
+            clean_query = "&".join([f"{k}={'='.join(v)}" for k, v in query_params.items()])
             parsed_url = parsed_url._replace(query=clean_query)
             database_url = urlunparse(parsed_url)
 
@@ -52,24 +52,24 @@ def _get_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
     db_user = settings.get_postgres_user()
     db_password = settings.get_postgres_password()
     db_host = settings.get_postgres_host()
-    db_port = settings.get_postgres_port() # Returns int or None
-    db_name = settings.get_postgres_db() # Returns str or None
+    db_port = settings.get_postgres_port()  # Returns int or None
+    db_name = settings.get_postgres_db()  # Returns str or None
 
     # Log which database name variable was used
     if db_name:
-        logger.debug("Using DB_NAME_NEW for SQLModel connection")
-    # Removed fallback logging for DB_NAME_NEW
+        logger.debug("Using DB_NAME for SQLModel connection")
+    # Removed fallback logging for DB_NAME
 
     if not all([db_user, db_password, db_host, db_name]):
         logger.error(
             "Missing one or more required DB_* environment variables "
-            "(DB_USER, DB_PASSWORD, DB_HOST, DB_NAME_NEW) " # Updated error message
+            "(DB_USER, DB_PASSWORD, DB_HOST, DB_NAME) "  # Updated error message
             "when DATABASE_URL is not set."
         )
         return None
 
     # Ensure db_port is an integer if it was retrieved successfully
-    if db_port is None: # Should not happen if settings validation is robust, but check anyway
+    if db_port is None:  # Should not happen if settings validation is robust, but check anyway
         logger.error("DB_PORT setting could not be determined.")
         return None
 
@@ -79,6 +79,7 @@ def _get_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
         f"postgresql+asyncpg://{db_user}:***@{db_host}:{db_port}/{db_name}"
     )
     return async_url, {}
+
 
 async def create_db_engine() -> Optional[AsyncEngine]:
     """Creates the asyncpg engine for the application DB."""
@@ -128,6 +129,7 @@ async def create_db_engine() -> Optional[AsyncEngine]:
         logger.exception(f"Failed to create database engine using URL ({masked_url}): {e}")
         return None
 
+
 async def close_db_engine() -> None:
     """Closes the database engine."""
     global _db_engine
@@ -141,6 +143,7 @@ async def close_db_engine() -> None:
             _db_engine = None
     else:
         logger.info("Database engine was already None or not initialized during shutdown.")
+
 
 @contextlib.asynccontextmanager
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:

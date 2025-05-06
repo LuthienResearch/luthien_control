@@ -97,7 +97,7 @@ async def test_run_policy_flow_successful(
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
     mock_policy: AsyncMock,
-    mock_container: MagicMock,  # Renamed fixture
+    mock_container: MagicMock,
     mock_session: AsyncMock,
 ):
     """

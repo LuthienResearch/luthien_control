@@ -143,17 +143,10 @@ class MockMissingArgPolicy(ControlPolicy):
 class MockCompoundPolicy(CompoundPolicy):
     """Mock policy mimicking CompoundPolicy structure, accepting a list of policies."""
 
-    # __init__ signature should match what instantiate_policy provides after mapping
-    # Remove settings and http_client as the real parent doesn't accept them
     def __init__(self, policies: List[ControlPolicy], name: str = "default_compound"):
-        # Call the real parent init without settings/http_client
         super().__init__(policies=policies, name=name)
 
         # Add a mock_init for testing calls *after* super().__init__
         self.mock_init = MagicMock()
         # Call the mock_init to record the call with args passed to this mock's init
         self.mock_init(policies=policies, name=name)
-
-    # apply method is inherited from CompoundPolicy
-    # serialize_config can be overridden if needed for tests, but maybe not necessary.
-    # Let's remove the custom serialize_config for now, inherit from parent.

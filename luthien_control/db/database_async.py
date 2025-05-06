@@ -58,7 +58,6 @@ def _get_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
     # Log which database name variable was used
     if db_name:
         logger.debug("Using DB_NAME for SQLModel connection")
-    # Removed fallback logging for DB_NAME
 
     if not all([db_user, db_password, db_host, db_name]):
         logger.error(

@@ -90,9 +90,6 @@ async def get_main_control_policy(
         main_policy = await load_policy_from_db(
             name=top_level_policy_name,
             container=dependencies,  # Pass the whole container
-            # settings=settings,  # Removed
-            # http_client=http_client,  # Removed
-            # session=session,  # Removed
         )
 
         if not main_policy:

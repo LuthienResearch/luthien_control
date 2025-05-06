@@ -261,7 +261,6 @@ async def test_api_proxy_no_auth_policy_no_key_success(
     def override_get_container():
         mock_container.settings.get_backend_url.return_value = get_test_backend_url()
         mock_container.settings.get_top_level_policy_name.return_value = "TestCompoundPolicy"
-        # Remove http_client mocking here - it's not used
         return mock_container
 
     test_app.dependency_overrides[get_dependencies] = override_get_container
@@ -288,8 +287,6 @@ async def test_api_proxy_no_auth_policy_no_key_success(
     # --- Assertions --- #
     assert actual_response.status_code == 200
     assert actual_response.json() == expected_backend_response_data
-
-    # Remove assertions checking specific http client mock calls
 
 
 # TODO: write integration tests for the /api endpoint with a real policy

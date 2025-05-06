@@ -41,7 +41,7 @@ def test_getter_set(settings, monkeypatch, env_var, method_name, test_value, exp
         ("DB_PASSWORD", "get_postgres_password", None),
         ("DB_NAME", "get_postgres_db", None),
         ("DB_HOST", "get_postgres_host", None),
-        ("DB_PORT", "get_postgres_port", None),  # Changed expectation from 5432 to None
+        ("DB_PORT", "get_postgres_port", None),
     ],
 )
 def test_getter_not_set(settings, monkeypatch, env_var, method_name, expected_value):

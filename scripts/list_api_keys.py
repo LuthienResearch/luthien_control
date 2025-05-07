@@ -5,13 +5,13 @@ import logging
 import sys
 
 from dotenv import load_dotenv
-from luthien_control.settings import Settings
 from luthien_control.db.client_api_key_crud import list_api_keys
 from luthien_control.db.database_async import (
     close_db_engine,
     create_db_engine,
     get_db_session,
 )
+from luthien_control.settings import Settings
 
 # Configure logging to see output
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)

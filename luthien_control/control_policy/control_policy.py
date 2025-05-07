@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar
 from luthien_control.control_policy.serialization import SerializableDict
 
 if TYPE_CHECKING:
-    from luthien_control.core.transaction_context import TransactionContext
     from luthien_control.core.dependency_container import DependencyContainer
+    from luthien_control.core.transaction_context import TransactionContext
     from sqlalchemy.ext.asyncio import AsyncSession
 
 # Type variable for the policy classes

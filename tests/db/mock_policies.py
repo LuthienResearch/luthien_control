@@ -2,10 +2,10 @@ from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 
 import httpx
-from luthien_control.settings import Settings
 from luthien_control.control_policy.compound_policy import CompoundPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.types import ApiKeyLookupFunc
+from luthien_control.settings import Settings
 
 # --- Mock Policy Classes for Testing crud.py ---
 

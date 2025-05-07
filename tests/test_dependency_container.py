@@ -2,8 +2,8 @@ from typing import AsyncContextManager, Callable
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
-from luthien_control.settings import Settings
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

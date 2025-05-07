@@ -14,9 +14,9 @@ from luthien_control.control_policy.exceptions import (
     ClientAuthenticationNotFoundError,
     NoRequestError,
 )
+from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.sqlmodel_models import ClientApiKey
-from luthien_control.core.dependency_container import DependencyContainer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)

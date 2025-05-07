@@ -12,9 +12,9 @@ from luthien_control.control_policy.exceptions import (
     NoRequestError,
 )
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
-from luthien_control.core.dependency_container import DependencyContainer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)

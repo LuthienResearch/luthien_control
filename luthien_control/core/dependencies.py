@@ -7,11 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Import Settings and the policy loader
 from luthien_control.control_policy.control_policy import ControlPolicy
 
-# Import Response Builder
-from luthien_control.db.control_policy_crud import PolicyLoadError, load_policy_from_db
-
 # Import SQLModel database session providers
 from luthien_control.core.dependency_container import DependencyContainer
+
+# Import Response Builder
+from luthien_control.db.control_policy_crud import PolicyLoadError, load_policy_from_db
 
 if TYPE_CHECKING:
     pass

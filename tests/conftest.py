@@ -12,14 +12,14 @@ import pytest_asyncio
 from alembic import command
 from alembic.config import Config
 from dotenv import load_dotenv
-from luthien_control.settings import Settings
+from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.response_builder import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.main import app
 
 # Import centralized type alias
 from luthien_control.core.types import ApiKeyLookupFunc
+from luthien_control.main import app
+from luthien_control.settings import Settings
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.ext.asyncio import AsyncSession
 

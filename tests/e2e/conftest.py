@@ -10,7 +10,6 @@ import httpx
 import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
-from luthien_control.settings import Settings
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.compound_policy import CompoundPolicy
@@ -29,6 +28,7 @@ from luthien_control.db.database_async import (
     get_db_session,
 )
 from luthien_control.db.sqlmodel_models import ControlPolicy
+from luthien_control.settings import Settings
 from sqlalchemy.exc import IntegrityError  # Add this import
 
 # Load .env file for local development environment variables

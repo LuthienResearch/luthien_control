@@ -26,15 +26,11 @@ def create_custom_openapi(app: FastAPI):
         return app.openapi_schema
 
     logger.debug("Generating custom OpenAPI schema.")
-    # Use the app's configured values
     openapi_schema = get_openapi(
         title=app.title,
         version=app.version,
         description=app.description,
         routes=app.routes,
-        # Pass other relevant info if needed, e.g., tags, servers
-        # tags=app.openapi_tags,
-        # servers=app.servers,
     )
 
     # Modify the schema for the path parameter

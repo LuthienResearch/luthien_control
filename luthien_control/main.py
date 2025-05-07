@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.logging import setup_logging
+from luthien_control.custom_openapi_schema import create_custom_openapi
 from luthien_control.db.database_async import (
     close_db_engine,
     create_db_engine,
@@ -13,7 +14,6 @@ from luthien_control.db.database_async import (
 )
 from luthien_control.proxy.server import router as proxy_router
 from luthien_control.settings import Settings
-from luthien_control.utils import create_custom_openapi
 
 setup_logging()
 

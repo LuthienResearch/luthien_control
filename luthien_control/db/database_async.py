@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, urlparse, urlunparse
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-from luthien_control.config.settings import Settings
+from luthien_control.settings import Settings
 
 logger = logging.getLogger(__name__)
 

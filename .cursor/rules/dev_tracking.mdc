@@ -47,7 +47,6 @@ Update when items from ProjectPlan.md are completed or the plan significantly ch
 2.  **Rotate Log First**: Always run the rotation script `bash scripts/rotate_dev_log.sh` *before* appending to `dev/development_log.md`.
 3.  **Continuation Header**: The rotation script should handle creating the continuation header in the new log file.
 4.  **Be Specific**: Include specific file names, commands, and error messages in the log.
-5.  **Complete Replacement**: For `dev/current_context.md`, always replace the entire file content.
-6.  **Timestamps**: Use accurate timestamps in `dev/development_log.md` entries.
+5.  **Timestamps**: Use accurate timestamps in `dev/development_log.md` entries.
 
 IMPORTANT: This is not optional. Every change requires running the rotation script and subsequent tracking file updates.

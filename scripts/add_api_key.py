@@ -4,7 +4,6 @@ import asyncio
 import logging
 import sys
 
-from luthien_control.config.logging_config import setup_logging
 from luthien_control.db.client_api_key_crud import create_api_key
 from luthien_control.db.database_async import (
     close_db_engine,
@@ -12,6 +11,7 @@ from luthien_control.db.database_async import (
     get_db_session,
 )
 from luthien_control.db.sqlmodel_models import ClientApiKey
+from luthien_control.logging import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)

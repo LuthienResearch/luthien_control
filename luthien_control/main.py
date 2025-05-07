@@ -11,7 +11,7 @@ from luthien_control.db.database_async import (
     get_db_session,
 )
 from luthien_control.dependency_container import DependencyContainer
-from luthien_control.logging_config import setup_logging
+from luthien_control.logging import setup_logging
 from luthien_control.proxy.server import router as proxy_router
 from luthien_control.utils import create_custom_openapi
 

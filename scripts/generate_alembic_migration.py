@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 from dotenv import load_dotenv
-from luthien_control.config.settings import Settings
+from luthien_control.settings import Settings
 
 
 def generate_migration(message="Initial sqlmodel tables"):

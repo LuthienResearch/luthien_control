@@ -5,17 +5,17 @@ import httpx
 import pytest
 from fastapi import FastAPI, Request, Response
 from fastapi.testclient import TestClient
-from luthien_control.config.settings import Settings
+from luthien_control.settings import Settings
 from luthien_control.control_policy.compound_policy import CompoundPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.dependencies import (
+from luthien_control.core.dependencies import (
     get_db_session,
     get_dependencies,
     get_main_control_policy,
 )
-from luthien_control.dependency_container import DependencyContainer
+from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.main import app  # Import your main FastAPI app
 from sqlalchemy.ext.asyncio import AsyncSession
 

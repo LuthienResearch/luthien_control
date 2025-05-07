@@ -12,14 +12,14 @@ import pytest_asyncio
 from alembic import command
 from alembic.config import Config
 from dotenv import load_dotenv
-from luthien_control.config.settings import Settings
+from luthien_control.settings import Settings
 from luthien_control.core.response_builder import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.dependency_container import DependencyContainer
+from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.main import app
 
 # Import centralized type alias
-from luthien_control.types import ApiKeyLookupFunc
+from luthien_control.core.types import ApiKeyLookupFunc
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -341,7 +341,7 @@ def override_app_dependencies(
     #     yield
     #     return
 
-    from luthien_control import dependencies
+    from luthien_control.core import dependencies
 
     # Define the mock dependency functions
     async def override_get_container() -> MagicMock:

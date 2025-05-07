@@ -3,7 +3,7 @@
 import logging
 import sys
 
-from luthien_control.config.settings import Settings
+from luthien_control.settings import Settings
 
 # Recommended format
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

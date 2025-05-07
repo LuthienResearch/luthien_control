@@ -5,7 +5,7 @@ import fastapi
 import httpx
 import pytest
 from fastapi import Response
-from luthien_control.config.settings import Settings
+from luthien_control.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.core.transaction_context import TransactionContext

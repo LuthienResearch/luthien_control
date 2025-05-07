@@ -125,7 +125,7 @@ This project uses Pytest. Tests are categorized using markers defined in `pyproj
     ```
 *   **Run E2E tests against a deployed proxy server:**
     *Ensure `OPENAI_API_KEY` and `TEST_CLIENT_API_KEY` are set in your environment.*
-    *(The current development deployment is on Fly.io under the app name `luthien-control`)*
+    *(The [current development deployment](https://luthiencontrol-dev.up.railway.app/) is on railway and tracks the dev branch on github)*
     ```bash
     poetry run pytest -m e2e --e2e-target-url https://your-deployed-proxy.example.com
     ```

@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 
-class CompoundPolicy(ControlPolicy):
+class SerialPolicy(ControlPolicy):
     """
     A Control Policy that applies an ordered sequence of other policies.
 
@@ -107,7 +107,7 @@ class CompoundPolicy(ControlPolicy):
         return cast(SerializableDict, {"policies": member_configs})
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "CompoundPolicy":
+    async def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":
         """
         Constructs a CompoundPolicy from serialized data, loading member policies.
 
@@ -153,3 +153,7 @@ class CompoundPolicy(ControlPolicy):
         compound_policy_name = config.get("name", "CompoundPolicy")  # Default name if not in config
 
         return cls(policies=instantiated_policies, name=compound_policy_name)
+
+
+# legacy compatibility
+CompoundPolicy = SerialPolicy

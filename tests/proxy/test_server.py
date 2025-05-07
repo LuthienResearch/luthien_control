@@ -5,7 +5,7 @@ import httpx
 import pytest
 from fastapi import FastAPI, Request, Response
 from fastapi.testclient import TestClient
-from luthien_control.control_policy.compound_policy import CompoundPolicy
+from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependencies import (
@@ -268,7 +268,7 @@ async def test_api_proxy_no_auth_policy_no_key_success(
     # 2. Override get_main_control_policy to return a CompoundPolicy
     async def override_get_main_policy():
         mock_sender = MockSendBackendRequestPolicy(mock_response=mock_http_response)
-        return CompoundPolicy(policies=[PassThroughPolicy(), mock_sender], name="TestCompoundPolicy")
+        return SerialPolicy(policies=[PassThroughPolicy(), mock_sender], name="TestCompoundPolicy")
 
     test_app.dependency_overrides[get_main_control_policy] = override_get_main_policy
 

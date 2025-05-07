@@ -6,7 +6,7 @@ import pytest
 from fastapi import Response
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
-from luthien_control.control_policy.compound_policy import CompoundPolicy
+from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.serialization import SerializableDict
@@ -79,7 +79,7 @@ async def test_compound_policy_applies_policies_sequentially(
     """Test that policies are applied in the specified order."""
     policy1 = MockSimplePolicy(name="Policy1")
     policy2 = MockSimplePolicy(name="Policy2")
-    compound = CompoundPolicy(policies=[policy1, policy2], name="SequentialTest")
+    compound = SerialPolicy(policies=[policy1, policy2], name="SequentialTest")
 
     # Keep track of context references
     context_before_policy1 = base_transaction_context
@@ -117,7 +117,7 @@ async def test_compound_policy_empty_list(
     mock_container: DependencyContainer,
 ):
     """Test that CompoundPolicy handles an empty policy list gracefully."""
-    compound = CompoundPolicy(policies=[], name="EmptyTest")
+    compound = SerialPolicy(policies=[], name="EmptyTest")
 
     with caplog.at_level(logging.WARNING):
         result_context = await compound.apply(
@@ -144,7 +144,7 @@ async def test_compound_policy_propagates_exception(
     policy1 = MockSimplePolicy(name="Policy1")
     policy2 = MockSimplePolicy(side_effect=TestException("Policy 2 failed!"), name="Policy2")
     policy3 = MockSimplePolicy(name="Policy3")
-    compound = CompoundPolicy(policies=[policy1, policy2, policy3], name="ExceptionTest")
+    compound = SerialPolicy(policies=[policy1, policy2, policy3], name="ExceptionTest")
 
     with pytest.raises(TestException, match="Policy 2 failed!"):
         await compound.apply(
@@ -170,7 +170,7 @@ async def test_compound_policy_continues_on_response(
     policy1 = MockSimplePolicy(name="Policy1")
     policy2 = MockSimplePolicy(sets_response=True, name="Policy2")  # This policy sets a response
     policy3 = MockSimplePolicy(name="Policy3")
-    compound = CompoundPolicy(policies=[policy1, policy2, policy3], name="ResponseTest")
+    compound = SerialPolicy(policies=[policy1, policy2, policy3], name="ResponseTest")
 
     # Track the context object
     context_before_apply = base_transaction_context
@@ -198,16 +198,16 @@ def test_compound_policy_repr():
     """Test the __repr__ method for clarity."""
     policy1 = MockSimplePolicy(name="Policy1")
     policy2 = MockSimplePolicy(name="Policy2")
-    compound1 = CompoundPolicy(policies=[policy1, policy2], name="AuthAndLog")
-    compound2 = CompoundPolicy(policies=[compound1, MockSimplePolicy(name="Policy3")], name="MainFlow")
+    compound1 = SerialPolicy(policies=[policy1, policy2], name="AuthAndLog")
+    compound2 = SerialPolicy(policies=[compound1, MockSimplePolicy(name="Policy3")], name="MainFlow")
 
     assert repr(compound1) == "<AuthAndLog(policies=[Policy1 <MockSimplePolicy>, Policy2 <MockSimplePolicy>])>"
-    assert repr(compound2) == "<MainFlow(policies=[AuthAndLog <CompoundPolicy>, Policy3 <MockSimplePolicy>])>"
+    assert repr(compound2) == "<MainFlow(policies=[AuthAndLog <SerialPolicy>, Policy3 <MockSimplePolicy>])>"
 
-    compound_default = CompoundPolicy(policies=[policy1])
-    assert repr(compound_default) == "<CompoundPolicy(policies=[Policy1 <MockSimplePolicy>])>"
+    compound_default = SerialPolicy(policies=[policy1])
+    assert repr(compound_default) == "<SerialPolicy(policies=[Policy1 <MockSimplePolicy>])>"
 
-    compound_empty = CompoundPolicy(policies=[], name="Empty")
+    compound_empty = SerialPolicy(policies=[], name="Empty")
     assert repr(compound_empty) == "<Empty(policies=[])>"
 
 
@@ -217,7 +217,7 @@ def test_compound_serialize_config():
     member1 = MockSimplePolicy(name="MockSimplePolicy1")
     member2 = MockSimplePolicy(name="MockSimplePolicy2")
 
-    compound = CompoundPolicy(policies=[member1, member2], name="MyCompound")
+    compound = SerialPolicy(policies=[member1, member2], name="MyCompound")
 
     expected_member1_config = member1.serialize()
     expected_member2_config = member2.serialize()
@@ -242,11 +242,11 @@ async def test_compound_policy_serialization():
     # Manually set policy_type for serialization registry lookup (usually handled by DB loading)
     # Ensure registry maps these types correctly
 
-    original_compound_policy = CompoundPolicy(policies=[policy1, policy2], name="TestCompound")
+    original_compound_policy = SerialPolicy(policies=[policy1, policy2], name="TestCompound")
 
     # Act
     serialized_data = original_compound_policy.serialize()
-    rehydrated_policy = await CompoundPolicy.from_serialized(serialized_data)
+    rehydrated_policy = await SerialPolicy.from_serialized(serialized_data)
 
     # Assert
     assert isinstance(serialized_data, dict)
@@ -260,7 +260,7 @@ async def test_compound_policy_serialization():
         "name": "AddOpenAIKey",
     }
 
-    assert isinstance(rehydrated_policy, CompoundPolicy)
+    assert isinstance(rehydrated_policy, SerialPolicy)
     assert len(rehydrated_policy.policies) == 2
     assert isinstance(rehydrated_policy.policies[0], ClientApiKeyAuthPolicy)
     assert isinstance(rehydrated_policy.policies[1], AddApiKeyHeaderPolicy)
@@ -272,16 +272,16 @@ async def test_compound_policy_serialization():
 async def test_compound_policy_serialization_empty():
     """Test serialization with an empty list of policies."""
     # Arrange
-    original_compound_policy = CompoundPolicy(policies=[], name="EmptyCompound")
+    original_compound_policy = SerialPolicy(policies=[], name="EmptyCompound")
 
     # Act
     serialized_data = original_compound_policy.serialize()
-    rehydrated_policy = await CompoundPolicy.from_serialized(serialized_data)
+    rehydrated_policy = await SerialPolicy.from_serialized(serialized_data)
 
     # Assert
     assert isinstance(serialized_data, dict)
     assert serialized_data == {"policies": []}
-    assert isinstance(rehydrated_policy, CompoundPolicy)
+    assert isinstance(rehydrated_policy, SerialPolicy)
     assert len(rehydrated_policy.policies) == 0
 
 
@@ -293,7 +293,7 @@ async def test_compound_policy_serialization_missing_policies_key():
 
     # Act & Assert
     with pytest.raises(PolicyLoadError, match="CompoundPolicy config missing 'policies' list"):
-        await CompoundPolicy.from_serialized(invalid_config)
+        await SerialPolicy.from_serialized(invalid_config)
 
 
 @pytest.mark.asyncio
@@ -306,10 +306,10 @@ async def test_compound_policy_serialization_invalid_policy_item():
         ]
     }
     with pytest.raises(PolicyLoadError, match="Item at index 1 in CompoundPolicy 'policies' is not a dictionary"):
-        await CompoundPolicy.from_serialized(invalid_config)
+        await SerialPolicy.from_serialized(invalid_config)
 
 
-@patch("luthien_control.control_policy.compound_policy.load_policy", new_callable=AsyncMock)
+@patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=AsyncMock)
 @pytest.mark.asyncio
 async def test_compound_policy_serialization_load_error(mock_load_policy):
     """Test error propagation when loading a member policy fails."""
@@ -322,10 +322,10 @@ async def test_compound_policy_serialization_load_error(mock_load_policy):
     mock_load_policy.side_effect = [MagicMock(spec=ControlPolicy), PolicyLoadError("Mocked load failure")]
 
     with pytest.raises(PolicyLoadError, match="Failed to load member policy.*within CompoundPolicy"):
-        await CompoundPolicy.from_serialized(config)
+        await SerialPolicy.from_serialized(config)
 
 
-@patch("luthien_control.control_policy.compound_policy.load_policy", new_callable=AsyncMock)
+@patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=AsyncMock)
 @pytest.mark.asyncio
 async def test_compound_policy_serialization_unexpected_error(mock_load_policy):
     """Test handling of unexpected errors during member policy loading."""
@@ -337,4 +337,4 @@ async def test_compound_policy_serialization_unexpected_error(mock_load_policy):
     mock_load_policy.side_effect = ValueError("Unexpected internal error")
 
     with pytest.raises(PolicyLoadError, match="Unexpected error loading member policy.*"):
-        await CompoundPolicy.from_serialized(config)
+        await SerialPolicy.from_serialized(config)

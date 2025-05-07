@@ -12,7 +12,7 @@ import pytest_asyncio
 from dotenv import load_dotenv
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
-from luthien_control.control_policy.compound_policy import CompoundPolicy
+from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.control_policy.registry import POLICY_CLASS_TO_NAME
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.db.control_policy_crud import (
@@ -112,7 +112,7 @@ async def _ensure_e2e_policy_exists():
                 policy_to_create = ControlPolicy(
                     name=E2E_POLICY_NAME,
                     config=desired_config,
-                    type=POLICY_CLASS_TO_NAME[CompoundPolicy],
+                    type=POLICY_CLASS_TO_NAME[SerialPolicy],
                     is_active=True,
                     description=desired_description,
                 )

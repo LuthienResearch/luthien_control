@@ -175,6 +175,74 @@ async def test_api_proxy_post_endpoint_calls_orchestrator(
     # assert body == request_body
 
 
+@pytest.mark.asyncio
+async def test_api_proxy_get_endpoint_calls_orchestrator(
+    test_app: FastAPI,
+    mocker,
+    mock_container: MagicMock,
+    mock_main_policy_for_simple_tests: AsyncMock,
+):
+    """Verify /api GET endpoint calls run_policy_flow and returns its response."""
+    test_path = "some/api/path/get"
+    expected_content = b"Response from mocked run_policy_flow for GET"
+    expected_status = 200
+    mock_response_obj = Response(
+        content=expected_content,
+        status_code=expected_status,
+        headers={"X-Mock-Header": "MockValueGet"},
+        media_type="application/json",
+    )
+    auth_headers = {"Authorization": "Bearer test-key-get"}
+
+    # --- Mock _initialize_app_dependencies to return our mock_container --- #
+    mocker.patch(
+        "luthien_control.main._initialize_app_dependencies", new_callable=AsyncMock, return_value=mock_container
+    )
+
+    # --- Override main policy dependency (still valid) --- #
+    async def override_get_main_policy():
+        return mock_main_policy_for_simple_tests
+
+    test_app.dependency_overrides[get_main_control_policy] = override_get_main_policy
+    # --- End Setup --- #
+
+    # Instantiate TestClient here, after the relevant patches are active.
+    with TestClient(test_app) as client_instance:
+        assert hasattr(client_instance.app.state, "dependencies")
+        assert client_instance.app.state.dependencies is mock_container
+
+        with patch("luthien_control.proxy.server.run_policy_flow", new_callable=AsyncMock) as mock_run_flow:
+            mock_run_flow.return_value = mock_response_obj
+            response = client_instance.get(f"/api/{test_path}", headers=auth_headers)
+
+    test_app.dependency_overrides = {}  # Clear overrides
+
+    # 1. Assert the response received by the client matches the mock's response
+    assert response.status_code == expected_status
+    assert response.content == expected_content
+    assert response.headers["x-mock-header"] == "MockValueGet"
+    assert response.headers["content-type"].startswith("application/json")
+
+    # 2. Assert run_policy_flow was called once
+    mock_run_flow.assert_awaited_once()
+
+    # 3. Assert run_policy_flow was called with expected arguments
+    call_kwargs = mock_run_flow.await_args[1]
+    assert "request" in call_kwargs
+    assert "main_policy" in call_kwargs
+    assert "dependencies" in call_kwargs
+    assert "session" in call_kwargs
+
+    assert call_kwargs["dependencies"] is mock_container
+    assert call_kwargs["main_policy"] is mock_main_policy_for_simple_tests
+
+    request_arg = call_kwargs["request"]
+    assert isinstance(request_arg, Request)
+    assert request_arg.method == "GET"
+    assert request_arg.url.path == f"/api/{test_path}"
+    assert request_arg.headers.get("authorization") == "Bearer test-key-get"
+
+
 # --- Integration Test for /api endpoint with Mocked Main Policy ---
 
 
@@ -315,13 +383,13 @@ async def test_api_proxy_no_auth_policy_no_key_success(
 
 
 def test_api_proxy_explicit_options_handler(client: TestClient):
-    """Test the explicit OPTIONS handler for /api/{full_path:path}."""
+    """Test that the explicit OPTIONS handler for /api returns correct headers."""
     test_path = "some/api/path/options"
     response = client.options(f"/api/{test_path}")
 
     assert response.status_code == 200
-    assert response.text == ""  # OPTIONS usually has an empty body
-    assert response.headers["allow"] == "POST, OPTIONS"
+    assert response.text == ""  # OPTIONS handlers typically have no body
+    assert response.headers["allow"] == "GET, POST, OPTIONS"
     assert response.headers["access-control-allow-origin"] == "*"
-    assert response.headers["access-control-allow-methods"] == "POST, OPTIONS"
+    assert response.headers["access-control-allow-methods"] == "GET, POST, OPTIONS"
     assert response.headers["access-control-allow-headers"] == "Authorization, Content-Type"

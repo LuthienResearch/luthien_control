@@ -67,10 +67,6 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         Requires DependencyContainer and AsyncSession for interface compliance, but they are not
         directly used in this policy's primary logic beyond what ControlPolicy might require.
 
-        Raises:
-            NoRequestError if the request is not found in the context.
-            ApiKeyNotFoundError if the configured environment variable is not set or is empty.
-
         Args:
             context: The current transaction context.
             container: The application dependency container (unused).
@@ -78,6 +74,10 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
 
         Returns:
             The potentially modified transaction context.
+
+        Raises:
+            NoRequestError if the request is not found in the context.
+            ApiKeyNotFoundError if the configured environment variable is not set or is empty.
         """
         if context.request is None:
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")

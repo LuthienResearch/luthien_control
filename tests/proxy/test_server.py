@@ -5,8 +5,8 @@ import httpx
 import pytest
 from fastapi import FastAPI, Request, Response
 from fastapi.testclient import TestClient
-from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependencies import (
     get_db_session,

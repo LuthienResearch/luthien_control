@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Dict, Type
 from .add_api_key_header import AddApiKeyHeaderPolicy
 from .add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from .client_api_key_auth import ClientApiKeyAuthPolicy
-from .serial_policy import SerialPolicy
 from .send_backend_request import SendBackendRequestPolicy
+from .serial_policy import SerialPolicy
 
 if TYPE_CHECKING:
     # Use forward reference for ControlPolicy to avoid circular import at runtime

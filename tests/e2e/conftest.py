@@ -12,9 +12,9 @@ import pytest_asyncio
 from dotenv import load_dotenv
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
-from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.control_policy.registry import POLICY_CLASS_TO_NAME
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
+from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.db.control_policy_crud import (
     get_policy_config_by_name,
     update_policy,

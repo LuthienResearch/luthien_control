@@ -46,6 +46,7 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
     
     **Note:** Ensure Docker is running before executing the following command.
     ```bash
+    cp .env.example .env
     docker compose up -d   # Note: Use 'docker-compose' if using older Docker versions
     ```
     Docker Compose will automatically use variables from your `.env` file (if it exists in the project root) to configure the PostgreSQL container. Specifically, it will look for `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and `DB_PORT`. If these are not found in `.env`, the default values specified in `docker-compose.yml` will be used.
@@ -75,8 +76,7 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
 
 4.  **Configuration:**
     Configuration is managed via environment variables, loaded using `python-dotenv` from a `.env` file in the project root during development.
-    *   Copy the example file: `cp .env.example .env`
-    *   The example file includes reasonable defaults for local development that should work with the Docker setup.
+    *   The example file `.env.example` includes reasonable defaults for local development that should work with the Docker setup.
     *   Edit the `.env` file if you need to customize any values.
     *   **Required Variables:**
         *   `BACKEND_URL`: The URL of the backend OpenAI-compatible API you want to proxy requests to (e.g., `https://api.openai.com/v1`).

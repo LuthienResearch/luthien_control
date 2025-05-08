@@ -1,0 +1,70 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Google-Style Python Docstrings
+
+Document all Python classes and public functions using Google-style docstrings.
+
+
+```python
+def example_function(param1, param2):
+    """Example function with Google-style docstrings.
+
+    This is a more detailed explanation of the function's purpose
+    and behavior. It can span multiple lines.
+
+    Args:
+        param1 (int): The first parameter.
+        param2 (str): The second parameter.
+
+    Returns:
+        bool: True if successful, False otherwise.
+
+    Raises:
+        ValueError: If param1 is not a positive integer.
+    """
+    if not isinstance(param1, int) or param1 <= 0:
+        raise ValueError("param1 must be a positive integer")
+    return True
+
+class ExampleClass:
+    """Example class with Google-style docstrings.
+
+    Attributes:
+        attr1 (str): Description of attribute 1.
+        attr2 (int): Description of attribute 2.
+    """
+
+    def __init__(self, attr1, attr2):
+        """Initializes ExampleClass.
+
+        Args:
+            attr1 (str): The first attribute.
+            attr2 (int): The second attribute.
+        """
+        self.attr1 = attr1
+        self.attr2 = attr2
+
+    def example_method(self, param):
+        """Example method for ExampleClass.
+
+        Args:
+            param (float): A float parameter.
+
+        Returns:
+            str: A string representation of the parameter.
+        """
+        return str(param)
+
+```
+
+Key elements to include:
+- A concise summary line.
+- An optional extended description.
+- `Args:` section detailing each parameter, its type, and description.
+- `Returns:` section detailing the return type and what is returned.
+- `Raises:` section detailing any exceptions that might be raised.
+- For classes, include an `Attributes:` section in the class docstring if applicable.
+- Include usage examples where helpful.

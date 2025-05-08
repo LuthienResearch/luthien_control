@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Update [dev/current_context.md](mdc:dev/current_context.md) with the current development plan and progress status. This update should be performed when a new plan is formulated, after making significant progress, or upon completing a key task or milestone. This helps maintain context across interactions and improves the clarity of ongoing work.

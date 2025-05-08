@@ -315,21 +315,13 @@ async def test_api_proxy_no_auth_policy_no_key_success(
 
 
 def test_api_proxy_explicit_options_handler(client: TestClient):
-    """
-    Tests the explicit OPTIONS handler for the /api proxy endpoint.
-    Ensures it returns 200 OK and the correct 'Allow' header.
-    """
-    test_path = "some/test/options_path"
+    """Test the explicit OPTIONS handler for /api/{full_path:path}."""
+    test_path = "some/api/path/options"
     response = client.options(f"/api/{test_path}")
 
-    assert response.status_code == 200, f"Expected 200 OK, got {response.status_code}"
-    assert "allow" in response.headers, "'Allow' header missing from response"
-
-    allow_header_value = response.headers["allow"]
-    # Normalize by splitting, stripping, and sorting for robust comparison
-    expected_methods = sorted([method.strip() for method in "POST, OPTIONS".split(",")])
-    actual_methods = sorted([method.strip() for method in allow_header_value.split(",")])
-
-    assert actual_methods == expected_methods, (
-        f"Expected 'Allow' header to contain {expected_methods}, got {actual_methods}"
-    )
+    assert response.status_code == 200
+    assert response.text == ""  # OPTIONS usually has an empty body
+    assert response.headers["allow"] == "POST, OPTIONS"
+    assert response.headers["access-control-allow-origin"] == "*"
+    assert response.headers["access-control-allow-methods"] == "POST, OPTIONS"
+    assert response.headers["access-control-allow-headers"] == "Authorization, Content-Type"

@@ -100,10 +100,15 @@ async def api_proxy_endpoint(
 @router.options("/api/{full_path:path}")
 async def api_proxy_options_handler(
     full_path: str = default_path,  # Keep for path consistency, though not used in this simple handler
-    # No other dependencies needed for this basic handler
 ):
     """
     Handles OPTIONS requests for the API proxy endpoint, indicating allowed methods.
     """
     logger.info(f"Explicit OPTIONS request received for /api/{full_path}")
-    return Response(status_code=200, headers={"Allow": "POST, OPTIONS"})
+    headers = {
+        "Allow": "POST, OPTIONS",
+        "Access-Control-Allow-Origin": "*",  # Allow any origin
+        "Access-Control-Allow-Methods": "POST, OPTIONS",  # Allowed methods
+        "Access-Control-Allow-Headers": "Authorization, Content-Type",  # Allowed headers
+    }
+    return Response(status_code=200, headers=headers)

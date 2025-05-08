@@ -14,7 +14,7 @@ from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.main import app  # Import your main FastAPI app
 from luthien_control.settings import Settings
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 # --- Pytest Fixtures ---
 
@@ -31,19 +31,41 @@ def test_app() -> FastAPI:
 # ignore type check here, this is a valid use case for a pytest fixture
 @pytest.fixture
 def client(test_app: FastAPI) -> TestClient:  # type: ignore[misc]
-    """Provides a FastAPI test client that correctly handles lifespan events."""
-    # Patch DB engine/pool creation during TestClient lifespan
-    # to prevent slow/failing startup in tests.
-    with (
-        patch("luthien_control.db.database_async.create_db_engine", new_callable=AsyncMock) as mock_create_main_engine,
-    ):  # Patch the actual creation functions
-        # Ensure mocked functions return a mock engine/pool or None to simulate success/failure
-        # Returning None should be sufficient to bypass actual DB connection attempts.
-        mock_create_main_engine.return_value = None  # Or AsyncMock() if needed later
+    """Provides a FastAPI test client that correctly handles lifespan events by mocking DB dependencies."""
+    mock_engine_instance = AsyncMock(spec=AsyncEngine)
 
-        # Now instantiate the TestClient *while the patches are active*
+    # This factory, when called, will produce mock_session_instance
+    mock_sa_session_factory_instance = MagicMock(spec=async_sessionmaker)
+    mock_session_instance = AsyncMock(spec=AsyncSession)
+    mock_sa_session_factory_instance.return_value = mock_session_instance
+
+    async def mock_create_db_engine_side_effect(*args, **kwargs):
+        # This is called by _initialize_app_dependencies.
+        # It needs to return a truthy engine object.
+        return mock_engine_instance
+
+    # Patch create_db_engine: it's called by _initialize_app_dependencies.
+    # Patch _db_session_factory: it's used by get_db_session (which is in database_async.py itself)
+    # and _initialize_app_dependencies gets a reference to this get_db_session.
+    with (
+        patch(
+            "luthien_control.db.database_async.create_db_engine",
+            new_callable=AsyncMock,
+            side_effect=mock_create_db_engine_side_effect,
+        ),
+        patch("luthien_control.db.database_async._db_session_factory", new=mock_sa_session_factory_instance),
+    ):
+        # Now, when _initialize_app_dependencies runs during TestClient setup:
+        # 1. `await create_db_engine()` returns `mock_engine_instance`. The `if not db_engine:` check passes.
+        #    Crucially, the real create_db_engine() which sets _db_session_factory is *not* run.
+        # 2. `db_session_factory = get_db_session` (in _initialize_app_dependencies).
+        #    `get_db_session` (from database_async.py) will now use our patched `_db_session_factory`.
+        #    So `db_session_factory()` will produce `mock_session_instance`.
+        # 3. `DependencyContainer` is created with `http_client` (real, from original _initialize_app_dependencies),
+        #    `settings` (real), and `db_session_factory` (our mock factory).
+        # Lifespan completes. app.state.dependencies becomes a "real" container instance with properly mocked DB parts.
         with TestClient(test_app) as test_client:
-            yield test_client  # Yield the client for tests to use
+            yield test_client
     # Patches are automatically removed when the 'with patch(...)' block exits
 
 
@@ -290,3 +312,24 @@ async def test_api_proxy_no_auth_policy_no_key_success(
 
 
 # TODO: write integration tests for the /api endpoint with a real policy
+
+
+def test_api_proxy_explicit_options_handler(client: TestClient):
+    """
+    Tests the explicit OPTIONS handler for the /api proxy endpoint.
+    Ensures it returns 200 OK and the correct 'Allow' header.
+    """
+    test_path = "some/test/options_path"
+    response = client.options(f"/api/{test_path}")
+
+    assert response.status_code == 200, f"Expected 200 OK, got {response.status_code}"
+    assert "allow" in response.headers, "'Allow' header missing from response"
+
+    allow_header_value = response.headers["allow"]
+    # Normalize by splitting, stripping, and sorting for robust comparison
+    expected_methods = sorted([method.strip() for method in "POST, OPTIONS".split(",")])
+    actual_methods = sorted([method.strip() for method in allow_header_value.split(",")])
+
+    assert actual_methods == expected_methods, (
+        f"Expected 'Allow' header to contain {expected_methods}, got {actual_methods}"
+    )

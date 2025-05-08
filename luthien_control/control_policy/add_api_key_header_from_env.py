@@ -25,16 +25,27 @@ from .serialization import SerializableDict
 
 class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
     """Adds an API key to the request Authorization header.
+
     The API key is read from an environment variable whose name is configured
     when the policy is instantiated.
+
+    Attributes:
+        name (str): The name of this policy instance.
+        api_key_env_var_name (str): The name of the environment variable
+            that holds the API key.
+        logger (logging.Logger): The logger instance for this policy.
     """
 
     def __init__(self, api_key_env_var_name: str, name: Optional[str] = None):
         """Initializes the policy.
 
         Args:
-            api_key_env_var_name: The name of the environment variable that holds the API key.
+            api_key_env_var_name: The name of the environment variable that
+                holds the API key.
             name: Optional name for this policy instance.
+
+        Raises:
+            ValueError: If `api_key_env_var_name` is empty.
         """
         if not api_key_env_var_name:
             raise ValueError("api_key_env_var_name cannot be empty.")

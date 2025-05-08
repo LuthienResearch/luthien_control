@@ -14,7 +14,12 @@ from .serialization import SerializableDict
 
 
 class AddApiKeyHeaderPolicy(ControlPolicy):
-    """Adds the configured OpenAI API key to the request Authorization header."""
+    """Adds the configured OpenAI API key to the request Authorization header.
+
+    Attributes:
+        name (str): The name of this policy instance.
+        logger (logging.Logger): The logger instance for this policy.
+    """
 
     def __init__(self, name: Optional[str] = None):
         """Initializes the policy."""

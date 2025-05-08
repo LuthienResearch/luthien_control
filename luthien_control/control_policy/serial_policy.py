@@ -20,6 +20,13 @@ class SerialPolicy(ControlPolicy):
 
     Policies are applied sequentially. If any policy raises an exception,
     the execution stops, and the exception propagates.
+
+    Attributes:
+        policies (Sequence[ControlPolicy]): The ordered sequence of ControlPolicy
+            instances that this policy will apply.
+        logger (logging.Logger): The logger instance for this policy.
+        name (str): The name of this policy instance, used for logging and
+            identification.
     """
 
     def __init__(self, policies: Sequence[ControlPolicy], name: Optional[str] = None):
@@ -85,6 +92,23 @@ class SerialPolicy(ControlPolicy):
         return f"<{self.name}(policies=[{policy_list_str}])>"
 
     def serialize(self) -> SerializableDict:
+        """Serializes the CompoundPolicy into a dictionary.
+
+        This method converts the policy and its contained member policies
+        into a serializable dictionary format. It uses the POLICY_CLASS_TO_NAME
+        mapping to determine the 'type' string for each member policy.
+
+        Returns:
+            SerializableDict: A dictionary representation of the policy,
+                              suitable for JSON serialization or persistence.
+                              The dictionary has a "policies" key, which is a list
+                              of serialized member policies. Each member policy dict
+                              contains "type" and "config" keys.
+
+        Raises:
+            PolicyLoadError: If the type of a member policy cannot be determined
+                             from POLICY_CLASS_TO_NAME.
+        """
         # Import from registry here to avoid circular import
         from .registry import POLICY_CLASS_TO_NAME
 

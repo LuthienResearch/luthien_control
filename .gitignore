@@ -31,6 +31,9 @@ logs/
 # Misc
 .DS_Store
 
+# MkDocs
+site/
+
 # ruff
 .ruff_cache/
 scratch/

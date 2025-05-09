@@ -1,0 +1,38 @@
+.toc-toggle-icon {
+    margin-right: 5px;
+    display: inline-block;
+    transition: transform 0.2s ease-in-out;
+}
+
+.toc-toggle[aria-expanded="true"] .toc-toggle-icon {
+    transform: rotate(90deg); /* Optional: Animate icon rotation */
+}
+
+/* Styles to prevent TOC item truncation */
+.md-nav__link {
+    white-space: normal !important; /* Allow text to wrap */
+    overflow-wrap: break-word; /* Break words if necessary to prevent overflow */
+    word-wrap: break-word; /* Legacy support for word-wrap */
+    line-height: 1.4; /* Adjust line height for better readability if text wraps */
+    padding-top: 0.2em; /* Add some padding for wrapped lines */
+    padding-bottom: 0.2em; /* Add some padding for wrapped lines */
+}
+
+/* Ensure the container for the navigation link allows for the content to expand */
+.md-nav__item {
+    height: auto !important; /* Adjust height automatically based on content */
+}
+
+/* If you still have issues, you might need to adjust the width of the TOC container itself */
+/* For example, if using the right sidebar for TOC: */
+/*
+.md-sidebar--secondary .md-sidebar__scrollwrap {
+    width: 300px; /* Or your desired width */
+/* }
+*/
+/* Or for the main navigation TOC: */
+/*
+.md-sidebar--primary .md-sidebar__scrollwrap {
+    width: 300px; /* Or your desired width */
+/* }
+*/

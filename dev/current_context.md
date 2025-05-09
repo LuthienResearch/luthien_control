@@ -60,3 +60,30 @@ Simplify the mocking strategy and application setup to make tests easier to writ
 *   **`edit_verification_protocol`:** Adhere strictly.
 *   **Simplicity:** Aim for the simplest effective solution.
 *   **Hold Off On Proposing Solutions (for complex logic):** Debug effectively.
+
+# Current Development Plan & Progress
+
+## Task: Implement Documentation with MkDocs
+
+**Objective:** Set up a documentation solution using MkDocs, MkDocs Material, and MkDocstrings, leveraging Google-style Python docstrings.
+
+**Status:** Completed initial setup.
+
+**Key Steps Taken:**
+1.  **Dependencies Installed:** Added `mkdocs`, `mkdocs-material`, and `mkdocstrings[python]` to `pyproject.toml` (dev group) using Poetry.
+2.  **MkDocs Project Initialized:** Created `mkdocs.yml` and `docs/index.md` using `poetry run mkdocs new .`.
+3.  **Configuration (`mkdocs.yml`):**
+    *   Set `site_name` to "Luthien Control Documentation".
+    *   Configured the `material` theme with selected features and palette.
+    *   Added and configured the `mkdocstrings` plugin to use Google-style docstrings and target the `luthien_control` package.
+    *   Set up basic navigation: Home (`index.md`) and API Reference (`api.md`).
+4.  **Content Files Created/Updated:**
+    *   `docs/index.md`: Updated with placeholder welcome content and a link to the API reference.
+    *   `docs/api.md`: Created with the `mkdocstrings` directive `::: luthien_control` to auto-generate API docs.
+5.  **`.gitignore` Updated:** Added `site/` (MkDocs build output directory) to `.gitignore`.
+
+**Next Steps (User):**
+*   Run `poetry run mkdocs build` to build the documentation.
+*   Run `poetry run mkdocs serve` to view the documentation locally and see live updates.
+*   Customize `docs/index.md` and other Markdown files as needed.
+*   Ensure all relevant Python modules/functions/classes in `luthien_control` have comprehensive Google-style docstrings.

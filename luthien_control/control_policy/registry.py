@@ -1,4 +1,4 @@
-"""Policy registry mapping policy names to classes."""
+# Policy registry mapping policy names to classes.
 
 from typing import TYPE_CHECKING, Dict, Type
 

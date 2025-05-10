@@ -1,4 +1,4 @@
-"""Centralized logging configuration for the luthien_control package."""
+# Centralized logging configuration for the luthien_control package.
 
 import logging
 import sys

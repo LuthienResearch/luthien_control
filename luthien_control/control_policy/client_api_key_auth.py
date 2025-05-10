@@ -1,10 +1,12 @@
-"""Control Policy for verifying the client API key."""
+# Control Policy for verifying the client API key.
 
 import json
 import logging
 from typing import Any, Dict, Optional, cast
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
@@ -15,7 +17,6 @@ from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

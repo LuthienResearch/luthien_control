@@ -1,7 +1,9 @@
-"""Compound Policy that applies a sequence of other policies."""
+# Compound Policy that applies a sequence of other policies.
 
 import logging
 from typing import Iterable, Optional, Sequence, cast
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
@@ -9,7 +11,6 @@ from luthien_control.control_policy.loader import load_policy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 

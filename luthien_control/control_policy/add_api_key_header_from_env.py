@@ -1,16 +1,13 @@
-"""
-Add an API key header, where the key is sourced from a configured environment variable.
+# Add an API key header, where the key is sourced from a configured environment variable.
 
-This policy is used to add an API key to the request Authorization header.
-The API key is read from an environment variable whose name is configured
-when the policy is instantiated.
-"""
 
 import logging
 import os
 from typing import Optional, cast
 
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import (
     ApiKeyNotFoundError,
@@ -18,7 +15,6 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .serialization import SerializableDict
 

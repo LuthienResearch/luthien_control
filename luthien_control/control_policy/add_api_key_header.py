@@ -1,30 +1,29 @@
-"""Control Policy for adding the API key header to requests."""
+# Control Policy for adding the API key header to requests.
 
 import logging
 from typing import Optional, cast
 
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .serialization import SerializableDict
 
 
 class AddApiKeyHeaderPolicy(ControlPolicy):
-    """Adds the configured OpenAI API key to the request Authorization header.
-
-    Attributes:
-        name (str): The name of this policy instance.
-        logger (logging.Logger): The logger instance for this policy.
-    """
+    """Adds the configured OpenAI API key to the request Authorization header."""
 
     def __init__(self, name: Optional[str] = None):
         """Initializes the policy."""
         self.name = name or self.__class__.__name__
         self.logger = logging.getLogger(__name__)
+        # log to file /tmp/luthien_control.log, everything INFO and above
+        self.logger.addHandler(logging.FileHandler("luthien_control.log"))
+        self.logger.setLevel(logging.INFO)
 
     async def apply(
         self,
@@ -63,6 +62,9 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
             raise ApiKeyNotFoundError(f"[{context.transaction_id}] OpenAI API key not configured ({self.name}).")
         self.logger.info(f"[{context.transaction_id}] Adding Authorization header for OpenAI key ({self.name}).")
         context.request.headers["Authorization"] = f"Bearer {api_key}"
+        self.logger.info(
+            f"[{context.transaction_id}] Authorization header added: {context.request.headers['Authorization']}"
+        )
         return context
 
     def serialize(self) -> SerializableDict:

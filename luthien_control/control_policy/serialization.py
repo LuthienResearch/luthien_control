@@ -1,4 +1,4 @@
-"""Serialization type definitions."""
+# Serialization type definitions.
 
 from dataclasses import dataclass
 from typing import Dict, Union

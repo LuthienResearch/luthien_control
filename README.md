@@ -95,6 +95,25 @@ poetry run uvicorn luthien_control.main:app --reload
 ```
 The `--reload` flag enables auto-reloading when code changes are detected, useful during development.
 
+## Generating Documentation
+The project documentation is built using MkDocs.
+
+To build the documentation locally:
+```bash
+poetry run mkdocs build --clean
+```
+
+To serve the documentation locally with live reload:
+```bash
+poetry run mkdocs serve
+```
+This will typically make the documentation available at `http://127.0.0.1:8000/`.
+
+To deploy the documentation to GitHub Pages:
+```bash
+poetry run mkdocs gh-deploy
+```
+
 ## Development Practices
 
 ### Testing

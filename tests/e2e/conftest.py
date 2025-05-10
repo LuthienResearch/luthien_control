@@ -10,12 +10,11 @@ import httpx
 import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
-from luthien_control.config.settings import Settings
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
-from luthien_control.control_policy.compound_policy import CompoundPolicy
 from luthien_control.control_policy.registry import POLICY_CLASS_TO_NAME
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
+from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.db.control_policy_crud import (
     get_policy_config_by_name,
     update_policy,
@@ -29,6 +28,7 @@ from luthien_control.db.database_async import (
     get_db_session,
 )
 from luthien_control.db.sqlmodel_models import ControlPolicy
+from luthien_control.settings import Settings
 from sqlalchemy.exc import IntegrityError  # Add this import
 
 # Load .env file for local development environment variables
@@ -112,7 +112,7 @@ async def _ensure_e2e_policy_exists():
                 policy_to_create = ControlPolicy(
                     name=E2E_POLICY_NAME,
                     config=desired_config,
-                    type=POLICY_CLASS_TO_NAME[CompoundPolicy],
+                    type=POLICY_CLASS_TO_NAME[SerialPolicy],
                     is_active=True,
                     description=desired_description,
                 )

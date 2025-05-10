@@ -1,5 +1,5 @@
 import pytest
-from luthien_control.config.settings import Settings
+from luthien_control.settings import Settings
 
 
 # Fixture to provide a Settings instance for each test

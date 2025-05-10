@@ -1,11 +1,13 @@
 ---
 description: Guiding principles for modifying code (refactoring, cleanup, imports, comments).
-globs:
+globs: 
 alwaysApply: true
 ---
----
-description:
-globs:
-alwaysApply: false
----
+# Code Modification Principles
+1.  **Favor Standard Solutions:** Before creating new custom classes, functions, or modules, thoroughly evaluate if standard library features (e.g., `ValueError`, `TypeError`) or existing, simpler project utilities can achieve the same result clearly and effectively.
+2.  **Strict Justification for New Abstractions:** Only introduce new abstractions (e.g., custom classes, non-trivial helper functions, custom exceptions) if at least one of the following conditions is met:
+    a.  A clear pattern of code or logic is repeated in **two or more distinct places**, and the abstraction demonstrably simplifies the codebase by adhering to DRY (Don't Repeat Yourself).
+    b.  The abstraction is essential for encapsulating complex logic that cannot be expressed clearly or safely using simpler, direct code, and significantly improves overall readability and maintainability.
+    c.  The abstraction is explicitly requested by the user for specific, stated architectural reasons.
+3.  **Solve Only the Immediate Problem:** Implement code to solve the current, specific, and explicitly defined task. Do not add functionality, features, or abstractions based on *anticipated* or *potential* future needs unless these are part of the current, agreed-upon requirements.
 

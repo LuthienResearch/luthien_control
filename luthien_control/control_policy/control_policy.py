@@ -1,4 +1,4 @@
-"""Interfaces for the request processing framework."""
+# Interfaces for the request processing framework.
 
 import abc
 from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar
@@ -6,20 +6,35 @@ from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar
 from luthien_control.control_policy.serialization import SerializableDict
 
 if TYPE_CHECKING:
-    from luthien_control.core.transaction_context import TransactionContext
-    from luthien_control.dependency_container import DependencyContainer
     from sqlalchemy.ext.asyncio import AsyncSession
+
+    from luthien_control.core.dependency_container import DependencyContainer
+    from luthien_control.core.transaction_context import TransactionContext
 
 # Type variable for the policy classes
 PolicyT = TypeVar("PolicyT", bound="ControlPolicy")
 
 
 class ControlPolicy(abc.ABC):
-    """Abstract Base Class defining the interface for a processing step."""
+    """Abstract Base Class defining the interface for a processing step.
+
+    Attributes:
+        name (Optional[str]): An optional name for the policy instance.
+            Subclasses are expected to set this, often in their `__init__` method.
+            It's used for logging and identification purposes.
+    """
 
     name: Optional[str] = None
 
     def __init__(self, **kwargs: Any) -> None:
+        """Initializes the ControlPolicy.
+
+        This is an abstract base class, and this constructor typically handles
+        common initialization or can be overridden by subclasses.
+
+        Args:
+            **kwargs: Arbitrary keyword arguments that subclasses might use.
+        """
         pass
 
     @abc.abstractmethod

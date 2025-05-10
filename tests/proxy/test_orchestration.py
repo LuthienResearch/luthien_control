@@ -5,11 +5,11 @@ import fastapi
 import httpx
 import pytest
 from fastapi import Response
-from luthien_control.config.settings import Settings
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.proxy.orchestration import run_policy_flow
+from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Mark all tests in this module as async

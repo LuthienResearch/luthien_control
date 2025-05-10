@@ -1,7 +1,6 @@
 # Environment variables
 .env
 .env.e2e
-.env.fly
 # Python
 __pycache__/
 *.pyc
@@ -31,6 +30,9 @@ logs/
 
 # Misc
 .DS_Store
+
+# MkDocs
+site/
 
 # ruff
 .ruff_cache/

@@ -95,6 +95,25 @@ poetry run uvicorn luthien_control.main:app --reload
 ```
 The `--reload` flag enables auto-reloading when code changes are detected, useful during development.
 
+## Generating Documentation
+The project documentation is built using MkDocs.
+
+To build the documentation locally:
+```bash
+poetry run mkdocs build --clean
+```
+
+To serve the documentation locally with live reload:
+```bash
+poetry run mkdocs serve
+```
+This will typically make the documentation available at `http://127.0.0.1:8000/`.
+
+To deploy the documentation to GitHub Pages:
+```bash
+poetry run mkdocs gh-deploy
+```
+
 ## Development Practices
 
 ### Testing
@@ -125,7 +144,7 @@ This project uses Pytest. Tests are categorized using markers defined in `pyproj
     ```
 *   **Run E2E tests against a deployed proxy server:**
     *Ensure `OPENAI_API_KEY` and `TEST_CLIENT_API_KEY` are set in your environment.*
-    *(The current development deployment is on Fly.io under the app name `luthien-control`)*
+    *(The [current development deployment](https://luthiencontrol-dev.up.railway.app/) is on railway and tracks the dev branch on github)*
     ```bash
     poetry run pytest -m e2e --e2e-target-url https://your-deployed-proxy.example.com
     ```

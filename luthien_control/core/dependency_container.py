@@ -1,11 +1,11 @@
-"""Dependency Injection Container."""
+# Dependency Injection Container.
 
 from typing import AsyncContextManager, Callable
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from luthien_control.config.settings import Settings
+from luthien_control.settings import Settings
 
 
 class DependencyContainer:

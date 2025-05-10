@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException, Request, status
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
-from luthien_control.dependencies import (
+from luthien_control.core.dependencies import (
     get_dependencies,
     get_main_control_policy,
 )
@@ -48,7 +48,7 @@ def test_get_dependencies_not_found(mock_request_with_state):
 
 # Patch load_policy_from_db where it's used inside the dependencies module
 @pytest.mark.asyncio
-@patch("luthien_control.dependencies.load_policy_from_db", new_callable=AsyncMock)
+@patch("luthien_control.core.dependencies.load_policy_from_db", new_callable=AsyncMock)
 async def test_get_main_control_policy_success(
     mock_load_from_db: AsyncMock,
     mock_container: MagicMock,
@@ -73,7 +73,7 @@ async def test_get_main_control_policy_success(
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.dependencies.load_policy_from_db", new_callable=AsyncMock)
+@patch("luthien_control.core.dependencies.load_policy_from_db", new_callable=AsyncMock)
 async def test_get_main_control_policy_name_not_configured(
     mock_load_from_db: AsyncMock,
     mock_container: MagicMock,
@@ -90,7 +90,7 @@ async def test_get_main_control_policy_name_not_configured(
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.dependencies.load_policy_from_db", new_callable=AsyncMock)
+@patch("luthien_control.core.dependencies.load_policy_from_db", new_callable=AsyncMock)
 async def test_get_main_control_policy_not_found_error(
     mock_load_from_db: AsyncMock,
     mock_container: MagicMock,
@@ -109,7 +109,7 @@ async def test_get_main_control_policy_not_found_error(
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.dependencies.load_policy_from_db", new_callable=AsyncMock)
+@patch("luthien_control.core.dependencies.load_policy_from_db", new_callable=AsyncMock)
 async def test_get_main_control_policy_load_error(
     mock_load_from_db: AsyncMock,
     mock_container: MagicMock,
@@ -130,7 +130,7 @@ async def test_get_main_control_policy_load_error(
 
 
 @pytest.mark.asyncio
-@patch("luthien_control.dependencies.load_policy_from_db", new_callable=AsyncMock)
+@patch("luthien_control.core.dependencies.load_policy_from_db", new_callable=AsyncMock)
 async def test_get_main_control_policy_unexpected_error(
     mock_load_from_db: AsyncMock,
     mock_container: MagicMock,

@@ -1,5 +1,3 @@
-"""Default implementation for the ResponseBuilder interface."""
-
 import logging
 from typing import Optional
 

@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
-from luthien_control.utils import create_custom_openapi
+from luthien_control.custom_openapi_schema import create_custom_openapi
 
 
 @pytest.fixture
@@ -74,7 +74,7 @@ def test_create_custom_openapi_does_not_modify_other_params(test_app: FastAPI):
     assert found_param, "'item_id' path parameter not found."
 
 
-@patch("luthien_control.utils.get_openapi")
+@patch("luthien_control.custom_openapi_schema.get_openapi")
 def test_create_custom_openapi_caching(mock_get_openapi: patch, test_app: FastAPI):
     """Verify that the generated schema is cached on the app instance."""
     # Setup mock return value

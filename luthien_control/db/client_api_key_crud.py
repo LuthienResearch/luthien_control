@@ -1,4 +1,4 @@
-"""CRUD operations specific to ClientApiKey model."""
+# CRUD operations specific to ClientApiKey model.
 
 import logging
 from typing import List, Optional

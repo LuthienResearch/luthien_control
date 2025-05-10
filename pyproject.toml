@@ -1,6 +1,6 @@
 [project]
 name = "luthien-control"
-version = "0.1.0"
+version = "0.2.0"
 description = "Intelligent proxy server for AI APIs"
 authors = [
     {name = "Jai Dhyani",email = "jai@luthienresearch.org"}
@@ -18,6 +18,8 @@ dependencies = [
     "sqlalchemy[asyncio] (>=2.0.40,<3.0.0)",
     "alembic (>=1.15.2,<2.0.0)",
     "sqlmodel (>=0.0.24,<0.0.25)",
+    "pdoc (>=15.0.3,<16.0.0)",
+    "mkdocs-material (>=9.6.12,<10.0.0)",
 ]
 
 [tool.poetry.group.dev.dependencies]
@@ -33,6 +35,9 @@ radon = ">=6.0.1,<7.0.0"
 pydeps = ">=3.0.1,<4.0.0"
 pytest-profiling = ">=1.8.1,<2.0.0"
 aiosqlite = ">=0.21.0,<0.22.0"
+mkdocs = "^1.6.1"
+mkdocs-material = "^9.6.12"
+mkdocstrings = {extras = ["python"], version = "^0.29.1"}
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

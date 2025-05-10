@@ -12,14 +12,14 @@ import pytest_asyncio
 from alembic import command
 from alembic.config import Config
 from dotenv import load_dotenv
-from luthien_control.config.settings import Settings
+from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.response_builder import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.dependency_container import DependencyContainer
-from luthien_control.main import app
 
 # Import centralized type alias
-from luthien_control.types import ApiKeyLookupFunc
+from luthien_control.core.types import ApiKeyLookupFunc
+from luthien_control.main import app
+from luthien_control.settings import Settings
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -92,15 +92,10 @@ async def db_session_fixture():
     # autouse override_settings_dependency fixture.
     db_settings = None  # Initialize
     try:
-        # Explicitly load .env here for session-scoped DB setup, as the autouse
-        # fixture might load .env.test if *any* non-integration test triggers it first.
-        # This ensures DB creation always uses the main credentials.
-        main_env_path = Path(__file__).parent.parent / ".env"
-        print(f"[db_session_fixture] Explicitly loading environment for DB setup: {main_env_path}")
-        load_dotenv(dotenv_path=main_env_path, override=True, verbose=True)
+        # Settings will now rely on pre-existing environment variables for admin DSN.
         db_settings = Settings()
         _ = db_settings.admin_dsn  # Will raise if settings missing
-        print("[db_session_fixture] Settings loaded for DB operations.")
+        print("[db_session_fixture] Settings loaded for DB operations (relies on pre-set admin env vars).")
     except Exception as e:
         pytest.fail(
             f"[db_session_fixture] Failed to load Settings for DB setup: {e}. Ensure .env has required DB_* vars."
@@ -309,7 +304,7 @@ def mock_transaction_context() -> MagicMock:
 # --- Fixtures for Overriding Dependencies ---
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def override_app_dependencies(
     mock_container: MagicMock,
     mock_db_session_factory: MagicMock,
@@ -341,7 +336,7 @@ def override_app_dependencies(
     #     yield
     #     return
 
-    from luthien_control import dependencies
+    from luthien_control.core import dependencies
 
     # Define the mock dependency functions
     async def override_get_container() -> MagicMock:

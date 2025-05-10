@@ -12,7 +12,7 @@ from .sqlmodel_models import ControlPolicy
 
 if TYPE_CHECKING:
     from luthien_control.control_policy.control_policy import ControlPolicy
-    from luthien_control.dependency_container import DependencyContainer
+    from luthien_control.core.dependency_container import DependencyContainer
 
 logger = logging.getLogger(__name__)
 

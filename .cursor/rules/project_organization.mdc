@@ -6,10 +6,9 @@ alwaysApply: true
 <project_organization>
 0. ALWAYS REFER TO README.md
 1. All Python code should be in the luthien_control package
-2. Follow the existing directory structure:
+2. Follow the existing directory structure within the package:
    - proxy/ - Proxy server implementation
-   - policies/ - Policy engine and rules
-   - logging/ - Logging infrastructure
+   - control_policy/ - Implementations of Control Policies
    - utils/ - Utility functions
 3. New features should be added as separate modules
 4. Tests should be placed in a top-level `tests/` directory, mirroring the structure of the `luthien_control` package (e.g., `tests/proxy/test_server.py` would test `luthien_control/proxy/server.py`).

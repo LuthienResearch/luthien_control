@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from luthien_control.config.settings import Settings
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.settings import Settings
 
 # Mark all tests in this module as async tests
 pytestmark = pytest.mark.asyncio

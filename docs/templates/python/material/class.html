@@ -1,0 +1,106 @@
+{% extends "_base/class.html" %}
+
+{% block contents %}
+    {# This block renders the contents of the class. #}
+    {# We are overriding it to reorder the blocks, placing 'source' earlier. #}
+
+    {% block bases scoped %}
+      {#- Class bases block, copied from _base/class.html.jinja -#}
+      {% if config.show_bases and class.bases %}
+        <p class="doc doc-class-bases">
+          Bases: {% for expression in class.bases -%}
+            <code>
+              {%- with backlink_type = "subclassed-by" -%}
+                {% include "expression"|get_template with context %}
+              {%- endwith -%}
+            </code>{% if not loop.last %}, {% endif %}
+          {% endfor -%}
+        </p>
+      {% endif %}
+    {% endblock bases %}
+
+    {% block source scoped %}
+      {#- Source block, moved up, structure from _base/class.html.jinja -#}
+      {% if config.show_source %}
+        {% if config.merge_init_into_class %}
+          {% if "__init__" in class.all_members and class.all_members["__init__"].source %}
+            {% with init = class.all_members["__init__"] %}
+              <details class="quote">
+                <summary>Source code in <code>
+                  {%- if init.relative_filepath.is_absolute() -%}
+                    {{ init.relative_package_filepath }}
+                  {%- else -%}
+                    {{ init.relative_filepath }}
+                  {%- endif -%}
+                </code></summary>
+                {{ init.source|highlight(language="python", linestart=init.lineno or 0, linenums=True) }}
+              </details>
+            {% endwith %}
+          {% endif %}
+        {% elif class.source %}
+          <details class="quote">
+            <summary>Source code in <code>
+              {%- if class.relative_filepath.is_absolute() -%}
+                {{ class.relative_package_filepath }}
+              {%- else -%}
+                {{ class.relative_filepath }}
+              {%- endif -%}
+            </code></summary>
+            {{ class.source|highlight(language="python", linestart=class.lineno or 0, linenums=True) }}
+          </details>
+        {% endif %}
+      {% endif %}
+    {% endblock source %}
+
+    {% block docstring scoped %}
+      {#- Docstring block, copied from _base/class.html.jinja -#}
+      {% with docstring_sections = class.docstring.parsed %}
+        {% include "docstring"|get_template with context %}
+      {% endwith %}
+      {% if config.merge_init_into_class %}
+        {% with check_members = class.all_members if (config.inherited_members is true or (config.inherited_members is iterable and "__init__" in config.inherited_members)) else class.members %}
+          {% if "__init__" in check_members and check_members["__init__"].has_docstring %}
+            {% with function = check_members["__init__"] %}
+              {% with obj = function, docstring_sections = function.docstring.parsed %}
+                {% include "docstring"|get_template with context %}
+              {% endwith %}
+            {% endwith %}
+          {% endif %}
+        {% endwith %}
+      {% endif %}
+    {% endblock docstring %}
+
+    {% if config.backlinks %} {# Copied from _base/class.html.jinja #}
+      <backlinks identifier="{{ class.path }}" handler="python" />
+    {% endif %}
+
+    {% block summary scoped %}
+      {#- Summary block, copied from _base/class.html.jinja -#}
+      {% include "summary"|get_template with context %}
+    {% endblock summary %}
+
+    {% block children scoped %}
+      {#- Children block, copied from _base/class.html.jinja -#}
+      {% set root = False %}
+      {% set heading_level = heading_level + 1 %}
+      {% include "children"|get_template with context %}
+    {% endblock children %}
+
+{% endblock contents %}
+
+{% block heading scoped %}
+  {#- Custom heading block to add anchor link -#}
+  {# html_id is usually class.path, which is used by the parent 'filter heading' for the id attribute #}
+  {% if config.show_symbol_type_heading %}<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>{% endif %}
+  {% if config.separate_signature %}
+    <a href="#{{ class.path }}" class="doc-anchor"><span class="doc doc-object-name doc-class-name">{{ config.heading if config.heading and root else class_name }}</span></a>
+  {% elif config.merge_init_into_class and "__init__" in class.all_members %}
+    {% with function = class.all_members["__init__"] %}
+      <a href="#{{ class.path }}" class="doc-anchor">{%+ filter highlight(language="python", inline=True) -%}
+        {{ class_name }}{% include "signature"|get_template with context %}
+      {%- endfilter %}</a>
+    {% endwith %}
+  {% else %}
+    <a href="#{{ class.path }}" class="doc-anchor"><code>{{ class_name }}</code></a>
+  {% endif %}
+{% endblock heading %} 

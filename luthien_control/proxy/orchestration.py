@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
+from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.response_builder import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.dependency_container import DependencyContainer
 
 logger = logging.getLogger(__name__)
 

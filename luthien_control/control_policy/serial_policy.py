@@ -1,25 +1,33 @@
-"""Compound Policy that applies a sequence of other policies."""
+# Compound Policy that applies a sequence of other policies.
 
 import logging
 from typing import Iterable, Optional, Sequence, cast
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.loader import load_policy
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.dependency_container import DependencyContainer
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
 
-class CompoundPolicy(ControlPolicy):
+class SerialPolicy(ControlPolicy):
     """
     A Control Policy that applies an ordered sequence of other policies.
 
     Policies are applied sequentially. If any policy raises an exception,
     the execution stops, and the exception propagates.
+
+    Attributes:
+        policies (Sequence[ControlPolicy]): The ordered sequence of ControlPolicy
+            instances that this policy will apply.
+        logger (logging.Logger): The logger instance for this policy.
+        name (str): The name of this policy instance, used for logging and
+            identification.
     """
 
     def __init__(self, policies: Sequence[ControlPolicy], name: Optional[str] = None):
@@ -85,6 +93,23 @@ class CompoundPolicy(ControlPolicy):
         return f"<{self.name}(policies=[{policy_list_str}])>"
 
     def serialize(self) -> SerializableDict:
+        """Serializes the CompoundPolicy into a dictionary.
+
+        This method converts the policy and its contained member policies
+        into a serializable dictionary format. It uses the POLICY_CLASS_TO_NAME
+        mapping to determine the 'type' string for each member policy.
+
+        Returns:
+            SerializableDict: A dictionary representation of the policy,
+                              suitable for JSON serialization or persistence.
+                              The dictionary has a "policies" key, which is a list
+                              of serialized member policies. Each member policy dict
+                              contains "type" and "config" keys.
+
+        Raises:
+            PolicyLoadError: If the type of a member policy cannot be determined
+                             from POLICY_CLASS_TO_NAME.
+        """
         # Import from registry here to avoid circular import
         from .registry import POLICY_CLASS_TO_NAME
 
@@ -107,7 +132,7 @@ class CompoundPolicy(ControlPolicy):
         return cast(SerializableDict, {"policies": member_configs})
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "CompoundPolicy":
+    async def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":
         """
         Constructs a CompoundPolicy from serialized data, loading member policies.
 
@@ -153,3 +178,7 @@ class CompoundPolicy(ControlPolicy):
         compound_policy_name = config.get("name", "CompoundPolicy")  # Default name if not in config
 
         return cls(policies=instantiated_policies, name=compound_policy_name)
+
+
+# legacy compatibility
+CompoundPolicy = SerialPolicy

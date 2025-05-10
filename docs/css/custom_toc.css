@@ -23,16 +23,85 @@
     height: auto !important; /* Adjust height automatically based on content */
 }
 
-/* If you still have issues, you might need to adjust the width of the TOC container itself */
-/* For example, if using the right sidebar for TOC: */
-/*
-.md-sidebar--secondary .md-sidebar__scrollwrap {
-    width: 300px; /* Or your desired width */
-/* }
-*/
-/* Or for the main navigation TOC: */
+/* Target the scroll wrapper within the primary sidebar */
+.md-sidebar--primary .md-sidebar__scrollwrap {
+    flex-grow: 1 !important; /* Allow scrollwrap to take available space in parent flex container */
+    height: auto !important; /* Let its own content determine its height within the flex item space */
+    overflow-y: auto !important; /* Ensure internal scrolling if content exceeds available space */
+    direction: rtl; /* Move scrollbar to the left */
+    /* min-height: 0; Consider if there are conflicting min-heights from the theme */
+}
+
+.md-sidebar--primary .md-sidebar__inner {
+    display: flex; /* Allow nav to grow if it's a flex item */
+    flex-direction: column; /* Stack children vertically */
+    padding: 0 !important; /* Override theme's padding */
+    direction: ltr; /* Reset content direction to left-to-right */
+}
+
+.md-sidebar--primary .md-sidebar__inner > nav.md-nav--primary.md-nav--integrated {
+    box-sizing: border-box; /* Include padding and border in the element's total width */
+    flex-grow: 1; /* Allow the nav to take up available space in the inner container */
+}
+
+/* template for customizing the width of the TOC */
 /*
 .md-sidebar--primary .md-sidebar__scrollwrap {
     width: 300px; /* Or your desired width */
 /* }
 */
+
+/* Styles for TOC Resizing */
+.md-sidebar--primary {
+    position: sticky; /* Make the sidebar sticky */
+    top: var(--md-header-height, 64px); /* Stick below the header (adjust 64px if needed or if var is not set) */
+    /* Default width, can be overridden by JS and localStorage */
+    width: 200px; 
+    min-width: 150px; /* Prevent collapsing too much */
+    max-width: 800px; /* Prevent expanding too much */
+
+    /* Make the sidebar itself try to take up sticky height and manage children with flex */
+    height: calc(100vh - var(--md-header-height, 64px)) !important; /* Adjust height for sticky positioning */
+    /*max-height: calc(100vh - var(--md-header-height, 64px)) !important;*/
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Style for the filter input box to make it sticky */
+#toc-filter-input {
+    position: sticky;
+    top: 0; /* Sticks to the top of its scrolling container (.md-sidebar__scrollwrap) */
+    z-index: 10; /* Ensure it's above other content in the ToC */
+    background-color: var(--md-default-bg-color, #ffffff); /* Match sidebar background, fallback to white */
+}
+
+/* The container holding the search box and the actual ToC list (ul.md-nav__list) */
+/* This targets nav.md-nav--secondary within the active primary nav item */
+.md-sidebar--primary .md-sidebar__inner > nav.md-nav--primary.md-nav--integrated > li.md-nav__item--active > nav.md-nav--secondary {
+    position: relative; /* Establishes a stacking context */
+    padding-top: 48px;  /* Create space for the sticky search input */
+    background-color: var(--md-default-bg-color, #ffffff); /* Match search box background */
+}
+
+#toc-resizer {
+    position: absolute;
+    top: 0;
+    right: 0; /* Align directly with the right edge */
+    width: 4px; /* Make it a bit thinner */
+    height: 100%;
+    cursor: col-resize;
+    background-color: rgba(0,0,0,0.2); /* Slightly more visible for debugging */
+    z-index: 100; 
+    overflow: hidden; /* Prevent the handle itself from showing scrollbars */
+}
+
+#toc-resizer:hover {
+    background-color: rgba(0,0,0,0.4); /* Slightly more visible for debugging */
+}
+
+/* Override to remove the blue line from the active integrated secondary nav */
+@media screen and (min-width: 76.25em) {
+    [dir=ltr] .md-nav--integrated>.md-nav__list>.md-nav__item--active .md-nav--secondary {
+        border-left: none !important; /* Override the problematic border */
+    }
+}

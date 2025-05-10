@@ -1,0 +1,99 @@
+{% extends "_base/attribute.html" %}
+
+{% block logs scoped %}
+  {#- Logging block. -#}
+  {{ log.debug("Rendering attribute: " + attribute.path + " which is_property: " + ("property" in attribute.labels)|string) }}
+{% endblock logs %}
+
+{# Determine if it's a property to add a class to the main div and for symbols #}
+{% set is_property = "property" in attribute.labels %}
+
+<div class="doc doc-object doc-attribute{% if is_property %} doc-is-property{% endif %}">
+  {% with obj = attribute, html_id = attribute.path %}
+
+    {% if root %}
+      {% set show_full_path = config.show_root_full_path %}
+      {% set root_members = True %}
+    {% elif root_members %}
+      {% set show_full_path = config.show_root_members_full_path or config.show_object_full_path %}
+      {% set root_members = False %}
+    {% else %}
+      {% set show_full_path = config.show_object_full_path %}
+    {% endif %}
+
+    {% set attribute_name = attribute.path if show_full_path else attribute.name %}
+
+    {% if not root or config.show_root_heading %}
+      {% filter heading(
+          heading_level,
+          role="data" if attribute.parent.kind.value == "module" else "attr",
+          id=html_id,
+          class="doc doc-heading",
+          toc_label=('<code class="doc-symbol doc-symbol-toc doc-symbol-' + ('property' if is_property else 'attribute') + '"></code>&nbsp;'|safe if config.show_symbol_type_toc else '') + (config.toc_label if config.toc_label and root else attribute_name),
+        ) %}
+
+        {# This is the heading content block, similar to our previous override but using is_property #}
+        {% if config.show_symbol_type_heading %}
+          {% set symbol_to_display = "property" if is_property else "attribute" %}
+          <code class="doc-symbol doc-symbol-heading doc-symbol-{{ symbol_to_display }}"></code>
+        {% endif %}
+
+        {% if config.separate_signature %}
+          <span class="doc doc-object-name doc-attribute-name">{{ config.heading if config.heading and root else attribute_name }}</span>
+        {% else %}
+          {%+ filter highlight(language="python", inline=True) %}
+            {{ attribute_name }}{% if attribute.annotation and config.show_signature_annotations %}: {{ attribute.annotation }}{% endif %}
+            {% if attribute.value %} = {{ attribute.value }}{% endif %}
+          {% endfilter %}
+        {% endif %}
+        {# End of heading content block #}
+
+        {% block labels scoped %}
+          {#- Labels block from base -#}
+          {% with labels = attribute.labels %}
+            {% include "labels"|get_template with context %}
+          {% endwith %}
+        {% endblock labels %}
+
+      {% endfilter %}
+
+      {% block signature scoped %}
+        {#- Signature block from base -#}
+        {% if config.separate_signature %}
+          {% filter format_attribute(attribute, config.line_length, crossrefs=config.signature_crossrefs) %}
+            {{ attribute.name }}
+          {% endfilter %}
+        {% endif %}
+      {% endblock signature %}
+
+    {% else %} {# if root and not config.show_root_heading #}
+      {% if config.show_root_toc_entry %}
+        {% filter heading(heading_level,
+            role="data" if attribute.parent.kind.value == "module" else "attr",
+            id=html_id,
+            toc_label=('<code class="doc-symbol doc-symbol-toc doc-symbol-' + ('property' if is_property else 'attribute') + '"></code>&nbsp;'|safe if config.show_symbol_type_toc else '') + (config.toc_label if config.toc_label and root else attribute_name),
+            hidden=True,
+          ) %}
+        {% endfilter %}
+      {% endif %}
+      {% set heading_level = heading_level - 1 %}
+    {% endif %}
+
+    <div class="doc doc-contents {% if root %}first{% endif %}">
+      {% block contents scoped %}
+        {#- Contents block from base -#}
+        {% block docstring scoped %}
+          {#- Docstring block from base -#}
+          {% with docstring_sections = attribute.docstring.parsed %}
+            {# YORE: Bump 2: Replace `"|get_template` with `.html.jinja"` within line. #}
+            {% include "docstring"|get_template with context %}
+          {% endwith %}
+        {% endblock docstring %}
+
+        {% if config.backlinks %}
+          <backlinks identifier="{{ html_id }}" handler="python" />
+        {% endif %}
+      {% endblock contents %}
+    </div>
+  {% endwith %}
+</div> 

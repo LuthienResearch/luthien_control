@@ -1,0 +1,305 @@
+/* Styles for API Documentation Content */
+
+/* General container for documentation, usually .md-content */
+.md-content {
+    line-height: 1.6; /* Improve readability */
+}
+
+/* Headings for modules/packages (often h1 or h2 within mkdocstrings output) */
+/* We need to be careful not to over-style all h1/h2 on the site */
+/* Assuming mkdocstrings wraps its output in a specific way, or a high-level div */
+
+/* Targeting mkdocstrings generated headings based on typical structure */
+.md-typeset .doc-object.doc-module > h2 /* For modules */
+{
+    font-size: 2em;
+    border-bottom: 4px solid var(--md-primary-fg-color, #3f51b5) !important; /* Prominent bottom border */
+    margin: 0.1em !important;
+    margin-bottom: 0.5em !important;
+}
+
+.md-typeset .doc-object.doc-module > .doc-heading:not(h2) /* For modules */
+{
+    display: none !important; /* Hide the module names */
+}
+
+/* Subtle horizontal line separator after each module block */
+.md-typeset .doc-object.doc-module {
+    border-bottom: 1px solid var(--md-typeset-table-color, #ddd) !important;
+    padding-bottom: 1.5em !important; /* Space above the line, within the module block */
+    margin-bottom: 1.5em !important;  /* Space below the line, before the next sibling */
+}
+
+.md-typeset .doc-object.doc-package > .doc-heading { /* For packages if treated differently */
+    font-size: 2.0em !important; /* Larger font for module/package names */
+    font-weight: 600 !important;
+    margin-top: 2.5em !important;
+    margin-bottom: 1.0em !important;
+    padding-bottom: 0.3em !important;
+    border-bottom: 1px solid var(--md-primary-fg-color, #3f51b5) !important; /* Prominent bottom border */
+    color: var(--md-primary-fg-color, #3f51b5) !important;
+}
+
+/* For top-level API Reference title if it's an H1 */
+.md-typeset h1#api-reference { /* Adjust if your main title has a different ID or tag */
+    font-size: 2.5em !important;
+    margin-bottom: 1.5em !important;
+    border-bottom: 3px solid var(--md-accent-fg-color, #ff4081) !important;
+    padding-bottom: 0.5em !important;
+}
+
+
+/* Class Names */
+.md-typeset .doc-object.doc-class > .doc-heading {
+    font-size: 1.6em !important; /* Larger and bolder for class names */
+    font-weight: 600 !important;
+    color: var(--md-code-fg-color, #333) !important;
+    margin-top: 2em !important;
+    margin-bottom: 0.8em !important;
+    /* padding-left: 10px !important; /* Slight indent */
+    /* border-left: 3px solid var(--md-accent-fg-color, #ff4081) !important; Accent border */
+    border-bottom: 1px solid var(--md-accent-fg-color, #ff4081) !important;
+}
+
+/* Function and Method Names */
+.md-typeset .doc-object.doc-function > .doc-heading,
+.md-typeset .doc-object.doc-method > .doc-heading {
+    font-size: 1.3em !important; /* Clearer font size for functions/methods */
+    font-weight: 600 !important; /* Bold */
+    color: var(--md-default-fg-color--light, #1d2d35) !important;
+    /*margin-top: 1.8em !important;*/
+    margin-bottom: 0.6em !important;
+    padding-left: 20px !important; /* Further indent for functions/methods within classes */
+}
+
+/* Styling for the code block part of function/method signature if separate */
+.md-typeset .doc-object.doc-function .doc-signature,
+.md-typeset .doc-object.doc-method .doc-signature {
+    background-color: var(--md-code-bg-color, #f5f5f5) !important;
+    padding: 0.5em 1em !important;
+    border-radius: 4px !important;
+    /* margin-bottom: 0.5em !important; */
+    font-family: var(--md-code-font, "Roboto Mono"), monospace !important;
+}
+
+/* Docstrings/Content Body */
+.md-typeset .doc-object .doc-contents {
+    margin-left: 10px !important; /* Indent content slightly */
+    /* padding-bottom: 1em !important; */
+    /* border-bottom: 1px dashed var(--md-typeset-table-color, #ccc) !important; /* Subtle separator */
+}
+.md-typeset .doc-object.doc-class .doc-contents {
+    margin-left: 15px !important; /* Slightly more indent for class content */
+}
+.md-typeset .doc-object.doc-function .doc-contents,
+.md-typeset .doc-object.doc-method .doc-contents {
+    margin-left: 25px !important; /* More indent for function/method content */
+}
+
+
+/* Improve spacing for parameters, attributes, etc. within docstrings */
+.md-typeset .doc-object .doc-contents .field-list,
+.md-typeset .doc-object .doc-contents dl {
+    margin-top: 0.8em !important;
+}
+.md-typeset .doc-object .doc-contents .field-list dt,
+.md-typeset .doc-object .doc-contents dl dt {
+    font-weight: bold !important;
+    color: var(--md-default-fg-color--light, #1d2d35) !important;
+}
+
+/* Ensure nested sections within a class/module also have some top margin */
+/* .md-typeset .doc-object.doc-class .doc-section,
+.md-typeset .doc-object.doc-module .doc-section {
+    /* margin-top: 1.5em !important; */
+/*} */
+
+/* Remove bottom border from the last item on the page to avoid double borders if footer is close */
+.md-typeset .doc-object:last-child .doc-contents {
+    border-bottom: none !important;
+}
+
+/* Give some breathing room at the bottom of the API doc page */
+.md-typeset .doc-object:last-child {
+    margin-bottom: 3em !important;
+}
+
+/* Styling for the moved "Show Source" link/details */
+.doc-source-inline-wrapper {
+  margin-top: 0.3em; /* Space between heading and source link */
+  margin-bottom: 0.7em; /* Space before the main docstring content */
+}
+
+/* Style the <details> element for the source code, if used */
+.doc-source-inline-wrapper details.doc-source {
+  margin-bottom: 0; /* Reset margin if any */
+}
+
+/* Style the <summary> element (the clickable "Source" text) */
+.doc-source-inline-wrapper details.doc-source > summary,
+.doc-source-inline-wrapper .doc-source-title { /* .doc-source-title for plain link styling if not <details> */
+  font-size: 0.75em !important; /* Make the clickable text smaller */
+  padding: 2px 5px !important; /* Smaller padding */
+  display: inline-block !important; /* Allow padding and prevent full width */
+  font-weight: normal !important; /* Ensure it's not overly bold */
+  color: var(--md-typeset-link-color, #007bff) !important; /* Make it look like a link */
+  text-decoration: underline !important;
+  cursor: pointer !important;
+}
+
+/* Style the container for the source code lines when expanded (if <details> is used) */
+.doc-source-inline-wrapper details.doc-source[open] > .doc-sourcelines { /* .doc-sourcelines is common class for the code container */
+  font-size: 0.8em !important; /* Make the code text a bit smaller */
+  margin-top: 0.3em !important;
+  padding: 0.5em !important;
+  background-color: var(--md-code-bg-color, #f5f5f5) !important;
+  border: 1px solid var(--md-typeset-table-color, #ddd) !important;
+  border-radius: 3px !important;
+}
+
+/* If it's just a link (e.g. from show_source_button_className not being a button) */
+.doc-source-inline-wrapper a {
+    font-size: 0.75em !important;
+    font-weight: normal !important;
+}
+
+/* NEW STYLES FOR VERTICAL LINE ON DOC OBJECTS */
+.md-typeset .doc-object.doc-class,
+.md-typeset .doc-object.doc-function,
+.md-typeset .doc-object.doc-method {
+    position: relative !important; /* Make sure it's relative for the pseudo-element */
+    padding-left: 25px !important; /* Increased Space for the line + content padding */
+    /* margin-left: 5px; /* May not be needed if padding-left is sufficient for indent */
+}
+
+.md-typeset .doc-object.doc-class::before,
+.md-typeset .doc-object.doc-function::before,
+.md-typeset .doc-object.doc-method::before {
+    content: "";
+    position: absolute;
+    left: 10px;       /* Position from the left edge of the .doc-object, inside padding */
+    top: 0;          /* Start at the top of the .doc-object */
+    bottom: 0;       /* Extend to the bottom of the .doc-object */
+    width: 2px;      /* Width of the line */
+    background-color: var(--md-typeset-table-color, #ccc); /* Line color */
+    z-index: 0; /* Ensure it's behind content */
+}
+
+/* Adjustments for child elements to ensure they are clear of the new padding/line */
+
+/* Headings: Original padding-left for functions/methods was 20px. Classes had none explicitly. */
+/* With parent padding-left: 25px, we want to position heading text appropriately. */
+.md-typeset .doc-object.doc-class > .doc-heading,
+.md-typeset .doc-object.doc-function > .doc-heading,
+.md-typeset .doc-object.doc-method > .doc-heading {
+    margin-left: -10px !important; /* Pulls it back. Original padding-left on func/meth was 20px. Now parent has 25px.  -10px makes it effectively 15px from edge of parent. Line is at 10px. */
+    position: relative; /* Ensure heading text is above the ::before pseudo-element of its parent */
+    z-index: 1;
+}
+
+/* Contents: Original margin-left for class contents was 15px, func/meth was 25px. */
+/* With parent padding-left: 25px, these would be too far. Adjust them. */
+.md-typeset .doc-object.doc-class .doc-contents {
+    margin-left: -10px !important; /* Parent has 25px padding. -10px makes it effectively 15px from edge. */
+    position: relative; 
+    z-index: 1;
+}
+
+.md-typeset .doc-object.doc-function .doc-contents,
+.md-typeset .doc-object.doc-method .doc-contents {
+    margin-left: -5px !important; /* Parent has 25px padding. -5px makes it effectively 20px from edge. */
+    position: relative;
+    z-index: 1;
+}
+
+/* END NEW STYLES */
+
+/* Symbol Styling for Properties */
+/* Ensures the 'P' symbol is displayed and provides basic styling. */
+/* This can be customized further as needed. */
+.md-typeset .doc-symbol.doc-symbol-heading.doc-symbol-property::before {
+  content: "P"; /* Ensure the 'P' is shown */
+  /* Example styling - adjust as desired */
+  /* You might want to match your theme's style for methods or make it unique */
+  color: #fff; /* White text */
+  background-color: #4caf50; /* Green background (example) */
+  padding: 0.1em 0.45em;
+  border-radius: 3px;
+  font-size: 0.75em; /* Slightly smaller than main text */
+  font-weight: bold;
+  line-height: 1;
+  vertical-align: middle; /* Helps align with text if needed */
+  margin-right: 0.5em; /* Space between symbol and name */
+}
+
+/* If you want it to look exactly like methods, and your theme styles methods */
+/* using a specific background/foreground color, you might use variables: */
+/*
+.md-typeset .doc-symbol.doc-symbol-heading.doc-symbol-property::before {
+  content: "P";
+  color: var(--md-typeset-hl-color, #ffffff); // Example variable for text color
+  background-color: var(--md-primary-fg-color, #007bff); // Example variable for method-like background
+  padding: 0.1em 0.45em;
+  border-radius: 3px;
+  font-size: 0.75em;
+  font-weight: bold;
+  line-height: 1;
+  vertical-align: middle;
+  margin-right: 0.5em;
+}
+*/
+
+/* === Property Styling to Mimic Methods === */
+
+/* Apply method-like header styles to properties */
+.md-typeset .doc-object.doc-attribute.doc-is-property > .doc-heading {
+    font-size: 1.3em !important; /* Match method heading font-size */
+    font-weight: 600 !important; /* Match method heading font-weight */
+    color: var(--md-default-fg-color--light, #1d2d35) !important; /* Match method heading color */
+    margin-bottom: 0.6em !important; /* Match method heading margin-bottom */
+    /* padding-left is effectively handled by the parent's padding and this heading's negative margin */
+    position: relative; /* Ensure heading text is above the ::before pseudo-element of its parent */
+    z-index: 1;
+    margin-left: -10px !important; /* Match method heading margin-left for line alignment */
+}
+
+/* Apply vertical line and main padding to property blocks, similar to methods */
+.md-typeset .doc-object.doc-attribute.doc-is-property {
+    position: relative !important;
+    padding-left: 25px !important; /* Match method parent padding for the line */
+}
+
+.md-typeset .doc-object.doc-attribute.doc-is-property::before {
+    content: "";
+    position: absolute;
+    left: 10px;       /* Position of the line, same as methods */
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--md-typeset-table-color, #ccc); /* Line color, same as methods */
+    z-index: 0;
+}
+
+/* Adjust contents margin for properties with the line, similar to methods */
+.md-typeset .doc-object.doc-attribute.doc-is-property .doc-contents {
+    margin-left: -5px !important; /* Match method contents margin for alignment with line */
+    position: relative;
+    z-index: 1;
+}
+
+/* Re-specify Property Symbol Styling to ensure it applies correctly and consistently */
+/* This rule is more specific due to .doc-is-property context */
+.md-typeset .doc-object.doc-attribute.doc-is-property .doc-symbol.doc-symbol-heading.doc-symbol-property::before {
+  content: "P";
+  color: #fff;
+  background-color: #4caf50; /* Green background (example) - can be changed */
+  padding: 0.1em 0.45em;
+  border-radius: 3px;
+  font-size: 0.75em;
+  font-weight: bold;
+  line-height: 1;
+  vertical-align: middle;
+  margin-right: 0.5em;
+}
+
+/* === End Property Styling === */ 

@@ -22,7 +22,22 @@ logger = logging.getLogger(__name__)
 
 
 async def _initialize_app_dependencies(app_settings: Settings) -> DependencyContainer:
-    """Helper function to initialize and configure core application dependencies."""
+    """Initialize and configure core application dependencies.
+
+    This function sets up essential services required by the application,
+    including an HTTP client and a database connection pool. It encapsulates
+    the creation and configuration of these dependencies into a
+    DependencyContainer instance.
+
+    Args:
+        app_settings: The application settings instance.
+
+    Returns:
+        A DependencyContainer instance populated with initialized dependencies.
+
+    Raises:
+        RuntimeError: If initialization of the HTTP client or database engine fails.
+    """
     logger.info("Initializing core application dependencies...")
 
     # Initialize HTTP client
@@ -78,7 +93,21 @@ async def _initialize_app_dependencies(app_settings: Settings) -> DependencyCont
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage the lifespan of the application resources."""
+    """Manage the lifespan of the application resources.
+
+    This asynchronous context manager handles the startup and shutdown events
+    of the FastAPI application. It initializes dependencies on startup
+    and ensures they are properly cleaned up on shutdown.
+
+    Args:
+        app: The FastAPI application instance.
+
+    Yields:
+        None: After startup procedures are complete, allowing the application to run.
+
+    Raises:
+        RuntimeError: If critical application dependencies fail to initialize during startup.
+    """
     logger.info("Application startup sequence initiated.")
 
     # Startup: Load Settings
@@ -147,7 +176,14 @@ app = FastAPI(
 
 @app.get("/health", tags=["General"], status_code=200)
 async def health_check():
-    """Basic health check endpoint."""
+    """Perform a basic health check.
+
+    This endpoint can be used to verify that the application is running
+    and responsive.
+
+    Returns:
+        A dictionary indicating the application status.
+    """
     return {"status": "ok"}
 
 
@@ -159,6 +195,11 @@ app.include_router(proxy_router)
 
 @app.get("/")
 async def read_root():
+    """Provide a simple root endpoint.
+
+    Returns:
+        A welcome message indicating the proxy is running.
+    """
     return {"message": "Luthien Control Proxy is running."}
 
 

@@ -1,10 +1,12 @@
-"""Control Policy for verifying the client API key."""
+# Control Policy for verifying the client API key.
 
 import json
 import logging
 from typing import Any, Dict, Optional, cast
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
@@ -15,7 +17,6 @@ from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,12 @@ BEARER_PREFIX = "Bearer "
 
 
 class ClientApiKeyAuthPolicy(ControlPolicy):
-    """Verifies the client API key provided in the Authorization header."""
+    """Verifies the client API key provided in the Authorization header.
+
+    Attributes:
+        name (str): The name of this policy instance.
+        logger (logging.Logger): The logger instance for this policy.
+    """
 
     def __init__(self, name: Optional[str] = None):
         """Initializes the policy."""
@@ -106,7 +112,16 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         return context
 
     def serialize(self) -> SerializableDict:
-        """Serializes config. Includes name only if non-default."""
+        """Serializes the policy's configuration.
+
+        This method converts the policy's configuration into a serializable
+        dictionary. For this policy, only the 'name' attribute is included
+        if it has been set to a non-default value.
+
+        Returns:
+            SerializableDict: A dictionary representation of the policy's
+                              configuration. It may be empty or contain a 'name' key.
+        """
         config: Dict[str, Any] = {}
         # Include name if it's not the default class name
         if self.name != self.__class__.__name__:
@@ -119,7 +134,8 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         Constructs the policy from serialized data.
 
         Args:
-            config: The serialized configuration (expects 'name').
+            config: The serialized configuration dictionary. May optionally
+                    contain a 'name' key to set a custom name for the policy instance.
 
         Returns:
             An instance of ClientApiKeyAuthPolicy.

@@ -1,4 +1,4 @@
-"""Loads control policies from serialized data."""
+# Loads control policies from serialized data.
 
 import logging
 from typing import TYPE_CHECKING

@@ -1,16 +1,17 @@
-"""Core control policy implementations."""
+# Core control policy implementations.
 
 import logging
 from typing import Optional, cast
 from urllib.parse import urlparse
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.settings import Settings
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,11 @@ class SendBackendRequestPolicy(ControlPolicy):
     """
     Policy responsible for sending the request to the backend, storing the response,
     and reading the raw response body.
+
+    Attributes:
+        name (str): The name of this policy instance, used for logging and
+            identification. It defaults to the class name if not provided
+            during initialization.
     """
 
     _EXCLUDED_BACKEND_HEADERS = {
@@ -39,7 +45,20 @@ class SendBackendRequestPolicy(ControlPolicy):
         return target_url
 
     def _prepare_backend_headers(self, context: TransactionContext, settings: Settings) -> list[tuple[bytes, bytes]]:
-        """Prepares the headers to be sent to the backend."""
+        """Prepares the headers to be sent to the backend.
+
+        Args:
+            context: The current transaction context, containing the original request.
+            settings: The application settings, used to get the backend URL
+                and API key.
+
+        Returns:
+            A list of (header_name, header_value) tuples for the backend request.
+
+        Raises:
+            ValueError: If the BACKEND_URL setting is invalid and its hostname
+                cannot be parsed for the Host header.
+        """
         original_request = context.request
         backend_headers: list[tuple[bytes, bytes]] = []
         backend_url_base = settings.get_backend_url()
@@ -79,12 +98,27 @@ class SendBackendRequestPolicy(ControlPolicy):
         session: AsyncSession,  # session is unused but required by interface
     ) -> TransactionContext:
         """
-        Sends context.request to the backend and stores the response as context.data["backend_response"].
+        Sends the request from context to the backend and stores the response.
 
-        Uses http_client and settings from the DependencyContainer.
-        The session parameter is currently unused but required by the interface.
+        This policy constructs the target URL, prepares headers, and uses the
+        HTTP client from the `DependencyContainer` to send the `context.request`.
+        The backend's response (an `httpx.Response` object) is stored in
+        `context.data["backend_response"]`. The response body is read immediately.
 
-        Handles potential httpx exceptions.
+        Args:
+            context: The current transaction context, containing the `request` to be sent.
+            container: The application dependency container, providing `settings` and `http_client`.
+            session: An active SQLAlchemy `AsyncSession`. (Unused by this policy but required by the interface).
+
+        Returns:
+            The `TransactionContext`, updated with `context.data["backend_response"]`
+            containing the `httpx.Response` from the backend.
+
+        Raises:
+            ValueError: If `context.request` is None or if `BACKEND_URL` is invalid.
+            httpx.TimeoutException: If the request to the backend times out.
+            httpx.RequestError: For other network-related issues during the backend request.
+            Exception: For any other unexpected errors during request preparation or execution.
         """
         settings = container.settings
         http_client = container.http_client
@@ -140,7 +174,15 @@ class SendBackendRequestPolicy(ControlPolicy):
         return context
 
     def serialize(self) -> SerializableDict:
-        """Serializes config. Only name is needed as dependencies come from container."""
+        """Serializes the policy's configuration.
+
+        For this policy, only the 'name' attribute is included, as all other
+        dependencies (like HTTP client, settings) are resolved from the
+        DependencyContainer at runtime.
+
+        Returns:
+            SerializableDict: A dictionary containing the 'name' of the policy instance.
+        """
         return cast(SerializableDict, {"name": self.name})
 
     @classmethod
@@ -149,7 +191,8 @@ class SendBackendRequestPolicy(ControlPolicy):
         Constructs the policy from serialized configuration.
 
         Args:
-            config: Dictionary possibly containing 'name'.
+            config: A dictionary that may optionally contain a 'name' key
+                    to set a custom name for the policy instance.
 
         Returns:
             An instance of SendBackendRequestPolicy.

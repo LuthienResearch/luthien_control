@@ -1,4 +1,4 @@
-"""Dependency Injection Container."""
+# Dependency Injection Container.
 
 from typing import AsyncContextManager, Callable
 

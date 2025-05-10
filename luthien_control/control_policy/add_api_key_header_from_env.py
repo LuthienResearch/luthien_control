@@ -1,16 +1,13 @@
-"""
-Add an API key header, where the key is sourced from a configured environment variable.
+# Add an API key header, where the key is sourced from a configured environment variable.
 
-This policy is used to add an API key to the request Authorization header.
-The API key is read from an environment variable whose name is configured
-when the policy is instantiated.
-"""
 
 import logging
 import os
 from typing import Optional, cast
 
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import (
     ApiKeyNotFoundError,
@@ -18,23 +15,33 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .serialization import SerializableDict
 
 
 class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
     """Adds an API key to the request Authorization header.
+
     The API key is read from an environment variable whose name is configured
     when the policy is instantiated.
+
+    Attributes:
+        name (str): The name of this policy instance.
+        api_key_env_var_name (str): The name of the environment variable
+            that holds the API key.
+        logger (logging.Logger): The logger instance for this policy.
     """
 
     def __init__(self, api_key_env_var_name: str, name: Optional[str] = None):
         """Initializes the policy.
 
         Args:
-            api_key_env_var_name: The name of the environment variable that holds the API key.
+            api_key_env_var_name: The name of the environment variable that
+                holds the API key.
             name: Optional name for this policy instance.
+
+        Raises:
+            ValueError: If `api_key_env_var_name` is empty.
         """
         if not api_key_env_var_name:
             raise ValueError("api_key_env_var_name cannot be empty.")
@@ -56,10 +63,6 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         Requires DependencyContainer and AsyncSession for interface compliance, but they are not
         directly used in this policy's primary logic beyond what ControlPolicy might require.
 
-        Raises:
-            NoRequestError if the request is not found in the context.
-            ApiKeyNotFoundError if the configured environment variable is not set or is empty.
-
         Args:
             context: The current transaction context.
             container: The application dependency container (unused).
@@ -67,6 +70,10 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
 
         Returns:
             The potentially modified transaction context.
+
+        Raises:
+            NoRequestError if the request is not found in the context.
+            ApiKeyNotFoundError if the configured environment variable is not set or is empty.
         """
         if context.request is None:
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")

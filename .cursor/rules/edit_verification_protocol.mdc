@@ -11,9 +11,8 @@ generation:
   edit_directive: MUST use ONLY exact changes + `// ... existing code ...`.
   constraint: NEVER add unrequested code. Implement requested change altering fewest lines/structures necessary.
 
-verification:
-  tool: git diff HEAD <target_file> | cat
-  trigger_condition: MANDATORY IF ANY Condition Met
+trigger:
+  rule: MANDATORY IF AND ONLY IF ANY Condition Met
   conditions:
     - SyntaxError in target file.
     - Pytest fixture/parameter error involving symbols modified/added by the edit.
@@ -21,6 +20,15 @@ verification:
     - User explicitly questions the applied edit.
     - Error traceback shows no execution path through the modified code sections.
   note: If failure mode aligns with the *intended* logic change of the edit AND no triggers above are met, direct logic debugging may precede diff verification.
+
+  apply these steps if and only if one of the following has occurred:
+    1. An edit has apparently failed. Sometimes an edit appears to fail when it has actually succeeded - so check.
+    2. We have reason to believe that an error or unexpected behavior may be the result of a file not having the content we expect it to have.
+
+verification:
+  tool: git diff HEAD <target_file> | cat
+  trigger_condition: MANDATORY AND IF ANY Condition Met
+  conditions:
 
 conflict_resolution:
   ground_truth: `git diff` IS GROUND TRUTH over intent/preview.

@@ -1,4 +1,4 @@
-# Compound Policy that applies a sequence of other policies.
+# Serial Policy that applies a sequence of other policies.
 
 import logging
 from typing import Iterable, Optional, Sequence, cast
@@ -32,14 +32,14 @@ class SerialPolicy(ControlPolicy):
 
     def __init__(self, policies: Sequence[ControlPolicy], name: Optional[str] = None):
         """
-        Initializes the CompoundPolicy.
+        Initializes the SerialPolicy.
 
         Args:
             policies: An ordered sequence of ControlPolicy instances to apply.
             name: An optional name for logging/identification purposes.
         """
         if not policies:
-            logger.warning(f"Initializing CompoundPolicy '{name}' with an empty policy list.")
+            logger.warning(f"Initializing SerialPolicy '{name}' with an empty policy list.")
         self.policies = policies
         self.logger = logger
         self.name = name or self.__class__.__name__
@@ -65,7 +65,7 @@ class SerialPolicy(ControlPolicy):
         Raises:
             Exception: Propagates any exception raised by a contained policy.
         """
-        self.logger.debug(f"[{context.transaction_id}] Entering CompoundPolicy: {self.name}")
+        self.logger.debug(f"[{context.transaction_id}] Entering SerialPolicy: {self.name}")
         current_context = context
         for i, policy in enumerate(self.policies):
             member_policy_name = getattr(policy, "name", policy.__class__.__name__)  # Get policy name if available
@@ -82,7 +82,7 @@ class SerialPolicy(ControlPolicy):
                     exc_info=True,
                 )
                 raise  # Re-raise the exception to halt processing
-        self.logger.debug(f"[{context.transaction_id}] Exiting CompoundPolicy: {self.name}")
+        self.logger.debug(f"[{context.transaction_id}] Exiting SerialPolicy: {self.name}")
         return current_context
 
     def __repr__(self) -> str:
@@ -93,7 +93,7 @@ class SerialPolicy(ControlPolicy):
         return f"<{self.name}(policies=[{policy_list_str}])>"
 
     def serialize(self) -> SerializableDict:
-        """Serializes the CompoundPolicy into a dictionary.
+        """Serializes the SerialPolicy into a dictionary.
 
         This method converts the policy and its contained member policies
         into a serializable dictionary format. It uses the POLICY_CLASS_TO_NAME
@@ -134,14 +134,14 @@ class SerialPolicy(ControlPolicy):
     @classmethod
     async def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":
         """
-        Constructs a CompoundPolicy from serialized data, loading member policies.
+        Constructs a SerialPolicy from serialized data, loading member policies.
 
         Args:
             config: The serialized configuration dictionary. Expects a 'policies' key
                     containing a list of dictionaries, each with 'type' and 'config'.
 
         Returns:
-            An instance of CompoundPolicy.
+            An instance of SerialPolicy.
 
         Raises:
             PolicyLoadError: If 'policies' key is missing, not a list, or if loading
@@ -150,15 +150,15 @@ class SerialPolicy(ControlPolicy):
         try:
             member_policy_data_list = config["policies"]
         except KeyError:
-            raise PolicyLoadError("CompoundPolicy config missing 'policies' list.")
+            raise PolicyLoadError("SerialPolicy config missing 'policies' list.")
         if not isinstance(member_policy_data_list, Iterable):
-            raise PolicyLoadError("CompoundPolicy 'policies' must be an iterable.")
+            raise PolicyLoadError("SerialPolicy 'policies' must be an iterable.")
 
         instantiated_policies = []
 
         for i, member_data in enumerate(member_policy_data_list):
             if not isinstance(member_data, dict):
-                raise PolicyLoadError(f"Item at index {i} in CompoundPolicy 'policies' is not a dictionary.")
+                raise PolicyLoadError(f"Item at index {i} in SerialPolicy 'policies' is not a dictionary.")
             try:
                 member_policy = await load_policy(member_data)
                 instantiated_policies.append(member_policy)
@@ -166,18 +166,18 @@ class SerialPolicy(ControlPolicy):
                 raise PolicyLoadError(
                     f"Failed to load member policy at index {i} "
                     f"(name: {member_data.get('name', 'unknown')}) "
-                    f"within CompoundPolicy: {e}"
+                    f"within SerialPolicy: {e}"
                 ) from e
             except Exception as e:
                 raise PolicyLoadError(
                     f"Unexpected error loading member policy at index {i} "
                     f"(name: {member_data.get('name', 'unknown')}) "
-                    f"within CompoundPolicy: {e}"
+                    f"within SerialPolicy: {e}"
                 ) from e
 
-        compound_policy_name = config.get("name", "CompoundPolicy")  # Default name if not in config
+        serial_policy_name = config.get("name", "SerialPolicy")  # Default name if not in config
 
-        return cls(policies=instantiated_policies, name=compound_policy_name)
+        return cls(policies=instantiated_policies, name=serial_policy_name)
 
 
 # legacy compatibility

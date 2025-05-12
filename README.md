@@ -189,3 +189,4 @@ Radon is used to analyze code complexity (e.g., cyclomatic complexity). This hel
 *   `.env.example`: Example environment variable file.
 *   `pyproject.toml`: Project metadata and dependencies (Poetry).
 *   `.cursor/rules/`: AI assistant guidelines.
+*   

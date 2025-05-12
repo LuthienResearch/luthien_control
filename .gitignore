@@ -36,5 +36,9 @@ site/
 
 # ruff
 .ruff_cache/
-scratch/
+
+#AI
 **/.claude/settings.local.json
+
+# Misc
+scratch/

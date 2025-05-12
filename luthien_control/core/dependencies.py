@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from luthien_control.control_policy.control_policy import ControlPolicy
 
 # Import SQLModel database session providers
+from luthien_control.control_policy.loader import load_policy_from_file
 from luthien_control.core.dependency_container import DependencyContainer
 
 # Import Response Builder
@@ -76,12 +77,14 @@ async def get_main_control_policy(
     Uses the DependencyContainer to access settings, http_client, and a database session.
     """
     settings = dependencies.settings
+    if settings.get_policy_filepath():
+        logger.info(f"Loading main control policy from file: {settings.get_policy_filepath()}")
+        return await load_policy_from_file(settings.get_policy_filepath())
 
     top_level_policy_name = settings.get_top_level_policy_name()
     if not top_level_policy_name:
         logger.error("TOP_LEVEL_POLICY_NAME is not configured in settings.")
         raise HTTPException(status_code=500, detail="Internal server error: Control policy name not configured.")
-
     try:
         # Get a session using the container's factory - No longer needed here, load_policy_from_db handles it
         # async with session_factory() as session:

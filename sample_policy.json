@@ -1,0 +1,20 @@
+{
+    "type": "SerialPolicy",
+    "config": {
+        "policies": [
+            {
+                "type": "AddApiKeyHeaderFromEnv",
+                "config": {
+                    "api_key_env_var_name": "OPENAI_API_KEY",
+                    "name": "AddOpenAIKeyFromEnv"
+                }
+            },
+            {
+                "type": "SendBackendRequest",
+                "config": {
+                    "name": "SendBackendRequest"
+                }
+            }
+        ]
+    }
+}

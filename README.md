@@ -1,6 +1,5 @@
 # Luthien Control
 
-
 > **⚠️ EARLY DEVELOPMENT WARNING ⚠️**
 >
 > This project is currently in the early stages of development. It is **not yet suitable for production use**.
@@ -85,6 +84,8 @@ Developer documentation is available here:
     *   The example file `.env.example` includes reasonable defaults for local development that should work with the Docker setup.
     *   Edit the `.env` file if you need to customize any values.
     *   **Required Variables:**
+        *   `TOP_LEVEL_POLICY_NAME`: The name of the top-level policy configured in your DB or policy file
+        *   `POLICY_FILEPATH`: If set, `POLICY_FILEPATH` should be a json defining a SerializedPolicy which will be used as the control policy on the server. Otherwise, we use the policy in the policy table with name `TOP_LEVEL_POLICY_NAME`.
         *   `BACKEND_URL`: The URL of the backend OpenAI-compatible API you want to proxy requests to (e.g., `https://api.openai.com/v1`).
         *   `OPENAI_API_KEY`: API key for the backend service (required if the backend needs authentication, like OpenAI).
     *   **Database Variables:**

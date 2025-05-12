@@ -17,7 +17,6 @@ from luthien_control.core.response_builder import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
 
 # Import centralized type alias
-from luthien_control.core.types import ApiKeyLookupFunc
 from luthien_control.main import app
 from luthien_control.settings import Settings
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -268,15 +267,6 @@ def mock_container(
     container.http_client = mock_http_client
     container.db_session_factory = mock_db_session_factory
     return container
-
-
-@pytest.fixture
-def mock_api_key_lookup() -> AsyncMock:
-    """Provides a mock for the API key lookup function (now less relevant)."""
-    # This was used when lookup was injected directly
-    lookup = AsyncMock(spec=ApiKeyLookupFunc)
-    lookup.return_value = None  # Default to not found
-    return lookup
 
 
 @pytest.fixture

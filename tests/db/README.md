@@ -62,7 +62,6 @@ Contains various mock `ControlPolicy` implementations used for testing policy lo
 *   `MockSimplePolicy`: A basic mock policy accepting standard dependencies (settings, http_client) and a timeout.
 *   `MockNestedPolicy`: A mock policy that contains another `ControlPolicy` instance.
 *   `MockListPolicy`: A mock policy that accepts a list of policies (or other items) and a mode string.
-*   `MockPolicyWithApiKeyLookup`: A mock policy demonstrating injection of the `ApiKeyLookupFunc` dependency.
 *   `MockNoArgsPolicy`: A mock policy with an empty `__init__` signature.
 *   `MockMissingArgPolicy`: A mock policy intentionally missing standard dependencies to test injection failure.
 *   `MockCompoundPolicy`: A mock policy inheriting from `CompoundPolicy` to test instantiation with a list of sub-policies.

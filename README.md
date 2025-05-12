@@ -1,5 +1,6 @@
 # Luthien Control
 
+
 > **⚠️ EARLY DEVELOPMENT WARNING ⚠️**
 >
 > This project is currently in the early stages of development. It is **not yet suitable for production use**.
@@ -8,6 +9,11 @@
 
 Luthien Control is a framework to implement AI Control policies on OpenAI-API compatible endpoints. The Luthien Control server is a proxy server that sits between clients and the AI backend, implementing AI Control policies on traffic that goes between them.
 
+## Developer Documentation
+
+Developer documentation is available here:
+
+[![Documentation](https://img.shields.io/badge/documentation-view-brightgreen?style=for-the-badge)](https://luthienresearch.github.io/luthien_control/)
 
 ## Technology Stack
 *   **Language:** Python (3.11+)

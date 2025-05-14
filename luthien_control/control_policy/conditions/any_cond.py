@@ -14,6 +14,9 @@ class AnyCondition(Condition):
     def evaluate(self, context: TransactionContext) -> bool:
         return any(condition.evaluate(context) for condition in self.conditions)
 
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(conditions={self.conditions!r})"
+
     def serialize(self) -> SerializableDict:
         return {
             "type": self.type,

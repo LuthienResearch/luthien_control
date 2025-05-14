@@ -12,6 +12,9 @@ class NotCondition(Condition):
     def evaluate(self, context: TransactionContext) -> bool:
         return not self.cond.evaluate(context)
 
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(value={self.cond!r})"
+
     def serialize(self) -> SerializableDict:
         return {
             "type": self.type,

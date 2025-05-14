@@ -29,3 +29,17 @@ __all__ = [
     "RegexMatchCondition",
     "NAME_TO_CONDITION_CLASS",
 ]
+
+ALL_CONDITION_CLASSES = [
+    AllCondition,
+    AnyCondition,
+    NotCondition,
+    EqualsCondition,
+    NotEqualsCondition,
+    ContainsCondition,
+    LessThanCondition,
+    LessThanOrEqualCondition,
+    GreaterThanCondition,
+    GreaterThanOrEqualCondition,
+    RegexMatchCondition,
+]

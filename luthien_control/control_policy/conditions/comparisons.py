@@ -41,6 +41,9 @@ class ComparisonCondition(Condition, ABC):
     def evaluate(self, context: TransactionContext) -> bool:
         return type(self).comparator.evaluate(get_tx_value(context, self.key), self.value)
 
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(key={self.key!r}, value={self.value!r})"
+
     def serialize(self) -> SerializableDict:
         return {
             "type": type(self).type,

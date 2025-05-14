@@ -146,3 +146,11 @@ class Settings:
             raise ValueError("Missing target database name (either provide db_name or set DB_NAME env var)")
         base = self.base_dsn  # Use property
         return f"{base}/{target_db}"
+
+    def get_run_mode(self) -> str:
+        """Returns the run mode, defaulting to 'prod' if not set."""
+        return os.getenv("RUN_MODE", "prod")
+
+    def dev_mode(self) -> bool:
+        """Returns True if the run mode is 'dev', False otherwise."""
+        return self.get_run_mode() == "dev"

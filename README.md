@@ -94,6 +94,8 @@ Developer documentation is available here:
         *   `APP_USER`: This is only used by the `create_sqlmodel_db.sh` script for initializing the database. Gives the postgres `APP_USER` required permissions on the created DB.
     *   **Testing Variables:**
         *   `TEST_CLIENT_API_KEY`: Required for running E2E tests. This will be used as the client key to authenticate *against the Luthien Control Server* (NOT the actual backend, e.g. OpenAI)
+        **Development Variables:**
+        *   `RUN_MODE`: if set to `"dev"`, return detailed error messages on internal server errors. Likely other changes in the future.
 
 ## Usage
 

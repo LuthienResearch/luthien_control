@@ -100,8 +100,10 @@ async def run_policy_flow(
             )
             # Fallback to a basic JSONResponse, mentioning both errors if possible
             error_detail = f"Internal Server Error while processing policy '{policy_name_for_error}'."
-            # Include more detail if available
-            error_detail += f" Initial error: {e}. Error during response building: {build_e}"
+            if dependencies.settings.dev_mode():
+                # Include more detail if available
+                error_detail += f" Initial error: {e}. Error during response building: {build_e}"
+                error_detail += f"\n\nFull request: {context.request}"
             final_response = JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 content={

@@ -20,11 +20,7 @@ logger = logging.getLogger(__name__)
 
 async def main():
     parser = argparse.ArgumentParser(description="List all API keys in the database.")
-    parser.add_argument(
-        "--active-only",
-        action="store_true",
-        help="Only show active API keys."
-    )
+    parser.add_argument("--active-only", action="store_true", help="Only show active API keys.")
     args = parser.parse_args()
 
     load_dotenv()  # Load env vars before creating engine

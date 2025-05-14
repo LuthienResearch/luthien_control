@@ -83,24 +83,33 @@ Developer documentation is available here:
     Configuration is managed via environment variables, loaded using `python-dotenv` from a `.env` file in the project root during development.
     *   The example file `.env.example` includes reasonable defaults for local development that should work with the Docker setup.
     *   Edit the `.env` file if you need to customize any values.
-    *   **Required Variables:**
-        *   `TOP_LEVEL_POLICY_NAME`: The name of the top-level policy configured in your DB or policy file
-        *   `POLICY_FILEPATH`: If set, `POLICY_FILEPATH` should be a json defining a SerializedPolicy which will be used as the control policy on the server. Otherwise, we use the policy in the policy table with name `TOP_LEVEL_POLICY_NAME`.
+    *   **Env Variables**
+        *   `POLICY_FILEPATH`: If set, `POLICY_FILEPATH` should be a json defining a SerializedPolicy which will be used as the control policy on the server. Otherwise, see `TOP_LEVEL_POLICY_NAME`
+        *   `TOP_LEVEL_POLICY_NAME`: The name of the top-level policy configured in your DB that the server will apply to all requests/responses passing through
         *   `BACKEND_URL`: The URL of the backend OpenAI-compatible API you want to proxy requests to (e.g., `https://api.openai.com/v1`).
-        *   `OPENAI_API_KEY`: API key for the backend service (required if the backend needs authentication, like OpenAI).
+        *   `OPENAI_API_KEY`: API key for the backend service (required if the backend needs authentication, like OpenAI).(NOTE: THIS IS DEPRECATED, BACKEND API KEYS SHOULD NOW BE SET TO ENV VARIABLES SPECIFIED PER-POLICY, SEE `AddApiKeyHeaderFromEnv`)
     *   **Database Variables:**
+        * `DATABASE_URL`: Full postgres DB connection URL. If this is not set, the `DB_*` env vars will be used instead.
         *   `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME`: Database connection details for the main application database. The values for `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and `DB_PORT` in your `.env` file are also used by `docker-compose.yml` to set up the local PostgreSQL container. The defaults in `.env.example` should align with the default configuration in `docker-compose.yml`.
+        *   `APP_USER`: This is only used by the `create_sqlmodel_db.sh` script for initializing the database. Gives the postgres `APP_USER` required permissions on the created DB.
     *   **Testing Variables:**
-        *   `TEST_CLIENT_API_KEY`: Required for running E2E tests.
+        *   `TEST_CLIENT_API_KEY`: Required for running E2E tests. This will be used as the client key to authenticate *against the Luthien Control Server* (NOT the actual backend, e.g. OpenAI)
 
 ## Usage
 
 ### Running the Server
+
+#### Local Development
 Ensure your `.env` file is configured correctly. Run the FastAPI application using Uvicorn:
 ```bash
 poetry run uvicorn luthien_control.main:app --reload
 ```
 The `--reload` flag enables auto-reloading when code changes are detected, useful during development.
+
+#### Railway
+Just set your OpenAI API-compatible backend and a valid API key:
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/IXTECt?referralCode=ZazPnJ)
 
 ## Generating Documentation
 The project documentation is built using MkDocs.

@@ -50,7 +50,7 @@ class ComparisonCondition(Condition, ABC):
         }
 
     @classmethod
-    def deserialize(cls, data: SerializableDict) -> "ComparisonCondition":
+    def from_serialized(cls, data: SerializableDict) -> "ComparisonCondition":
         return cls(data["key"], data["value"])
 
 

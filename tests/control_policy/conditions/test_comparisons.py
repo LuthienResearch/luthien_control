@@ -130,12 +130,12 @@ def test_condition_serialization_deserialization(
     assert serialized_data == expected_serialization
 
     # Test deserialization
-    deserialized_condition = condition_class.deserialize(serialized_data)
+    from_serializedd_condition = condition_class.from_serialized(serialized_data)
 
-    # Ensure the deserialized object is equivalent to the original for core attributes
-    assert isinstance(deserialized_condition, condition_class)
-    assert deserialized_condition.type == original_condition.type
-    assert deserialized_condition.key == original_condition.key
-    assert deserialized_condition.value == original_condition.value
-    assert deserialized_condition.comparator == original_condition.comparator
-    assert type(deserialized_condition) is type(original_condition)  # Check same class type
+    # Ensure the from_serializedd object is equivalent to the original for core attributes
+    assert isinstance(from_serializedd_condition, condition_class)
+    assert from_serializedd_condition.type == original_condition.type
+    assert from_serializedd_condition.key == original_condition.key
+    assert from_serializedd_condition.value == original_condition.value
+    assert from_serializedd_condition.comparator == original_condition.comparator
+    assert type(from_serializedd_condition) is type(original_condition)  # Check same class type

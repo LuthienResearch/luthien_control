@@ -8,6 +8,13 @@
 
 Luthien Control is a framework to implement AI Control policies on OpenAI-API compatible endpoints. The Luthien Control server is a proxy server that sits between clients and the AI backend, implementing AI Control policies on traffic that goes between them.
 
+## Contributing
+
+* The main development branch is [dev](https://github.com/luthienResearch/luthien_control/tree/dev) - point PRs here.
+* `ruff` is used for linting and formatting
+* Google-style docstrings
+* Unit tests are in `tests`, new code should generally come with new tests. We're targeting 90% coverage.
+
 ## Developer Documentation
 
 Developer documentation is available here:

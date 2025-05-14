@@ -110,16 +110,16 @@ async def load_policy_from_db(
 ) -> "ControlPolicy":
     """Load a policy configuration from the database and instantiate it using the control_policy loader."""
     async with container.db_session_factory() as session:
-        policy_model = await get_policy_by_name(session, name)
+        policy_name = await get_policy_by_name(session, name)
 
-    if not policy_model:
+    if not policy_name:
         raise PolicyLoadError(f"Active policy configuration named '{name}' not found in database.")
 
     # Prepare the data for the simple loader
     policy_data = {
-        "name": policy_model.name,
-        "type": policy_model.type,  # The loader uses this to find the class
-        "config": policy_model.config or {},
+        "name": policy_name.name,
+        "type": policy_name.type,  # The loader uses this to find the class
+        "config": policy_name.config or {},
     }
 
     try:

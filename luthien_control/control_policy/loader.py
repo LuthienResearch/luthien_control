@@ -1,5 +1,6 @@
 # Loads control policies from serialized data.
 
+import json
 import logging
 from typing import TYPE_CHECKING
 
@@ -61,3 +62,10 @@ async def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
     except Exception as e:
         logger.error(f"Error instantiating policy '{policy_type}': {e}", exc_info=True)
         raise PolicyLoadError(f"Error instantiating policy '{policy_type}': {e}") from e
+
+
+async def load_policy_from_file(filepath: str) -> "ControlPolicy":
+    """Load a policy configuration from a file and instantiate it using the control_policy loader."""
+    with open(filepath, "r") as f:
+        policy_data = json.load(f)
+    return await load_policy(policy_data)

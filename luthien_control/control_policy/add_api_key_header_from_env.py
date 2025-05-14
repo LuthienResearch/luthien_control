@@ -11,6 +11,8 @@ import os
 from typing import Optional, cast
 
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import (
     ApiKeyNotFoundError,
@@ -18,7 +20,6 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .serialization import SerializableDict
 
@@ -118,10 +119,10 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         instance_name = config.get("name")
         api_key_env_var_name = config.get("api_key_env_var_name")
 
-        if api_key_env_var_name is None:  # Ensure it's present, even if it could be an empty string (handled by init)
+        if api_key_env_var_name is None:
             raise KeyError("Configuration for AddApiKeyHeaderFromEnvPolicy is missing 'api_key_env_var_name'.")
 
         return cls(
             name=instance_name,
-            api_key_env_var_name=str(api_key_env_var_name),  # Ensure it's a string
+            api_key_env_var_name=str(api_key_env_var_name),
         )

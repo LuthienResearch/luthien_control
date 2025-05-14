@@ -49,6 +49,10 @@ class Settings:
         """Returns the name of the top-level policy instance to load."""
         return os.getenv("TOP_LEVEL_POLICY_NAME", "root")
 
+    def get_policy_filepath(self) -> str:
+        """Returns the path to the policy file, if set."""
+        return os.getenv("POLICY_FILEPATH")
+
     # --- Database settings Getters using os.getenv ---
     def get_postgres_user(self) -> str | None:
         return os.getenv("DB_USER")

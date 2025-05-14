@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 import httpx
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serial_policy import SerialPolicy
-from luthien_control.core.types import ApiKeyLookupFunc
 from luthien_control.settings import Settings
 
 # --- Mock Policy Classes for Testing crud.py ---
@@ -82,28 +81,6 @@ class MockListPolicy(ControlPolicy):
             "mode": self.mode,
             "policies": policy_configs,
         }
-        return config
-
-
-class MockPolicyWithApiKeyLookup(ControlPolicy):
-    def __init__(self, api_key_lookup: ApiKeyLookupFunc, tag: str):
-        self.api_key_lookup = api_key_lookup
-        self.tag = tag
-        self.name: Optional[str] = None
-        # Add mock_init for testing
-        self.mock_init = MagicMock()
-        self.mock_init(api_key_lookup=api_key_lookup, tag=tag)
-
-    async def apply(self, context: Dict[str, Any], request_args: Dict[str, Any]) -> Dict[str, Any]:
-        # Simulate using the lookup
-        key = await self.api_key_lookup("test-key")
-        context["lookup_applied"] = True
-        context["lookup_tag"] = self.tag
-        context["lookup_result_type"] = type(key).__name__
-        return context
-
-    def serialize(self) -> Dict[str, Any]:
-        config = {"tag": self.tag}
         return config
 
 

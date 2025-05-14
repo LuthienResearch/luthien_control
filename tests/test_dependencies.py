@@ -46,7 +46,6 @@ def test_get_dependencies_not_found(mock_request_with_state):
 # --- Tests for get_main_control_policy (using Container) ---
 
 
-# Patch load_policy_from_db where it's used inside the dependencies module
 @pytest.mark.asyncio
 @patch("luthien_control.core.dependencies.load_policy_from_db", new_callable=AsyncMock)
 async def test_get_main_control_policy_success(
@@ -54,6 +53,7 @@ async def test_get_main_control_policy_success(
     mock_container: MagicMock,
 ):
     """Test successful loading of the main control policy using the dependencies container."""
+    mock_container.settings.get_policy_filepath.return_value = None
     mock_policy = AsyncMock(spec=ControlPolicy)
     mock_load_from_db.return_value = mock_policy
     policy_name = "test_policy"  # From mock_container.settings
@@ -79,6 +79,7 @@ async def test_get_main_control_policy_name_not_configured(
     mock_container: MagicMock,
 ):
     """Test case where TOP_LEVEL_POLICY_NAME is not set in dependencies container's settings."""
+    mock_container.settings.get_policy_filepath.return_value = None
     mock_container.settings.get_top_level_policy_name.return_value = None
 
     with pytest.raises(HTTPException) as exc_info:
@@ -96,6 +97,7 @@ async def test_get_main_control_policy_not_found_error(
     mock_container: MagicMock,
 ):
     """Test handling PolicyLoadError(not found) from load_policy_from_db."""
+    mock_container.settings.get_policy_filepath.return_value = None
     policy_name = "test_policy"
     mock_container.settings.get_top_level_policy_name.return_value = policy_name
     mock_load_from_db.return_value = None  # Simulate not found
@@ -115,6 +117,7 @@ async def test_get_main_control_policy_load_error(
     mock_container: MagicMock,
 ):
     """Test handling other PolicyLoadError from load_policy_from_db."""
+    mock_container.settings.get_policy_filepath.return_value = None
     policy_name = "test_policy"
     mock_container.settings.get_top_level_policy_name.return_value = policy_name
     load_error = PolicyLoadError(f"Failed loading '{policy_name}'")
@@ -136,6 +139,7 @@ async def test_get_main_control_policy_unexpected_error(
     mock_container: MagicMock,
 ):
     """Test handling unexpected exceptions from load_policy_from_db."""
+    mock_container.settings.get_policy_filepath.return_value = None
     mock_container.settings.get_top_level_policy_name.return_value = "test_policy"
     mock_load_from_db.side_effect = ValueError("Something went wrong")
 

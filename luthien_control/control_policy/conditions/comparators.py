@@ -11,7 +11,8 @@ class Comparator:
 
 
 equals = Comparator(lambda a, b: a == b)
-contains = Comparator(lambda a, b: a in b)
+not_equals = Comparator(lambda a, b: a != b)
+contains = Comparator(lambda a, b: b in a)
 less_than = Comparator(lambda a, b: a < b)
 less_than_or_equal = Comparator(lambda a, b: a <= b)
 greater_than = Comparator(lambda a, b: a > b)
@@ -20,6 +21,7 @@ regex_match = Comparator(lambda target, pattern: re.search(pattern, target) is n
 
 NAME_TO_COMPARATOR = {
     "equals": equals,
+    "not_equals": not_equals,
     "contains": contains,
     "less_than": less_than,
     "less_than_or_equal": less_than_or_equal,

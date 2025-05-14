@@ -11,6 +11,7 @@ from luthien_control.control_policy.conditions.comparators import (
     greater_than_or_equal,
     less_than,
     less_than_or_equal,
+    not_equals,
     regex_match,
 )
 
@@ -36,18 +37,26 @@ def test_equals_comparator():
     assert equals.evaluate(1, "1") is False
 
 
+def test_not_equals_comparator():
+    """Tests the 'not_equals' comparator."""
+    assert not_equals.evaluate(1, 2) is True
+    assert not_equals.evaluate("a", "b") is True
+    assert not_equals.evaluate([1, 2], [2, 1]) is True
+    assert not_equals.evaluate({"a": 1}, {"b": 1}) is True
+
+
 def test_contains_comparator():
     """Tests the 'contains' comparator."""
-    assert contains.evaluate("a", "abc") is True  # string contains char
-    assert contains.evaluate("ab", "abc") is True  # string contains substring
-    assert contains.evaluate(1, [1, 2, 3]) is True  # list contains item
-    assert contains.evaluate("a", {"a": 1, "b": 2}) is True  # dict contains key
+    assert contains.evaluate("abc", "a") is True  # string contains char
+    assert contains.evaluate("abc", "abc") is True  # string contains substring
+    assert contains.evaluate([1, 2, 3], 1) is True  # list contains item
+    assert contains.evaluate({"a": 1, "b": 2}, "a") is True  # dict contains key
 
     assert contains.evaluate("d", "abc") is False
     assert contains.evaluate("ac", "abc") is False  # substring order matters
-    assert contains.evaluate(4, [1, 2, 3]) is False
-    assert contains.evaluate("c", {"a": 1, "b": 2}) is False
-    assert contains.evaluate([1], [1, 2, 3]) is False  # list does not contain sublist, just item
+    assert contains.evaluate([1, 2, 3], 4) is False
+    assert contains.evaluate({"a": 1, "b": 2}, "c") is False
+    assert contains.evaluate([1, 2, 3], [1]) is False  # list does not contain sublist, just item
 
 
 def test_less_than_comparator():
@@ -145,6 +154,7 @@ def test_name_to_comparator_mapping():
     # Check that all defined comparators are in the map
     defined_comparators = {
         equals,
+        not_equals,
         contains,
         less_than,
         less_than_or_equal,
@@ -164,6 +174,7 @@ def test_comparator_to_name_mapping():
     assert COMPARATOR_TO_NAME[greater_than] == "greater_than"
     assert COMPARATOR_TO_NAME[greater_than_or_equal] == "greater_than_or_equal"
     assert COMPARATOR_TO_NAME[regex_match] == "regex_match"
+    assert COMPARATOR_TO_NAME[not_equals] == "not_equals"
 
     # Check consistency between the two maps
     for name, comparator_obj in NAME_TO_COMPARATOR.items():

@@ -12,6 +12,7 @@ import pytest_asyncio
 from dotenv import load_dotenv
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
+from luthien_control.control_policy.leaked_api_key_detection import LeakedApiKeyDetectionPolicy
 from luthien_control.control_policy.registry import POLICY_CLASS_TO_NAME
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.control_policy.serial_policy import SerialPolicy
@@ -70,6 +71,10 @@ async def _ensure_e2e_policy_exists():
                         "config": {"name": "E2E_ClientAPIKeyCheck"},
                     },
                     {
+                        "type": POLICY_CLASS_TO_NAME[LeakedApiKeyDetectionPolicy],
+                        "config": {"name": "E2E_LeakedKeyCheck"},
+                    },
+                    {
                         "type": POLICY_CLASS_TO_NAME[AddApiKeyHeaderPolicy],
                         "config": {"name": "E2E_AddBackendKey"},
                     },
@@ -79,7 +84,7 @@ async def _ensure_e2e_policy_exists():
                     },
                 ]
             }
-            desired_description = "E2E Test Policy: Adds backend key -> Sends request."
+            desired_description = "E2E Test Policy: Client auth -> Leaked key check -> Adds backend key -> Sends request."
 
             if existing_policy:
                 # Check if update is needed

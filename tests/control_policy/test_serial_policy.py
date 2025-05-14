@@ -309,7 +309,7 @@ async def test_compound_policy_serialization_invalid_policy_item():
         await SerialPolicy.from_serialized(invalid_config)
 
 
-@patch("luthien_control.control_policy.compound_policy.load_policy", new_callable=AsyncMock)
+@patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=AsyncMock)
 @pytest.mark.asyncio
 async def test_compound_policy_serialization_load_error(mock_load_policy):
     """Test error propagation when loading a member policy fails."""
@@ -325,7 +325,7 @@ async def test_compound_policy_serialization_load_error(mock_load_policy):
         await SerialPolicy.from_serialized(config)
 
 
-@patch("luthien_control.control_policy.compound_policy.load_policy", new_callable=AsyncMock)
+@patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=AsyncMock)
 @pytest.mark.asyncio
 async def test_compound_policy_serialization_unexpected_error(mock_load_policy):
     """Test handling of unexpected errors during member policy loading."""

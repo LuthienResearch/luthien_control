@@ -97,3 +97,18 @@ class ClientAuthenticationNotFoundError(ControlPolicyError):
         """
         # Pass detail positionally for Exception.__str__ and keywords for ControlPolicyError attributes
         super().__init__(detail, status_code=status_code, detail=detail)
+
+
+class LeakedApiKeyError(ControlPolicyError):
+    """Exception raised when a leaked API key is detected."""
+
+    def __init__(self, detail: str, status_code: int = 403):
+        """Initializes the LeakedApiKeyError.
+
+        Args:
+            detail (str): A detailed error message explaining the leaked key detection.
+            status_code (int): The HTTP status code to associate with this error.
+                               Defaults to 403 (Forbidden).
+        """
+        # Pass detail positionally for Exception.__str__ and keywords for ControlPolicyError attributes
+        super().__init__(detail, status_code=status_code, detail=detail)

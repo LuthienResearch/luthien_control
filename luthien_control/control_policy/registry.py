@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Dict, Type
 from .add_api_key_header import AddApiKeyHeaderPolicy
 from .add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from .client_api_key_auth import ClientApiKeyAuthPolicy
+from .leaked_api_key_detection import LeakedApiKeyDetectionPolicy
 from .send_backend_request import SendBackendRequestPolicy
 from .serial_policy import SerialPolicy
 
@@ -21,6 +22,7 @@ POLICY_NAME_TO_CLASS: Dict[str, Type["ControlPolicy"]] = {
     "SerialPolicy": SerialPolicy,
     "SendBackendRequest": SendBackendRequestPolicy,
     "AddApiKeyHeaderFromEnv": AddApiKeyHeaderFromEnvPolicy,
+    "LeakedApiKeyDetection": LeakedApiKeyDetectionPolicy,
     # Add other policies here as they are created
 }
 

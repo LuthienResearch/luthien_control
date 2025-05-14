@@ -1,0 +1,52 @@
+name: Ruff Format and Lint
+
+on: [pull_request]
+
+jobs:
+  format_and_lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Parse Python version from pyproject.toml
+        id: pyversion
+        run: |
+          echo "version=$(grep -oP 'requires-python\\s*=\\s*"\\K[^,<"]*' pyproject.toml | head -n 1)" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ steps.pyversion.outputs.version }}
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Install dependencies
+        run: poetry install --no-root
+
+      - name: Apply ruff formatting
+        run: poetry run ruff format .
+
+      - name: Apply ruff auto-fixes
+        run: poetry run ruff check . --fix --exit-zero
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: Apply ruff formatting and fixes"
+          branch: ${{ github.head_ref }} # Push to the PR branch
+          commit_options: '--no-verify --signoff'
+          file_pattern: '*.py' # Only commit python files
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+      - name: Check for remaining ruff issues
+        run: poetry run ruff check .

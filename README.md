@@ -1,4 +1,4 @@
-# Luthien Control
+[![Donate to Luthien on Manifund](https://img.shields.io/badge/Donate_To-Luthien-0118D8?style=flat)](https://manifund.org/projects/luthien)     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    [![Luthien Research](https://img.shields.io/badge/Luthien-Research-blue?style=flat&labelColor=0118D8&color=1B56FD)](https://luthienresearch.org/)
 
 > **⚠️ EARLY DEVELOPMENT WARNING ⚠️**
 >
@@ -6,11 +6,13 @@
 > Expect frequent updates, potential bugs, and **breaking changes** to the API and functionality without prior notice.
 > Use at your own risk during this phase.
 
+# Luthien Control
+
 Luthien Control is a framework to implement AI Control policies on OpenAI-API compatible endpoints. The Luthien Control server is a proxy server that sits between clients and the AI backend, implementing AI Control policies on traffic that goes between them.
 
 ## Contributing
 
-* The main development branch is [dev](https://github.com/luthienResearch/luthien_control/tree/dev) - point PRs here.
+* The main development branch is [dev]( https://github.com/luthienResearch/luthien_control/tree/dev ) - point PRs here.
 * `ruff` is used for linting and formatting
 * Google-style docstrings
 * Unit tests are in `tests`, new code should generally come with new tests. We're targeting 90% coverage.
@@ -19,7 +21,7 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
 
 Developer documentation is available here:
 
-[![Documentation](https://img.shields.io/badge/documentation-view-brightgreen?style=for-the-badge)](https://luthienresearch.github.io/luthien_control/)
+[![Documentation](https://img.shields.io/badge/view-documentation-1B56FD?style=plastic)](https://luthienresearch.github.io/luthien_control/)
 
 ## Technology Stack
 *   **Language:** Python (3.11+)

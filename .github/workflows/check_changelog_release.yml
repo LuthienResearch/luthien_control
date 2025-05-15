@@ -1,0 +1,94 @@
+name: Check Changelog for Release
+
+on:
+  pull_request:
+    branches: 
+      - main # Adjust if your main branch has a different name (e.g., master)
+    # types: [opened, synchronize, reopened] # Optional: uncomment to specify activity types
+
+jobs:
+  check-changelog-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0 # Required to diff with base
+
+      - name: Get changed files
+        id: changed_files
+        run: |
+          # Get list of changed files between the PR base and head
+          CHANGED_FILES_LIST=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          echo "changed_files_list<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES_LIST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Files changed in this PR:"
+          echo "$CHANGED_FILES_LIST"
+
+      - name: Check if CHANGELOG.md was modified
+        id: check_changelog_modified
+        run: |
+          CHANGELOG_FILE_NAME="CHANGELOG.md"
+          if grep -q "^${CHANGELOG_FILE_NAME}$" <<< "${{ steps.changed_files.outputs.changed_files_list }}"; then
+            echo "changelog_was_modified=true" >> "$GITHUB_OUTPUT"
+            echo "CHANGELOG.md was modified."
+          else
+            echo "changelog_was_modified=false" >> "$GITHUB_OUTPUT"
+            echo "CHANGELOG.md was NOT modified."
+          fi
+
+      - name: Enforce CHANGELOG.md modification
+        if: steps.check_changelog_modified.outputs.changelog_was_modified == 'false'
+        run: |
+          echo "Error: CHANGELOG.md was not modified."
+          echo "Pull requests to the main branch must include updates to CHANGELOG.md."
+          exit 1
+
+      - name: Get project version from pyproject.toml
+        id: project_version
+        run: |
+          VERSION=$(grep -E '^version\s*=\s*"([^"]+)"' pyproject.toml | sed -E 's/version\s*=\s*"([^"]+)"/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "Error: Could not extract version from pyproject.toml"
+            exit 1
+          fi
+          echo "project_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Project version from pyproject.toml: $VERSION"
+          
+      - name: Verify CHANGELOG.md heading
+        run: |
+          echo "CHANGELOG.md was modified. Verifying heading..."
+          
+          ACTUAL_HEADING=$(awk 'NF > 0 { line_count++; if (line_count == 2) { print; exit } }' CHANGELOG.md)
+          # EXPECTED_PATTERN="^## \[([0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?)\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          PROJECT_VERSION="${{ steps.project_version.outputs.project_version }}"
+
+          echo "Actual heading found: $ACTUAL_HEADING"
+          echo "Expected to contain project version: $PROJECT_VERSION"
+
+          if [[ "$ACTUAL_HEADING" == "## [Unreleased]" ]]; then
+            echo "Error: CHANGELOG.md top section is still '## [Unreleased]'."
+            echo "For a PR to main, this section should be updated to the new version."
+            echo "Example: '## [1.2.3] - 2023-05-16'"
+            exit 1
+          elif [[ "$ACTUAL_HEADING" == *"$PROJECT_VERSION"* ]]; then
+            echo "Changelog heading contains the project version: $PROJECT_VERSION"
+            echo "Full heading: $ACTUAL_HEADING"
+            # Optionally, you could add a more specific regex here if needed,
+            # for example, to ensure the version is within square brackets:
+            # if [[ "$ACTUAL_HEADING" =~ ^##\s\[.*${PROJECT_VERSION}.*\].* ]]; then
+            #   echo "Changelog heading format with version is also valid."
+            #   exit 0
+            # else
+            #   echo "Error: Changelog heading contains the version but not in the expected '## [Version] - YYYY-MM-DD' format."
+            #   exit 1
+            # fi
+            exit 0
+          else
+            echo "Error: CHANGELOG.md top section heading does not contain the project version '$PROJECT_VERSION'."
+            echo "Expected format: '## [Version] - YYYY-MM-DD' (e.g., '## [$PROJECT_VERSION] - YYYY-MM-DD') or ensure it contains '$PROJECT_VERSION'."
+            echo "Actual heading found: $ACTUAL_HEADING"
+            exit 1
+          fi 

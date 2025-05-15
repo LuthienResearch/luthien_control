@@ -47,9 +47,7 @@ class TestLeakedApiKeyDetectionPolicyApply:
     """Tests for the apply method of LeakedApiKeyDetectionPolicy."""
 
     @pytest.mark.asyncio
-    async def test_apply_no_request_raises_error(
-        self, mock_transaction_context, mock_container, mock_db_session
-    ):
+    async def test_apply_no_request_raises_error(self, mock_transaction_context, mock_container, mock_db_session):
         """Test that NoRequestError is raised when no request is in context."""
         mock_transaction_context.request = None
         policy = LeakedApiKeyDetectionPolicy()
@@ -58,25 +56,21 @@ class TestLeakedApiKeyDetectionPolicyApply:
             await policy.apply(mock_transaction_context, mock_container, mock_db_session)
 
     @pytest.mark.asyncio
-    async def test_apply_clean_message_succeeds(
-        self, mock_transaction_context, mock_container, mock_db_session
-    ):
+    async def test_apply_clean_message_succeeds(self, mock_transaction_context, mock_container, mock_db_session):
         """Test that a message without API keys passes through without issues."""
-        body = b'''{
+        body = b"""{
             "model": "gpt-3.5-turbo",
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": "What is the square root of 64?"}
             ]
-        }'''
-        mock_transaction_context.request = httpx.Request(
-            "POST", "http://example.com/api", content=body
-        )
-        
+        }"""
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
+
         policy = LeakedApiKeyDetectionPolicy()
-        
+
         result = await policy.apply(mock_transaction_context, mock_container, mock_db_session)
-        
+
         assert result == mock_transaction_context
         assert result.response is None  # No error response set
 
@@ -86,22 +80,20 @@ class TestLeakedApiKeyDetectionPolicyApply:
     ):
         """Test detection of API key in message content."""
         # Create a request with an API key in the message content
-        body = b'''{
+        body = b"""{
             "model": "gpt-3.5-turbo",
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": "My API key is sk-abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmn. Can you help me use it?"}
             ]
-        }'''
-        mock_transaction_context.request = httpx.Request(
-            "POST", "http://example.com/api", content=body
-        )
-        
+        }"""  # noqa: E501 - not worth breaking up a long line in the middle of a multiline string specifying a JSON body
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
+
         policy = LeakedApiKeyDetectionPolicy()
-        
+
         with pytest.raises(LeakedApiKeyError):
             await policy.apply(mock_transaction_context, mock_container, mock_db_session)
-        
+
         assert isinstance(mock_transaction_context.response, JSONResponse)
         assert mock_transaction_context.response.status_code == 403
         assert "message content" in mock_transaction_context.response.body.decode("utf-8")
@@ -112,64 +104,54 @@ class TestLeakedApiKeyDetectionPolicyApply:
     ):
         """Test detection of API key in system message content."""
         # Create a request with an API key in the system message
-        body = b'''{
+        body = b"""{
             "model": "gpt-3.5-turbo",
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant. Use this key: xoxb-1234567890123-1234567890123-AbCdEfGhIjKlMnOpQrStUvWx for authentication."},
                 {"role": "user", "content": "Hello, can you help me?"}
             ]
-        }'''
-        mock_transaction_context.request = httpx.Request(
-            "POST", "http://example.com/api", content=body
-        )
-        
+        }"""  # noqa: E501 - not worth breaking up a long line in the middle of a multiline string specifying a JSON body
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
+
         policy = LeakedApiKeyDetectionPolicy()
-        
+
         with pytest.raises(LeakedApiKeyError):
             await policy.apply(mock_transaction_context, mock_container, mock_db_session)
-        
+
         assert isinstance(mock_transaction_context.response, JSONResponse)
         assert mock_transaction_context.response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_apply_with_non_json_body(
-        self, mock_transaction_context, mock_container, mock_db_session
-    ):
+    async def test_apply_with_non_json_body(self, mock_transaction_context, mock_container, mock_db_session):
         """Test that a non-JSON body doesn't cause issues."""
-        body = b'This is not JSON and should be ignored'
-        mock_transaction_context.request = httpx.Request(
-            "POST", "http://example.com/api", content=body
-        )
-        
+        body = b"This is not JSON and should be ignored"
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
+
         policy = LeakedApiKeyDetectionPolicy()
-        
+
         result = await policy.apply(mock_transaction_context, mock_container, mock_db_session)
-        
+
         assert result == mock_transaction_context
         assert result.response is None  # No error response set
 
     @pytest.mark.asyncio
-    async def test_apply_with_custom_patterns(
-        self, mock_transaction_context, mock_container, mock_db_session
-    ):
+    async def test_apply_with_custom_patterns(self, mock_transaction_context, mock_container, mock_db_session):
         """Test with custom patterns that match message content."""
         # Create a request with a custom pattern to match
-        body = b'''{
+        body = b"""{
             "model": "gpt-3.5-turbo",
             "messages": [
                 {"role": "user", "content": "My custom key is custom-12345. Can you help me?"}
             ]
-        }'''
-        mock_transaction_context.request = httpx.Request(
-            "POST", "http://example.com/api", content=body
-        )
-        
+        }"""
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
+
         # Use a custom pattern that matches "custom-" followed by digits
         policy = LeakedApiKeyDetectionPolicy(patterns=["custom-[0-9]+"])
-        
+
         with pytest.raises(LeakedApiKeyError):
             await policy.apply(mock_transaction_context, mock_container, mock_db_session)
-        
+
         assert isinstance(mock_transaction_context.response, JSONResponse)
         assert mock_transaction_context.response.status_code == 403
 
@@ -184,9 +166,9 @@ class TestLeakedApiKeyDetectionPolicySerialization:
             name="TestSerializer",
             patterns=custom_patterns,
         )
-        
+
         serialized = policy.serialize()
-        
+
         assert serialized == {
             "name": "TestSerializer",
             "patterns": custom_patterns,
@@ -199,9 +181,9 @@ class TestLeakedApiKeyDetectionPolicySerialization:
             "name": "DeserializedPolicy",
             "patterns": ["custom-[0-9]+"],
         }
-        
+
         policy = await LeakedApiKeyDetectionPolicy.from_serialized(config)
-        
+
         assert policy.name == "DeserializedPolicy"
         assert policy.patterns == ["custom-[0-9]+"]
 
@@ -211,8 +193,8 @@ class TestLeakedApiKeyDetectionPolicySerialization:
         config = {
             "name": "MinimalConfig",
         }
-        
+
         policy = await LeakedApiKeyDetectionPolicy.from_serialized(config)
-        
+
         assert policy.name == "MinimalConfig"
-        assert policy.patterns == LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS 
+        assert policy.patterns == LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS

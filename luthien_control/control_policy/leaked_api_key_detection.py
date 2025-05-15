@@ -8,7 +8,7 @@ sensitive API keys from being sent to language models.
 import json
 import logging
 import re
-from typing import Dict, List, Optional, Pattern, Any, cast
+from typing import List, Optional, Pattern, cast
 
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,11 +31,7 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
         r"github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}",  # GitHub PAT pattern
     ]
 
-    def __init__(
-        self, 
-        patterns: Optional[List[str]] = None,
-        name: Optional[str] = None
-    ):
+    def __init__(self, patterns: Optional[List[str]] = None, name: Optional[str] = None):
         """Initializes the policy.
 
         Args:
@@ -73,49 +69,52 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")
 
         self.logger.info(f"[{context.transaction_id}] Checking for leaked API keys in message content ({self.name}).")
-        
+
         # Only look at POST requests with content
         if not hasattr(context.request, "content") or not context.request.content:
             self.logger.debug(f"[{context.transaction_id}] No content to check for API keys.")
             return context
-            
+
         try:
             # Get the request body as JSON
             body_content = context.request.content.decode("utf-8")
             body_json = json.loads(body_content)
-            
+
             # Check the "messages" field for leaked API keys
             if "messages" in body_json and isinstance(body_json["messages"], list):
                 messages = body_json["messages"]
-                
+
                 # Inspect each message's content
                 for message in messages:
                     if "content" in message and isinstance(message["content"], str):
                         content = message["content"]
                         if self._check_text(content):
-                            error_message = "Potential API key detected in message content. For security, the request has been blocked."
+                            error_message = (
+                                "Potential API key detected in message content. "
+                                "For security, the request has been blocked."
+                            )
                             self.logger.warning(f"[{context.transaction_id}] {error_message} ({self.name})")
-                            
+
                             context.response = JSONResponse(
                                 status_code=403,
                                 content={"detail": error_message},
                             )
                             raise LeakedApiKeyError(detail=error_message)
-                            
+
         except (UnicodeDecodeError, json.JSONDecodeError):
             # If the body isn't valid JSON or text, we can't check it effectively
             self.logger.debug(f"[{context.transaction_id}] Could not decode request body as JSON.")
             pass
-        
+
         return context
-    
+
     def _check_text(self, text: str) -> bool:
         """
         Checks if the given text contains any patterns matching potential API keys.
-        
+
         Args:
             text: The text to check.
-            
+
         Returns:
             True if a potential API key is found, False otherwise.
         """
@@ -148,4 +147,4 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
         return cls(
             name=config.get("name"),
             patterns=config.get("patterns"),
-        ) 
+        )

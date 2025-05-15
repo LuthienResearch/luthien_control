@@ -1,4 +1,4 @@
-# Luthien Control
+[![Donate to Luthien on Manifund](https://img.shields.io/badge/Donate_To-Luthien-0118D8?style=flat)](https://manifund.org/projects/luthien)     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    [![Luthien Research](https://img.shields.io/badge/Luthien-Research-blue?style=flat&labelColor=0118D8&color=1B56FD)](https://luthienresearch.org/)
 
 > **⚠️ EARLY DEVELOPMENT WARNING ⚠️**
 >
@@ -6,13 +6,22 @@
 > Expect frequent updates, potential bugs, and **breaking changes** to the API and functionality without prior notice.
 > Use at your own risk during this phase.
 
+# Luthien Control
+
 Luthien Control is a framework to implement AI Control policies on OpenAI-API compatible endpoints. The Luthien Control server is a proxy server that sits between clients and the AI backend, implementing AI Control policies on traffic that goes between them.
+
+## Contributing
+
+* The main development branch is [dev]( https://github.com/luthienResearch/luthien_control/tree/dev ) - point PRs here.
+* `ruff` is used for linting and formatting
+* Google-style docstrings
+* Unit tests are in `tests`, new code should generally come with new tests. We're targeting 90% coverage.
 
 ## Developer Documentation
 
 Developer documentation is available here:
 
-[![Documentation](https://img.shields.io/badge/documentation-view-brightgreen?style=for-the-badge)](https://luthienresearch.github.io/luthien_control/)
+[![Documentation](https://img.shields.io/badge/view-documentation-1B56FD?style=plastic)](https://luthienresearch.github.io/luthien_control/)
 
 ## Technology Stack
 *   **Language:** Python (3.11+)
@@ -83,24 +92,35 @@ Developer documentation is available here:
     Configuration is managed via environment variables, loaded using `python-dotenv` from a `.env` file in the project root during development.
     *   The example file `.env.example` includes reasonable defaults for local development that should work with the Docker setup.
     *   Edit the `.env` file if you need to customize any values.
-    *   **Required Variables:**
-        *   `TOP_LEVEL_POLICY_NAME`: The name of the top-level policy configured in your DB or policy file
-        *   `POLICY_FILEPATH`: If set, `POLICY_FILEPATH` should be a json defining a SerializedPolicy which will be used as the control policy on the server. Otherwise, we use the policy in the policy table with name `TOP_LEVEL_POLICY_NAME`.
+    *   **Env Variables**
+        *   `POLICY_FILEPATH`: If set, `POLICY_FILEPATH` should be a json defining a SerializedPolicy which will be used as the control policy on the server. Otherwise, see `TOP_LEVEL_POLICY_NAME`
+        *   `TOP_LEVEL_POLICY_NAME`: The name of the top-level policy configured in your DB that the server will apply to all requests/responses passing through
         *   `BACKEND_URL`: The URL of the backend OpenAI-compatible API you want to proxy requests to (e.g., `https://api.openai.com/v1`).
-        *   `OPENAI_API_KEY`: API key for the backend service (required if the backend needs authentication, like OpenAI).
+        *   `OPENAI_API_KEY`: API key for the backend service (required if the backend needs authentication, like OpenAI).(NOTE: THIS IS DEPRECATED, BACKEND API KEYS SHOULD NOW BE SET TO ENV VARIABLES SPECIFIED PER-POLICY, SEE `AddApiKeyHeaderFromEnv`)
     *   **Database Variables:**
+        * `DATABASE_URL`: Full postgres DB connection URL. If this is not set, the `DB_*` env vars will be used instead.
         *   `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME`: Database connection details for the main application database. The values for `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and `DB_PORT` in your `.env` file are also used by `docker-compose.yml` to set up the local PostgreSQL container. The defaults in `.env.example` should align with the default configuration in `docker-compose.yml`.
+        *   `APP_USER`: This is only used by the `create_sqlmodel_db.sh` script for initializing the database. Gives the postgres `APP_USER` required permissions on the created DB.
     *   **Testing Variables:**
-        *   `TEST_CLIENT_API_KEY`: Required for running E2E tests.
+        *   `TEST_CLIENT_API_KEY`: Required for running E2E tests. This will be used as the client key to authenticate *against the Luthien Control Server* (NOT the actual backend, e.g. OpenAI)
+        **Development Variables:**
+        *   `RUN_MODE`: if set to `"dev"`, return detailed error messages on internal server errors. Likely other changes in the future.
 
 ## Usage
 
 ### Running the Server
+
+#### Local Development
 Ensure your `.env` file is configured correctly. Run the FastAPI application using Uvicorn:
 ```bash
 poetry run uvicorn luthien_control.main:app --reload
 ```
 The `--reload` flag enables auto-reloading when code changes are detected, useful during development.
+
+#### Railway
+Just set your OpenAI API-compatible backend and a valid API key:
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/IXTECt?referralCode=ZazPnJ)
 
 ## Generating Documentation
 The project documentation is built using MkDocs.

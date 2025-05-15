@@ -84,7 +84,9 @@ async def _ensure_e2e_policy_exists():
                     },
                 ]
             }
-            desired_description = "E2E Test Policy: Client auth -> Leaked key check -> Adds backend key -> Sends request."
+            desired_description = (
+                "E2E Test Policy: Client auth -> Leaked key check -> Adds backend key -> Sends request."
+            )
 
             if existing_policy:
                 # Check if update is needed

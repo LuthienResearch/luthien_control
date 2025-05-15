@@ -1,6 +1,6 @@
 [project]
 name = "luthien-control"
-version = "0.2.1"
+version = "0.2.2"
 description = "Intelligent proxy server for AI APIs"
 authors = [
     {name = "Jai Dhyani",email = "jai@luthienresearch.org"}

@@ -2,7 +2,7 @@
 
 ## [0.2.2]
 - GH action for docs deployment (e11e50c)
-- README tweaks, including donation and Luthien site links (16129f0)
+- README tweaks, including donation, Luthien site, DeepWiki links (16129f0)
 - Added short Contribution guidelines to README (dcc252a)
 - Add `dev_mode` to skip auth for local development (8c42868)
 - Update README with easy Railway deployment and better env var docs (f9ea038)

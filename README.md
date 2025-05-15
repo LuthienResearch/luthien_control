@@ -1,4 +1,10 @@
-[![Donate to Luthien on Manifund](https://img.shields.io/badge/Donate_To-Luthien-0118D8?style=flat)](https://manifund.org/projects/luthien)     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;    [![Luthien Research](https://img.shields.io/badge/Luthien-Research-blue?style=flat&labelColor=0118D8&color=1B56FD)](https://luthienresearch.org/)
+[![Donate to Luthien on Manifund](https://img.shields.io/badge/Donate_To-Luthien-0118D8?style=flat)](https://manifund.org/projects/luthien)     
+
+[![Luthien Research](https://img.shields.io/badge/Luthien-Research-blue?style=flat&labelColor=0118D8&color=1B56FD)](https://luthienresearch.org/)
+
+[![API Documentation](https://img.shields.io/badge/API-documentation-1B56FD?style=plastic)](https://luthienresearch.github.io/luthien_control/)
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/LuthienResearch/luthien_control)
 
 > **⚠️ EARLY DEVELOPMENT WARNING ⚠️**
 >
@@ -17,11 +23,6 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
 * Google-style docstrings
 * Unit tests are in `tests`, new code should generally come with new tests. We're targeting 90% coverage.
 
-## Developer Documentation
-
-Developer documentation is available here:
-
-[![Documentation](https://img.shields.io/badge/view-documentation-1B56FD?style=plastic)](https://luthienresearch.github.io/luthien_control/)
 
 ## Technology Stack
 *   **Language:** Python (3.11+)

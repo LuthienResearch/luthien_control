@@ -174,27 +174,25 @@ class TestLeakedApiKeyDetectionPolicySerialization:
             "patterns": custom_patterns,
         }
 
-    @pytest.mark.asyncio
-    async def test_from_serialized(self):
+    def test_from_serialized(self):
         """Test deserialization of policy configuration."""
         config = {
             "name": "DeserializedPolicy",
             "patterns": ["custom-[0-9]+"],
         }
 
-        policy = await LeakedApiKeyDetectionPolicy.from_serialized(config)
+        policy = LeakedApiKeyDetectionPolicy.from_serialized(config)
 
         assert policy.name == "DeserializedPolicy"
         assert policy.patterns == ["custom-[0-9]+"]
 
-    @pytest.mark.asyncio
-    async def test_from_serialized_with_defaults(self):
+    def test_from_serialized_with_defaults(self):
         """Test deserialization with minimal config uses defaults."""
         config = {
             "name": "MinimalConfig",
         }
 
-        policy = await LeakedApiKeyDetectionPolicy.from_serialized(config)
+        policy = LeakedApiKeyDetectionPolicy.from_serialized(config)
 
         assert policy.name == "MinimalConfig"
         assert policy.patterns == LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS

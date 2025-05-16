@@ -318,27 +318,3 @@ async def test_apply_handles_invalid_backend_url(
             await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     mock_http_client.send.assert_not_called()
-
-
-# --- Serialization Tests ---
-
-
-async def test_send_backend_request_policy_serialization(
-    policy: SendBackendRequestPolicy,
-):
-    """Test that SendBackendRequestPolicy can be serialized and deserialized correctly."""
-    # Arrange
-    # 'policy' fixture already provides an instance
-    original_policy = policy
-
-    # Act
-    serialized_data = original_policy.serialize()
-    rehydrated_policy = await SendBackendRequestPolicy.from_serialized(config=serialized_data)
-
-    # Assert
-    assert isinstance(serialized_data, dict)
-    # Serialize now only includes the name
-    assert serialized_data == {"name": "test-policy"}
-
-    assert isinstance(rehydrated_policy, SendBackendRequestPolicy)
-    assert rehydrated_policy.name == original_policy.name

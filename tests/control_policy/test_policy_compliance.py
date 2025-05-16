@@ -115,15 +115,15 @@ def test_policy_serialize_signature(policy_class: Type[ControlPolicy]):
 def test_policy_from_serialized_signature(policy_class: Type[ControlPolicy]):
     """Verify the 'from_serialized' classmethod signature for all ControlPolicy subclasses."""
     assert hasattr(policy_class, "from_serialized"), f"{policy_class.__name__} missing 'from_serialized' method"
-    from_serialized_method = getattr(policy_class, "from_serialized")
-    assert isinstance(from_serialized_method, classmethod) or inspect.iscoroutinefunction(
-        getattr(from_serialized_method, "__func__", None)
-    ), f"{policy_class.__name__}.from_serialized should be a classmethod (or async classmethod)"  # Allow async
 
-    # Get the actual function underlying the classmethod/async classmethod
-    actual_func = getattr(
-        from_serialized_method, "__func__", from_serialized_method
-    )  # Handles both regular and async classmethods potentially wrapped
+    # Use inspect.getattr_static to get the attribute without invoking the descriptor protocol
+    from_serialized_obj = inspect.getattr_static(policy_class, "from_serialized")
+    assert isinstance(from_serialized_obj, classmethod), (
+        f"{policy_class.__name__}.from_serialized should be a classmethod descriptor, got {type(from_serialized_obj)}"
+    )
+
+    # Get the actual function underlying the classmethod
+    actual_func = from_serialized_obj.__func__
     assert callable(actual_func), f"{policy_class.__name__}.from_serialized underlying func must be callable"
 
     sig = inspect.signature(actual_func)

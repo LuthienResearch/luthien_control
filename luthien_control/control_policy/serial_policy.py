@@ -132,7 +132,7 @@ class SerialPolicy(ControlPolicy):
         return cast(SerializableDict, {"policies": member_configs})
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":
+    def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":
         """
         Constructs a SerialPolicy from serialized data, loading member policies.
 
@@ -160,7 +160,7 @@ class SerialPolicy(ControlPolicy):
             if not isinstance(member_data, dict):
                 raise PolicyLoadError(f"Item at index {i} in SerialPolicy 'policies' is not a dictionary.")
             try:
-                member_policy = await load_policy(member_data)
+                member_policy = load_policy(member_data)
                 instantiated_policies.append(member_policy)
             except PolicyLoadError as e:
                 raise PolicyLoadError(

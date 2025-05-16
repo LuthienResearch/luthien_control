@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .control_policy import ControlPolicy
 
 
-async def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
+def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
     """
     Loads a ControlPolicy instance from a dictionary containing its name and config,
     injecting required dependencies.
@@ -53,7 +53,7 @@ async def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
         )
 
     try:
-        instance = await policy_class.from_serialized(policy_config)
+        instance = policy_class.from_serialized(policy_config)
         instance_name = policy_config.get("name", None)
         if instance_name:
             instance.name = instance_name
@@ -64,8 +64,8 @@ async def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
         raise PolicyLoadError(f"Error instantiating policy '{policy_type}': {e}") from e
 
 
-async def load_policy_from_file(filepath: str) -> "ControlPolicy":
+def load_policy_from_file(filepath: str) -> "ControlPolicy":
     """Load a policy configuration from a file and instantiate it using the control_policy loader."""
     with open(filepath, "r") as f:
         policy_data = json.load(f)
-    return await load_policy(policy_data)
+    return load_policy(policy_data)

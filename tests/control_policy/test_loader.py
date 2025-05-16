@@ -19,7 +19,7 @@ class MockPolicy:
         self.name = self.config.get("name", self.name)
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict, **kwargs: Any) -> "MockPolicy":
+    def from_serialized(cls, config: SerializableDict, **kwargs: Any) -> "MockPolicy":
         if config.get("fail_load", False):
             raise ValueError("Simulated instantiation failure")
         return cls(config=config)
@@ -39,7 +39,7 @@ MOCK_REGISTRY = {"mock_policy": MockPolicy}
 async def test_load_policy_success():
     """Test successful loading of a known policy type."""
     serialized_policy: SerializedPolicy = {"type": "mock_policy", "config": {"key": "value", "name": "instance_one"}}
-    policy = await load_policy(serialized_policy)
+    policy = load_policy(serialized_policy)
 
     assert isinstance(policy, MockPolicy)
     assert policy.config == {"key": "value", "name": "instance_one"}
@@ -51,7 +51,7 @@ async def test_load_policy_success():
 async def test_load_policy_success_no_name_in_config():
     """Test successful loading when name is not in config (uses class default)."""
     serialized_policy: SerializedPolicy = {"type": "mock_policy", "config": {"key": "value"}}
-    policy = await load_policy(serialized_policy)
+    policy = load_policy(serialized_policy)
 
     assert isinstance(policy, MockPolicy)
     assert policy.config == {"key": "value"}
@@ -65,12 +65,11 @@ async def test_load_policy_unknown_type():
     serialized_policy: SerializedPolicy = {"type": "unknown_policy", "config": {}}
 
     with pytest.raises(PolicyLoadError, match="Unknown policy type: 'unknown_policy'"):
-        await load_policy(serialized_policy)
+        load_policy(serialized_policy)
 
 
-@pytest.mark.asyncio
 @patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", MOCK_REGISTRY)
-async def test_load_policy_instantiation_error():
+def test_load_policy_instantiation_error():
     """Test loading fails when the policy's from_serialized raises an error."""
     serialized_policy: SerializedPolicy = {
         "type": "mock_policy",
@@ -78,7 +77,7 @@ async def test_load_policy_instantiation_error():
     }
 
     with pytest.raises(PolicyLoadError, match="Error instantiating policy 'mock_policy'"):
-        await load_policy(serialized_policy)
+        load_policy(serialized_policy)
 
 
 @pytest.mark.asyncio
@@ -92,7 +91,7 @@ async def test_load_policy_invalid_type_format():
     }
 
     with pytest.raises(PolicyLoadError, match="Policy 'type' must be a string"):
-        await load_policy(serialized_policy)
+        load_policy(serialized_policy)
 
 
 @pytest.mark.asyncio
@@ -106,4 +105,4 @@ async def test_load_policy_invalid_config_format():
     }
 
     with pytest.raises(PolicyLoadError, match="Policy 'config' must be a dictionary"):
-        await load_policy(serialized_policy)
+        load_policy(serialized_policy)

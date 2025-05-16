@@ -52,9 +52,6 @@ class Condition(abc.ABC):
                 f"Unknown condition type '{condition_type_name}'. Ensure it is registered in NAME_TO_CONDITION_CLASS."
             )
 
-        # Expect the target_condition_class to have its own from_serialized method.
-        # That method should be a classmethod (can be async or sync, but called with await here for consistency if it were async).
-        # For now, assuming concrete from_serialized are sync, but allowing await if they become async.
         return target_condition_class.from_serialized(serialized)
 
     def __repr__(self) -> str:

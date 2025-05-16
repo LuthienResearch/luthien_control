@@ -186,7 +186,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         return cast(SerializableDict, {"name": self.name})
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "SendBackendRequestPolicy":
+    def from_serialized(cls, config: SerializableDict) -> "SendBackendRequestPolicy":
         """
         Constructs the policy from serialized configuration.
 

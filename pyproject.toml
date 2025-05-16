@@ -38,6 +38,7 @@ aiosqlite = ">=0.21.0,<0.22.0"
 mkdocs = "^1.6.1"
 mkdocs-material = "^9.6.12"
 mkdocstrings = {extras = ["python"], version = "^0.29.1"}
+pyright = "^1.1.400"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

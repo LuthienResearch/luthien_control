@@ -129,7 +129,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         return cast(SerializableDict, config)
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "ClientApiKeyAuthPolicy":
+    def from_serialized(cls, config: SerializableDict) -> "ClientApiKeyAuthPolicy":
         """
         Constructs the policy from serialized data.
 

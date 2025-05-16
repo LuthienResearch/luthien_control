@@ -69,16 +69,36 @@ class ControlPolicy(abc.ABC):
 
     # construct from serialization
     @classmethod
-    @abc.abstractmethod
-    async def from_serialized(cls: Type[PolicyT], config: SerializableDict, **kwargs) -> PolicyT:
+    def from_serialized(cls: Type[PolicyT], config: SerializableDict, **kwargs: Any) -> PolicyT:
         """
         Construct a policy from a serialized configuration and optional dependencies.
 
+        This method acts as a dispatcher. It looks up the concrete policy class
+        based on the 'type' field in the config and delegates to its from_serialized method.
+
         Args:
-            config: The policy-specific configuration dictionary.
-            **kwargs: Additional dependencies needed for instantiation.
+            config: The policy-specific configuration dictionary. It must contain a 'type' key
+                    that maps to a registered policy type.
+            **kwargs: Additional dependencies needed for instantiation, passed to the
+                      concrete policy's from_serialized method.
 
         Returns:
-            An instance of the policy class.
+            An instance of the concrete policy class.
+
+        Raises:
+            ValueError: If the 'type' key is missing in config or the type is not registered.
         """
-        raise NotImplementedError
+        # Mimport inside the method to break circular dependency
+        from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
+
+        policy_type_name = config.get("type")
+        if not policy_type_name:
+            raise ValueError("Policy configuration must include a 'type' field.")
+
+        target_policy_class = POLICY_NAME_TO_CLASS.get(policy_type_name)
+        if not target_policy_class:
+            raise ValueError(
+                f"Unknown policy type '{policy_type_name}'. Ensure it is registered in POLICY_NAME_TO_CLASS."
+            )
+
+        return target_policy_class.from_serialized(config, **kwargs)

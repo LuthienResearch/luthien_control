@@ -24,7 +24,35 @@ class Condition(abc.ABC):
 
     @classmethod
     def from_serialized(cls, serialized: SerializableDict) -> "Condition":
-        pass
+        """Construct a condition from a serialized configuration.
+
+        This method acts as a dispatcher. It looks up the concrete condition class
+        based on the 'type' field in the config and delegates to its from_serialized method.
+
+        Args:
+            serialized: The condition-specific configuration dictionary. It must contain
+                        a 'type' key that maps to a registered condition type.
+
+        Returns:
+            An instance of the concrete condition class.
+
+        Raises:
+            ValueError: If the 'type' key is missing in config or the type is not registered.
+        """
+        # Moved import inside the method to break circular dependency
+        from luthien_control.control_policy.conditions.registry import NAME_TO_CONDITION_CLASS
+
+        condition_type_name = serialized.get("type")
+        if not condition_type_name:
+            raise ValueError("Condition configuration must include a 'type' field.")
+
+        target_condition_class = NAME_TO_CONDITION_CLASS.get(condition_type_name)
+        if not target_condition_class:
+            raise ValueError(
+                f"Unknown condition type '{condition_type_name}'. Ensure it is registered in NAME_TO_CONDITION_CLASS."
+            )
+
+        return target_condition_class.from_serialized(serialized)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.serialize()})"

@@ -123,7 +123,7 @@ async def load_policy_from_db(
     }
 
     try:
-        instance = await load_policy(policy_data)
+        instance = load_policy(policy_data)
         logger.info(f"Successfully loaded and instantiated policy '{name}' from database.")
         return instance
     except PolicyLoadError as e:

@@ -103,7 +103,7 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         )
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderFromEnvPolicy":
+    def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderFromEnvPolicy":
         """
         Constructs the policy from serialized configuration.
 

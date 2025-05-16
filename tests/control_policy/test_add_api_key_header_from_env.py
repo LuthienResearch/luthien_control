@@ -142,41 +142,37 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
         }
         assert policy.serialize() == expected_config
 
-    @pytest.mark.asyncio
-    async def test_from_serialized_success(self):
+    def test_from_serialized_success(self):
         config = {
             "name": "MyPolicyInstance",
             "api_key_env_var_name": API_KEY_ENV_VAR_NAME,
         }
-        policy = await AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
         assert isinstance(policy, AddApiKeyHeaderFromEnvPolicy)
         assert policy.name == "MyPolicyInstance"
         assert policy.api_key_env_var_name == API_KEY_ENV_VAR_NAME
 
-    @pytest.mark.asyncio
-    async def test_from_serialized_success_default_name(self):
+    def test_from_serialized_success_default_name(self):
         config = {
             "api_key_env_var_name": API_KEY_ENV_VAR_NAME,
         }
-        policy = await AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
         assert isinstance(policy, AddApiKeyHeaderFromEnvPolicy)
         assert policy.name == "AddApiKeyHeaderFromEnvPolicy"  # Default class name if 'name' is not in config
         assert policy.api_key_env_var_name == API_KEY_ENV_VAR_NAME
 
-    @pytest.mark.asyncio
-    async def test_from_serialized_success_api_key_env_var_name_is_int(self):
+    def test_from_serialized_success_api_key_env_var_name_is_int(self):
         # Test if api_key_env_var_name is converted to string if provided as non-string
         config = {
             "api_key_env_var_name": 12345  # Using an int
         }
-        policy = await AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
         assert isinstance(policy, AddApiKeyHeaderFromEnvPolicy)
         assert policy.api_key_env_var_name == "12345"  # Should be converted to string
 
-    @pytest.mark.asyncio
-    async def test_from_serialized_missing_api_key_env_var_name_raises_key_error(self):
+    def test_from_serialized_missing_api_key_env_var_name_raises_key_error(self):
         config = {"name": "MyPolicyInstance"}  # Missing api_key_env_var_name
         with pytest.raises(
             KeyError, match="Configuration for AddApiKeyHeaderFromEnvPolicy is missing 'api_key_env_var_name'."
         ):
-            await AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+            AddApiKeyHeaderFromEnvPolicy.from_serialized(config)

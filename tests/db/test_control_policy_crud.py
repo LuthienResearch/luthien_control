@@ -162,7 +162,7 @@ async def test_load_policy_from_db_happy_path(mocker: MockerFixture):
         "type": db_policy_model.type,
         "config": db_policy_model.config or {},
     }
-    mock_load_policy.assert_awaited_once_with(expected_policy_data)
+    mock_load_policy.assert_called_once_with(expected_policy_data)
     assert result is mock_instantiated_policy
     assert result.name == policy_name
 
@@ -220,7 +220,7 @@ async def test_load_policy_from_db_loader_raises_policy_load_error(
         await load_policy_from_db(policy_name, mock_container)
 
     assert exc_info.value is original_error
-    mock_load_policy.assert_awaited_once()
+    mock_load_policy.assert_called_once()
 
 
 async def test_load_policy_from_db_loader_raises_other_exception(
@@ -253,7 +253,7 @@ async def test_load_policy_from_db_loader_raises_other_exception(
         await load_policy_from_db(policy_name, mock_container)
 
     assert exc_info.value.__cause__ is original_exception
-    mock_load_policy.assert_awaited_once()
+    mock_load_policy.assert_called_once()
 
 
 async def test_get_policy_config_by_name_found_active(async_session: AsyncSession):

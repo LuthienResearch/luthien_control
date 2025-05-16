@@ -101,8 +101,7 @@ async def test_add_api_key_overwrites_existing(
     mock_container.settings.get_openai_api_key.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_add_api_key_header_policy_serialization():
+def test_add_api_key_header_policy_serialization():
     """Test that AddApiKeyHeaderPolicy can be serialized and deserialized correctly."""
     # Arrange - Create instance
     original_policy = AddApiKeyHeaderPolicy(name="CustomPolicyName")
@@ -118,15 +117,14 @@ async def test_add_api_key_header_policy_serialization():
     assert serialized_data == expected_serialized
 
     # Act - Deserialize
-    rehydrated_policy = await AddApiKeyHeaderPolicy.from_serialized(config=serialized_data)
+    rehydrated_policy = AddApiKeyHeaderPolicy.from_serialized(config=serialized_data)
 
     # Assert Deserialization - Only name is restored
     assert isinstance(rehydrated_policy, AddApiKeyHeaderPolicy)
     assert rehydrated_policy.name == "CustomPolicyName"
 
 
-@pytest.mark.asyncio
-async def test_add_api_key_serialization_defaults():
+def test_add_api_key_serialization_defaults():
     """Test serialization when using default name."""
     policy = AddApiKeyHeaderPolicy()
 
@@ -134,5 +132,5 @@ async def test_add_api_key_serialization_defaults():
     # Only default name is expected
     assert serialized == {"name": "AddApiKeyHeaderPolicy"}
 
-    rehydrated = await AddApiKeyHeaderPolicy.from_serialized(serialized)
+    rehydrated = AddApiKeyHeaderPolicy.from_serialized(serialized)
     assert rehydrated.name == "AddApiKeyHeaderPolicy"

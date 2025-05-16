@@ -134,7 +134,7 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
         )
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "LeakedApiKeyDetectionPolicy":
+    def from_serialized(cls, config: SerializableDict) -> "LeakedApiKeyDetectionPolicy":
         """
         Constructs the policy from serialized configuration.
 

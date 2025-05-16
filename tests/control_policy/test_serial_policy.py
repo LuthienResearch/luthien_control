@@ -246,9 +246,8 @@ async def test_serial_policy_serialization():
 
     # Act
     serialized_data = original_serial_policy.serialize()
-    rehydrated_policy = await SerialPolicy.from_serialized(serialized_data)
+    rehydrated_policy = SerialPolicy.from_serialized(serialized_data)
 
-    # Assert
     assert isinstance(serialized_data, dict)
     assert "policies" in serialized_data
     assert len(serialized_data["policies"]) == 2
@@ -268,15 +267,14 @@ async def test_serial_policy_serialization():
     assert rehydrated_policy.policies[1].name == "AddOpenAIKey"
 
 
-@pytest.mark.asyncio
-async def test_serial_policy_serialization_empty():
+def test_serial_policy_serialization_empty():
     """Test serialization with an empty list of policies."""
     # Arrange
     original_serial_policy = SerialPolicy(policies=[], name="EmptySerial")
 
     # Act
     serialized_data = original_serial_policy.serialize()
-    rehydrated_policy = await SerialPolicy.from_serialized(serialized_data)
+    rehydrated_policy = SerialPolicy.from_serialized(serialized_data)
 
     # Assert
     assert isinstance(serialized_data, dict)
@@ -285,19 +283,17 @@ async def test_serial_policy_serialization_empty():
     assert len(rehydrated_policy.policies) == 0
 
 
-@pytest.mark.asyncio
-async def test_serial_policy_serialization_missing_policies_key():
+def test_serial_policy_serialization_missing_policies_key():
     """Test deserialization failure when 'policies' key is missing."""
     # Arrange
     invalid_config = {"some_other_key": "value"}
 
     # Act & Assert
     with pytest.raises(PolicyLoadError, match="SerialPolicy config missing 'policies' list"):
-        await SerialPolicy.from_serialized(invalid_config)
+        SerialPolicy.from_serialized(invalid_config)
 
 
-@pytest.mark.asyncio
-async def test_serial_policy_serialization_invalid_policy_item():
+def test_serial_policy_serialization_invalid_policy_item():
     """Test deserialization failure with invalid item in 'policies' list."""
     invalid_config = {
         "policies": [
@@ -306,12 +302,11 @@ async def test_serial_policy_serialization_invalid_policy_item():
         ]
     }
     with pytest.raises(PolicyLoadError, match="Item at index 1 in SerialPolicy 'policies' is not a dictionary"):
-        await SerialPolicy.from_serialized(invalid_config)
+        SerialPolicy.from_serialized(invalid_config)
 
 
-@patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=AsyncMock)
-@pytest.mark.asyncio
-async def test_serial_policy_serialization_load_error(mock_load_policy):
+@patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=MagicMock)
+def test_serial_policy_serialization_load_error(mock_load_policy):
     """Test error propagation when loading a member policy fails."""
     config = {
         "policies": [
@@ -322,12 +317,11 @@ async def test_serial_policy_serialization_load_error(mock_load_policy):
     mock_load_policy.side_effect = [MagicMock(spec=ControlPolicy), PolicyLoadError("Mocked load failure")]
 
     with pytest.raises(PolicyLoadError, match="Failed to load member policy.*within SerialPolicy"):
-        await SerialPolicy.from_serialized(config)
+        SerialPolicy.from_serialized(config)
 
 
-@patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=AsyncMock)
-@pytest.mark.asyncio
-async def test_serial_policy_serialization_unexpected_error(mock_load_policy):
+@patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=MagicMock)
+def test_serial_policy_serialization_unexpected_error(mock_load_policy):
     """Test handling of unexpected errors during member policy loading."""
     config = {
         "policies": [
@@ -337,4 +331,4 @@ async def test_serial_policy_serialization_unexpected_error(mock_load_policy):
     mock_load_policy.side_effect = ValueError("Unexpected internal error")
 
     with pytest.raises(PolicyLoadError, match="Unexpected error loading member policy.*"):
-        await SerialPolicy.from_serialized(config)
+        SerialPolicy.from_serialized(config)

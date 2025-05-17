@@ -10,7 +10,7 @@ import logging
 import os
 from typing import Optional, cast
 
-from fastapi.responses import JSONResponse
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -79,9 +79,9 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
                 f"API key not found. Environment variable '{self.api_key_env_var_name}' is not set or is empty."
             )
             self.logger.error(f"[{context.transaction_id}] {error_message} ({self.name})")
-            context.response = JSONResponse(
+            context.response = httpx.Response(
                 status_code=500,
-                content={"detail": f"Server configuration error: {error_message}"},
+                json={"detail": f"Server configuration error: {error_message}"},
             )
             raise ApiKeyNotFoundError(f"[{context.transaction_id}] {error_message} ({self.name})")
 

@@ -10,7 +10,7 @@ import logging
 import re
 from typing import List, Optional, Pattern, cast
 
-from fastapi.responses import JSONResponse
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -95,9 +95,9 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
                             )
                             self.logger.warning(f"[{context.transaction_id}] {error_message} ({self.name})")
 
-                            context.response = JSONResponse(
+                            context.response = httpx.Response(
                                 status_code=403,
-                                content={"detail": error_message},
+                                json={"detail": error_message},
                             )
                             raise LeakedApiKeyError(detail=error_message)
 

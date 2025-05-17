@@ -68,7 +68,7 @@ async def run_policy_flow(
 
         # Always call the builder after successful policy execution
         logger.info(f"[{context.transaction_id}] Policy execution complete. Building final response.")
-        final_response = builder.build_response(context)
+        final_response = builder.build_response(context, dependencies)
 
     except ControlPolicyError as e:
         logger.warning(f"[{context.transaction_id}] Control policy error halted execution: {e}")

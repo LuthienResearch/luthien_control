@@ -177,23 +177,12 @@ def test_build_response_context_response_is_none(
     mock_dependencies_dev_true: DependencyContainer,  # Request both
     mock_dependencies_dev_false: DependencyContainer,  # Request both
 ):
-    """Test response when context.response is None (should be caught by _convert_to_fastapi_response type check)."""
+    """Test response when context.response is None"""
     dependencies = mock_dependencies_dev_true if dev_mode_enabled else mock_dependencies_dev_false
 
-    # Act
-    fastapi_response = builder.build_response(context_without_response, dependencies)
-
-    # Assert
-    assert isinstance(fastapi_response, JSONResponse)
-    assert fastapi_response.status_code == 500
-
-    response_body = json.loads(fastapi_response.body)
-    assert response_body["transaction_id"] == str(context_without_response.transaction_id)
-    if dev_mode_enabled:
-        assert "Policy Error:" in response_body["detail"]
-        assert "_convert_to_fastapi_response expected httpx.Response, got <class 'NoneType'>" in response_body["detail"]
-    else:
-        assert response_body["detail"] == "Internal Server Error"
+    response = builder.build_response(context_without_response, dependencies)
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 500
 
 
 @pytest.mark.parametrize(

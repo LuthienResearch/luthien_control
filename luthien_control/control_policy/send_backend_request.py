@@ -103,7 +103,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         This policy constructs the target URL, prepares headers, and uses the
         HTTP client from the `DependencyContainer` to send the `context.request`.
         The backend's response (an `httpx.Response` object) is stored in
-        `context.data["backend_response"]`. The response body is read immediately.
+        `context.response`. The response body is read immediately.
 
         Args:
             context: The current transaction context, containing the `request` to be sent.
@@ -111,7 +111,7 @@ class SendBackendRequestPolicy(ControlPolicy):
             session: An active SQLAlchemy `AsyncSession`. (Unused by this policy but required by the interface).
 
         Returns:
-            The `TransactionContext`, updated with `context.data["backend_response"]`
+            The `TransactionContext`, updated with `context.response`
             containing the `httpx.Response` from the backend.
 
         Raises:
@@ -150,7 +150,7 @@ class SendBackendRequestPolicy(ControlPolicy):
             response = await http_client.send(context.request)
             # Read response body immediately to ensure connection is closed
             await response.aread()
-            context.data["backend_response"] = response
+            context.response = response
             logger.debug(f"[{context.transaction_id}] Received backend response: {response.status_code}")
             logger.debug(f"[{context.transaction_id}] Read {len(response.content)} bytes from backend response body.")
 

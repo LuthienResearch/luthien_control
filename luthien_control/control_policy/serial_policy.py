@@ -69,7 +69,7 @@ class SerialPolicy(ControlPolicy):
         current_context = context
         for i, policy in enumerate(self.policies):
             member_policy_name = getattr(policy, "name", policy.__class__.__name__)  # Get policy name if available
-            self.logger.debug(
+            self.logger.info(
                 f"[{current_context.transaction_id}] Applying policy {i + 1}/{len(self.policies)} "
                 f"in {self.name}: {member_policy_name}"
             )

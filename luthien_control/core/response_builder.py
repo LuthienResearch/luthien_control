@@ -53,6 +53,9 @@ class ResponseBuilder:
             TypeError: if httpx_response is not an instance of httpx.Response.
         """
         # This check is a safeguard; callers should ideally ensure type correctness.
+        if context.response is None:
+            self.logger.error(f"[{context.transaction_id}] _convert_to_fastapi_response received None response.")
+            raise TypeError("_convert_to_fastapi_response received None response.")
         if not isinstance(context.response, httpx.Response):
             self.logger.error(
                 f"[{context.transaction_id}] _convert_to_fastapi_response received incorrect type: "

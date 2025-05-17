@@ -69,7 +69,7 @@ class ControlPolicy(abc.ABC):
 
     # construct from serialization
     @classmethod
-    def from_serialized(cls: Type[PolicyT], config: SerializableDict, **kwargs: Any) -> PolicyT:
+    def from_serialized(cls: Type[PolicyT], config: SerializableDict) -> PolicyT:
         """
         Construct a policy from a serialized configuration and optional dependencies.
 
@@ -101,4 +101,4 @@ class ControlPolicy(abc.ABC):
                 f"Unknown policy type '{policy_type_name}'. Ensure it is registered in POLICY_NAME_TO_CLASS."
             )
 
-        return target_policy_class.from_serialized(config, **kwargs)
+        return target_policy_class.from_serialized(config)

@@ -140,9 +140,20 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         Returns:
             An instance of ClientApiKeyAuthPolicy.
         """
-        # Name is handled by the __init__ default or set from config if present
-        instance = cls()
-        instance_name = config.get("name")
-        if instance_name:
-            instance.name = instance_name
+        instance = cls()  # Name is set to class name by default in __init__
+
+        config_name_value = config.get("name")
+
+        if config_name_value is not None:
+            if isinstance(config_name_value, str):
+                instance.name = config_name_value
+            else:
+                logger.warning(
+                    f"ClientApiKeyAuthPolicy name '{config_name_value}' from config is not a string. "
+                    f"Coercing to string. Original type: {type(config_name_value)}."
+                )
+                instance.name = str(config_name_value)
+        # If config_name_value is None, instance.name (set in __init__) remains unchanged.
+        # If config had no 'name' key, config.get("name") is None, so no change to default name.
+
         return instance

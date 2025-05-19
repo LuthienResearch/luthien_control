@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.loader import load_policy
-from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.control_policy.serialization import SerializableDict, SerializedPolicy
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
 
@@ -69,7 +69,7 @@ class SerialPolicy(ControlPolicy):
         current_context = context
         for i, policy in enumerate(self.policies):
             member_policy_name = getattr(policy, "name", policy.__class__.__name__)  # Get policy name if available
-            self.logger.debug(
+            self.logger.info(
                 f"[{current_context.transaction_id}] Applying policy {i + 1}/{len(self.policies)} "
                 f"in {self.name}: {member_policy_name}"
             )
@@ -147,20 +147,42 @@ class SerialPolicy(ControlPolicy):
             PolicyLoadError: If 'policies' key is missing, not a list, or if loading
                              a member policy fails.
         """
-        try:
-            member_policy_data_list = config["policies"]
-        except KeyError:
-            raise PolicyLoadError("SerialPolicy config missing 'policies' list.")
-        if not isinstance(member_policy_data_list, Iterable):
-            raise PolicyLoadError("SerialPolicy 'policies' must be an iterable.")
+        member_policy_data_list_val = config.get("policies")
+
+        if member_policy_data_list_val is None:
+            raise PolicyLoadError("SerialPolicy config missing 'policies' list (key not found).")
+        if not isinstance(member_policy_data_list_val, Iterable):
+            raise PolicyLoadError(
+                f"SerialPolicy 'policies' must be an iterable. Got {type(member_policy_data_list_val)}"
+            )
 
         instantiated_policies = []
 
-        for i, member_data in enumerate(member_policy_data_list):
+        for i, member_data in enumerate(member_policy_data_list_val):
             if not isinstance(member_data, dict):
-                raise PolicyLoadError(f"Item at index {i} in SerialPolicy 'policies' is not a dictionary.")
+                raise PolicyLoadError(
+                    f"Item at index {i} in SerialPolicy 'policies' is not a dictionary. Got {type(member_data)}"
+                )
+
+            # Extract 'type' and 'config' for SerializedPolicy construction
+            member_policy_type = member_data.get("type")
+            member_policy_config = member_data.get("config")
+
+            if not isinstance(member_policy_type, str):
+                raise PolicyLoadError(
+                    f"Member policy at index {i} in SerialPolicy 'policies' is missing 'type' "
+                    f"or it's not a string. Got {type(member_policy_type)}"
+                )
+            if not isinstance(member_policy_config, dict):
+                raise PolicyLoadError(
+                    f"Member policy at index {i} in SerialPolicy 'policies' is missing 'config' "
+                    f"or it's not a dictionary. Got {type(member_policy_config)}"
+                )
+
             try:
-                member_policy = load_policy(member_data)
+                # Construct SerializedPolicy dataclass instance
+                serialized_member_policy = SerializedPolicy(type=member_policy_type, config=member_policy_config)
+                member_policy = load_policy(serialized_member_policy)
                 instantiated_policies.append(member_policy)
             except PolicyLoadError as e:
                 raise PolicyLoadError(
@@ -175,9 +197,19 @@ class SerialPolicy(ControlPolicy):
                     f"within SerialPolicy: {e}"
                 ) from e
 
-        serial_policy_name = config.get("name", "SerialPolicy")  # Default name if not in config
+        name_val = config.get("name")
+        resolved_name: Optional[str]
+        if name_val is not None:
+            if not isinstance(name_val, str):
+                logger.warning(f"SerialPolicy name '{name_val}' from config is not a string. Coercing to string.")
+                resolved_name = str(name_val)
+            else:
+                resolved_name = name_val
+        else:
+            # Default name if not in config. Could also use cls.__name__
+            resolved_name = "SerialPolicy"
 
-        return cls(policies=instantiated_policies, name=serial_policy_name)
+        return cls(policies=instantiated_policies, name=resolved_name)
 
 
 # legacy compatibility

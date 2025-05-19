@@ -3,9 +3,11 @@
 import json
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypeVar
 
-import httpx
+from httpx import Request, Response
+
+T = TypeVar("T")
 
 
 @dataclass
@@ -22,8 +24,8 @@ class TransactionContext:
 
     # Core Identifiers and State
     transaction_id: uuid.UUID = field(default_factory=uuid.uuid4)
-    request: Optional[httpx.Request] = None
-    response: Optional[httpx.Response] = None
+    request: Optional[Request] = None
+    response: Optional[Response] = None
 
     # General purpose data store for policies to share information
     data: Dict[str, Any] = field(default_factory=dict)
@@ -38,11 +40,16 @@ def get_tx_value(transaction_context: TransactionContext, path: str) -> Any:
 
     Returns:
         The value at the path.
+
+    Raises:
+        ValueError: If the path is invalid or the value cannot be accessed.
+        TypeError: If the transaction_id is not a UUID.
     """
     vals = path.split(".")
     if len(vals) < 2:
         raise ValueError("Path must contain at least two components")
-    x = getattr(transaction_context, vals.pop(0))
+
+    x: Any = getattr(transaction_context, vals.pop(0))
     while vals:
         # If x is bytes, and we still have path segments to process,
         # it implies these segments are keys into the JSON content.

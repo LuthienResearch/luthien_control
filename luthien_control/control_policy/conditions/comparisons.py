@@ -53,8 +53,17 @@ class ComparisonCondition(Condition, ABC):
         }
 
     @classmethod
-    def from_serialized(cls, data: SerializableDict) -> "ComparisonCondition":
-        return cls(data["key"], data["value"])
+    def from_serialized(cls, serialized: SerializableDict) -> "ComparisonCondition":
+        key_val = serialized.get("key")
+        if not isinstance(key_val, str):
+            raise TypeError(
+                f"Configuration for {cls.__name__} is missing 'key' or it is not a string. "
+                f"Got: {key_val!r} (type: {type(key_val).__name__})"
+            )
+
+        value_val = serialized.get("value")
+
+        return cls(key=key_val, value=value_val)
 
 
 class EqualsCondition(ComparisonCondition):

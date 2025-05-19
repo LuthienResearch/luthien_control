@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi.responses import JSONResponse
 from luthien_control.control_policy.add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
 from luthien_control.core.transaction_context import TransactionContext
@@ -94,13 +93,6 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
         with pytest.raises(ApiKeyNotFoundError, match=expected_error_msg_fragment):
             await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
 
-        assert isinstance(mock_transaction_context.response, JSONResponse)
-        assert mock_transaction_context.response.status_code == 500
-        assert (
-            mock_transaction_context.response.body
-            == b'{"detail":"Server configuration error: ' + expected_error_msg_fragment.encode() + b'"}'
-        )
-
     @pytest.mark.asyncio
     async def test_apply_env_var_set_to_empty_string_raises_api_key_not_found_error(
         self, mock_transaction_context, mock_dependency_container, mock_async_session, monkeypatch
@@ -114,13 +106,6 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
 
         with pytest.raises(ApiKeyNotFoundError, match=expected_error_msg_fragment):
             await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
-
-        assert isinstance(mock_transaction_context.response, JSONResponse)
-        assert mock_transaction_context.response.status_code == 500
-        assert (
-            mock_transaction_context.response.body
-            == b'{"detail":"Server configuration error: ' + expected_error_msg_fragment.encode() + b'"}'
-        )
 
 
 class TestAddApiKeyHeaderFromEnvPolicySerialization:

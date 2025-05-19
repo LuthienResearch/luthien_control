@@ -1,4 +1,5 @@
 import abc
+from typing import ClassVar
 
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
@@ -12,7 +13,7 @@ class Condition(abc.ABC):
     the current transaction context.
     """
 
-    type: str
+    type: ClassVar[str]
 
     @abc.abstractmethod
     def evaluate(self, context: TransactionContext) -> bool:
@@ -42,14 +43,19 @@ class Condition(abc.ABC):
         # Moved import inside the method to break circular dependency
         from luthien_control.control_policy.conditions.registry import NAME_TO_CONDITION_CLASS
 
-        condition_type_name = serialized.get("type")
-        if not condition_type_name:
-            raise ValueError("Condition configuration must include a 'type' field.")
+        condition_type_name_val = serialized.get("type")
+        if not isinstance(condition_type_name_val, str):
+            # If 'type' is missing (None) or not a string, it's an invalid configuration.
+            raise ValueError(
+                f"Condition configuration must include a 'type' field as a string. "
+                f"Got: {condition_type_name_val!r} (type: {type(condition_type_name_val).__name__})"
+            )
 
-        target_condition_class = NAME_TO_CONDITION_CLASS.get(condition_type_name)
+        target_condition_class = NAME_TO_CONDITION_CLASS.get(condition_type_name_val)
         if not target_condition_class:
             raise ValueError(
-                f"Unknown condition type '{condition_type_name}'. Ensure it is registered in NAME_TO_CONDITION_CLASS."
+                f"Unknown condition type '{condition_type_name_val}'. "
+                f"Ensure it is registered in NAME_TO_CONDITION_CLASS."
             )
 
         return target_condition_class.from_serialized(serialized)

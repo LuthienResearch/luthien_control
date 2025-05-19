@@ -103,8 +103,7 @@ async def test_apply_success(
     assert sent_headers.get("authorization") != "Bearer client-token"  # Original auth replaced
 
     # Assert that the backend response is stored in the context
-    assert "backend_response" in updated_context.data
-    assert updated_context.data["backend_response"] is mock_backend_response
+    assert updated_context.response is mock_backend_response
     # Verify the mocked response content was accessed (implicitly by httpx/policy)
     assert mock_backend_response.content is not None  # Ensures the attribute was set/accessed
 
@@ -257,7 +256,7 @@ async def test_apply_handles_httpx_request_error(
     # Verify send was called
     mock_http_client.send.assert_awaited_once()
     # Verify no response was stored
-    assert "backend_response" not in base_context.data
+    assert base_context.response is None
 
 
 async def test_apply_handles_httpx_timeout_error(
@@ -287,7 +286,7 @@ async def test_apply_handles_httpx_timeout_error(
     # Verify send was called
     mock_http_client.send.assert_awaited_once()
     # Verify no response was stored
-    assert "backend_response" not in base_context.data
+    assert base_context.response is None
 
 
 async def test_apply_raises_if_context_request_is_none(

@@ -1,16 +1,60 @@
 """Unit tests for ResponseBuilder."""
 
+import json
+from typing import AsyncContextManager
+from unittest.mock import AsyncMock
+
 import httpx
 import pytest
 from fastapi import Response
+from fastapi.responses import JSONResponse
 from httpx import Headers
+from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.response_builder import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.settings import Settings
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture
 def builder() -> ResponseBuilder:
     return ResponseBuilder()
+
+
+@pytest.fixture
+def mock_settings_dev_true() -> Settings:
+    settings = Settings()
+    settings.dev_mode = lambda: True
+    return settings
+
+
+@pytest.fixture
+def mock_settings_dev_false() -> Settings:
+    settings = Settings()
+    settings.dev_mode = lambda: False
+    return settings
+
+
+@pytest.fixture
+def mock_dependencies_dev_true(mock_settings_dev_true: Settings) -> DependencyContainer:
+    container = DependencyContainer(
+        settings=mock_settings_dev_true,
+        http_client=AsyncMock(httpx.AsyncClient),
+        db_session_factory=AsyncMock(AsyncContextManager[AsyncSession]),
+    )
+    container.settings = mock_settings_dev_true
+    return container
+
+
+@pytest.fixture
+def mock_dependencies_dev_false(mock_settings_dev_false: Settings) -> DependencyContainer:
+    container = DependencyContainer(
+        settings=mock_settings_dev_false,
+        http_client=AsyncMock(httpx.AsyncClient),
+        db_session_factory=AsyncMock(AsyncContextManager[AsyncSession]),
+    )
+    container.settings = mock_settings_dev_false
+    return container
 
 
 @pytest.fixture
@@ -34,18 +78,8 @@ def backend_response() -> httpx.Response:
 
 
 @pytest.fixture
-def context_with_raw_body(backend_response: httpx.Response) -> TransactionContext:
-    """Context where response exists and raw body is in data (preferred)."""
-    ctx = TransactionContext(transaction_id="tx-build-test-raw")
-    ctx.response = backend_response
-    # Simulate raw body read by SendBackendRequestPolicy
-    ctx.data["raw_backend_response_body"] = b'{"result": "ok raw body"}'
-    return ctx
-
-
-@pytest.fixture
 def context_with_response_content(backend_response: httpx.Response) -> TransactionContext:
-    """Context where response exists, but raw_backend_response_body is not in data."""
+    """Context where response exists and contains content."""
     ctx = TransactionContext(transaction_id="tx-build-resp-content")
     ctx.response = backend_response
     return ctx
@@ -53,10 +87,19 @@ def context_with_response_content(backend_response: httpx.Response) -> Transacti
 
 @pytest.fixture
 def context_with_empty_content(backend_response: httpx.Response) -> TransactionContext:
-    """Context where response exists, but both raw body and response.content are effectively None/empty."""
+    """Context where response exists, but content is None (e.g., 204)."""
     ctx = TransactionContext(transaction_id="tx-build-empty")
     empty_response = httpx.Response(
-        status_code=204, headers=backend_response.headers, content=None, request=backend_response.request
+        status_code=204,
+        headers=Headers(
+            [
+                ("content-type", "application/json"),  # Keep some headers to test filtering
+                ("x-custom-backend", "value"),
+                ("transfer-encoding", "chunked"),
+            ]
+        ),
+        content=None,  # httpx.Response uses None for empty body
+        request=backend_response.request,
     )
     ctx.response = empty_response
     return ctx
@@ -65,40 +108,27 @@ def context_with_empty_content(backend_response: httpx.Response) -> TransactionC
 @pytest.fixture
 def context_without_response() -> TransactionContext:
     """Context where response is None."""
-    return TransactionContext(transaction_id="tx-build-no-resp")
+    ctx = TransactionContext(transaction_id="tx-build-no-resp")
+    ctx.response = None  # Explicitly set to None
+    return ctx
 
 
-def test_build_response_from_raw_body(builder: ResponseBuilder, context_with_raw_body: TransactionContext):
-    """Test building response
-
-    Test building response using context.response status/headers and
-    context.data[raw_backend_response_body] for content.
-    """
-    # Act
-    fastapi_response = builder.build_response(context_with_raw_body)
-
-    # Assert
-    assert isinstance(fastapi_response, Response)
-    assert fastapi_response.status_code == 200  # From context.response
-    assert fastapi_response.body == b'{"result": "ok raw body"}'  # From context.data (preferred)
-    # Check headers (case-insensitive access)
-    assert fastapi_response.headers.get("content-type") == "application/json"
-    assert fastapi_response.headers.get("x-custom-backend") == "value"
-    assert fastapi_response.headers.get("date") == "some-date"
-    # Check filtered hop-by-hop headers
-    assert "transfer-encoding" not in fastapi_response.headers
-    assert "connection" not in fastapi_response.headers
-    # Check FastAPI added the correct Content-Length
-    expected_len = len(b'{"result": "ok raw body"}')
-    assert fastapi_response.headers.get("content-length") == str(expected_len)
+@pytest.fixture
+def context_with_invalid_response_type() -> TransactionContext:
+    """Context where response is not an httpx.Response."""
+    ctx = TransactionContext(transaction_id="tx-invalid-resp-type")
+    ctx.response = "not an httpx.Response object"  # type: ignore
+    return ctx
 
 
 def test_build_response_from_response_content(
-    builder: ResponseBuilder, context_with_response_content: TransactionContext
+    builder: ResponseBuilder,
+    context_with_response_content: TransactionContext,
+    mock_dependencies_dev_false: DependencyContainer,
 ):
     """Test building response using context.response status/headers and response.content for content."""
     # Act
-    fastapi_response = builder.build_response(context_with_response_content)
+    fastapi_response = builder.build_response(context_with_response_content, mock_dependencies_dev_false)
 
     # Assert
     assert isinstance(fastapi_response, Response)
@@ -108,38 +138,81 @@ def test_build_response_from_response_content(
     assert fastapi_response.headers.get("x-custom-backend") == "value"
     # Check filtered hop-by-hop headers
     assert "transfer-encoding" not in fastapi_response.headers
-    # Check FastAPI added the correct Content-Length
+    assert "connection" not in fastapi_response.headers
+    # Content-Length is re-calculated by FastAPI/Starlette
     expected_len = len(b'{"result": "from response content"}')
     assert fastapi_response.headers.get("content-length") == str(expected_len)
 
 
-def test_build_response_empty_content(builder: ResponseBuilder, context_with_empty_content: TransactionContext):
-    """Test building response when content sources are empty (e.g., 204 No Content)."""
+def test_build_response_empty_content(
+    builder: ResponseBuilder,
+    context_with_empty_content: TransactionContext,
+    mock_dependencies_dev_false: DependencyContainer,
+):
+    """Test building response when content is None (e.g., 204 No Content)."""
     # Act
-    fastapi_response = builder.build_response(context_with_empty_content)
+    fastapi_response = builder.build_response(context_with_empty_content, mock_dependencies_dev_false)
 
     # Assert
     assert isinstance(fastapi_response, Response)
-    assert fastapi_response.status_code == 204  # From context.response
-    assert fastapi_response.body == b""  # Should be empty
-    assert fastapi_response.headers.get("content-type") == "application/json"  # Header still present
+    assert fastapi_response.status_code == 204
+    assert fastapi_response.body == b""
+    assert fastapi_response.headers.get("content-type") == "application/json"
     assert fastapi_response.headers.get("x-custom-backend") == "value"
-    # Check filtered hop-by-hop headers
     assert "transfer-encoding" not in fastapi_response.headers
-    # Check FastAPI added the correct Content-Length
-    assert "content-length" not in fastapi_response.headers
+    assert fastapi_response.headers.get("content-length") is None
 
 
-def test_build_response_no_context_response(builder: ResponseBuilder, context_without_response: TransactionContext):
-    """Test building response when context.response is None (error case)."""
+@pytest.mark.parametrize(
+    "dev_mode_enabled",
+    [
+        True,
+        False,
+    ],
+)
+def test_build_response_context_response_is_none(
+    builder: ResponseBuilder,
+    context_without_response: TransactionContext,
+    dev_mode_enabled: bool,
+    mock_dependencies_dev_true: DependencyContainer,  # Request both
+    mock_dependencies_dev_false: DependencyContainer,  # Request both
+):
+    """Test response when context.response is None"""
+    dependencies = mock_dependencies_dev_true if dev_mode_enabled else mock_dependencies_dev_false
+
+    response = builder.build_response(context_without_response, dependencies)
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 500
+
+
+@pytest.mark.parametrize(
+    "dev_mode_enabled",
+    [
+        True,
+        False,
+    ],
+)
+def test_build_response_invalid_context_response_type(
+    builder: ResponseBuilder,
+    context_with_invalid_response_type: TransactionContext,
+    dev_mode_enabled: bool,
+    mock_dependencies_dev_true: DependencyContainer,  # Request both
+    mock_dependencies_dev_false: DependencyContainer,  # Request both
+):
+    """Test response when context.response is not an httpx.Response instance."""
+    dependencies = mock_dependencies_dev_true if dev_mode_enabled else mock_dependencies_dev_false
+
     # Act
-    fastapi_response = builder.build_response(context_without_response)
+    fastapi_response = builder.build_response(context_with_invalid_response_type, dependencies)
 
     # Assert
-    assert isinstance(fastapi_response, Response)
+    assert isinstance(fastapi_response, JSONResponse)
     assert fastapi_response.status_code == 500
-    # Check for the specific error message logged and returned
-    # Check for a more general part of the message as TXID is included now
-    assert b"Failed to construct final response" in fastapi_response.body
-    assert f"TXID: {context_without_response.transaction_id}".encode() in fastapi_response.body
-    assert fastapi_response.headers.get("content-type") == "text/plain; charset=utf-8"
+
+    response_body = json.loads(fastapi_response.body)
+    assert response_body["transaction_id"] == str(context_with_invalid_response_type.transaction_id)
+    if dev_mode_enabled:
+        assert "Policy Error:" in response_body["detail"]
+        assert "_convert_to_fastapi_response expected httpx.Response, got <class 'str'>" in response_body["detail"]
+    else:
+        assert response_body["detail"] == "Internal Server Error"

@@ -1,7 +1,7 @@
 # Interfaces for the request processing framework.
 
 import abc
-from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar, cast
 
 from luthien_control.control_policy.serialization import SerializableDict
 
@@ -91,14 +91,17 @@ class ControlPolicy(abc.ABC):
         # Mimport inside the method to break circular dependency
         from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
 
-        policy_type_name = config.get("type")
-        if not policy_type_name:
-            raise ValueError("Policy configuration must include a 'type' field.")
-
-        target_policy_class = POLICY_NAME_TO_CLASS.get(policy_type_name)
-        if not target_policy_class:
+        policy_type_name_val = config.get("type")
+        if not isinstance(policy_type_name_val, str):
             raise ValueError(
-                f"Unknown policy type '{policy_type_name}'. Ensure it is registered in POLICY_NAME_TO_CLASS."
+                f"Policy configuration must include a 'type' field as a string. "
+                f"Got: {policy_type_name_val!r} (type: {type(policy_type_name_val).__name__})"
             )
 
-        return target_policy_class.from_serialized(config)
+        target_policy_class = POLICY_NAME_TO_CLASS.get(policy_type_name_val)
+        if not target_policy_class:
+            raise ValueError(
+                f"Unknown policy type '{policy_type_name_val}'. Ensure it is registered in POLICY_NAME_TO_CLASS."
+            )
+
+        return cast(PolicyT, target_policy_class.from_serialized(config))

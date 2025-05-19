@@ -7,7 +7,7 @@ from typing import Any, Dict, List, TypeAlias, Union
 SerializablePrimitive = Union[str, float, int, bool]
 
 # Define the recursive type for dictionaries
-SerializableDict: TypeAlias = Dict[str, Union[SerializablePrimitive, List[Any], Dict[str, Any]]]
+SerializableDict: TypeAlias = Dict[str, Union[SerializablePrimitive, List[Any], Dict[str, Any], None]]
 
 
 # Define the type for serialized policies

@@ -122,7 +122,15 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         if api_key_env_var_name is None:
             raise KeyError("Configuration for AddApiKeyHeaderFromEnvPolicy is missing 'api_key_env_var_name'.")
 
+        # Ensure instance_name is str or None
+        resolved_name: Optional[str] = None
+        if instance_name is not None:
+            if not isinstance(instance_name, str):
+                # Or raise a TypeError/ValueError if this is considered an invalid config
+                logging.warning(f"Policy name '{instance_name}' is not a string. Coercing to string.")
+            resolved_name = str(instance_name)
+
         return cls(
-            name=instance_name,
+            name=resolved_name,
             api_key_env_var_name=str(api_key_env_var_name),
         )

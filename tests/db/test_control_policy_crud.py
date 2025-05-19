@@ -5,6 +5,7 @@ from luthien_control.control_policy.control_policy import (
     ControlPolicy as BaseControlPolicy,
 )
 from luthien_control.control_policy.exceptions import PolicyLoadError
+from luthien_control.control_policy.serialization import SerializedPolicy
 from luthien_control.db.control_policy_crud import (
     get_policy_by_name,
     get_policy_config_by_name,
@@ -157,11 +158,10 @@ async def test_load_policy_from_db_happy_path(mocker: MockerFixture):
     result = await load_policy_from_db(policy_name, mock_container)
 
     mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
-    expected_policy_data = {
-        "name": db_policy_model.name,
-        "type": db_policy_model.type,
-        "config": db_policy_model.config or {},
-    }
+    expected_policy_data = SerializedPolicy(
+        type=db_policy_model.type,
+        config=db_policy_model.config or {},
+    )
     mock_load_policy.assert_called_once_with(expected_policy_data)
     assert result is mock_instantiated_policy
     assert result.name == policy_name

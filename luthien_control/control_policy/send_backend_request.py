@@ -35,7 +35,7 @@ class SendBackendRequestPolicy(ControlPolicy):
     }
 
     def __init__(self, name: Optional[str] = None):
-        self.name: str = name or self.__class__.__name__
+        self.name = name or self.__class__.__name__
 
     def _build_target_url(self, base_url: str, relative_path: str) -> str:
         """Constructs the full target URL for the backend request."""
@@ -60,6 +60,11 @@ class SendBackendRequestPolicy(ControlPolicy):
                 cannot be parsed for the Host header.
         """
         original_request = context.request
+        if original_request is None:
+            # This path should ideally not be reached if apply() checks context.request first.
+            logger.error(f"[{context.transaction_id}] _prepare_backend_headers called with None request.")
+            raise ValueError("original_request cannot be None in _prepare_backend_headers")
+
         backend_headers: list[tuple[bytes, bytes]] = []
         backend_url_base = settings.get_backend_url()
 
@@ -71,10 +76,14 @@ class SendBackendRequestPolicy(ControlPolicy):
         # Add the correct Host header for the backend
         try:
             parsed_backend_url = urlparse(backend_url_base)
-            backend_host = parsed_backend_url.hostname
-            if not backend_host:
+            # Pyright infers hostname as Optional[Union[str, bytes]]; standard stubs suggest Optional[str].
+            # Explicitly cast to Optional[str] to align with expectations.
+            backend_host_nullable: Optional[str] = cast(Optional[str], parsed_backend_url.hostname)
+
+            if not backend_host_nullable:
                 raise ValueError("Could not parse hostname from BACKEND_URL")
-            backend_headers.append((b"host", backend_host.encode("latin-1")))
+            backend_host_str: str = backend_host_nullable  # Explicitly typed after check
+            backend_headers.append((b"host", backend_host_str.encode("latin-1")))
         except ValueError as e:
             logger.error(
                 f"[{context.transaction_id}] Invalid BACKEND_URL '{backend_url_base}' for Host header parsing: {e}",
@@ -127,6 +136,10 @@ class SendBackendRequestPolicy(ControlPolicy):
             raise ValueError(f"[{context.transaction_id}] Cannot send request: context.request is None")
 
         backend_url_base = settings.get_backend_url()
+        if backend_url_base is None:
+            error_msg = f"[{context.transaction_id}] BACKEND_URL is not configured."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
 
         # --- Prepare Request Components ---
         try:
@@ -197,4 +210,16 @@ class SendBackendRequestPolicy(ControlPolicy):
         Returns:
             An instance of SendBackendRequestPolicy.
         """
-        return cls(name=config.get("name"))
+        name_val = config.get("name")
+        resolved_name: Optional[str] = None
+        if name_val is not None:
+            if not isinstance(name_val, str):
+                logging.warning(
+                    f"SendBackendRequestPolicy name '{name_val}' from config is not a string. "
+                    f"Coercing. Original type: {type(name_val).__name__}."
+                )
+                resolved_name = str(name_val)
+            else:
+                resolved_name = name_val
+        # If name_val is None, resolved_name remains None, and __init__ will use default.
+        return cls(name=resolved_name)

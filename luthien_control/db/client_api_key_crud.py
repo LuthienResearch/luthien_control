@@ -19,8 +19,8 @@ async def get_api_key_by_value(session: AsyncSession, key_value: str) -> Optiona
         raise TypeError("Invalid session object provided to get_api_key_by_value.")
     try:
         stmt = select(ClientApiKey).where(
-            ClientApiKey.key_value == key_value,
-            ClientApiKey.is_active == True,  # noqa: E712 - Explicit comparison is often clearer
+            ClientApiKey.key_value == key_value,  # type: ignore[arg-type]
+            ClientApiKey.is_active,  # type: ignore[arg-type]
         )
         result = await session.execute(stmt)
         api_key = result.scalar_one_or_none()
@@ -54,7 +54,7 @@ async def list_api_keys(session: AsyncSession, active_only: bool = False) -> Lis
     """Get a list of all API keys."""
     try:
         if active_only:
-            stmt = select(ClientApiKey).where(ClientApiKey.is_active == True)  # noqa: E712
+            stmt = select(ClientApiKey).where(ClientApiKey.is_active)  # type: ignore[arg-type]
         else:
             stmt = select(ClientApiKey)
 
@@ -68,7 +68,7 @@ async def list_api_keys(session: AsyncSession, active_only: bool = False) -> Lis
 async def update_api_key(session: AsyncSession, key_id: int, api_key_update: ClientApiKey) -> Optional[ClientApiKey]:
     """Update an existing API key."""
     try:
-        stmt = select(ClientApiKey).where(ClientApiKey.id == key_id)
+        stmt = select(ClientApiKey).where(ClientApiKey.id == key_id)  # type: ignore[arg-type]
         result = await session.execute(stmt)
         api_key = result.scalar_one_or_none()
 

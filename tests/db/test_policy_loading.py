@@ -85,7 +85,7 @@ def create_mock_policy_model(
 
 
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
-@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=AsyncMock)
+@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=MagicMock)
 async def test_load_policy_from_db_success(
     mock_load_policy,
     mock_get_policy_by_name,
@@ -113,7 +113,7 @@ async def test_load_policy_from_db_success(
         "type": mock_policy_config_model.type,
         "config": mock_policy_config_model.config,
     }
-    mock_load_policy.assert_awaited_once_with(expected_policy_data)
+    mock_load_policy.assert_called_once_with(expected_policy_data)
     assert loaded_policy == mock_instantiated_policy
 
 
@@ -167,7 +167,7 @@ async def test_load_policy_from_db_not_found_in_memory_db(
 # Patch load_policy to simulate failure, use in-memory session
 @patch(
     "luthien_control.db.control_policy_crud.load_policy",
-    new_callable=AsyncMock,
+    new_callable=MagicMock,
     side_effect=PolicyLoadError("Instantiation failed"),
 )
 async def test_load_policy_from_db_instantiation_fails_in_memory_db(
@@ -208,7 +208,7 @@ async def test_load_policy_from_db_instantiation_fails_in_memory_db(
 
 
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
-@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=AsyncMock)
+@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=MagicMock)
 async def test_load_policy_from_db_loader_error(
     mock_load_policy,
     mock_get_policy_by_name,
@@ -235,4 +235,4 @@ async def test_load_policy_from_db_loader_error(
         "type": mock_policy_config_model.type,
         "config": mock_policy_config_model.config,
     }
-    mock_load_policy.assert_awaited_once_with(expected_policy_data)
+    mock_load_policy.assert_called_once_with(expected_policy_data)

@@ -1,3 +1,4 @@
+import json
 import logging
 from collections import OrderedDict
 from typing import Optional
@@ -54,16 +55,25 @@ class BranchingPolicy(ControlPolicy):
         return {
             "type": "branching",
             "cond_to_policy_map": {
-                cond.serialize(): policy.serialize() for cond, policy in self.cond_to_policy_map.items()
+                json.dumps(cond.serialize()): policy.serialize() for cond, policy in self.cond_to_policy_map.items()
             },
             "default_policy": self.default_policy.serialize() if self.default_policy else None,
         }
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "BranchingPolicy":
-        cond_to_policy_map = {
-            Condition.from_serialized(cond): ControlPolicy.from_serialized(policy)
-            for cond, policy in config["cond_to_policy_map"].items()
-        }
-        default_policy = ControlPolicy.from_serialized(config["default_policy"]) if config["default_policy"] else None
+    def from_serialized(cls, config: SerializableDict) -> "BranchingPolicy":
+        cond_to_policy_map = OrderedDict()
+        for cond_str, policy_data in config["cond_to_policy_map"].items():
+            if not isinstance(cond_str, str):
+                raise TypeError(f"Condition key must be a string, got {type(cond_str)}")
+            if not isinstance(policy_data, dict):
+                raise TypeError(f"Policy data must be a dict, got {type(policy_data)}")
+
+            cond_config = json.loads(cond_str)
+            condition = Condition.from_serialized(cond_config)
+            policy = ControlPolicy.from_serialized(policy_data)
+            cond_to_policy_map[condition] = policy
+
+        default_policy_config = config.get("default_policy")
+        default_policy = ControlPolicy.from_serialized(default_policy_config) if default_policy_config else None
         return cls(cond_to_policy_map, default_policy)

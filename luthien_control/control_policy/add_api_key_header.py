@@ -72,7 +72,7 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         return cast(SerializableDict, {"name": self.name})
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderPolicy":
+    def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderPolicy":
         """
         Constructs the policy from serialized configuration.
 

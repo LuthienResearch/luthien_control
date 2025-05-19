@@ -90,10 +90,10 @@ class ResponseBuilder:
             if dependencies.settings.dev_mode():
                 return JSONResponse(
                     content={
-                        "detail": f"Policy Error: {str(convert_exc)}",
+                        "detail": "An error occurred while processing your request.",
                         "transaction_id": str(context.transaction_id),
                     },
-                    status_code=getattr(convert_exc, "status_code", 500),
+                    status_code=500,
                 )
             else:
                 return JSONResponse(

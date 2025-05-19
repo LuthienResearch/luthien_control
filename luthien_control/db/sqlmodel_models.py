@@ -9,7 +9,7 @@ from sqlmodel import Field, SQLModel
 
 # TODO: utcnow() to .now(timezone.utc)
 class ClientApiKey(SQLModel, table=True):
-    __tablename__ = "client_api_keys"
+    __tablename__ = "client_api_keys"  # type: ignore (shut up pyright)
 
     id: Optional[int] = Field(default=None, primary_key=True)
     key_value: str = Field(sa_column=Column(String, unique=True, index=True))
@@ -24,7 +24,7 @@ class ClientApiKey(SQLModel, table=True):
 
 
 class ControlPolicy(SQLModel, table=True):
-    __tablename__ = "policies"
+    __tablename__ = "policies"  # type: ignore (again, shut up pyright)
     """Database model for storing control policy configurations."""
 
     # Primary key

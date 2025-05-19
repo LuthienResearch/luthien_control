@@ -91,7 +91,7 @@ async def run_policy_flow(
         # Try to build an error response using the builder
         policy_name_for_error = getattr(main_policy, "name", main_policy.__class__.__name__)
         try:
-            final_response = builder.build_response(context)
+            final_response = builder.build_response(context, dependencies)
         except Exception as build_e:
             # Log the exception that occurred *during response building*
             logger.exception(

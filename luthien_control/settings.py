@@ -51,7 +51,7 @@ class Settings:
 
     def get_policy_filepath(self) -> str:
         """Returns the path to the policy file, if set."""
-        return os.getenv("POLICY_FILEPATH")
+        return os.getenv("POLICY_FILEPATH", "policies.json")
 
     # --- Database settings Getters using os.getenv ---
     def get_postgres_user(self) -> str | None:
@@ -91,10 +91,33 @@ class Settings:
         except ValueError:
             raise ValueError("MAIN_DB_POOL_MAX_SIZE environment variable must be an integer.")
 
-    # --- Logging Settings --- # Added based on grep results
+    # --- Logging Settings --- #
     def get_log_level(self, default: str = "INFO") -> str:
         """Gets the configured log level, defaulting if not set."""
         return os.getenv("LOG_LEVEL", default).upper()
+
+    # uvicorn
+    def get_app_host(self, default: str = "0.0.0.0") -> str:
+        """Gets the configured app host, defaulting if not set."""
+        return os.getenv("LUTHIEN_CONTROL_HOST", default)
+
+    def get_app_port(self, default: int = 8000) -> int:
+        """Gets the configured app port, defaulting if not set."""
+        return int(os.getenv("LUTHIEN_CONTROL_PORT", default))
+
+    def get_app_reload(self, default: bool = False) -> bool:
+        """Gets the configured app reload, defaulting if not set."""
+        reload = os.getenv("LUTHIEN_CONTROL_RELOAD")
+        if reload is None:
+            return default
+        elif reload.lower() == "true":
+            return True
+        elif reload.lower() == "false":
+            return False
+        else:
+            raise ValueError(f"LUTHIEN_CONTROL_RELOAD environment variable must be 'true' or 'false' (got {reload}).")
+
+    # get_log_level is reused
 
     # --- Database DSN Helper Properties using Getters ---
     @property

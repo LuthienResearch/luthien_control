@@ -1,7 +1,7 @@
 # Control Policy for adding the API key header to requests.
 
 import logging
-from typing import Any, Optional, cast
+from typing import Optional, cast
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -82,5 +82,5 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         Returns:
             An instance of AddApiKeyHeaderPolicy.
         """
-        instance_name = config.get("name")
+        instance_name = cast(Optional[str], config.get("name"))
         return cls(name=instance_name)

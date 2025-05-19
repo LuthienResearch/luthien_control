@@ -17,7 +17,7 @@ _db_session_factory = None
 settings = Settings()
 
 
-def _get_db_url() -> Optional[Tuple[Optional[str], Dict[str, Any]]]:
+def _get_db_url() -> Optional[Tuple[str, Dict[str, Any]]]:
     """Determines the database URL, prioritizing database url."""
     database_url = settings.get_database_url()
     connect_args = {}

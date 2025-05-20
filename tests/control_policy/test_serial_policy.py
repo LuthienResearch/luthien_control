@@ -1,9 +1,11 @@
 import logging
-from typing import Any, Optional
+import uuid
+from typing import Any, Optional, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
+# from fastapi import Response # Removed
+import httpx
 import pytest
-from fastapi import Response
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -42,7 +44,7 @@ class MockSimplePolicy(ControlPolicy):
         call_order.append(self.name)
 
         if self.sets_response:
-            context.response = Response(status_code=299, content=f"Response from {self.name}")
+            context.response = httpx.Response(status_code=299, content=f"Response from {self.name}".encode("utf-8"))
             self.logger.info(f"{self.name} setting response")
 
         await self.apply_mock(context, container=container, session=session)
@@ -64,7 +66,7 @@ class MockSimplePolicy(ControlPolicy):
 @pytest.fixture
 def base_transaction_context() -> TransactionContext:
     """Provides a basic TransactionContext for tests."""
-    return TransactionContext(transaction_id="test-tx-id")
+    return TransactionContext(transaction_id=uuid.uuid4())
 
 
 # --- Test Cases ---
@@ -191,7 +193,7 @@ async def test_serial_policy_continues_on_response(
     assert result_context is context_before_apply
     # Check that policy 2 did set the response on the context
     assert result_context.response is not None
-    assert result_context.response.body == b"Response from Policy2"
+    assert result_context.response.content == "Response from Policy2".encode("utf-8")
 
 
 def test_serial_policy_repr():
@@ -250,12 +252,19 @@ async def test_serial_policy_serialization():
 
     assert isinstance(serialized_data, dict)
     assert "policies" in serialized_data
-    assert len(serialized_data["policies"]) == 2
+    policies_list = serialized_data["policies"]
+    assert isinstance(policies_list, list)
+    assert len(policies_list) == 2
 
-    assert serialized_data["policies"][0]["type"] == "ClientApiKeyAuth"
-    assert serialized_data["policies"][0]["config"] == {}
-    assert serialized_data["policies"][1]["type"] == "AddApiKeyHeader"
-    assert serialized_data["policies"][1]["config"] == {
+    policy0_data = policies_list[0]
+    assert isinstance(policy0_data, dict)
+    assert policy0_data["type"] == "ClientApiKeyAuth"
+    assert policy0_data["config"] == {}
+
+    policy1_data = policies_list[1]
+    assert isinstance(policy1_data, dict)
+    assert policy1_data["type"] == "AddApiKeyHeader"
+    assert policy1_data["config"] == {
         "name": "AddOpenAIKey",
     }
 
@@ -284,51 +293,50 @@ def test_serial_policy_serialization_empty():
 
 
 def test_serial_policy_serialization_missing_policies_key():
-    """Test deserialization failure when 'policies' key is missing."""
-    # Arrange
-    invalid_config = {"some_other_key": "value"}
-
-    # Act & Assert
-    with pytest.raises(PolicyLoadError, match="SerialPolicy config missing 'policies' list"):
-        SerialPolicy.from_serialized(invalid_config)
+    """Test deserialization when 'policies' key is missing from config."""
+    # SerialPolicy.type is not used for this direct from_serialized call
+    config_missing_policies = {"name": "TestMissing"}  # type: SerializableDict
+    with pytest.raises(PolicyLoadError, match="SerialPolicy config missing 'policies' list \\(key not found\\)."):
+        SerialPolicy.from_serialized(cast(SerializableDict, config_missing_policies))
 
 
 def test_serial_policy_serialization_invalid_policy_item():
-    """Test deserialization failure with invalid item in 'policies' list."""
-    invalid_config = {
-        "policies": [
-            {"type": "ClientApiKeyAuth", "config": {}},
-            "not a dict",  # Invalid item
-        ]
+    """Test deserialization when a policy item in 'policies' is not a dict."""
+    config_invalid_item: SerializableDict = {
+        "name": "TestInvalidItem",
+        "policies": ["not_a_dict"],  # Item in policies list is not a dict
     }
-    with pytest.raises(PolicyLoadError, match="Item at index 1 in SerialPolicy 'policies' is not a dictionary"):
-        SerialPolicy.from_serialized(invalid_config)
+    with pytest.raises(
+        PolicyLoadError, match="Item at index 0 in SerialPolicy 'policies' is not a dictionary\\. Got <class 'str'>"
+    ):
+        SerialPolicy.from_serialized(config_invalid_item)
 
 
 @patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=MagicMock)
 def test_serial_policy_serialization_load_error(mock_load_policy):
-    """Test error propagation when loading a member policy fails."""
-    config = {
-        "policies": [
-            {"type": "policy1", "config": {}},
-            {"type": "policy_that_fails", "config": {}},
-        ]
+    """Test that PolicyLoadError during load_policy is re-raised."""
+    mock_load_policy.side_effect = PolicyLoadError("Failed to load sub-policy")
+    config_load_error: SerializableDict = {
+        "name": "TestLoadError",
+        "policies": [{"type": "SubPolicy", "config": {}}],  # Dummy sub-policy structure
     }
-    mock_load_policy.side_effect = [MagicMock(spec=ControlPolicy), PolicyLoadError("Mocked load failure")]
-
-    with pytest.raises(PolicyLoadError, match="Failed to load member policy.*within SerialPolicy"):
-        SerialPolicy.from_serialized(config)
+    with pytest.raises(PolicyLoadError, match="Failed to load sub-policy"):
+        SerialPolicy.from_serialized(config_load_error)
 
 
 @patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=MagicMock)
 def test_serial_policy_serialization_unexpected_error(mock_load_policy):
-    """Test handling of unexpected errors during member policy loading."""
-    config = {
-        "policies": [
-            {"type": "policy1", "config": {}},
-        ]
+    """Test that unexpected errors during load_policy are wrapped in PolicyLoadError."""
+    mock_load_policy.side_effect = ValueError("Unexpected failure")
+    config_unexpected_error: SerializableDict = {
+        "name": "TestUnexpectedError",
+        "policies": [{"type": "SubPolicy", "config": {}}],  # Dummy sub-policy structure
     }
-    mock_load_policy.side_effect = ValueError("Unexpected internal error")
-
-    with pytest.raises(PolicyLoadError, match="Unexpected error loading member policy.*"):
-        SerialPolicy.from_serialized(config)
+    with pytest.raises(
+        PolicyLoadError,
+        match=(
+            "Unexpected error loading member policy at index 0 \\(name: unknown\\) within SerialPolicy: "
+            "Unexpected failure"
+        ),
+    ):
+        SerialPolicy.from_serialized(config_unexpected_error)

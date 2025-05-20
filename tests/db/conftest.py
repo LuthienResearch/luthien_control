@@ -1,8 +1,7 @@
 from typing import AsyncGenerator
 
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
 
 # Test database URL - using in-memory SQLite for tests
@@ -42,7 +41,7 @@ async def async_engine():
 @pytest_asyncio.fixture(scope="function")
 async def async_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
     """Get a session for each test function."""
-    async_session_maker = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    async_session_factory = async_sessionmaker(async_engine, expire_on_commit=False)
 
-    async with async_session_maker() as session:
+    async with async_session_factory() as session:
         yield session

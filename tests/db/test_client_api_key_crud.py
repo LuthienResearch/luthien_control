@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import cast
 
 import pytest
 from luthien_control.db.client_api_key_crud import (
@@ -68,7 +69,9 @@ async def test_update_api_key(async_session: AsyncSession):
     """Test updating an API key."""
     # Create an API key
     api_key = ClientApiKey(key_value="update-key", name="Original Name", is_active=True)
-    created_key = await create_api_key(async_session, api_key)
+    created_key_val = await create_api_key(async_session, api_key)
+    assert created_key_val is not None
+    created_key = cast(ClientApiKey, created_key_val)
     assert created_key.name == "Original Name"
     assert created_key.id is not None  # Ensure ID is assigned
 
@@ -81,14 +84,18 @@ async def test_update_api_key(async_session: AsyncSession):
         metadata_={"updated": True},
     )
 
-    updated_key = await update_api_key(async_session, created_key.id, update_payload)
-    assert updated_key is not None
+    updated_key_val = await update_api_key(async_session, created_key.id, update_payload)
+    assert updated_key_val is not None
+    updated_key = cast(ClientApiKey, updated_key_val)
+    assert updated_key.id is not None  # Explicitly assert id is not None
     assert updated_key.name == "Updated Name"
     assert updated_key.metadata_ == {"updated": True}
 
     # Verify the update persisted
-    retrieved_key = await get_api_key_by_value(async_session, "update-key")
-    assert retrieved_key is not None
+    retrieved_key_val = await get_api_key_by_value(async_session, "update-key")
+    assert retrieved_key_val is not None
+    retrieved_key = cast(ClientApiKey, retrieved_key_val)
+    assert retrieved_key.id is not None  # Explicitly assert id is not None
     assert retrieved_key.name == "Updated Name"
     assert retrieved_key.metadata_ == {"updated": True}
 
@@ -96,7 +103,8 @@ async def test_update_api_key(async_session: AsyncSession):
 async def test_update_api_key_not_found(async_session: AsyncSession):
     """Test updating a non-existent API key."""
     # Pass a ClientApiKey model instance
-    update_payload = ClientApiKey(name="Updated Name")
+    # Add a dummy key_value as it's required by the model
+    update_payload = ClientApiKey(key_value="dummy-key-for-non-existent", name="Updated Name")
     updated_key = await update_api_key(async_session, 9999, update_payload)  # Non-existent ID
     assert updated_key is None
 

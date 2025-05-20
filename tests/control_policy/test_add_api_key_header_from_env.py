@@ -1,10 +1,12 @@
 """Unit tests for the AddApiKeyHeaderFromEnvPolicy."""
 
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
 from luthien_control.control_policy.add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
 
 
@@ -132,7 +134,7 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
             "name": "MyPolicyInstance",
             "api_key_env_var_name": API_KEY_ENV_VAR_NAME,
         }
-        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(cast(SerializableDict, config))
         assert isinstance(policy, AddApiKeyHeaderFromEnvPolicy)
         assert policy.name == "MyPolicyInstance"
         assert policy.api_key_env_var_name == API_KEY_ENV_VAR_NAME
@@ -141,7 +143,7 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
         config = {
             "api_key_env_var_name": API_KEY_ENV_VAR_NAME,
         }
-        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(cast(SerializableDict, config))
         assert isinstance(policy, AddApiKeyHeaderFromEnvPolicy)
         assert policy.name == "AddApiKeyHeaderFromEnvPolicy"  # Default class name if 'name' is not in config
         assert policy.api_key_env_var_name == API_KEY_ENV_VAR_NAME
@@ -151,7 +153,7 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
         config = {
             "api_key_env_var_name": 12345  # Using an int
         }
-        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(cast(SerializableDict, config))
         assert isinstance(policy, AddApiKeyHeaderFromEnvPolicy)
         assert policy.api_key_env_var_name == "12345"  # Should be converted to string
 
@@ -160,4 +162,4 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
         with pytest.raises(
             KeyError, match="Configuration for AddApiKeyHeaderFromEnvPolicy is missing 'api_key_env_var_name'."
         ):
-            AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+            AddApiKeyHeaderFromEnvPolicy.from_serialized(cast(SerializableDict, config))

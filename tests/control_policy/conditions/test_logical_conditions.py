@@ -101,9 +101,12 @@ def test_all_condition_serialization_deserialization(
     serialized_data = original_condition.serialize()
 
     assert serialized_data["type"] == AllCondition.type
-    assert len(serialized_data["conditions"]) == len(conditions)
+    # Ensure "conditions" is a list before using len() or indexing
+    conditions_list = serialized_data["conditions"]
+    assert isinstance(conditions_list, list)
+    assert len(conditions_list) == len(conditions)
     for i, cond in enumerate(conditions):
-        assert serialized_data["conditions"][i] == cond.serialize()
+        assert conditions_list[i] == cond.serialize()
 
     from_serializedd_condition = get_condition_from_serialized(serialized_data)
     assert isinstance(from_serializedd_condition, AllCondition)
@@ -162,9 +165,12 @@ def test_any_condition_serialization_deserialization(
     serialized_data = original_condition.serialize()
 
     assert serialized_data["type"] == AnyCondition.type
-    assert len(serialized_data["conditions"]) == len(conditions)
+    # Ensure "conditions" is a list before using len() or indexing
+    conditions_list = serialized_data["conditions"]
+    assert isinstance(conditions_list, list)
+    assert len(conditions_list) == len(conditions)
     for i, cond in enumerate(conditions):
-        assert serialized_data["conditions"][i] == cond.serialize()
+        assert conditions_list[i] == cond.serialize()
 
     from_serializedd_condition = get_condition_from_serialized(serialized_data)
     assert isinstance(from_serializedd_condition, AnyCondition)

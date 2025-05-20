@@ -198,8 +198,9 @@ This project uses Ruff for linting and formatting.
 *   Apply formatting: `poetry run ruff format .`
 
 ### Type Checking
-This project uses Pyright for static type checking. The goal is to maintain zero type errors.
-*   Run Pyright: `poetry run pyright luthien_control`
+This project uses Pyright for static type checking. The goal is to maintain zero type errors in both the
+package and tests (`luthien_control/` and `tests/`)
+*   Run Pyright: `poetry run pyright`
 
 ### Security Scanning
 Bandit is used to check for common security vulnerabilities.

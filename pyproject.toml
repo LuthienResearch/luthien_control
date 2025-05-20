@@ -74,3 +74,6 @@ select = ["E", "F", "W", "I"]
 # Optionally ignore specific rules or files
 # ignore = ["E501"] # Example: ignore line too long
 # exclude = ["docs/*"] # Example: exclude docs directory
+
+[tool.pyright]
+include = ["luthien_control", "tests"]

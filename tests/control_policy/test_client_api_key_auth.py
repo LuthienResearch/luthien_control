@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 @pytest.fixture
 def base_transaction_context():
     """Provides a basic TransactionContext instance with a unique ID."""
-    return TransactionContext(transaction_id=f"test-tx-{uuid.uuid4()}")
+    return TransactionContext(transaction_id=uuid.uuid4())
 
 
 @pytest.fixture

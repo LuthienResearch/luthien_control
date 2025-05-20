@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional, cast
 from unittest.mock import patch
 
 import pytest
@@ -13,7 +13,7 @@ from luthien_control.control_policy.serialization import SerializableDict, Seria
 class MockPolicy:
     name = "mock_policy"
 
-    def __init__(self, config: dict = None):
+    def __init__(self, config: Optional[dict] = None):
         self.config = config or {}
         # Allow setting name via config for testing name assignment
         self.name = self.config.get("name", self.name)
@@ -22,7 +22,7 @@ class MockPolicy:
     def from_serialized(cls, config: SerializableDict, **kwargs: Any) -> "MockPolicy":
         if config.get("fail_load", False):
             raise ValueError("Simulated instantiation failure")
-        return cls(config=config)
+        return cls(config=cast(dict, config))
 
     def serialize(self) -> SerializableDict:
         return self.config

@@ -88,10 +88,10 @@ def create_mock_policy_model(
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
 @patch("luthien_control.db.control_policy_crud.load_policy", new_callable=MagicMock)
 async def test_load_policy_from_db_success(
-    mock_load_policy,
-    mock_get_policy_by_name,
-    mock_container: DependencyContainer,
-    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
+    mock_load_policy: MagicMock,
+    mock_get_policy_by_name: AsyncMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Test successfully loading and instantiating a policy from DB config."""
     policy_name = "test_policy_success"
@@ -119,9 +119,9 @@ async def test_load_policy_from_db_success(
 
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock, return_value=None)
 async def test_load_policy_from_db_not_found_patch_get(
-    mock_get_policy_by_name,
-    mock_container: DependencyContainer,
-    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
+    mock_get_policy_by_name: AsyncMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Test PolicyLoadError using PATCHED get_policy_by_name returning None."""
     policy_name = "non_existent_policy_patch"
@@ -210,10 +210,10 @@ async def test_load_policy_from_db_instantiation_fails_in_memory_db(
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
 @patch("luthien_control.db.control_policy_crud.load_policy", new_callable=MagicMock)
 async def test_load_policy_from_db_loader_error(
-    mock_load_policy,
-    mock_get_policy_by_name,
-    mock_container: DependencyContainer,
-    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
+    mock_load_policy: MagicMock,
+    mock_get_policy_by_name: AsyncMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Test PolicyLoadError if load_policy fails internally."""
     policy_name = "test_policy_loader_error"

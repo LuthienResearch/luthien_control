@@ -1,7 +1,8 @@
 """Unit tests for ResponseBuilder."""
 
 import json
-from typing import AsyncContextManager
+import uuid
+from typing import AsyncContextManager, cast
 from unittest.mock import AsyncMock
 
 import httpx
@@ -80,7 +81,7 @@ def backend_response() -> httpx.Response:
 @pytest.fixture
 def context_with_response_content(backend_response: httpx.Response) -> TransactionContext:
     """Context where response exists and contains content."""
-    ctx = TransactionContext(transaction_id="tx-build-resp-content")
+    ctx = TransactionContext(transaction_id=uuid.uuid4())
     ctx.response = backend_response
     return ctx
 
@@ -88,7 +89,7 @@ def context_with_response_content(backend_response: httpx.Response) -> Transacti
 @pytest.fixture
 def context_with_empty_content(backend_response: httpx.Response) -> TransactionContext:
     """Context where response exists, but content is None (e.g., 204)."""
-    ctx = TransactionContext(transaction_id="tx-build-empty")
+    ctx = TransactionContext(transaction_id=uuid.uuid4())
     empty_response = httpx.Response(
         status_code=204,
         headers=Headers(
@@ -108,7 +109,7 @@ def context_with_empty_content(backend_response: httpx.Response) -> TransactionC
 @pytest.fixture
 def context_without_response() -> TransactionContext:
     """Context where response is None."""
-    ctx = TransactionContext(transaction_id="tx-build-no-resp")
+    ctx = TransactionContext(transaction_id=uuid.uuid4())
     ctx.response = None  # Explicitly set to None
     return ctx
 
@@ -116,7 +117,7 @@ def context_without_response() -> TransactionContext:
 @pytest.fixture
 def context_with_invalid_response_type() -> TransactionContext:
     """Context where response is not an httpx.Response."""
-    ctx = TransactionContext(transaction_id="tx-invalid-resp-type")
+    ctx = TransactionContext(transaction_id=uuid.uuid4())
     ctx.response = "not an httpx.Response object"  # type: ignore
     return ctx
 
@@ -209,7 +210,7 @@ def test_build_response_invalid_context_response_type(
     assert isinstance(fastapi_response, JSONResponse)
     assert fastapi_response.status_code == 500
 
-    response_body = json.loads(fastapi_response.body)
+    response_body = json.loads(cast(bytes, fastapi_response.body).decode("utf-8"))
     assert response_body["transaction_id"] == str(context_with_invalid_response_type.transaction_id)
     if dev_mode_enabled:
         assert "Policy Error:" in response_body["detail"]

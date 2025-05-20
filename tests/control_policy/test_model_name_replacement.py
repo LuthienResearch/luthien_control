@@ -3,12 +3,11 @@ from typing import Dict, cast
 
 import httpx
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from luthien_control.control_policy.exceptions import NoRequestError
 from luthien_control.control_policy.model_name_replacement import ModelNameReplacementPolicy
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class MockRequest:

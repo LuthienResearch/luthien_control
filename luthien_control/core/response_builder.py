@@ -1,21 +1,16 @@
 import logging
-from typing import Optional
 
+import httpx
 from fastapi import Response
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse
 
-from luthien_control.control_policy.exceptions import ControlPolicyError
+from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
 
 
 class ResponseBuilder:
     """
     Builds a FastAPI response from the TransactionContext based on successful policy execution.
-
-    Priority for determining final values:
-    1. context.data["final_status_code" | "final_headers" | "final_content"]
-    2. context.response (for status_code, headers)
-    3. context.data["raw_backend_response_body"] (for content)
 
     Headers are filtered to remove hop-by-hop headers.
     Returns a 500 error response ONLY IF building the response itself fails unexpectedly,
@@ -41,72 +36,70 @@ class ResponseBuilder:
             "content-encoding",  # Exclude, FastAPI handles compression if needed
         }
 
-    def _convert_to_fastapi_response(self, response: Response, context: TransactionContext) -> Response:
-        """Converts an httpx response to a FastAPI response, filtering hop-by-hop headers."""
-        # Get headers, filtering out hop-by-hop ones
-        headers = {}
-        media_type = None
-        for key, value in response.headers.items():
-            key_lower = key.lower()
-            if key_lower not in self.hop_by_hop_headers:
-                headers[key] = value
-                if key_lower == "content-type":
-                    media_type = value
+    def _convert_to_fastapi_response(self, context: TransactionContext) -> Response:
+        """Converts an httpx.Response object to a FastAPI Response object.
 
-        # Get content, preferring raw_backend_response_body if available
-        content = context.data.get("raw_backend_response_body")
-        if content is None and hasattr(response, "content"):
-            content = response.content
-        if content is None:
-            content = b""
+        Filters hop-by-hop headers. The content, status code, and headers
+        are taken directly from the httpx_response.
 
+        Args:
+            httpx_response: The httpx.Response object to convert.
+            context: The transaction context, used for logging or other metadata.
+
+        Returns:
+            A FastAPI Response object.
+
+        Raises:
+            TypeError: if httpx_response is not an instance of httpx.Response.
+        """
+        # This check is a safeguard; callers should ideally ensure type correctness.
+        if context.response is None:
+            self.logger.error(f"[{context.transaction_id}] _convert_to_fastapi_response received None response.")
+            raise TypeError("_convert_to_fastapi_response received None response.")
+        if not isinstance(context.response, httpx.Response):
+            self.logger.error(
+                f"[{context.transaction_id}] _convert_to_fastapi_response received incorrect type: "
+                f"{type(context.response)}. Expected httpx.Response."
+            )
+            raise TypeError(f"_convert_to_fastapi_response expected httpx.Response, got {type(context.response)}")
+
+        # Filter headers from the backend response
+        filtered_backend_headers = {
+            k: v for k, v in context.response.headers.items() if k.lower() not in self.hop_by_hop_headers
+        }
+
+        # Extract media type from backend response headers if present
+        media_type = context.response.headers.get("content-type")
+
+        # Create a FastAPI Response using details from httpx_response
+        # httpx_response.content is bytes
         return Response(
-            content=content,
-            status_code=response.status_code,
-            headers=headers,
+            content=context.response.content,
+            status_code=context.response.status_code,
+            headers=filtered_backend_headers,
             media_type=media_type,
         )
 
-    def build_response(self, context: TransactionContext, exception: Optional[ControlPolicyError] = None) -> Response:
-        """Builds the final FastAPI Response."""
-        final_response: Optional[Response] = None
-
-        # If an explicit policy error was passed in, handle it first
-        if exception is not None:
-            self.logger.warning(f"[{context.transaction_id}] Building response for explicit policy error: {exception}")
-            # Customize error response based on exception type if needed
-            return JSONResponse(
-                content={"detail": f"Policy Error: {exception}", "transaction_id": str(context.transaction_id)},
-                status_code=getattr(exception, "status_code", 500),  # Use status_code from exception if available
+    def build_response(self, context: TransactionContext, dependencies: DependencyContainer) -> Response:
+        try:
+            return self._convert_to_fastapi_response(context)
+        except Exception as convert_exc:  # Catch any other unexpected error during conversion
+            self.logger.exception(
+                f"[{context.transaction_id}] Unexpected error during conversion of context.response: {convert_exc}"
             )
-
-        # Determine the source response object to use
-        source_response = context.response  # Prefer context.response if set directly by a policy
-        if source_response is None:
-            source_response = context.data.get("backend_response")  # Fallback to backend response data
-
-        # If we have a source response (either context.response or backend_response)
-        if source_response is not None:
-            try:
-                # Attempt conversion using the determined source response
-                final_response = self._convert_to_fastapi_response(source_response, context)
-            except Exception as convert_exc:
-                # Log the specific conversion error
-                self.logger.exception(f"[{context.transaction_id}] Failed during response conversion: {convert_exc}")
-                # Fall through to generic error response below
-
-        # If we still don't have a response (context.response was None or conversion failed)
-        if final_response is None:
-            # Log that we are falling back to a generic error
-            self.logger.error(
-                f"[{context.transaction_id}] Could not build normal response "
-                f"(context.response was {'None' if context.response is None else 'present but conversion failed'}). "
-                f"Returning generic error."
-            )
-            return PlainTextResponse(
-                content=f"Internal Server Error: Failed to construct final response. TXID: {context.transaction_id}",
-                status_code=500,
-            )
-
-        # If conversion succeeded
-        return final_response
+            if dependencies.settings.dev_mode():
+                return JSONResponse(
+                    content={
+                        "detail": f"Policy Error: {str(convert_exc)}",
+                        "transaction_id": str(context.transaction_id),
+                    },
+                    status_code=500,
+                )
+            else:
+                return JSONResponse(
+                    content={
+                        "detail": "Internal Server Error",
+                        "transaction_id": str(context.transaction_id),
+                    },
+                    status_code=500,
+                )

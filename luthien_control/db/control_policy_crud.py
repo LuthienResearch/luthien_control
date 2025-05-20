@@ -7,17 +7,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.loader import load_policy
+from luthien_control.control_policy.serialization import SerializedPolicy
 
-from .sqlmodel_models import ControlPolicy
+from .sqlmodel_models import ControlPolicy as DBControlPolicy
 
 if TYPE_CHECKING:
-    from luthien_control.control_policy.control_policy import ControlPolicy
+    # This is the Pydantic ABC, used for instantiated policies
+    from luthien_control.control_policy.control_policy import ControlPolicy as ABCControlPolicy
     from luthien_control.core.dependency_container import DependencyContainer
 
 logger = logging.getLogger(__name__)
 
 
-async def save_policy_to_db(session: AsyncSession, policy: ControlPolicy) -> Optional[ControlPolicy]:
+async def save_policy_to_db(session: AsyncSession, policy: DBControlPolicy) -> Optional[DBControlPolicy]:
     """Create a new policy in the database."""
     try:
         session.add(policy)
@@ -39,12 +41,12 @@ async def save_policy_to_db(session: AsyncSession, policy: ControlPolicy) -> Opt
         return None
 
 
-async def get_policy_by_name(session: AsyncSession, name: str) -> Optional[ControlPolicy]:
+async def get_policy_by_name(session: AsyncSession, name: str) -> Optional[DBControlPolicy]:
     """Get a policy by its name."""
     try:
-        stmt = select(ControlPolicy).where(
-            ControlPolicy.name == name,
-            ControlPolicy.is_active == True,  # noqa: E712
+        stmt = select(DBControlPolicy).where(
+            DBControlPolicy.name == name,  # type: ignore[arg-type]
+            DBControlPolicy.is_active,  # type: ignore[arg-type]
         )
         result = await session.execute(stmt)
         policy = result.scalar_one_or_none()
@@ -54,13 +56,13 @@ async def get_policy_by_name(session: AsyncSession, name: str) -> Optional[Contr
         return None
 
 
-async def list_policies(session: AsyncSession, active_only: bool = False) -> List[ControlPolicy]:
+async def list_policies(session: AsyncSession, active_only: bool = False) -> List[DBControlPolicy]:
     """Get a list of all policies."""
     try:
         if active_only:
-            stmt = select(ControlPolicy).where(ControlPolicy.is_active == True)  # noqa: E712
+            stmt = select(DBControlPolicy).where(DBControlPolicy.is_active)  # type: ignore[arg-type]
         else:
-            stmt = select(ControlPolicy)
+            stmt = select(DBControlPolicy)
 
         result = await session.execute(stmt)
         return list(result.scalars().all())
@@ -69,10 +71,12 @@ async def list_policies(session: AsyncSession, active_only: bool = False) -> Lis
         return []
 
 
-async def update_policy(session: AsyncSession, policy_id: int, policy_update: ControlPolicy) -> Optional[ControlPolicy]:
+async def update_policy(
+    session: AsyncSession, policy_id: int, policy_update: DBControlPolicy
+) -> Optional[DBControlPolicy]:
     """Update an existing policy."""
     try:
-        stmt = select(ControlPolicy).where(ControlPolicy.id == policy_id)
+        stmt = select(DBControlPolicy).where(DBControlPolicy.id == policy_id)  # type: ignore[arg-type]
         result = await session.execute(stmt)
         policy = result.scalar_one_or_none()
 
@@ -107,7 +111,7 @@ async def update_policy(session: AsyncSession, policy_id: int, policy_update: Co
 async def load_policy_from_db(
     name: str,
     container: "DependencyContainer",
-) -> "ControlPolicy":
+) -> "ABCControlPolicy":
     """Load a policy configuration from the database and instantiate it using the control_policy loader."""
     async with container.db_session_factory() as session:
         policy_name = await get_policy_by_name(session, name)
@@ -116,15 +120,17 @@ async def load_policy_from_db(
         raise PolicyLoadError(f"Active policy configuration named '{name}' not found in database.")
 
     # Prepare the data for the simple loader
-    policy_data = {
-        "name": policy_name.name,
+    policy_data_dict = {
         "type": policy_name.type,  # The loader uses this to find the class
         "config": policy_name.config or {},
     }
 
+    # Construct the SerializedPolicy dataclass instance
+    serialized_policy_obj = SerializedPolicy(type=policy_data_dict["type"], config=policy_data_dict["config"])
+
     try:
-        instance = await load_policy(policy_data)
-        logger.info(f"Successfully loaded and instantiated policy '{name}' from database.")
+        instance = load_policy(serialized_policy_obj)
+        logger.info(f"Successfully loaded and instantiated policy '{policy_name.name}' from database.")
         return instance
     except PolicyLoadError as e:
         logger.error(f"Failed to load policy '{name}' from database: {e}")
@@ -134,12 +140,12 @@ async def load_policy_from_db(
         raise PolicyLoadError(f"Unexpected error during loading process for '{name}'.") from e
 
 
-async def get_policy_config_by_name(session: AsyncSession, name: str) -> Optional[ControlPolicy]:
+async def get_policy_config_by_name(session: AsyncSession, name: str) -> Optional[DBControlPolicy]:
     """Get a policy configuration by its name, regardless of its active status."""
     if not isinstance(session, AsyncSession):
         raise TypeError("Invalid session object provided to get_policy_config_by_name.")
     try:
-        stmt = select(ControlPolicy).where(ControlPolicy.name == name)
+        stmt = select(DBControlPolicy).where(DBControlPolicy.name == name)  # type: ignore[arg-type]
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
     except Exception as e:

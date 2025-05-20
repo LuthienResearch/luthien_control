@@ -7,6 +7,7 @@ import httpx
 import pytest
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
+from luthien_control.control_policy.serialization import SerializedPolicy
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.db.control_policy_crud import load_policy_from_db
 from luthien_control.db.sqlmodel_models import ClientApiKey
@@ -85,12 +86,12 @@ def create_mock_policy_model(
 
 
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
-@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=AsyncMock)
+@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=MagicMock)
 async def test_load_policy_from_db_success(
-    mock_load_policy,
-    mock_get_policy_by_name,
-    mock_container: DependencyContainer,
-    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
+    mock_load_policy: MagicMock,
+    mock_get_policy_by_name: AsyncMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Test successfully loading and instantiating a policy from DB config."""
     policy_name = "test_policy_success"
@@ -108,20 +109,19 @@ async def test_load_policy_from_db_success(
     mock_container.db_session_factory.assert_called_once()
     mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
 
-    expected_policy_data = {
-        "name": mock_policy_config_model.name,
-        "type": mock_policy_config_model.type,
-        "config": mock_policy_config_model.config,
-    }
-    mock_load_policy.assert_awaited_once_with(expected_policy_data)
+    expected_policy_data = SerializedPolicy(
+        type=mock_policy_config_model.type,
+        config=mock_policy_config_model.config,
+    )
+    mock_load_policy.assert_called_once_with(expected_policy_data)
     assert loaded_policy == mock_instantiated_policy
 
 
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock, return_value=None)
 async def test_load_policy_from_db_not_found_patch_get(
-    mock_get_policy_by_name,
-    mock_container: DependencyContainer,
-    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
+    mock_get_policy_by_name: AsyncMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Test PolicyLoadError using PATCHED get_policy_by_name returning None."""
     policy_name = "non_existent_policy_patch"
@@ -167,7 +167,7 @@ async def test_load_policy_from_db_not_found_in_memory_db(
 # Patch load_policy to simulate failure, use in-memory session
 @patch(
     "luthien_control.db.control_policy_crud.load_policy",
-    new_callable=AsyncMock,
+    new_callable=MagicMock,
     side_effect=PolicyLoadError("Instantiation failed"),
 )
 async def test_load_policy_from_db_instantiation_fails_in_memory_db(
@@ -208,12 +208,12 @@ async def test_load_policy_from_db_instantiation_fails_in_memory_db(
 
 
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
-@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=AsyncMock)
+@patch("luthien_control.db.control_policy_crud.load_policy", new_callable=MagicMock)
 async def test_load_policy_from_db_loader_error(
-    mock_load_policy,
-    mock_get_policy_by_name,
-    mock_container: DependencyContainer,
-    mock_db_session: AsyncMock,  # Inject the actual mock session fixture
+    mock_load_policy: MagicMock,
+    mock_get_policy_by_name: AsyncMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
     """Test PolicyLoadError if load_policy fails internally."""
     policy_name = "test_policy_loader_error"
@@ -230,9 +230,8 @@ async def test_load_policy_from_db_loader_error(
 
     mock_container.db_session_factory.assert_called_once()
     mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
-    expected_policy_data = {
-        "name": mock_policy_config_model.name,
-        "type": mock_policy_config_model.type,
-        "config": mock_policy_config_model.config,
-    }
-    mock_load_policy.assert_awaited_once_with(expected_policy_data)
+    expected_policy_data = SerializedPolicy(
+        type=mock_policy_config_model.type,
+        config=mock_policy_config_model.config,
+    )
+    mock_load_policy.assert_called_once_with(expected_policy_data)

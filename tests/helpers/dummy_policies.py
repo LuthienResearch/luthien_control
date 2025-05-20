@@ -3,8 +3,10 @@ import logging
 import httpx
 from fastapi import status
 from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.settings import Settings
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 # A valid policy that inherits correctly and takes no args
 class DummyPolicyNoArgs(ControlPolicy):
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(
+        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
+    ) -> TransactionContext:
         logger.info(f"[{context.transaction_id}] Running DummyPolicyNoArgs apply")
         context.data["policy_no_args_ran"] = True
         # Set a success status for testing purposes, as this policy doesn't call a backend
@@ -26,7 +30,9 @@ class DummyPolicySettings(ControlPolicy):
     def __init__(self, settings: Settings):
         self.settings = settings
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(
+        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
+    ) -> TransactionContext:
         logger.info(f"[{context.transaction_id}] Running DummyPolicySettings apply")
         context.data["policy_settings_ran"] = True
         context.data["settings_value_in_policy"] = self.settings.get_backend_url()
@@ -40,7 +46,9 @@ class DummyPolicyHttpClient(ControlPolicy):
     def __init__(self, http_client: httpx.AsyncClient):
         self.client = http_client
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(
+        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
+    ) -> TransactionContext:
         logger.info(f"[{context.transaction_id}] Running DummyPolicyHttpClient apply")
         context.data["policy_http_client_ran"] = True
         # Set a success status for testing purposes
@@ -54,7 +62,9 @@ class DummyPolicyComplex(ControlPolicy):
         self.settings = settings
         self.client = http_client
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(
+        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
+    ) -> TransactionContext:
         logger.info(f"[{context.transaction_id}] Running DummyPolicyComplex apply")
         context.data["policy_complex_ran"] = True
         # Set a success status for testing purposes
@@ -72,7 +82,9 @@ class DummyPolicyNeedsSpecificArg(ControlPolicy):
     def __init__(self, specific_arg: str):
         self.specific_arg = specific_arg
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(
+        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
+    ) -> TransactionContext:
         # This won't be reached if loading fails, but implement for completeness
         logger.info(f"[{context.transaction_id}] Running DummyPolicyNeedsSpecificArg apply")
         context.data["policy_specific_arg_ran"] = True
@@ -85,7 +97,9 @@ class DummyPolicyInitRaises(ControlPolicy):
     def __init__(self):
         raise ValueError("Deliberate init failure")
 
-    async def apply(self, context: TransactionContext) -> TransactionContext:
+    async def apply(
+        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
+    ) -> TransactionContext:
         # This method will never be called as __init__ fails
         logger.info(f"[{context.transaction_id}] Running DummyPolicyInitRaises apply (should not happen)")
         return context

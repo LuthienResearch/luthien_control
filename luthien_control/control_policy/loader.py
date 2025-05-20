@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .control_policy import ControlPolicy
 
 
-async def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
+def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
     """
     Loads a ControlPolicy instance from a dictionary containing its name and config,
     injecting required dependencies.
@@ -36,8 +36,8 @@ async def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
 
     logger = logging.getLogger(__name__)
 
-    policy_type = serialized_policy["type"]
-    policy_config = serialized_policy["config"]
+    policy_type = serialized_policy.type
+    policy_config = serialized_policy.config
 
     if not isinstance(policy_type, str):
         raise PolicyLoadError(f"Policy 'type' must be a string, got: {type(policy_type)}")
@@ -53,10 +53,7 @@ async def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
         )
 
     try:
-        instance = await policy_class.from_serialized(policy_config)
-        instance_name = policy_config.get("name", None)
-        if instance_name:
-            instance.name = instance_name
+        instance = policy_class.from_serialized(policy_config)
         logger.info(f"Successfully loaded policy: {getattr(instance, 'name', policy_type)}")
         return instance
     except Exception as e:
@@ -64,8 +61,25 @@ async def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":
         raise PolicyLoadError(f"Error instantiating policy '{policy_type}': {e}") from e
 
 
-async def load_policy_from_file(filepath: str) -> "ControlPolicy":
+def load_policy_from_file(filepath: str) -> "ControlPolicy":
     """Load a policy configuration from a file and instantiate it using the control_policy loader."""
     with open(filepath, "r") as f:
-        policy_data = json.load(f)
-    return await load_policy(policy_data)
+        raw_policy_data = json.load(f)
+
+    if not isinstance(raw_policy_data, dict):
+        raise PolicyLoadError(f"Policy data loaded from {filepath} must be a dictionary, got {type(raw_policy_data)}")
+
+    policy_type = raw_policy_data.get("type")
+    policy_config = raw_policy_data.get("config")
+
+    if not isinstance(policy_type, str):
+        raise PolicyLoadError(
+            f"Policy file {filepath} must contain a 'type' field as a string. Got: {type(policy_type)}"
+        )
+    if not isinstance(policy_config, dict):
+        raise PolicyLoadError(
+            f"Policy file {filepath} must contain a 'config' field as a dictionary. Got: {type(policy_config)}"
+        )
+
+    serialized_policy_obj = SerializedPolicy(type=policy_type, config=policy_config)
+    return load_policy(serialized_policy_obj)

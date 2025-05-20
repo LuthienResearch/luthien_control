@@ -10,7 +10,7 @@ import logging
 import os
 from typing import Optional, cast
 
-from fastapi.responses import JSONResponse
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -79,9 +79,9 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
                 f"API key not found. Environment variable '{self.api_key_env_var_name}' is not set or is empty."
             )
             self.logger.error(f"[{context.transaction_id}] {error_message} ({self.name})")
-            context.response = JSONResponse(
+            context.response = httpx.Response(
                 status_code=500,
-                content={"detail": f"Server configuration error: {error_message}"},
+                json={"detail": f"Server configuration error: {error_message}"},
             )
             raise ApiKeyNotFoundError(f"[{context.transaction_id}] {error_message} ({self.name})")
 
@@ -103,7 +103,7 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         )
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderFromEnvPolicy":
+    def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderFromEnvPolicy":
         """
         Constructs the policy from serialized configuration.
 
@@ -122,7 +122,15 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         if api_key_env_var_name is None:
             raise KeyError("Configuration for AddApiKeyHeaderFromEnvPolicy is missing 'api_key_env_var_name'.")
 
+        # Ensure instance_name is str or None
+        resolved_name: Optional[str] = None
+        if instance_name is not None:
+            if not isinstance(instance_name, str):
+                # Or raise a TypeError/ValueError if this is considered an invalid config
+                logging.warning(f"Policy name '{instance_name}' is not a string. Coercing to string.")
+            resolved_name = str(instance_name)
+
         return cls(
-            name=instance_name,
+            name=resolved_name,
             api_key_env_var_name=str(api_key_env_var_name),
         )

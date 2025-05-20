@@ -79,7 +79,7 @@ async def get_main_control_policy(
     settings = dependencies.settings
     if settings.get_policy_filepath():
         logger.info(f"Loading main control policy from file: {settings.get_policy_filepath()}")
-        return await load_policy_from_file(settings.get_policy_filepath())
+        return load_policy_from_file(settings.get_policy_filepath())
 
     top_level_policy_name = settings.get_top_level_policy_name()
     if not top_level_policy_name:

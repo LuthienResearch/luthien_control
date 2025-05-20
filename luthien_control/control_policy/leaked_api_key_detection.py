@@ -10,7 +10,7 @@ import logging
 import re
 from typing import List, Optional, Pattern, cast
 
-from fastapi.responses import JSONResponse
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -95,9 +95,9 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
                             )
                             self.logger.warning(f"[{context.transaction_id}] {error_message} ({self.name})")
 
-                            context.response = JSONResponse(
+                            context.response = httpx.Response(
                                 status_code=403,
-                                content={"detail": error_message},
+                                json={"detail": error_message},
                             )
                             raise LeakedApiKeyError(detail=error_message)
 
@@ -134,7 +134,7 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
         )
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "LeakedApiKeyDetectionPolicy":
+    def from_serialized(cls, config: SerializableDict) -> "LeakedApiKeyDetectionPolicy":
         """
         Constructs the policy from serialized configuration.
 
@@ -144,7 +144,37 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
         Returns:
             An instance of LeakedApiKeyDetectionPolicy.
         """
+        name_val = config.get("name")
+        resolved_name: Optional[str] = None
+        if name_val is not None:
+            if not isinstance(name_val, str):
+                logging.warning(
+                    f"LeakedApiKeyDetectionPolicy name '{name_val}' from config is not a string. "
+                    f"Coercing. Original type: {type(name_val).__name__}."
+                )
+                resolved_name = str(name_val)
+            else:
+                resolved_name = name_val
+
+        patterns_val = config.get("patterns")
+        resolved_patterns: Optional[List[str]] = None
+        if patterns_val is not None:
+            if not isinstance(patterns_val, list):
+                raise TypeError(
+                    f"LeakedApiKeyDetectionPolicy 'patterns' in config must be a list of strings. "
+                    f"Got: {patterns_val!r} (type: {type(patterns_val).__name__})"
+                )
+            # Ensure all elements in the list are strings
+            if not all(isinstance(p, str) for p in patterns_val):
+                # Find the first non-string element for a better error message
+                offending_item = next((p for p in patterns_val if not isinstance(p, str)), None)
+                raise TypeError(
+                    f"All items in the 'patterns' list for LeakedApiKeyDetectionPolicy must be strings. "
+                    f"Found item: {offending_item!r} (type: {type(offending_item).__name__}) in list: {patterns_val!r}"
+                )
+            resolved_patterns = patterns_val  # Now known to be List[str]
+
         return cls(
-            name=config.get("name"),
-            patterns=config.get("patterns"),
+            name=resolved_name,
+            patterns=resolved_patterns,
         )

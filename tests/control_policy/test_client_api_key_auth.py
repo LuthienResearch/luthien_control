@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 @pytest.fixture
 def base_transaction_context():
     """Provides a basic TransactionContext instance with a unique ID."""
-    return TransactionContext(transaction_id=f"test-tx-{uuid.uuid4()}")
+    return TransactionContext(transaction_id=uuid.uuid4())
 
 
 @pytest.fixture
@@ -202,8 +202,7 @@ async def test_apply_valid_active_key_success(
     assert transaction_context_with_request.response is None
 
 
-@pytest.mark.asyncio
-async def test_client_api_key_auth_policy_serialization():
+def test_client_api_key_auth_policy_serialization():
     """Test that ClientApiKeyAuthPolicy can be serialized and deserialized correctly."""
     # Arrange
     # ClientApiKeyAuthPolicy no longer requires api_key_lookup on init
@@ -213,7 +212,7 @@ async def test_client_api_key_auth_policy_serialization():
     # Act
     serialized_data = original_policy.serialize()
     # No dependencies are needed for deserialization anymore
-    rehydrated_policy = await ClientApiKeyAuthPolicy.from_serialized(serialized_data)
+    rehydrated_policy = ClientApiKeyAuthPolicy.from_serialized(serialized_data)
 
     # Assert
     assert isinstance(serialized_data, dict)  # Check against dict, not type alias

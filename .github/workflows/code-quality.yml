@@ -1,15 +1,17 @@
-name: Ruff Format and Lint
+name: Code Quality Checks
 
-on: [pull_request]
+on:
+  pull_request:
+    branches: [ main, dev ]
 
 jobs:
-  format_and_lint:
+  quality-checks:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.head_ref }} # Checkout the PR branch
 
       - name: Parse Python version from pyproject.toml
         id: pyversion
@@ -23,13 +25,24 @@ jobs:
           python-version: ${{ steps.pyversion.outputs.version }}
 
       - name: Install Poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-        shell: bash
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.pyversion.outputs.version }}-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
-        run: poetry install --no-root
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root --with dev # Ensure dev dependencies (ruff, pyright) are installed
+
+      - name: Install project (if not installed by dev dependencies)
+        run: poetry install --no-interaction --no-root # Ensures project itself is importable by pyright if needed
 
       - name: Apply ruff formatting
         run: poetry run ruff format .
@@ -50,3 +63,6 @@ jobs:
 
       - name: Check for remaining ruff issues
         run: poetry run ruff check .
+
+      - name: Run Pyright type check
+        run: poetry run pyright 

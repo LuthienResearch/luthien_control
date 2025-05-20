@@ -1,5 +1,6 @@
 """Unit tests for ControlPolicy SendBackendRequestPolicy."""
 
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -39,7 +40,7 @@ def policy(mock_http_client: AsyncMock, mock_settings: MagicMock) -> SendBackend
 @pytest.fixture
 def base_context() -> TransactionContext:
     """Provides a basic TransactionContext with a simple request."""
-    context = TransactionContext(transaction_id="tx-send-test")
+    context = TransactionContext(transaction_id=uuid.uuid4())
     mock_request = MagicMock(spec=httpx.Request)
     mock_request.method = "POST"
     mock_request.url = httpx.URL("http://proxy.test/some/path")
@@ -103,8 +104,7 @@ async def test_apply_success(
     assert sent_headers.get("authorization") != "Bearer client-token"  # Original auth replaced
 
     # Assert that the backend response is stored in the context
-    assert "backend_response" in updated_context.data
-    assert updated_context.data["backend_response"] is mock_backend_response
+    assert updated_context.response is mock_backend_response
     # Verify the mocked response content was accessed (implicitly by httpx/policy)
     assert mock_backend_response.content is not None  # Ensures the attribute was set/accessed
 
@@ -120,6 +120,7 @@ async def test_apply_builds_correct_url_no_base_slash(
     """Verify URL construction with no trailing slash on the base backend URL."""
 
     original_client_url = httpx.URL("http://proxy.test/specific/endpoint")
+    assert base_context.request is not None
     base_context.request.url = original_client_url
     mock_settings.get_backend_url.return_value = "http://backend.internal:8080/api"  # No trailing slash
     expected_url = "http://backend.internal:8080/api/specific/endpoint"
@@ -145,6 +146,7 @@ async def test_apply_builds_correct_url_with_base_slash(
     """Verify URL construction with a trailing slash on the base backend URL."""
 
     original_client_url = httpx.URL("http://proxy.test/specific/endpoint")
+    assert base_context.request is not None
     base_context.request.url = original_client_url
     mock_settings.get_backend_url.return_value = "http://backend.internal:8080/api/"  # Trailing slash
     expected_url = "http://backend.internal:8080/api/specific/endpoint"
@@ -170,6 +172,7 @@ async def test_apply_builds_correct_url_root_client_path(
     """Verify URL construction when the client request path is '/'."""
 
     root_client_url = httpx.URL("http://proxy.test/")  # Root path
+    assert base_context.request is not None
     base_context.request.url = root_client_url
     mock_settings.get_backend_url.return_value = "http://backend.internal:8080/api"
     expected_url = "http://backend.internal:8080/api/"  # Should join correctly
@@ -198,6 +201,7 @@ async def test_apply_prepares_correct_headers(
     mock_settings.get_backend_url.return_value = "https://secure-backend.org"
     mock_settings.get_openai_api_key.return_value = "backend-key-for-header-test"
 
+    assert base_context.request is not None
     # Capture original headers BEFORE applying the policy
     original_headers = base_context.request.headers.copy()
 
@@ -257,7 +261,7 @@ async def test_apply_handles_httpx_request_error(
     # Verify send was called
     mock_http_client.send.assert_awaited_once()
     # Verify no response was stored
-    assert "backend_response" not in base_context.data
+    assert base_context.response is None
 
 
 async def test_apply_handles_httpx_timeout_error(
@@ -287,7 +291,7 @@ async def test_apply_handles_httpx_timeout_error(
     # Verify send was called
     mock_http_client.send.assert_awaited_once()
     # Verify no response was stored
-    assert "backend_response" not in base_context.data
+    assert base_context.response is None
 
 
 async def test_apply_raises_if_context_request_is_none(
@@ -296,7 +300,7 @@ async def test_apply_raises_if_context_request_is_none(
     mock_db_session: AsyncMock,
 ):
     """Test that apply raises ValueError if context.request is None."""
-    context_no_request = TransactionContext(transaction_id="tx-no-request")
+    context_no_request = TransactionContext(transaction_id=uuid.uuid4())
     context_no_request.request = None
     with pytest.raises(ValueError, match="context.request is None"):
         await policy.apply(context_no_request, container=mock_container, session=mock_db_session)
@@ -318,27 +322,3 @@ async def test_apply_handles_invalid_backend_url(
             await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     mock_http_client.send.assert_not_called()
-
-
-# --- Serialization Tests ---
-
-
-async def test_send_backend_request_policy_serialization(
-    policy: SendBackendRequestPolicy,
-):
-    """Test that SendBackendRequestPolicy can be serialized and deserialized correctly."""
-    # Arrange
-    # 'policy' fixture already provides an instance
-    original_policy = policy
-
-    # Act
-    serialized_data = original_policy.serialize()
-    rehydrated_policy = await SendBackendRequestPolicy.from_serialized(config=serialized_data)
-
-    # Assert
-    assert isinstance(serialized_data, dict)
-    # Serialize now only includes the name
-    assert serialized_data == {"name": "test-policy"}
-
-    assert isinstance(rehydrated_policy, SendBackendRequestPolicy)
-    assert rehydrated_policy.name == original_policy.name

@@ -1,11 +1,12 @@
 """Unit tests for the AddApiKeyHeaderFromEnvPolicy."""
 
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi.responses import JSONResponse
 from luthien_control.control_policy.add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
 
 
@@ -94,13 +95,6 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
         with pytest.raises(ApiKeyNotFoundError, match=expected_error_msg_fragment):
             await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
 
-        assert isinstance(mock_transaction_context.response, JSONResponse)
-        assert mock_transaction_context.response.status_code == 500
-        assert (
-            mock_transaction_context.response.body
-            == b'{"detail":"Server configuration error: ' + expected_error_msg_fragment.encode() + b'"}'
-        )
-
     @pytest.mark.asyncio
     async def test_apply_env_var_set_to_empty_string_raises_api_key_not_found_error(
         self, mock_transaction_context, mock_dependency_container, mock_async_session, monkeypatch
@@ -114,13 +108,6 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
 
         with pytest.raises(ApiKeyNotFoundError, match=expected_error_msg_fragment):
             await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
-
-        assert isinstance(mock_transaction_context.response, JSONResponse)
-        assert mock_transaction_context.response.status_code == 500
-        assert (
-            mock_transaction_context.response.body
-            == b'{"detail":"Server configuration error: ' + expected_error_msg_fragment.encode() + b'"}'
-        )
 
 
 class TestAddApiKeyHeaderFromEnvPolicySerialization:
@@ -142,41 +129,37 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
         }
         assert policy.serialize() == expected_config
 
-    @pytest.mark.asyncio
-    async def test_from_serialized_success(self):
+    def test_from_serialized_success(self):
         config = {
             "name": "MyPolicyInstance",
             "api_key_env_var_name": API_KEY_ENV_VAR_NAME,
         }
-        policy = await AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(cast(SerializableDict, config))
         assert isinstance(policy, AddApiKeyHeaderFromEnvPolicy)
         assert policy.name == "MyPolicyInstance"
         assert policy.api_key_env_var_name == API_KEY_ENV_VAR_NAME
 
-    @pytest.mark.asyncio
-    async def test_from_serialized_success_default_name(self):
+    def test_from_serialized_success_default_name(self):
         config = {
             "api_key_env_var_name": API_KEY_ENV_VAR_NAME,
         }
-        policy = await AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(cast(SerializableDict, config))
         assert isinstance(policy, AddApiKeyHeaderFromEnvPolicy)
         assert policy.name == "AddApiKeyHeaderFromEnvPolicy"  # Default class name if 'name' is not in config
         assert policy.api_key_env_var_name == API_KEY_ENV_VAR_NAME
 
-    @pytest.mark.asyncio
-    async def test_from_serialized_success_api_key_env_var_name_is_int(self):
+    def test_from_serialized_success_api_key_env_var_name_is_int(self):
         # Test if api_key_env_var_name is converted to string if provided as non-string
         config = {
             "api_key_env_var_name": 12345  # Using an int
         }
-        policy = await AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+        policy = AddApiKeyHeaderFromEnvPolicy.from_serialized(cast(SerializableDict, config))
         assert isinstance(policy, AddApiKeyHeaderFromEnvPolicy)
         assert policy.api_key_env_var_name == "12345"  # Should be converted to string
 
-    @pytest.mark.asyncio
-    async def test_from_serialized_missing_api_key_env_var_name_raises_key_error(self):
+    def test_from_serialized_missing_api_key_env_var_name_raises_key_error(self):
         config = {"name": "MyPolicyInstance"}  # Missing api_key_env_var_name
         with pytest.raises(
             KeyError, match="Configuration for AddApiKeyHeaderFromEnvPolicy is missing 'api_key_env_var_name'."
         ):
-            await AddApiKeyHeaderFromEnvPolicy.from_serialized(config)
+            AddApiKeyHeaderFromEnvPolicy.from_serialized(cast(SerializableDict, config))

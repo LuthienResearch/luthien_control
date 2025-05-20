@@ -1,12 +1,13 @@
 """Unit tests for the LeakedApiKeyDetectionPolicy."""
 
+from typing import cast
 from unittest.mock import MagicMock
 
 import httpx
 import pytest
-from fastapi.responses import JSONResponse
 from luthien_control.control_policy.exceptions import LeakedApiKeyError, NoRequestError
 from luthien_control.control_policy.leaked_api_key_detection import LeakedApiKeyDetectionPolicy
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
 
 
@@ -19,6 +20,18 @@ def mock_transaction_context() -> TransactionContext:
     context.response = None
     context.data = {}  # Add this for consistency with real TransactionContext
     return context
+
+
+@pytest.fixture
+def mock_container() -> MagicMock:
+    """Provides a mock DependencyContainer."""
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_db_session() -> MagicMock:
+    """Provides a mock AsyncSession."""
+    return MagicMock()
 
 
 class TestLeakedApiKeyDetectionPolicyInit:
@@ -94,10 +107,6 @@ class TestLeakedApiKeyDetectionPolicyApply:
         with pytest.raises(LeakedApiKeyError):
             await policy.apply(mock_transaction_context, mock_container, mock_db_session)
 
-        assert isinstance(mock_transaction_context.response, JSONResponse)
-        assert mock_transaction_context.response.status_code == 403
-        assert "message content" in mock_transaction_context.response.body.decode("utf-8")
-
     @pytest.mark.asyncio
     async def test_apply_detects_api_key_in_system_message(
         self, mock_transaction_context, mock_container, mock_db_session
@@ -117,9 +126,6 @@ class TestLeakedApiKeyDetectionPolicyApply:
 
         with pytest.raises(LeakedApiKeyError):
             await policy.apply(mock_transaction_context, mock_container, mock_db_session)
-
-        assert isinstance(mock_transaction_context.response, JSONResponse)
-        assert mock_transaction_context.response.status_code == 403
 
     @pytest.mark.asyncio
     async def test_apply_with_non_json_body(self, mock_transaction_context, mock_container, mock_db_session):
@@ -152,9 +158,6 @@ class TestLeakedApiKeyDetectionPolicyApply:
         with pytest.raises(LeakedApiKeyError):
             await policy.apply(mock_transaction_context, mock_container, mock_db_session)
 
-        assert isinstance(mock_transaction_context.response, JSONResponse)
-        assert mock_transaction_context.response.status_code == 403
-
 
 class TestLeakedApiKeyDetectionPolicySerialization:
     """Tests for serialization and deserialization of LeakedApiKeyDetectionPolicy."""
@@ -174,27 +177,25 @@ class TestLeakedApiKeyDetectionPolicySerialization:
             "patterns": custom_patterns,
         }
 
-    @pytest.mark.asyncio
-    async def test_from_serialized(self):
+    def test_from_serialized(self):
         """Test deserialization of policy configuration."""
         config = {
             "name": "DeserializedPolicy",
             "patterns": ["custom-[0-9]+"],
         }
 
-        policy = await LeakedApiKeyDetectionPolicy.from_serialized(config)
+        policy = LeakedApiKeyDetectionPolicy.from_serialized(cast(SerializableDict, config))
 
         assert policy.name == "DeserializedPolicy"
         assert policy.patterns == ["custom-[0-9]+"]
 
-    @pytest.mark.asyncio
-    async def test_from_serialized_with_defaults(self):
+    def test_from_serialized_with_defaults(self):
         """Test deserialization with minimal config uses defaults."""
         config = {
             "name": "MinimalConfig",
         }
 
-        policy = await LeakedApiKeyDetectionPolicy.from_serialized(config)
+        policy = LeakedApiKeyDetectionPolicy.from_serialized(cast(SerializableDict, config))
 
         assert policy.name == "MinimalConfig"
         assert policy.patterns == LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS

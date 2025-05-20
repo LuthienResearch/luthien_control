@@ -105,6 +105,7 @@ async def _ensure_e2e_policy_exists():
                         description=desired_description,
                         created_at=existing_policy.created_at,
                     )
+                    assert existing_policy.id is not None  # Ensure ID is not None before update
                     updated_policy = await update_policy(session, existing_policy.id, update_data)
                     if updated_policy:
                         logger.info(f"Successfully updated policy '{E2E_POLICY_NAME}'.")
@@ -167,6 +168,7 @@ async def _ensure_e2e_policy_exists():
                                 description=desired_description,
                                 created_at=existing_policy.created_at,  # Keep original creation time
                             )
+                            assert existing_policy.id is not None  # Ensure ID is not None before update
                             updated_policy = await update_policy(session, existing_policy.id, update_data)
                             if updated_policy:
                                 logger.info(f"Successfully updated concurrently created policy '{E2E_POLICY_NAME}'.")
@@ -369,7 +371,8 @@ def proxy_target_url(request: pytest.FixtureRequest, live_local_proxy_server: st
     otherwise uses the URL from the live_local_proxy_server fixture.
     """
     target_url_option = request.config.getoption("--e2e-target-url")
-    if target_url_option:
+    if target_url_option is not None:  # Explicitly check for None
+        assert isinstance(target_url_option, str)  # Make type checker happy
         print(f"\nUsing provided target URL: {target_url_option}")
         # Basic validation
         if not target_url_option.startswith(("http://", "https://")):

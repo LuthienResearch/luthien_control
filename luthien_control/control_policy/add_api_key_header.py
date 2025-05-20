@@ -3,7 +3,7 @@
 import logging
 from typing import Optional, cast
 
-from fastapi.responses import JSONResponse
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -55,9 +55,9 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         settings = container.settings
         api_key = settings.get_openai_api_key()
         if not api_key:
-            context.response = JSONResponse(
+            context.response = httpx.Response(
                 status_code=500,
-                content={"detail": "Server configuration error: OpenAI API key not configured"},
+                json={"detail": "Server configuration error: OpenAI API key not configured"},
             )
             raise ApiKeyNotFoundError(f"[{context.transaction_id}] OpenAI API key not configured ({self.name}).")
         self.logger.info(f"[{context.transaction_id}] Adding Authorization header for OpenAI key ({self.name}).")
@@ -72,7 +72,7 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         return cast(SerializableDict, {"name": self.name})
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderPolicy":
+    def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderPolicy":
         """
         Constructs the policy from serialized configuration.
 
@@ -82,5 +82,5 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         Returns:
             An instance of AddApiKeyHeaderPolicy.
         """
-        instance_name = config.get("name")
+        instance_name = cast(Optional[str], config.get("name"))
         return cls(name=instance_name)

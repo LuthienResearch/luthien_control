@@ -1,13 +1,16 @@
 # Serialization type definitions.
 
 from dataclasses import dataclass
-from typing import Dict, Union
+from typing import Any, Dict, List, TypeAlias, Union
 
-SerializableType = Union[str, float, int, bool, "SerializableDict"]
+# Define the base types that can be serialized
+SerializablePrimitive = Union[str, float, int, bool]
 
-SerializableDict = Dict[str, SerializableType]
+# Define the recursive type for dictionaries
+SerializableDict: TypeAlias = Dict[str, Union[SerializablePrimitive, List[Any], Dict[str, Any], None]]
 
 
+# Define the type for serialized policies
 @dataclass
 class SerializedPolicy:
     """Represents the serialized form of a ControlPolicy.

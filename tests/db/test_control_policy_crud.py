@@ -1,3 +1,4 @@
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -5,6 +6,7 @@ from luthien_control.control_policy.control_policy import (
     ControlPolicy as BaseControlPolicy,
 )
 from luthien_control.control_policy.exceptions import PolicyLoadError
+from luthien_control.control_policy.serialization import SerializedPolicy
 from luthien_control.db.control_policy_crud import (
     get_policy_by_name,
     get_policy_config_by_name,
@@ -34,14 +36,16 @@ async def test_create_and_get_policy(async_session: AsyncSession):
     )
 
     # Create the policy
-    created_policy = await save_policy_to_db(async_session, policy)
-    assert created_policy is not None
+    created_policy_val = await save_policy_to_db(async_session, policy)
+    assert created_policy_val is not None
+    created_policy = cast(ControlPolicy, created_policy_val)
     assert created_policy.id is not None
     assert created_policy.type == "mock_type"
 
     # Retrieve the policy by name
-    retrieved_policy = await get_policy_by_name(async_session, "test-policy")
-    assert retrieved_policy is not None
+    retrieved_policy_val = await get_policy_by_name(async_session, "test-policy")
+    assert retrieved_policy_val is not None
+    retrieved_policy = cast(ControlPolicy, retrieved_policy_val)
     assert retrieved_policy.id == created_policy.id
     assert retrieved_policy.config == {"setting": "value"}
 
@@ -72,33 +76,42 @@ async def test_update_policy(async_session: AsyncSession):
     """Test updating a policy."""
     # Create a policy
     policy = ControlPolicy(name="update-policy", is_active=True, type="mock_type")
-    created_policy = await save_policy_to_db(async_session, policy)
+    created_policy_val = await save_policy_to_db(async_session, policy)
+    assert created_policy_val is not None
+    created_policy = cast(ControlPolicy, created_policy_val)
     assert created_policy.id is not None  # Ensure ID is assigned
 
     # Update the policy
     # Pass a Policy model instance for the update payload
     update_payload = ControlPolicy(
         name="update-policy",  # Not strictly needed by update func
+        type="mock_type_updated",  # type is Optional, but good to provide if changed
         config={"updated": True},
         description="Updated description",
         is_active=False,  # Example change
     )
 
-    updated_policy = await update_policy(async_session, created_policy.id, update_payload)
-    assert updated_policy is not None
+    updated_policy_val = await update_policy(async_session, created_policy.id, update_payload)
+    assert updated_policy_val is not None
+    updated_policy = cast(ControlPolicy, updated_policy_val)
+    assert updated_policy.id is not None  # Check id after update
     assert updated_policy.config == {"updated": True}
     assert updated_policy.description == "Updated description"
     assert updated_policy.is_active is False
 
     # Verify the update persisted
-    retrieved_policy = await get_policy_by_name(async_session, "update-policy")
-    assert retrieved_policy is None
+    # get_policy_by_name only returns active policies by default in its current impl.
+    # If we want to check the updated (now inactive) policy, we'd need to adjust the query
+    # or use a different retrieval method if one exists that gets inactive policies by name.
+    # For now, the existing test logic checks that it's NOT found by the default get_policy_by_name.
+    retrieved_policy_after_update = await get_policy_by_name(async_session, "update-policy")
+    assert retrieved_policy_after_update is None
 
 
 async def test_update_policy_not_found(async_session: AsyncSession):
     """Test updating a non-existent policy."""
     # Pass a Policy model instance
-    update_payload = ControlPolicy(description="Updated description")
+    update_payload = ControlPolicy(name="non-existent-policy", type="dummy_type", description="Updated description")
     updated_policy = await update_policy(async_session, 9999, update_payload)  # Non-existent ID
     assert updated_policy is None
 
@@ -112,10 +125,13 @@ async def test_get_policy_by_name_not_found(async_session: AsyncSession):
 async def test_create_policy_duplicate_name(async_session: AsyncSession):
     """Test creating a policy with a name that already exists."""
     policy1 = ControlPolicy(name="duplicate-name", type="mock_type")
-    created_policy1 = await save_policy_to_db(async_session, policy1)
-    assert created_policy1 is not None  # Ensure first creation succeeded
+    created_policy1_val = await save_policy_to_db(async_session, policy1)
+    assert created_policy1_val is not None  # Ensure first creation succeeded
+    created_policy1 = cast(ControlPolicy, created_policy1_val)
+    assert created_policy1.id is not None
 
-    policy2 = ControlPolicy(name="duplicate-name")
+    # 'type' is optional, but name is required.
+    policy2 = ControlPolicy(name="duplicate-name", type="another_mock_type")
     # Expecting IntegrityError because the function now re-raises it
     with pytest.raises(IntegrityError):
         await save_policy_to_db(async_session, policy2)
@@ -157,12 +173,11 @@ async def test_load_policy_from_db_happy_path(mocker: MockerFixture):
     result = await load_policy_from_db(policy_name, mock_container)
 
     mock_get_policy_by_name.assert_awaited_once_with(mock_db_session, policy_name)
-    expected_policy_data = {
-        "name": db_policy_model.name,
-        "type": db_policy_model.type,
-        "config": db_policy_model.config or {},
-    }
-    mock_load_policy.assert_awaited_once_with(expected_policy_data)
+    expected_policy_data = SerializedPolicy(
+        type=db_policy_model.type,
+        config=db_policy_model.config or {},
+    )
+    mock_load_policy.assert_called_once_with(expected_policy_data)
     assert result is mock_instantiated_policy
     assert result.name == policy_name
 
@@ -220,7 +235,7 @@ async def test_load_policy_from_db_loader_raises_policy_load_error(
         await load_policy_from_db(policy_name, mock_container)
 
     assert exc_info.value is original_error
-    mock_load_policy.assert_awaited_once()
+    mock_load_policy.assert_called_once()
 
 
 async def test_load_policy_from_db_loader_raises_other_exception(
@@ -253,7 +268,7 @@ async def test_load_policy_from_db_loader_raises_other_exception(
         await load_policy_from_db(policy_name, mock_container)
 
     assert exc_info.value.__cause__ is original_exception
-    mock_load_policy.assert_awaited_once()
+    mock_load_policy.assert_called_once()
 
 
 async def test_get_policy_config_by_name_found_active(async_session: AsyncSession):
@@ -395,7 +410,7 @@ async def test_update_policy_integrity_error(mocker: MockerFixture):
     mock_session.execute = AsyncMock(
         return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=existing_policy_mock))
     )
-    mock_session.commit = AsyncMock(side_effect=IntegrityError("commit failed", params=None, orig=None))
+    mock_session.commit = AsyncMock(side_effect=IntegrityError("commit failed", params=None, orig=None))  # type: ignore[arg-type]
     mock_session.rollback = AsyncMock()
 
     mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")

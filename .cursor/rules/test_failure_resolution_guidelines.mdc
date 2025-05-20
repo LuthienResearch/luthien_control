@@ -1,0 +1,19 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Test Failure Resolution Guidelines
+
+WHEN ADDRESSING TEST FAILURES, NEVER MAKE SIGNIFICANT CHANGES TO APPLICATION CODE TO MAKE THE TESTS PASS UNLESS THERE IS STRONG EVIDENCE OF THE TEST FAILURE ACCURATELY REFLECTING A FAILURE OF THE APPLICATION LOGIC TO IMPLEMENT WHAT WAS INTENDED.
+
+In particular, NEVER EVER MAKE SIGNIFICANT CHANGES TO A BASE CLASS TO MAKE TESTS FOR ONE SUBCLASS PASS.
+
+Before modifying application code, especially base classes, to fix a failing test:
+1.  **Verify the Test's Intent:** Ensure the test accurately reflects the *intended functionality* of the code unit being tested. Is the test itself flawed or based on a misunderstanding of requirements?
+2.  **Analyze the Failure:** Thoroughly investigate *why* the test is failing. Is it a genuine bug in the unit under test, a misunderstanding of how a base class or dependency should behave, or an environmental issue?
+3.  **Scope of Impact:** If a code change seems necessary, consider its ripple effects. Modifying a base class to suit one subclass's test can break other subclasses or parts of the system relying on the established behavior of that base class.
+4.  **Principle of Least Impact:** Prefer changes in the most specific scope possible (e.g., the subclass or the test itself) before considering changes to more general components like base classes.
+5.  **Justification for Base Class Changes:** If a base class modification *is* deemed necessary, it should be because the base class has a demonstrable flaw or an incorrectly implemented feature that affects its general contract, not merely to accommodate the specific needs of a single subclass's test. The change should be a net positive for all users of the base class.
+
+Remember: Tests are there to validate that the application code meets its requirements. Modifying application code *solely* to make a test pass without understanding the root cause or the original intent can hide real bugs or introduce new ones.

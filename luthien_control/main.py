@@ -222,5 +222,5 @@ if __name__ == "__main__":
         host=dev_settings.get_app_host(),
         port=dev_settings.get_app_port(),
         reload=dev_settings.get_app_reload(),
-        log_level=dev_settings.get_app_log_level().lower(),
+        log_level=dev_settings.get_log_level().lower(),
     )

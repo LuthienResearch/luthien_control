@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -75,7 +75,7 @@ def test_create_custom_openapi_does_not_modify_other_params(test_app: FastAPI):
 
 
 @patch("luthien_control.custom_openapi_schema.get_openapi")
-def test_create_custom_openapi_caching(mock_get_openapi: patch, test_app: FastAPI):
+def test_create_custom_openapi_caching(mock_get_openapi: MagicMock, test_app: FastAPI):
     """Verify that the generated schema is cached on the app instance."""
     # Setup mock return value
     mock_schema = {"openapi": "3.1.0", "info": {"title": "Mock Schema"}, "paths": {}}

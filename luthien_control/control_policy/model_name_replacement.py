@@ -2,6 +2,7 @@ import json
 import logging
 from typing import Dict, Optional, cast
 
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -74,7 +75,12 @@ class ModelNameReplacementPolicy(ControlPolicy):
                     body_json["model"] = new_model
 
                     modified_content = json.dumps(body_json).encode("utf-8")
-                    context.request.content = modified_content
+                    context.request = httpx.Request(
+                        method=context.request.method,
+                        url=context.request.url,
+                        headers=context.request.headers,
+                        content=modified_content
+                    )
 
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             self.logger.warning(f"[{context.transaction_id}] Error processing request content: {e}")

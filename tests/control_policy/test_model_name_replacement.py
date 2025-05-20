@@ -60,7 +60,7 @@ async def test_model_name_replacement_policy_invalid_json(mock_container, mock_s
 
     result = await policy.apply(context, mock_container, mock_session)
     assert result == context  # Context should be returned unchanged
-    assert context.request.content == b"not valid json"  # Content should be unchanged
+    assert context.request is not None and context.request.content == b"not valid json"  # Content should be unchanged
 
 
 @pytest.mark.asyncio
@@ -71,7 +71,7 @@ async def test_model_name_replacement_policy_no_model_field(mock_container, mock
 
     result = await policy.apply(context, mock_container, mock_session)
     assert result == context  # Context should be returned unchanged
-    assert context.request.content == request_content  # Content should be unchanged
+    assert context.request is not None and context.request.content == request_content  # Content should be unchanged
 
 
 @pytest.mark.asyncio
@@ -82,6 +82,7 @@ async def test_model_name_replacement_policy_model_not_in_mapping(mock_container
 
     result = await policy.apply(context, mock_container, mock_session)
     assert result == context  # Context should be returned unchanged
+    assert context.request is not None
     assert json.loads(context.request.content.decode("utf-8"))["model"] == "other-model"  # Model should be unchanged
 
 
@@ -95,6 +96,7 @@ async def test_model_name_replacement_policy_model_in_mapping(mock_container, mo
 
         result = await policy.apply(context, mock_container, mock_session)
         assert result == context  # Context should be returned
+        assert context.request is not None
         assert json.loads(context.request.content.decode("utf-8"))["model"] == real_name  # Model should be replaced
 
 

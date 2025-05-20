@@ -6,6 +6,7 @@ from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPol
 from luthien_control.control_policy.add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.model_name_replacement import ModelNameReplacementPolicy
 from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.control_policy.serial_policy import SerialPolicy
@@ -18,6 +19,7 @@ EXPECTED_POLICY_MAPPINGS: Dict[str, Type[ControlPolicy]] = {
     "CompoundPolicy": SerialPolicy,  # legacy compatibility
     "SerialPolicy": SerialPolicy,
     "SendBackendRequest": SendBackendRequestPolicy,
+    "ModelNameReplacement": ModelNameReplacementPolicy,
 }
 
 

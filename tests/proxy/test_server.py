@@ -294,13 +294,14 @@ class PassThroughPolicy(ControlPolicy):
     async def apply(
         self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
     ) -> TransactionContext:
-        return context  # Does nothing, just passes through
+        context.data["passthrough_applied"] = True
+        return context
 
     def serialize(self) -> SerializableDict:
         return {}
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict, **kwargs) -> "PassThroughPolicy":
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "PassThroughPolicy":
         return cls()
 
 
@@ -322,8 +323,9 @@ class MockSendBackendRequestPolicy(ControlPolicy):
         return {}
 
     @classmethod
-    async def from_serialized(cls, config: SerializableDict, **kwargs) -> "MockSendBackendRequestPolicy":
-        # Not needed for this test
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "MockSendBackendRequestPolicy":
+        # Not needed for this test, but must be implemented
+        # For a real policy, you'd use config.
         raise NotImplementedError
 
 

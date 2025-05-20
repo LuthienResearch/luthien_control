@@ -1,5 +1,6 @@
 """Tests for the AddApiKeyHeaderProcessor."""
 
+import uuid
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -26,7 +27,7 @@ async def test_add_api_key_success(
     # Instantiate with name (optional)
     policy = AddApiKeyHeaderPolicy(name="TestPolicy")
 
-    context = TransactionContext(transaction_id="test-add-key", request=base_request)
+    context = TransactionContext(transaction_id=uuid.uuid4(), request=base_request)
 
     # Mock the container's settings to return the OpenAI key
     mock_container.settings.get_openai_api_key.return_value = "test-openai-key-123"
@@ -49,7 +50,7 @@ async def test_add_api_key_missing_key(
     """Test that it raises an error if the OpenAI API key is not configured."""
     policy = AddApiKeyHeaderPolicy()
 
-    context = TransactionContext(transaction_id="test-missing-key", request=base_request)
+    context = TransactionContext(transaction_id=uuid.uuid4(), request=base_request)
 
     # Mock the container's settings to return None for the OpenAI key
     mock_container.settings.get_openai_api_key.return_value = None
@@ -70,7 +71,7 @@ async def test_add_api_key_no_request(
     """Test that it raises an error if the request is not found in the context."""
     policy = AddApiKeyHeaderPolicy()
 
-    context = TransactionContext(transaction_id="test-no-request")
+    context = TransactionContext(transaction_id=uuid.uuid4())
     with pytest.raises(NoRequestError):
         await policy.apply(context, container=mock_container, session=mock_db_session)
     # Ensure get_openai_api_key was NOT called if no request
@@ -87,7 +88,7 @@ async def test_add_api_key_overwrites_existing(
     base_request.headers["Authorization"] = "Bearer old-key"
     policy = AddApiKeyHeaderPolicy()
 
-    context = TransactionContext(transaction_id="test-overwrite-key", request=base_request)
+    context = TransactionContext(transaction_id=uuid.uuid4(), request=base_request)
 
     # Mock container's settings for OpenAI key
     mock_container.settings.get_openai_api_key.return_value = "new-openai-key-456"

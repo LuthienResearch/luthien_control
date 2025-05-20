@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -64,7 +65,7 @@ class MockSimplePolicy(ControlPolicy):
 @pytest.fixture
 def base_transaction_context() -> TransactionContext:
     """Provides a basic TransactionContext for tests."""
-    return TransactionContext(transaction_id="test-tx-id")
+    return TransactionContext(transaction_id=uuid.uuid4())
 
 
 # --- Test Cases ---

@@ -1,7 +1,7 @@
 import os
 import uuid
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, AsyncGenerator, Dict
 from unittest.mock import AsyncMock, MagicMock
 
 import fastapi
@@ -90,6 +90,7 @@ async def db_session_fixture():
     # Instantiate Settings here. It will use the env vars loaded by the
     # autouse override_settings_dependency fixture.
     db_settings = None  # Initialize
+    admin_dsn = ""  # Initialize admin_dsn
     try:
         # Settings will now rely on pre-existing environment variables for admin DSN.
         db_settings = Settings()
@@ -330,12 +331,14 @@ def override_app_dependencies(
 
     # Define the mock dependency functions
     async def override_get_container() -> MagicMock:
+        print(f"[override_app_dependencies] Overriding get_container, returning mock container: {mock_container}")
         return mock_container
 
-    # This needs to return an async generator/context manager
-    async def override_get_db_session() -> AsyncMock:
-        async with mock_db_session_factory() as session:
-            yield session
+    async def override_get_db_session() -> AsyncGenerator[AsyncMock, None]:
+        # This fixture is intended to be an async generator
+        # that yields an AsyncMock for the database session.
+        print(f"[override_app_dependencies] Overriding get_db_session, returning mock session: {mock_db_session}")
+        yield mock_db_session
 
     # Store original overrides
     original_overrides = app.dependency_overrides.copy()

@@ -1,6 +1,7 @@
 """Unit tests for ResponseBuilder."""
 
 import json
+import uuid
 from typing import AsyncContextManager
 from unittest.mock import AsyncMock
 
@@ -80,7 +81,7 @@ def backend_response() -> httpx.Response:
 @pytest.fixture
 def context_with_response_content(backend_response: httpx.Response) -> TransactionContext:
     """Context where response exists and contains content."""
-    ctx = TransactionContext(transaction_id="tx-build-resp-content")
+    ctx = TransactionContext(transaction_id=uuid.uuid4())
     ctx.response = backend_response
     return ctx
 
@@ -88,7 +89,7 @@ def context_with_response_content(backend_response: httpx.Response) -> Transacti
 @pytest.fixture
 def context_with_empty_content(backend_response: httpx.Response) -> TransactionContext:
     """Context where response exists, but content is None (e.g., 204)."""
-    ctx = TransactionContext(transaction_id="tx-build-empty")
+    ctx = TransactionContext(transaction_id=uuid.uuid4())
     empty_response = httpx.Response(
         status_code=204,
         headers=Headers(
@@ -108,7 +109,7 @@ def context_with_empty_content(backend_response: httpx.Response) -> TransactionC
 @pytest.fixture
 def context_without_response() -> TransactionContext:
     """Context where response is None."""
-    ctx = TransactionContext(transaction_id="tx-build-no-resp")
+    ctx = TransactionContext(transaction_id=uuid.uuid4())
     ctx.response = None  # Explicitly set to None
     return ctx
 
@@ -116,7 +117,7 @@ def context_without_response() -> TransactionContext:
 @pytest.fixture
 def context_with_invalid_response_type() -> TransactionContext:
     """Context where response is not an httpx.Response."""
-    ctx = TransactionContext(transaction_id="tx-invalid-resp-type")
+    ctx = TransactionContext(transaction_id=uuid.uuid4())
     ctx.response = "not an httpx.Response object"  # type: ignore
     return ctx
 

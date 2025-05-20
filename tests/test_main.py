@@ -1,6 +1,8 @@
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
@@ -44,11 +46,12 @@ def test_lifespan_success_path(mocker, mock_container: MagicMock):
         mock_initialize_dependencies.assert_awaited_once_with(mock_settings_instance)
 
         # Check that DependencyContainer from the helper was stored in app.state
-        assert hasattr(client.app.state, "dependencies")
-        assert client.app.state.dependencies is mock_container
+        current_app = cast(FastAPI, client.app)
+        assert hasattr(current_app.state, "dependencies")
+        assert current_app.state.dependencies is mock_container
         # We can also check that the http_client on our mock_container is the one from its own fixture setup.
         # This is implicitly tested if mock_container is correctly composed.
-        assert client.app.state.dependencies.http_client is mock_container.http_client
+        assert current_app.state.dependencies.http_client is mock_container.http_client
 
     # 4. Assertions for shutdown
     # Check that the http_client on our mock_container had its aclose called

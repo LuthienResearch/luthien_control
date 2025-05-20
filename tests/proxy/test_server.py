@@ -1,10 +1,14 @@
 # tests/proxy/test_server.py
+from typing import Generator, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI
+from fastapi import Request as FastAPIRequest
+from fastapi import Response as FastAPIResponse
 from fastapi.testclient import TestClient
+from httpx import Headers as HttpxHeaders
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependencies import (
@@ -28,10 +32,16 @@ def test_app() -> FastAPI:
     return app
 
 
-# ignore type check here, this is a valid use case for a pytest fixture
+# For this test, we use the actual app instance but mock its dependencies
+# so that it uses a test database and a mocked HTTP client.
+
+
 @pytest.fixture
-def client(test_app: FastAPI) -> TestClient:  # type: ignore[misc]
-    """Provides a FastAPI test client that correctly handles lifespan events by mocking DB dependencies."""
+def client(test_app: FastAPI) -> Generator[TestClient, None, None]:
+    """Override client to use the test_app with patched dependencies."""
+    # Patches should be active before TestClient is created so lifespan runs with them
+
+    # Create mock instances for the database engine and session
     mock_engine_instance = AsyncMock(spec=AsyncEngine)
 
     # This factory, when called, will produce mock_session_instance
@@ -111,7 +121,7 @@ async def test_api_proxy_post_endpoint_calls_orchestrator(
     test_path = "some/api/path/post"
     expected_content = b"Response from mocked run_policy_flow for POST"
     expected_status = 200
-    mock_response_obj = Response(
+    mock_response_obj = FastAPIResponse(
         content=expected_content,
         status_code=expected_status,
         headers={"X-Mock-Header": "MockValue"},
@@ -135,8 +145,9 @@ async def test_api_proxy_post_endpoint_calls_orchestrator(
     # Instantiate TestClient here, after the relevant patches are active.
     with TestClient(test_app) as client_instance:
         # At this point, app.state.dependencies should be mock_container
-        assert hasattr(client_instance.app.state, "dependencies")
-        assert client_instance.app.state.dependencies is mock_container, (
+        current_app = cast(FastAPI, client_instance.app)
+        assert hasattr(current_app.state, "dependencies")
+        assert current_app.state.dependencies is mock_container, (
             "app.state.dependencies was not the mock_container after TestClient instantiation"
         )
 
@@ -149,14 +160,14 @@ async def test_api_proxy_post_endpoint_calls_orchestrator(
     # 1. Assert the response received by the client matches the mock's response
     assert response.status_code == expected_status
     assert response.content == expected_content
-    assert response.headers["x-mock-header"] == "MockValue"
-    assert response.headers["content-type"].startswith("application/json")
+    assert cast(HttpxHeaders, response.headers).get("x-mock-header") == "MockValue"  # pyright: ignore
+    assert cast(HttpxHeaders, response.headers).get("content-type", "").startswith("application/json")  # pyright: ignore
 
     # 2. Assert run_policy_flow was called once
     mock_run_flow.assert_awaited_once()
 
     # 3. Assert run_policy_flow was called with expected arguments
-    call_kwargs = mock_run_flow.await_args[1]
+    call_kwargs = cast(tuple, mock_run_flow.await_args)[1]
     assert "request" in call_kwargs
     assert "main_policy" in call_kwargs
     assert "dependencies" in call_kwargs
@@ -166,7 +177,7 @@ async def test_api_proxy_post_endpoint_calls_orchestrator(
     assert call_kwargs["main_policy"] is mock_main_policy_for_simple_tests
 
     request_arg = call_kwargs["request"]
-    assert isinstance(request_arg, Request)
+    assert isinstance(request_arg, FastAPIRequest)
     assert request_arg.method == "POST"
     assert request_arg.url.path == f"/api/{test_path}"
     assert request_arg.headers.get("authorization") == "Bearer test-key-post"
@@ -186,7 +197,7 @@ async def test_api_proxy_get_endpoint_calls_orchestrator(
     test_path = "some/api/path/get"
     expected_content = b"Response from mocked run_policy_flow for GET"
     expected_status = 200
-    mock_response_obj = Response(
+    mock_response_obj = FastAPIResponse(
         content=expected_content,
         status_code=expected_status,
         headers={"X-Mock-Header": "MockValueGet"},
@@ -208,8 +219,9 @@ async def test_api_proxy_get_endpoint_calls_orchestrator(
 
     # Instantiate TestClient here, after the relevant patches are active.
     with TestClient(test_app) as client_instance:
-        assert hasattr(client_instance.app.state, "dependencies")
-        assert client_instance.app.state.dependencies is mock_container
+        current_app = cast(FastAPI, client_instance.app)
+        assert hasattr(current_app.state, "dependencies")
+        assert current_app.state.dependencies is mock_container
 
         with patch("luthien_control.proxy.server.run_policy_flow", new_callable=AsyncMock) as mock_run_flow:
             mock_run_flow.return_value = mock_response_obj
@@ -220,14 +232,14 @@ async def test_api_proxy_get_endpoint_calls_orchestrator(
     # 1. Assert the response received by the client matches the mock's response
     assert response.status_code == expected_status
     assert response.content == expected_content
-    assert response.headers["x-mock-header"] == "MockValueGet"
-    assert response.headers["content-type"].startswith("application/json")
+    assert cast(HttpxHeaders, response.headers).get("x-mock-header") == "MockValueGet"  # pyright: ignore
+    assert cast(HttpxHeaders, response.headers).get("content-type", "").startswith("application/json")  # pyright: ignore
 
     # 2. Assert run_policy_flow was called once
     mock_run_flow.assert_awaited_once()
 
     # 3. Assert run_policy_flow was called with expected arguments
-    call_kwargs = mock_run_flow.await_args[1]
+    call_kwargs = cast(tuple, mock_run_flow.await_args)[1]
     assert "request" in call_kwargs
     assert "main_policy" in call_kwargs
     assert "dependencies" in call_kwargs
@@ -237,7 +249,7 @@ async def test_api_proxy_get_endpoint_calls_orchestrator(
     assert call_kwargs["main_policy"] is mock_main_policy_for_simple_tests
 
     request_arg = call_kwargs["request"]
-    assert isinstance(request_arg, Request)
+    assert isinstance(request_arg, FastAPIRequest)
     assert request_arg.method == "GET"
     assert request_arg.url.path == f"/api/{test_path}"
     assert request_arg.headers.get("authorization") == "Bearer test-key-get"
@@ -360,9 +372,9 @@ async def test_api_proxy_no_auth_policy_no_key_success(
 
     # Instantiate TestClient here, after patches are active
     with TestClient(test_app) as client_instance:
-        # Check app.state.dependencies immediately
-        assert hasattr(client_instance.app.state, "dependencies")
-        assert client_instance.app.state.dependencies is mock_container, (
+        current_app = cast(FastAPI, client_instance.app)
+        assert hasattr(current_app.state, "dependencies")
+        assert current_app.state.dependencies is mock_container, (
             "app.state.dependencies was not mock_container after TestClient instantiation"
         )
 

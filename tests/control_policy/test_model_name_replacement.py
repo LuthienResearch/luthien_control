@@ -14,6 +14,8 @@ class MockRequest:
     def __init__(self, content=None):
         self.content = content
         self.headers = {}
+        self.method = "POST"  # Add a default method
+        self.url = "http://testserver/api/chat"  # Add a default URL
 
 
 @pytest.fixture

@@ -242,11 +242,6 @@ def test_serialize_without_default_policy():
 
     expected_cond_key = json.dumps(cond1.serialize())
 
-    {
-        "type": "branching",
-        "cond_to_policy_map": {expected_cond_key: policy1.serialize()},
-        "default_policy": None,
-    }
     assert serialized_data["type"] == "branching"
 
     cond_map_serialized = serialized_data.get("cond_to_policy_map")

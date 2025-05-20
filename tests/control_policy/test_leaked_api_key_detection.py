@@ -1,11 +1,13 @@
 """Unit tests for the LeakedApiKeyDetectionPolicy."""
 
+from typing import cast
 from unittest.mock import MagicMock
 
 import httpx
 import pytest
 from luthien_control.control_policy.exceptions import LeakedApiKeyError, NoRequestError
 from luthien_control.control_policy.leaked_api_key_detection import LeakedApiKeyDetectionPolicy
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction_context import TransactionContext
 
 
@@ -182,7 +184,7 @@ class TestLeakedApiKeyDetectionPolicySerialization:
             "patterns": ["custom-[0-9]+"],
         }
 
-        policy = LeakedApiKeyDetectionPolicy.from_serialized(config)
+        policy = LeakedApiKeyDetectionPolicy.from_serialized(cast(SerializableDict, config))
 
         assert policy.name == "DeserializedPolicy"
         assert policy.patterns == ["custom-[0-9]+"]
@@ -193,7 +195,7 @@ class TestLeakedApiKeyDetectionPolicySerialization:
             "name": "MinimalConfig",
         }
 
-        policy = LeakedApiKeyDetectionPolicy.from_serialized(config)
+        policy = LeakedApiKeyDetectionPolicy.from_serialized(cast(SerializableDict, config))
 
         assert policy.name == "MinimalConfig"
         assert policy.patterns == LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS

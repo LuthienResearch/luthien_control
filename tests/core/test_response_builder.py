@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from typing import AsyncContextManager
+from typing import AsyncContextManager, cast
 from unittest.mock import AsyncMock
 
 import httpx
@@ -210,7 +210,7 @@ def test_build_response_invalid_context_response_type(
     assert isinstance(fastapi_response, JSONResponse)
     assert fastapi_response.status_code == 500
 
-    response_body = json.loads(fastapi_response.body)
+    response_body = json.loads(cast(bytes, fastapi_response.body).decode("utf-8"))
     assert response_body["transaction_id"] == str(context_with_invalid_response_type.transaction_id)
     if dev_mode_enabled:
         assert "Policy Error:" in response_body["detail"]

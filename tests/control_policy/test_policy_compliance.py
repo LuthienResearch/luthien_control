@@ -144,6 +144,9 @@ def test_policy_from_serialized_signature(policy_class: Type[ControlPolicy]):
     return_hint = type_hints.get("return")
     expected_return = policy_class  # Expect the class itself, or a ForwardRef to it
 
+    if return_hint is None:
+        pytest.fail(f"{policy_class.__name__}.from_serialized missing return type hint")
+
     # Handle ForwardRef correctly
     if isinstance(return_hint, ForwardRef):
         # Check if the ForwardRef refers to the policy class name
@@ -151,7 +154,7 @@ def test_policy_from_serialized_signature(policy_class: Type[ControlPolicy]):
             f"{policy_class.__name__}.from_serialized return hint is ForwardRef('{return_hint.__forward_arg__}'), "
             f"expected '{policy_class.__name__}'"
         )
-    elif hasattr(return_hint, "__origin__") and return_hint.__origin__ is Type:  # Handles Type[PolicyClass]
+    elif getattr(return_hint, "__origin__", None) is Type and hasattr(return_hint, "__args__") and return_hint.__args__:
         assert return_hint.__args__[0] is expected_return, (
             f"{policy_class.__name__}.from_serialized return hint is {return_hint}, "
             f"expected Type[{expected_return.__name__}]"

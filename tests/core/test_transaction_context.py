@@ -1,6 +1,6 @@
 import uuid
 from dataclasses import dataclass  # Added field for default_factory
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast  # Added cast
 
 import httpx
 import pytest
@@ -33,8 +33,8 @@ def test_get_tx_value_simple_attribute():
 
 def test_get_tx_value_nested_request_attribute():
     """Test getting a nested attribute from the request object."""
-    request = MockRequest(method="GET", url="http://example.com", headers={"user-agent": "test-agent"})
-    context = TransactionContext(request=request)
+    request = MockRequest(method="GET", url=httpx.URL("http://example.com"), headers={"user-agent": "test-agent"})
+    context = TransactionContext(request=cast(httpx.Request, request))
     assert get_tx_value(context, "request.headers.user-agent") == "test-agent"
     assert get_tx_value(context, "request.method") == "GET"
 
@@ -49,7 +49,7 @@ def test_get_tx_value_data_dictionary():
 def test_get_tx_value_response_attribute():
     """Test getting an attribute from the response object."""
     response = MockResponse(status_code=200, headers={"content-type": "application/json"})
-    context = TransactionContext(response=response)
+    context = TransactionContext(response=cast(httpx.Response, response))
     assert get_tx_value(context, "response.status_code") == 200
 
 
@@ -57,15 +57,15 @@ def test_get_tx_value_response_json_content():
     """Test getting JSON content from the response."""
     response_content = b'{"key": "value"}'
     response = MockResponse(status_code=200, headers={"content-type": "application/json"}, content=response_content)
-    context = TransactionContext(response=response)
+    context = TransactionContext(response=cast(httpx.Response, response))
     assert get_tx_value(context, "response.content.key") == "value"
 
 
 def test_get_tx_value_request_json_content():
     """Test getting JSON content from the request."""
     request_content = b'{"key_req": "value_req"}'
-    request = MockRequest(method="POST", url="http://example.com", headers={}, content=request_content)
-    context = TransactionContext(request=request)
+    request = MockRequest(method="POST", url=httpx.URL("http://example.com"), headers={}, content=request_content)
+    context = TransactionContext(request=cast(httpx.Request, request))
     assert get_tx_value(context, "request.content.key_req") == "value_req"
 
 
@@ -80,8 +80,8 @@ def test_get_tx_value_invalid_path_too_short():
 
 def test_get_tx_value_attribute_error_on_object():
     """Test AttributeError for a non-existent attribute on an object (not dict)."""
-    request = MockRequest(method="GET", url="http://example.com", headers={})
-    context = TransactionContext(request=request)
+    request = MockRequest(method="GET", url=httpx.URL("http://example.com"), headers={})
+    context = TransactionContext(request=cast(httpx.Request, request))
     with pytest.raises(AttributeError):
         get_tx_value(context, "request.non_existent_attr")
     # Also test on TransactionContext itself for a non-request/response/data field
@@ -100,7 +100,7 @@ def test_get_tx_value_key_error_on_json_content():
     """Test KeyError for a non-existent key in JSON content."""
     response_content = b'{"key": "value"}'
     response = MockResponse(status_code=200, headers={"content-type": "application/json"}, content=response_content)
-    context = TransactionContext(response=response)
+    context = TransactionContext(response=cast(httpx.Response, response))
     with pytest.raises(KeyError):
         get_tx_value(context, "response.content.non_existent_key")
 
@@ -108,7 +108,7 @@ def test_get_tx_value_key_error_on_json_content():
 def test_get_tx_value_key_error_on_headers_dict():
     """Test KeyError for a non-existent key in headers dictionary."""
     response = MockResponse(status_code=200, headers={"content-type": "application/json"})
-    context = TransactionContext(response=response)
+    context = TransactionContext(response=cast(httpx.Response, response))
     assert get_tx_value(context, "response.headers.content-type") == "application/json"
     with pytest.raises(KeyError):
         get_tx_value(context, "response.headers.non_existent_header")
@@ -152,8 +152,8 @@ def test_get_tx_value_non_byte_content():
     class CustomContent:
         payload: str
 
-    request = MockRequest(method="GET", url="/", headers={}, content=CustomContent(payload="test"))
-    context = TransactionContext(request=request)
+    request = MockRequest(method="GET", url=httpx.URL("/"), headers={}, content=CustomContent(payload="test"))  # type: ignore[arg-type]
+    context = TransactionContext(request=cast(httpx.Request, request))
     # Path tries to access request.content.payload
     # request.content is CustomContent, not bytes, so json.loads is skipped.
     # Then it tries getattr(CustomContent, "payload")

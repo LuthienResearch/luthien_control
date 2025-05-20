@@ -1,0 +1,94 @@
+name: Create Tag on Merge to Main
+
+on:
+  push:
+    branches:
+      - main  # Or your primary branch name
+
+jobs:
+  tag_release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to create and push tags
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetches all history and tags
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Ensures tomllib is available
+
+      - name: Get version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION=$(python - <<EOF
+          import tomllib
+          import os
+          import sys
+
+          pyproject_path = 'pyproject.toml'
+          if not os.path.exists(pyproject_path):
+              print(f'Error: {pyproject_path} not found.', file=sys.stderr)
+              sys.exit(1)
+
+          try:
+              with open(pyproject_path, 'rb') as f:
+                  data = tomllib.load(f)
+              version = data.get('tool', {}).get('poetry', {}).get('version')
+              if version is None:
+                  version = data.get('project', {}).get('version')
+
+              if version:
+                  print(version)
+              else:
+                  print('Error: Version not found in pyproject.toml under tool.poetry.version or project.version', file=sys.stderr)
+                  sys.exit(1)
+          except Exception as e:
+              print(f"Error parsing pyproject.toml: {e}", file=sys.stderr)
+              sys.exit(1)
+          EOF
+          )
+
+          echo "Raw VERSION output: [$VERSION]"
+
+          if [ -z "$VERSION" ]; then
+            echo "Error: Python script did not output a version." >&2
+            exit 1
+          fi
+
+          # Check if the output from python script is an error message
+          if echo "$VERSION" | grep -q "Error:"; then
+            echo "Error from Python script: $VERSION" >&2
+            exit 1
+          fi
+
+          echo "PYPROJECT_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Successfully extracted version: $VERSION"
+
+        shell: bash
+
+      - name: Create and Push Tag
+        env:
+          NEW_TAG: v${{ env.PYPROJECT_VERSION }}
+        run: |
+          echo "Attempting to create tag: ${NEW_TAG} for commit ${GITHUB_SHA}"
+
+          # Check if the tag already exists
+          if git rev-parse "${NEW_TAG}" >/dev/null 2>&1; then
+            echo "Tag ${NEW_TAG} already exists. Skipping."
+            exit 0 # Exit successfully
+          fi
+
+          # Create the tag locally
+          git tag "${NEW_TAG}" "${GITHUB_SHA}"
+
+          # Push the tag to the remote repository
+          git push origin "${NEW_TAG}"
+
+          echo "Tag ${NEW_TAG} pushed successfully."
+        shell: bash 

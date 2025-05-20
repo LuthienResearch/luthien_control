@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.3] - 2025-05-19
+- **Enhanced Code Quality & Type Safety:**
+  - Integrated Pyright for comprehensive static type checking across the project, significantly improving code reliability and maintainability. (Addresses work in #19, #20, #21)
+  - Corrected widespread incorrect typing logic, particularly for `Response` objects, ensuring better data integrity. (Primarily #20)
+- **Refactoring & CI Improvements:**
+  - Refactored `ControlPolicy.from_serialized` to remove unused `**kwargs`, streamlining policy loading. (#20)
+  - Improved test coverage, which included some related code refactoring for clarity and robustness. (#19)
+  - Consolidated GitHub Actions for code quality checks into a more unified workflow. (#20)
+- **Security:**
+  - Addressed a potential information exposure vulnerability related to exception handling. (#20)
+- **Documentation:**
+  - Made minor updates to the `README.md`. (#20)
+
 ## [0.2.2]
 - GH action for docs deployment (e11e50c)
 - README tweaks, including donation, Luthien site, DeepWiki links (16129f0)
@@ -94,81 +107,4 @@
     - Refactored policy CRUD operations in `sqlmodel_crud.py`, removing redundant functions and improving error handling. (0e78429, `dev/log_archive/development_log_20250424_175637.md`)
     - Consolidated `client_api_key_crud` operations into `luthien_control/db/api_key_crud.py`. (a45afc5, `dev/log_archive/development_log_20250423_110617.md`)
 - **2025-04-22:**
-    - Refactored test mocking for `ClientApiKeyAuthPolicy` using `mock_db_session_cm` fixture. (`dev/log_archive/development_log_20250423_110617.md`)
-    - Added comprehensive unit tests for `SendBackendRequestPolicy`. (`dev/log_archive/development_log_20250423_110617.md`)
-    - Removed `InitializeContextPolicy`. (478a792)
-- **2025-04-21:**
-    - Simplified `InitializeContextPolicy`. (879b933)
-    - Renamed `context.py` to `transaction_context.py`. (93e7e81)
-    - Alembic migration fixes. (5fa8580)
-    - Moved all environment variable loading logic to `settings.py`. (2a1a41a)
-    - Consolidated `get_db_session` logic. (1ce4c5c)
-    - Fixed `CompoundPolicy` loader. (c0e7a2d)
-- **2025-04-18:**
-    - Reran root policy migration. (c945496)
-    - Added script to add new Client API Keys. (c7285a3)
-    - Naive UTC timestamps for `created_at`/`updated_at`. (5755031)
-    - `CompoundPolicy` continues execution even after a policy sets `context.response`. (bd7c2f1, 5f802b8)
-    - Fixed `ClientApiKeyAuthPolicy` signatures and tests. (1866833)
-    - Added client API key check to E2E test. (8baf942)
-    - Fly.io DB connection fixes and Alembic migration setup. (eb23d9d, c87cb0c, f7e847f, 5974fa1)
-    - Removed old DB migration system and `asyncpg`. (609911a, 9845cbf, 0d174f2)
-    - Removed logging DB pool handling. (94a2453)
-- **2025-04-17:**
-    - Simplified test configuration. (7a2a420)
-    - Started Alembic migration setup. (3f95e4c)
-    - CRUD refactoring. (7ffffc2)
-    - Removed all traces of `CONTROL_POLICIES` environment variable for policy loading. (c8a08d4)
-- **2025-04-11:**
-    - Implemented Client API Keys stored in DB (`ClientApiKey` model). (9c284ff, 81d9e8c)
-    - Fixed slow tests and improved DB connection error handling. (dcaeb1e)
-    - Logging consolidation and refactoring. (6c6cf82, 0221d92)
-    - Implemented default policy, DB migrations. (25f6e23, 4a66b48)
-- **2025-04-10:**
-    - Implemented policy serialization and round-trip testing. (af8546f, `dev/log_archive/development_log_20250423_110617.md`)
-    - Migrated to new DB-driven policy definition and loading mechanism. (88dff73, `dev/log_archive/development_log_20250423_110617.md`)
-        - Updated `get_main_control_policy` to use `crud.load_policy_instance`.
-        - Updated `run_policy_flow` to accept a single `main_policy`.
-    - Implemented `ClientApiKeyAuthPolicy` and refactored API key validation from dependency to this policy. (2a4440f, b1dd5cb)
-    - Enhanced policy error handling in orchestration. (886663d)
-    - Resolved pytest warnings (`asyncio_default_fixture_loop_scope`, Pydantic model deprecations). (`dev/log_archive/development_log_20250423_110617.md`)
-    - Migrated proxy logic to `/api/{full_path:path}` endpoint, removing old `/beta` and `/` proxy systems and old policy loader. (`dev/log_archive/development_log_20250423_110617.md`)
-    - Implemented API key authentication using `Authorization: Bearer <key>` and `get_current_active_api_key` dependency. (`dev/log_archive/development_log_20250410_122024.md`)
-    - Configured and ran E2E tests against Fly.io dev deployment. (fbc3d02, `dev/log_archive/development_log_20250410_122024.md`)
-    - Added E2E test for `/beta` endpoint and fixed header handling in `SendBackendRequestPolicy`. (152bf4f, `dev/log_archive/development_log_20250410_122024.md`)
-- **2025-04-09:**
-    - Implemented `/beta/{full_path:path}` endpoint using `run_policy_flow`. (0d4a1e7, `dev/log_archive/development_log_20250410_122024.md`)
-    - Implemented utility control policies: `InitializeContextPolicy`, `PrepareBackendHeadersPolicy`, `SendBackendRequestPolicy`. (1372cf1, `dev/log_archive/development_log_20250410_122024.md`)
-    - Implemented policy orchestration logic `run_policy_flow` in `luthien_control/proxy/orchestration.py`. (f8f25bd, `dev/log_archive/development_log_20250410_122024.md`)
-    - Refactored test helper locations (mocks moved to `tests/mocks/`). (`dev/log_archive/development_log_20250410_122024.md`)
-    - Implemented `ResponseBuilder` interface and `SimpleResponseBuilder`. (`dev/log_archive/development_log_20250410_122024.md`)
-- **2025-04-08:**
-    - Renamed `control_processors` to `control_policy`. (c498bee)
-    - Started implementation of request processing framework. (`dev/log_archive/development_log_20250409_113634.md`)
-    - Created `ApplyRequestPolicyProcessor`. (`dev/log_archive/development_log_20250409_113634.md`)
-    - Implemented and tested `PolicyLoader` (initial version). (`dev/log_archive/development_log_20250409_113634.md`)
-    - Implemented `AddApiKeyHeaderProcessor`. (`dev/log_archive/development_log_20250409_113634.md`)
-    - Implemented E2E tests and refactored test setup, using standard FastAPI dependency injection for `Settings`. (`dev/log_archive/development_log_20250409_113634.md`)
-    - Removed `pydantic-settings` dependency, using `python-dotenv` and `os.getenv`. (2330807, `dev/log_archive/development_log_20250409_113634.md`)
-    - Fixed integration tests after `pydantic-settings` removal, added `Accept-Encoding: identity` workaround for Brotli. (`dev/log_archive/development_log_20250409_113634.md`)
-- **2025-04-03:**
-    - Configured Fly.io deployment (`Dockerfile`, `fly.toml`). (31ec8d3, `dev/log_archive/development_log_20250409_113634.md`)
-- **2025-03-30:**
-    - Implemented basic policy engine (`Policy` ABC) and example policies (`NoOpPolicy`, `NahBruhPolicy`, `AllCapsPolicy`). (5c5f545, `dev/log_archive/development_log_20250409_113634.md`)
-    - Added HTTP content compression utilities. (30f7763)
-    - Fixed proxy errors, added integration tests. (ab26c9d)
-    - Implemented and tested database logging. (2090669)
-    - Implemented basic proxy forwarding. (bf36791)
-    - Initial project setup and configuration. (c696f01, d2253ef)
-- **2025-03-29:**
-    - Added `TokenCounterPolicy` with tests. (3f58a28)
-    - Integrated Ruff, Bandit, and pre-commit hooks. (cebb88a)
-- **2025-03-28:**
-    - Implemented communications logging system. (22490de)
-    - Added `sqlalchemy` and `asyncpg` dependencies. (521ae1a)
-- **2025-03-27:**
-    - Control Policy Framework v1 initial design. (fb98104)
-- **2025-03-25:**
-    - Added API logging with structured JSON output. (7052add)
-- **2025-03-24:**
-    - Initial commit: Basic project structure and proxy server implementation. (7e0b089)
+    - Refactored test mocking for `ClientApiKeyAuthPolicy` using `mock_db_session_cm`

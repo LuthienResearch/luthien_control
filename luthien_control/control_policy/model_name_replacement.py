@@ -79,7 +79,7 @@ class ModelNameReplacementPolicy(ControlPolicy):
                         method=context.request.method,
                         url=context.request.url,
                         headers=context.request.headers,
-                        content=modified_content
+                        content=modified_content,
                     )
 
         except (json.JSONDecodeError, UnicodeDecodeError) as e:

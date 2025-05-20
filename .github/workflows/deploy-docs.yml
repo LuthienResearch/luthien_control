@@ -16,16 +16,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Parse Python version from pyproject.toml
-        id: pyversion
-        run: |
-          echo "version=$(grep -oP 'requires-python\s*=\s*"\K[^,<"]*' pyproject.toml | head -n 1)" >> $GITHUB_OUTPUT
-        shell: bash
-
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ steps.pyversion.outputs.version }}
+          python-version-file: 'pyproject.toml'
 
       - name: Install Poetry
         uses: snok/install-poetry@v1

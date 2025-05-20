@@ -23,8 +23,8 @@ jobs:
         with:
           python-version: '3.11' # Ensures tomllib is available
 
-      - name: Get version from pyproject.toml
-        id: get_version
+      - name: Get package version from pyproject.toml
+        id: get_package_version
         run: |
           VERSION=$(python - <<EOF
           import tomllib
@@ -67,21 +67,21 @@ jobs:
             exit 1
           fi
 
-          echo "PYPROJECT_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "package_version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Successfully extracted version: $VERSION"
 
         shell: bash
 
       - name: Create and Push Tag
         env:
-          NEW_TAG: v${{ env.PYPROJECT_VERSION }}
+          NEW_TAG: v${{ steps.get_package_version.outputs.package_version }}
         run: |
           echo "Attempting to create tag: ${NEW_TAG} for commit ${GITHUB_SHA}"
 
           # Check if the tag already exists
           if git rev-parse "${NEW_TAG}" >/dev/null 2>&1; then
-            echo "Tag ${NEW_TAG} already exists. Skipping."
-            exit 0 # Exit successfully
+            echo "Error: Tag ${NEW_TAG} already exists. Workflow will fail."
+            exit 1 # Exit with failure
           fi
 
           # Create the tag locally

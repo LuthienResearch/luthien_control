@@ -209,6 +209,7 @@ async def test_run_policy_flow_policy_exception(
     json_call_kwargs = MockJSONResponse.call_args.kwargs
     assert json_call_kwargs.get("status_code") == 418  # Status from mock exception
     content = json_call_kwargs.get("content")
+    assert content is not None  # Add type guard
     assert content["transaction_id"] == str(fixed_test_uuid)
     assert "Policy error in 'MockPolicy': Test Detail" in content["detail"]
 
@@ -358,6 +359,7 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     json_call_kwargs = MockJSONResponse.call_args.kwargs
     assert json_call_kwargs.get("status_code") == 500
     content = json_call_kwargs.get("content")
+    assert content is not None  # Add type guard
     assert content["transaction_id"] == str(fixed_test_uuid)
     # Check detail message mentions both errors
     assert "Initial error: Initial policy error" in content["detail"]

@@ -154,8 +154,9 @@ def test_policy_from_serialized_signature(policy_class: Type[ControlPolicy]):
             f"{policy_class.__name__}.from_serialized return hint is ForwardRef('{return_hint.__forward_arg__}'), "
             f"expected '{policy_class.__name__}'"
         )
-    elif getattr(return_hint, "__origin__", None) is Type and hasattr(return_hint, "__args__") and return_hint.__args__:
-        assert return_hint.__args__[0] is expected_return, (
+    elif getattr(return_hint, "__origin__", None) is Type and hasattr(return_hint, "__args__"):
+        args = getattr(return_hint, "__args__", None)
+        assert args is not None and args[0] is expected_return, (
             f"{policy_class.__name__}.from_serialized return hint is {return_hint}, "
             f"expected Type[{expected_return.__name__}]"
         )

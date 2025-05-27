@@ -1,0 +1,20 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Documentation Style
+
+Write plainly and honestly. We're not selling anything.
+
+## Guidelines
+- Use simple, direct language
+- State what was done, not how great it is  
+- Start with action verbs: "Added", "Fixed", "Updated", "Removed"
+- Be specific and factual
+
+## Examples
+- "Added user authentication"
+- "Fixed memory leak in parser" 
+- "Updated API to return JSON"
+- "Removed deprecated endpoints"

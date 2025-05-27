@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Format code: `poetry run ruff format .`
 - Check linting: `poetry run ruff check .`
 - Complexity analysis: `poetry run radon cc luthien_control/ -a -s`
+- Use poetry run to run commands in the development environment
 
 ## Code Style
 - Mandatory TDD workflow (skeleton → tests → implementation)
@@ -18,7 +19,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Use type hints for all function signatures
 - Prefer functional components over classes
 - Organize imports with standard order (typing first)
-- Use Pydantic models for validation
 - Use async functions for I/O-bound tasks
 - Error handling: Specific exception types, HTTPException for API errors
 - Naming: lowercase_with_underscores, descriptive with auxiliary verbs

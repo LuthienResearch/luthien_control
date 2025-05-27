@@ -4,22 +4,28 @@ from typing import Dict, Type
 # Import the classes directly for comparison
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
+from luthien_control.control_policy.branching_policy import BranchingPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.leaked_api_key_detection import LeakedApiKeyDetectionPolicy
 from luthien_control.control_policy.model_name_replacement import ModelNameReplacementPolicy
 from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.control_policy.serial_policy import SerialPolicy
+from luthien_control.control_policy.tx_logging_policy import TxLoggingPolicy
 
 # Define the expected mappings for verification
 EXPECTED_POLICY_MAPPINGS: Dict[str, Type[ControlPolicy]] = {
     "AddApiKeyHeader": AddApiKeyHeaderPolicy,
     "AddApiKeyHeaderFromEnv": AddApiKeyHeaderFromEnvPolicy,
+    "BranchingPolicy": BranchingPolicy,
     "ClientApiKeyAuth": ClientApiKeyAuthPolicy,
     "CompoundPolicy": SerialPolicy,  # legacy compatibility
+    "LeakedApiKeyDetection": LeakedApiKeyDetectionPolicy,
     "SerialPolicy": SerialPolicy,
     "SendBackendRequest": SendBackendRequestPolicy,
     "ModelNameReplacement": ModelNameReplacementPolicy,
+    "TxLoggingPolicy": TxLoggingPolicy,
 }
 
 

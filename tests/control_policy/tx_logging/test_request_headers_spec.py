@@ -1,4 +1,3 @@
-
 import httpx
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.control_policy.tx_logging.logging_utils import REDACTED_PLACEHOLDER

@@ -1,0 +1,34 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+globs:
+alwaysApply: true
+
+# Test Writing Guidelines
+
+## Mocking: Use Real Objects First
+
+**Default to real objects.** Only mock when you have:
+- External dependencies (network, file I/O, databases)
+- Non-deterministic behavior (time, randomness)
+- Expensive/slow operations
+- Hard-to-reproduce error scenarios
+
+**Don't mock:** Simple data objects, pure functions, constructor-created objects, or in-memory operations.
+
+**Red flags:** Mock factories for simple objects, complex mock setup taking more lines than test logic.
+
+## Test Failures: Fix Root Cause, Not Symptoms
+
+**NEVER modify application code just to make tests pass without understanding why they're failing.**
+
+Before changing application code:
+1. **Verify test intent** - Is the test correct and testing the right thing?
+2. **Analyze the failure** - Is it a real bug or test issue?
+3. **Consider scope** - Don't modify base classes to fix one subclass's test
+4. **Prefer specific fixes** - Change the most specific scope possible
+5. **Justify base class changes** - Only if there's a demonstrable flaw affecting all users
+
+Tests validate requirements. Modifying code solely to pass tests without understanding the root cause hides bugs.

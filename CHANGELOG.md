@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased] - 2025-05-27
+- **Transaction Logging System:**
+  - Added `TxLoggingPolicy` for configurable transaction logging to database. (7ef9dcf)
+  - Added new `luthien_log` database table via Alembic migration to store transaction logs with JSON data. (50deccdf11ab)
+  - Added modular logging specification system with built-in specs:
+    - `FullTransactionContextSpec` - Logs complete transaction context
+    - `OpenAIRequestSpec` - Logs OpenAI API request data with sensitive data redaction
+    - `OpenAIResponseSpec` - Logs OpenAI API response data with content size limits
+    - `RequestHeadersSpec` - Logs HTTP request headers with sensitive header filtering
+    - `ResponseHeadersSpec` - Logs HTTP response headers with sensitive header filtering
+  - Added logging utilities with configurable content size limits and sensitive data redaction (API keys, authentication headers). 
+  - Added test coverage for all logging components.
+  - Updated control policy registry and serialization to support the new logging policy type.
+  - Added `LuthienLog` SQLModel with indexing and JSON support.
+- **Code Quality:**
+  - Applied ruff formatting and fixes across the codebase. (3af80a4)
+  - Added development tracking rules and test guidelines in Cursor rules.
+
 ## [0.2.3] - 2025-05-19
 - **Enhanced Code Quality & Type Safety:**
   - Integrated Pyright for comprehensive static type checking across the project, significantly improving code reliability and maintainability. (Addresses work in #19, #20, #21)

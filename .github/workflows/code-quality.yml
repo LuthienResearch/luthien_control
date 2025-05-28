@@ -122,11 +122,32 @@ jobs:
           COVERAGE_PATH: .
           MINIMUM_GREEN: 90
           MINIMUM_ORANGE: 70
-          COMMENT_TEMPLATE: |
-            {% extends "base" %}
-            {% block footer %}
+
+      - name: Add coverage links comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
             
-            ---
+            const botComment = comments.find(comment => 
+              comment.user.login === 'github-actions[bot]' && 
+              comment.body.includes('Coverage report')
+            );
             
-            📊 **[View Detailed Coverage Report](https://github.com/LuthienResearch/luthien_control/actions)** | 🌿 **[Browse Coverage Data Branch](https://github.com/LuthienResearch/luthien_control/tree/python-coverage-comment-action-data)**
-            {% endblock footer %}
+            if (botComment) {
+              const linkText = `\n\n---\n\n📊 **[Download Latest Coverage Report](https://github.com/LuthienResearch/luthien_control/actions/runs/${context.runId})** | 🌿 **[Browse Coverage Data Branch](https://github.com/LuthienResearch/luthien_control/tree/python-coverage-comment-action-data)** | 📋 **[All Workflow Runs](https://github.com/LuthienResearch/luthien_control/actions)**`;
+              
+              if (!botComment.body.includes('View Detailed Coverage Report')) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body: botComment.body + linkText
+                });
+              }
+            }

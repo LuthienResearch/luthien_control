@@ -13,6 +13,8 @@ jobs:
       contents: write       # Needed for coverage data branch
       pull-requests: write  # Needed for coverage comments
       actions: read         # Needed to read workflow information
+      pages: write          # Needed for GitHub Pages deployment
+      id-token: write       # Needed for GitHub Pages deployment
     
     services:
       postgres:
@@ -123,6 +125,15 @@ jobs:
           MINIMUM_GREEN: 90
           MINIMUM_ORANGE: 70
 
+      - name: Deploy coverage to GitHub Pages
+        if: github.event_name == 'pull_request'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./htmlcov
+          destination_dir: pr-${{ github.event.number }}
+          keep_files: true
+
       - name: Add coverage links comment
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -140,9 +151,14 @@ jobs:
             );
             
             if (botComment) {
-              const linkText = `\n\n---\n\n📊 **[Download Latest Coverage Report](https://github.com/LuthienResearch/luthien_control/actions/runs/${context.runId})** | 🌿 **[Browse Coverage Data Branch](https://github.com/LuthienResearch/luthien_control/tree/python-coverage-comment-action-data)** | 📋 **[All Workflow Runs](https://github.com/LuthienResearch/luthien_control/actions)**`;
+              const prNumber = context.issue.number;
+              const repoOwner = context.repo.owner;
+              const repoName = context.repo.repo;
+              const coverageUrl = `https://${repoOwner}.github.io/${repoName}/pr-${prNumber}/`;
               
-              if (!botComment.body.includes('View Detailed Coverage Report')) {
+              const linkText = `\n\n---\n\n📊 **[📋 View Full Coverage Report](${coverageUrl})** - Complete interactive HTML coverage report`;
+              
+              if (!botComment.body.includes('View Full Coverage Report')) {
                 await github.rest.issues.updateComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,

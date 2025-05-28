@@ -132,7 +132,7 @@ async def test_api_proxy_post_endpoint_calls_orchestrator(
 
     # --- Mock _initialize_app_dependencies to return our mock_container --- #
     mocker.patch(
-        "luthien_control.main._initialize_app_dependencies", new_callable=AsyncMock, return_value=mock_container
+        "luthien_control.main.initialize_app_dependencies", new_callable=AsyncMock, return_value=mock_container
     )
 
     # --- Override main policy dependency (still valid) --- #
@@ -207,7 +207,7 @@ async def test_api_proxy_get_endpoint_calls_orchestrator(
 
     # --- Mock _initialize_app_dependencies to return our mock_container --- #
     mocker.patch(
-        "luthien_control.main._initialize_app_dependencies", new_callable=AsyncMock, return_value=mock_container
+        "luthien_control.main.initialize_app_dependencies", new_callable=AsyncMock, return_value=mock_container
     )
 
     # --- Override main policy dependency (still valid) --- #
@@ -360,7 +360,7 @@ async def test_api_proxy_no_auth_policy_no_key_success(
     mock_container.http_client.request = AsyncMock(return_value=mock_backend_httpx_response)
 
     mocker.patch(
-        "luthien_control.main._initialize_app_dependencies", new_callable=AsyncMock, return_value=mock_container
+        "luthien_control.main.initialize_app_dependencies", new_callable=AsyncMock, return_value=mock_container
     )
 
     main_test_policy = MockSendBackendRequestPolicy(mock_response=mock_backend_httpx_response)

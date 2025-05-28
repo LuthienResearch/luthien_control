@@ -1,3 +1,5 @@
+from unittest.mock import Mock, patch
+
 import pytest
 from luthien_control.control_policy.conditions.all_cond import AllCondition
 from luthien_control.control_policy.conditions.any_cond import AnyCondition
@@ -520,3 +522,64 @@ class TestAnyConditionDunders:
 
         assert cond1a in s
         assert cond2_diff_content in s
+
+
+class TestConditionBaseClass:
+    """Tests for the Condition base class methods."""
+
+    def test_from_serialized_invalid_type(self):
+        """Test Condition.from_serialized with missing or invalid type."""
+        # Test with missing type
+        with pytest.raises(ValueError) as exc_info:
+            Condition.from_serialized({})
+        assert "must include a 'type' field" in str(exc_info.value)
+
+        # Test with non-string type
+        with pytest.raises(ValueError) as exc_info:
+            Condition.from_serialized({"type": 123})
+        assert "must include a 'type' field as a string" in str(exc_info.value)
+
+    def test_from_serialized_unknown_type(self):
+        """Test Condition.from_serialized with unknown condition type."""
+        with pytest.raises(ValueError) as exc_info:
+            Condition.from_serialized({"type": "unknown_condition_type"})
+        assert "Unknown condition type" in str(exc_info.value)
+
+    @patch("luthien_control.control_policy.conditions.registry.NAME_TO_CONDITION_CLASS")
+    def test_from_serialized_valid(self, mock_registry):
+        """Test Condition.from_serialized with valid type."""
+        # Create a mock condition class
+        mock_condition_class = Mock()
+        mock_condition = Mock()
+        mock_condition_class.from_serialized.return_value = mock_condition
+
+        # Set up the registry to return our mock class
+        mock_registry.get.return_value = mock_condition_class
+
+        # Test serialized data
+        serialized = {"type": "mock_condition", "key": "test", "value": "value"}
+
+        # Call the method
+        result = Condition.from_serialized(serialized)  # type: ignore
+
+        # Verify the result
+        assert result == mock_condition
+        mock_registry.get.assert_called_once_with("mock_condition")
+        mock_condition_class.from_serialized.assert_called_once_with(serialized)
+
+    def test_repr_and_hash(self):
+        """Test the __repr__ and __hash__ implementations."""
+        # Use a concrete condition class that exists in the test context
+        equals_condition = EqualsCondition(key="test", value="value")
+
+        # Test repr format (shouldn't include the serialized data directly as in our assumption)
+        repr_str = repr(equals_condition)
+        assert "EqualsCondition" in repr_str
+
+        # Test hash functionality - two equal conditions should have same hash
+        equals_condition2 = EqualsCondition(key="test", value="value")
+        assert hash(equals_condition) == hash(equals_condition2)
+
+        # Different conditions should have different hashes
+        different_condition = EqualsCondition(key="test", value="different")
+        assert hash(equals_condition) != hash(different_condition)

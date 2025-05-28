@@ -1,9 +1,9 @@
 from typing import Any, Optional, cast
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 import pytest
 from luthien_control.control_policy.exceptions import PolicyLoadError
-from luthien_control.control_policy.loader import load_policy
+from luthien_control.control_policy.loader import load_policy, load_policy_from_file
 from luthien_control.control_policy.serialization import SerializableDict, SerializedPolicy
 
 # --- Test Fixtures and Mocks ---
@@ -34,44 +34,28 @@ MOCK_REGISTRY = {"mock_policy": MockPolicy}
 # --- Test Cases ---
 
 
-@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "config,expected_name",
+    [
+        ({"key": "value", "name": "instance_one"}, "instance_one"),  # Name from config
+        ({"key": "value"}, "mock_policy"),  # Default name from class
+    ],
+)
 @patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", MOCK_REGISTRY)
-async def test_load_policy_success():
-    """Test successful loading of a known policy type."""
-    serialized_policy_data = {"type": "mock_policy", "config": {"key": "value", "name": "instance_one"}}
-    serialized_policy_obj = SerializedPolicy(
-        type=serialized_policy_data["type"], config=serialized_policy_data["config"]
-    )
+def test_load_policy_success(config, expected_name):
+    """Test successful loading of a known policy type with and without name in config."""
+    serialized_policy_obj = SerializedPolicy(type="mock_policy", config=config)
     policy = load_policy(serialized_policy_obj)
 
     assert isinstance(policy, MockPolicy)
-    assert policy.config == {"key": "value", "name": "instance_one"}
-    assert policy.name == "instance_one"  # Name set from config
+    assert policy.config == config
+    assert policy.name == expected_name
 
 
-@pytest.mark.asyncio
 @patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", MOCK_REGISTRY)
-async def test_load_policy_success_no_name_in_config():
-    """Test successful loading when name is not in config (uses class default)."""
-    serialized_policy_data = {"type": "mock_policy", "config": {"key": "value"}}
-    serialized_policy_obj = SerializedPolicy(
-        type=serialized_policy_data["type"], config=serialized_policy_data["config"]
-    )
-    policy = load_policy(serialized_policy_obj)
-
-    assert isinstance(policy, MockPolicy)
-    assert policy.config == {"key": "value"}
-    assert policy.name == "mock_policy"  # Default name from class
-
-
-@pytest.mark.asyncio
-@patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", MOCK_REGISTRY)
-async def test_load_policy_unknown_type():
+def test_load_policy_unknown_type():
     """Test loading fails for an unknown policy type."""
-    serialized_policy_data = {"type": "unknown_policy", "config": {}}
-    serialized_policy_obj = SerializedPolicy(
-        type=serialized_policy_data["type"], config=serialized_policy_data["config"]
-    )
+    serialized_policy_obj = SerializedPolicy(type="unknown_policy", config={})
 
     with pytest.raises(PolicyLoadError, match="Unknown policy type: 'unknown_policy'"):
         load_policy(serialized_policy_obj)
@@ -80,39 +64,83 @@ async def test_load_policy_unknown_type():
 @patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", MOCK_REGISTRY)
 def test_load_policy_instantiation_error():
     """Test loading fails when the policy's from_serialized raises an error."""
-    serialized_policy_data = {
-        "type": "mock_policy",
-        "config": {"fail_load": True},  # Instruct mock to fail
-    }
     serialized_policy_obj = SerializedPolicy(
-        type=serialized_policy_data["type"], config=serialized_policy_data["config"]
+        type="mock_policy",
+        config={"fail_load": True},  # Instruct mock to fail
     )
 
     with pytest.raises(PolicyLoadError, match="Error instantiating policy 'mock_policy'"):
         load_policy(serialized_policy_obj)
 
 
-@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "policy_type,policy_config,expected_error",
+    [
+        (123, {}, "Policy 'type' must be a string"),
+        ("mock_policy", "not_a_dict", "Policy 'config' must be a dictionary"),
+    ],
+)
 @patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", MOCK_REGISTRY)
-async def test_load_policy_invalid_type_format():
-    """Test loading fails if 'type' is not a string."""
-    policy_type_val: Any = 123
-    policy_config_val: SerializableDict = {}
+def test_load_policy_input_validation(policy_type, policy_config, expected_error):
+    """Test loading fails with invalid input formats."""
+    serialized_policy_obj = SerializedPolicy(type=policy_type, config=policy_config)
 
-    serialized_policy_obj = SerializedPolicy(type=policy_type_val, config=policy_config_val)
-
-    with pytest.raises(PolicyLoadError, match="Policy 'type' must be a string"):
+    with pytest.raises(PolicyLoadError, match=expected_error):
         load_policy(serialized_policy_obj)
 
 
-@pytest.mark.asyncio
+# --- Tests for load_policy_from_file ---
+
+
 @patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", MOCK_REGISTRY)
-async def test_load_policy_invalid_config_format():
-    """Test loading fails if 'config' is not a dictionary."""
-    policy_type_val: str = "mock_policy"
-    policy_config_val: Any = "not_a_dict"
+@patch("builtins.open", new_callable=mock_open, read_data='{"type": "mock_policy", "config": {"key": "value"}}')
+def test_load_policy_from_file_success(mock_file):
+    """Test successful loading of a policy from a file."""
+    policy = load_policy_from_file("test_policy.json")
 
-    serialized_policy_obj = SerializedPolicy(type=policy_type_val, config=policy_config_val)
+    assert isinstance(policy, MockPolicy)
+    assert policy.config == {"key": "value"}
+    mock_file.assert_called_once_with("test_policy.json", "r")
 
-    with pytest.raises(PolicyLoadError, match="Policy 'config' must be a dictionary"):
-        load_policy(serialized_policy_obj)
+
+@pytest.mark.parametrize(
+    "file_content,expected_error",
+    [
+        ('"not_a_dict"', "Policy data loaded from test_policy.json must be a dictionary"),
+        ('{"config": {"key": "value"}}', "Policy file test_policy.json must contain a 'type' field as a string"),
+        (
+            '{"type": 123, "config": {"key": "value"}}',
+            "Policy file test_policy.json must contain a 'type' field as a string",
+        ),
+        ('{"type": "mock_policy"}', "Policy file test_policy.json must contain a 'config' field as a dictionary"),
+        (
+            '{"type": "mock_policy", "config": "not_a_dict"}',
+            "Policy file test_policy.json must contain a 'config' field as a dictionary",
+        ),
+    ],
+)
+@patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", MOCK_REGISTRY)
+def test_load_policy_from_file_validation_errors(file_content, expected_error):
+    """Test loading fails with various file validation scenarios."""
+    with patch("builtins.open", new_callable=mock_open, read_data=file_content):
+        with pytest.raises(PolicyLoadError, match=expected_error):
+            load_policy_from_file("test_policy.json")
+
+
+@patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", MOCK_REGISTRY)
+@patch("builtins.open", new_callable=mock_open, read_data="{invalid json}")
+def test_load_policy_from_file_invalid_json(mock_file):
+    """Test loading fails when file contains invalid JSON."""
+    import json
+
+    # The json.JSONDecodeError will be raised during json.load()
+    with pytest.raises(json.JSONDecodeError):
+        load_policy_from_file("test_policy.json")
+
+
+@patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", MOCK_REGISTRY)
+@patch("builtins.open", side_effect=FileNotFoundError("File not found"))
+def test_load_policy_from_file_file_not_found(mock_file):
+    """Test loading fails when file does not exist."""
+    with pytest.raises(FileNotFoundError):
+        load_policy_from_file("nonexistent.json")

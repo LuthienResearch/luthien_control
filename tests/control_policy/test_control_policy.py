@@ -1,4 +1,5 @@
 from typing import Any, cast
+from unittest.mock import Mock, patch
 
 import pytest
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -68,3 +69,46 @@ def test_can_instantiate_concrete_subclass():
         assert policy.name == "minimal_concrete"
     except TypeError:
         pytest.fail("MinimalConcretePolicy should be instantiable but raised TypeError.")
+
+
+def test_from_serialized_invalid_type():
+    """Test ControlPolicy.from_serialized with missing or invalid type."""
+    # Test with missing type
+    with pytest.raises(ValueError) as exc_info:
+        ControlPolicy.from_serialized({})
+    assert "must include a 'type' field" in str(exc_info.value)
+
+    # Test with non-string type
+    with pytest.raises(ValueError) as exc_info:
+        ControlPolicy.from_serialized({"type": 123})
+    assert "must include a 'type' field as a string" in str(exc_info.value)
+
+
+def test_from_serialized_unknown_type():
+    """Test ControlPolicy.from_serialized with unknown policy type."""
+    with pytest.raises(ValueError) as exc_info:
+        ControlPolicy.from_serialized({"type": "unknown_policy_type"})
+    assert "Unknown policy type" in str(exc_info.value)
+
+
+@patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS")
+def test_from_serialized_valid(mock_registry):
+    """Test ControlPolicy.from_serialized with valid type."""
+    # Create a mock policy class
+    mock_policy_class = Mock()
+    mock_policy = Mock()
+    mock_policy_class.from_serialized.return_value = mock_policy
+
+    # Set up the registry to return our mock class
+    mock_registry.get.return_value = mock_policy_class
+
+    # Test serialized data
+    serialized = {"type": "mock_policy", "name": "test_policy"}
+
+    # Call the method
+    result = ControlPolicy.from_serialized(serialized)  # type: ignore
+
+    # Verify the result
+    assert result == mock_policy
+    mock_registry.get.assert_called_once_with("mock_policy")
+    mock_policy_class.from_serialized.assert_called_once_with(serialized)

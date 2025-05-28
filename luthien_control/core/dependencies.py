@@ -1,6 +1,7 @@
 import logging
 from typing import TYPE_CHECKING, AsyncGenerator
 
+import httpx
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +14,9 @@ from luthien_control.core.dependency_container import DependencyContainer
 
 # Import Response Builder
 from luthien_control.db.control_policy_crud import PolicyLoadError, load_policy_from_db
+from luthien_control.db.database_async import create_db_engine
+from luthien_control.db.database_async import get_db_session as db_get_session
+from luthien_control.settings import Settings
 
 if TYPE_CHECKING:
     pass
@@ -114,3 +118,64 @@ async def get_main_control_policy(
         raise HTTPException(
             status_code=500, detail="Internal server error: Unexpected issue loading main control policy."
         )
+
+
+async def initialize_app_dependencies(app_settings: Settings) -> DependencyContainer:
+    """Initialize and configure core application dependencies.
+
+    This function sets up essential services required by the application,
+    including an HTTP client and a database connection pool. It encapsulates
+    the creation and configuration of these dependencies into a
+    DependencyContainer instance.
+
+    Args:
+        app_settings: The application settings instance.
+
+    Returns:
+        A DependencyContainer instance populated with initialized dependencies.
+
+    Raises:
+        RuntimeError: If initialization of the HTTP client or database engine fails.
+    """
+    logger.info("Initializing core application dependencies...")
+
+    # Initialize HTTP client
+    timeout = httpx.Timeout(5.0, connect=5.0, read=60.0, write=5.0)
+    http_client = httpx.AsyncClient(timeout=timeout)
+    logger.info("HTTP Client initialized for DependencyContainer.")
+
+    # Initialize Database Engine and Session Factory
+    try:
+        logger.info("Attempting to create main DB engine and session factory for DependencyContainer...")
+        _db_engine = await create_db_engine()  # Uses app_settings implicitly via global settings instance
+        logger.info("Main DB engine successfully created for DependencyContainer.")
+        # Use the actual session factory from database_async module
+        db_session_factory = db_get_session
+        logger.info("DB Session Factory reference obtained for DependencyContainer.")
+
+    except Exception as db_exc:
+        logger.critical(f"Failed to initialize database for DependencyContainer due to exception: {db_exc}")
+        await http_client.aclose()  # Clean up client
+        logger.info("HTTP Client closed due to DB initialization failure.")
+        # No need to call close_db_engine here, as db_engine might not be valid or fully initialized.
+        # The caller (lifespan) will handle global engine cleanup if needed.
+        raise RuntimeError(f"Failed to initialize database for DependencyContainer: {db_exc}") from db_exc
+
+    # Create and return Dependency Container
+    try:
+        dependencies = DependencyContainer(
+            settings=app_settings,
+            http_client=http_client,
+            db_session_factory=db_session_factory,
+        )
+        logger.info("Dependency Container created successfully.")
+        return dependencies
+    except Exception as container_exc:
+        logger.critical(f"Failed to create Dependency Container instance: {container_exc}", exc_info=True)
+        # Clean up resources created within this helper function
+        await http_client.aclose()
+        logger.info("HTTP Client closed due to Dependency Container instantiation failure.")
+        # If db_engine was successfully created, it's now managed by the global close_db_engine,
+        # which will be called by the lifespan's shutdown phase.
+        # We don't call close_db_engine(db_engine_instance_if_any) here because the global one handles it.
+        raise RuntimeError(f"Failed to create Dependency Container instance: {container_exc}") from container_exc

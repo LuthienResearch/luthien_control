@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import cast
+from unittest.mock import Mock
 
 import pytest
 from luthien_control.db.client_api_key_crud import (
@@ -113,3 +114,73 @@ async def test_get_api_key_by_value_not_found(async_session: AsyncSession):
     """Test getting a non-existent API key by value."""
     retrieved_key = await get_api_key_by_value(async_session, "non-existent-key")
     assert retrieved_key is None
+
+
+async def test_get_api_key_by_value_invalid_session():
+    """Test getting an API key with invalid session object."""
+    # Create a mock that's not an AsyncSession
+    invalid_session = Mock()
+
+    with pytest.raises(TypeError):
+        await get_api_key_by_value(invalid_session, "test-key")
+
+
+async def test_get_api_key_by_value_exception(async_session: AsyncSession, monkeypatch):
+    """Test exception handling in get_api_key_by_value."""
+
+    # Mock the session.execute to raise an exception
+    async def mock_execute(*args, **kwargs):
+        raise Exception("Database error")
+
+    monkeypatch.setattr(async_session, "execute", mock_execute)
+
+    # Function should return None on exception
+    result = await get_api_key_by_value(async_session, "test-key")
+    assert result is None
+
+
+async def test_create_api_key_exception(async_session: AsyncSession, monkeypatch):
+    """Test exception handling in create_api_key."""
+
+    # Mock session.commit to raise an exception
+    async def mock_commit(*args, **kwargs):
+        raise Exception("Database error")
+
+    monkeypatch.setattr(async_session, "commit", mock_commit)
+
+    api_key = ClientApiKey(key_value="error-key", name="Error Key")
+    result = await create_api_key(async_session, api_key)
+    assert result is None
+
+
+async def test_list_api_keys_exception(async_session: AsyncSession, monkeypatch):
+    """Test exception handling in list_api_keys."""
+
+    # Mock session.execute to raise an exception
+    async def mock_execute(*args, **kwargs):
+        raise Exception("Database error")
+
+    monkeypatch.setattr(async_session, "execute", mock_execute)
+
+    # Function should return empty list on exception
+    result = await list_api_keys(async_session)
+    assert result == []
+
+
+async def test_update_api_key_exception(async_session: AsyncSession, monkeypatch):
+    """Test exception handling in update_api_key."""
+    # Create a key first
+    api_key = ClientApiKey(key_value="update-exception-key", name="Original Name")
+    created_key = await create_api_key(async_session, api_key)
+    assert created_key is not None
+    assert created_key.id is not None
+
+    # Mock session.commit to raise an exception
+    async def mock_commit(*args, **kwargs):
+        raise Exception("Database error")
+
+    monkeypatch.setattr(async_session, "commit", mock_commit)
+
+    update_payload = ClientApiKey(key_value="update-exception-key", name="Updated Name")
+    result = await update_api_key(async_session, created_key.id, update_payload)
+    assert result is None

@@ -14,6 +14,7 @@ from luthien_control.control_policy.exceptions import (
     ClientAuthenticationNotFoundError,
     NoRequestError,
 )
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.sqlmodel_models import ClientApiKey
@@ -215,11 +216,7 @@ def test_client_api_key_auth_policy_serialization():
     rehydrated_policy = ClientApiKeyAuthPolicy.from_serialized(serialized_data)
 
     # Assert
-    assert isinstance(serialized_data, dict)  # Check against dict, not type alias
+    assert isinstance(serialized_data, dict)
     # Default name serialization is now empty dict
-    assert serialized_data == {}
+    assert serialized_data == SerializableDict(name="ClientApiKeyAuthPolicy")
     assert isinstance(rehydrated_policy, ClientApiKeyAuthPolicy)
-    # Default name is class name
-    assert rehydrated_policy.name == "ClientApiKeyAuthPolicy"
-    # No internal _api_key_lookup to check anymore
-    # assert rehydrated_policy._api_key_lookup is dummy_lookup

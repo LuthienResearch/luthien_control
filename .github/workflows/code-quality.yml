@@ -154,11 +154,17 @@ jobs:
               const prNumber = context.issue.number;
               const repoOwner = context.repo.owner;
               const repoName = context.repo.repo;
-              const coverageUrl = `https://${repoOwner}.github.io/${repoName}/pr-${prNumber}/`;
+              const runId = context.runId;
               
-              const linkText = `\n\n---\n\n📊 **[📋 View Full Coverage Report](${coverageUrl})** - Complete interactive HTML coverage report`;
+              // Primary link to GitHub Pages (may take a few minutes to be available)
+              const pagesUrl = `https://${repoOwner}.github.io/${repoName}/pr-${prNumber}/`;
               
-              if (!botComment.body.includes('View Full Coverage Report')) {
+              // Fallback link to artifacts
+              const artifactsUrl = `https://github.com/${repoOwner}/${repoName}/actions/runs/${runId}`;
+              
+              const linkText = `\n\n---\n\n📊 **[View Interactive Coverage Report](${pagesUrl})** *(may take 2-3 minutes to deploy)*\n\n📦 **[Download Coverage Artifacts](${artifactsUrl})** *(immediate backup)*`;
+              
+              if (!botComment.body.includes('View Interactive Coverage Report')) {
                 await github.rest.issues.updateComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,

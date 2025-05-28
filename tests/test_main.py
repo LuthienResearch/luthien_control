@@ -27,7 +27,7 @@ def test_lifespan_success_path(mocker, mock_container: MagicMock):
     mocker.patch("luthien_control.main.Settings", return_value=mock_settings_instance)
 
     mock_initialize_dependencies = mocker.patch(
-        "luthien_control.main._initialize_app_dependencies",
+        "luthien_control.main.initialize_app_dependencies",
         new_callable=AsyncMock,  # Ensures the mock itself is an awaitable coroutine function
         return_value=mock_container,  # The coroutine function will return mock_container when awaited
     )
@@ -69,7 +69,7 @@ def test_lifespan_startup_db_engine_exception(mocker):
     # Patch _initialize_app_dependencies to raise an exception, as if DB creation failed within it.
     # It's an async function, so its mock should reflect that if using side_effect for exceptions.
     mock_initialize_dependencies = mocker.patch(
-        "luthien_control.main._initialize_app_dependencies",
+        "luthien_control.main.initialize_app_dependencies",
         new_callable=AsyncMock,
         side_effect=RuntimeError(db_error_message),  # This error will be raised when awaited
     )
@@ -103,7 +103,7 @@ def test_lifespan_startup_db_engine_returns_none(mocker):
     # This is the specific error _initialize_app_dependencies raises if create_db_engine returns None.
     internal_error_message = "Failed to initialize database connection engine for DependencyContainer."
     mock_initialize_dependencies = mocker.patch(
-        "luthien_control.main._initialize_app_dependencies",
+        "luthien_control.main.initialize_app_dependencies",
         new_callable=AsyncMock,
         side_effect=RuntimeError(internal_error_message),
     )
@@ -135,7 +135,7 @@ def test_lifespan_startup_dependency_container_exception(mocker):
 
     # We need to simulate that _initialize_app_dependencies itself raises this error
     mock_initialize_dependencies = mocker.patch(
-        "luthien_control.main._initialize_app_dependencies",
+        "luthien_control.main.initialize_app_dependencies",
         new_callable=AsyncMock,
         side_effect=RuntimeError(internal_error_message),  # Simulates the helper failing at container creation
     )
@@ -159,13 +159,3 @@ def test_lifespan_startup_dependency_container_exception(mocker):
 
     # Assert that close_db_engine was called by lifespan's exception handler
     mock_close_db_engine.assert_awaited_once()
-
-
-# TODO: Add more comprehensive tests for the lifespan function
-#       - Mock dependencies (Settings, httpx.AsyncClient, db_engine, DependencyContainer)
-#       - Verify resource creation, storage in app.state, and cleanup
-#       - Test error handling during startup (e.g., DB connection failure)
-
-# TODO: Add tests for OpenAPI generation
-#       - Verify create_custom_openapi is called
-#       - Potentially check specific parts of the generated schema

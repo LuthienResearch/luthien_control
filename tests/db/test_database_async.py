@@ -8,6 +8,7 @@ from luthien_control.db.database_async import (
     get_db_session,
 )
 from luthien_control.db.database_async import settings as db_async_settings
+from luthien_control.exceptions import LuthienDBConfigurationError
 
 
 @pytest.mark.asyncio
@@ -18,9 +19,7 @@ async def test_get_db_url_with_database_url():
     with patch.object(db_async_settings, "get_database_url", return_value=test_db_url):
         url_result = _get_db_url()
         assert url_result is not None
-        url, connect_args = url_result
-        assert url == "postgresql+asyncpg://user:pass@localhost/dbname"
-        assert isinstance(connect_args, dict)
+        assert url_result == "postgresql+asyncpg://user:pass@localhost/dbname"
 
 
 @patch.object(db_async_settings, "get_postgres_db", return_value="testdb")
@@ -33,9 +32,7 @@ async def test_get_db_url_with_postgres_vars(m_db, m_port, m_host, m_pass, m_use
     """Test _get_db_url with individual DB_* environment variables."""
     url_result = _get_db_url()
     assert url_result is not None
-    url, connect_args = url_result
-    assert url == "postgresql+asyncpg://testuser:testpass@testhost:5433/testdb"
-    assert isinstance(connect_args, dict)
+    assert url_result == "postgresql+asyncpg://testuser:testpass@testhost:5433/testdb"
 
 
 @patch.object(db_async_settings, "get_postgres_db", return_value=None)
@@ -46,8 +43,8 @@ async def test_get_db_url_with_postgres_vars(m_db, m_port, m_host, m_pass, m_use
 @patch.object(db_async_settings, "get_database_url", return_value=None)
 async def test_get_db_url_missing_vars(m_db, m_port, m_host, m_pass, m_user, m_db_url):
     """Test _get_db_url with missing required environment variables."""
-    url_result = _get_db_url()
-    assert url_result is None
+    with pytest.raises(LuthienDBConfigurationError):
+        _get_db_url()
 
 
 @pytest.mark.asyncio
@@ -73,14 +70,6 @@ async def test_create_db_engine():
 
             # Clean up
             await close_db_engine()
-
-
-@pytest.mark.asyncio
-async def test_create_db_engine_url_error():
-    """Test engine creation with missing URL."""
-    with patch("luthien_control.db.database_async._get_db_url", return_value=None):
-        engine = await create_db_engine()
-        assert engine is None
 
 
 @pytest.mark.asyncio

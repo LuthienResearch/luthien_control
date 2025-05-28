@@ -38,27 +38,25 @@ class BranchingPolicy(ControlPolicy):
 
         Returns:
             The potentially modified transaction context.
-
-        Raises:
-            Exception:
         """
         for cond, policy in self.cond_to_policy_map.items():
             if cond.evaluate(context):
                 return await policy.apply(context, container, session)
         if self.default_policy:
             return await self.default_policy.apply(context, container, session)
-        else:
-            logger.warning("No policy matched, returning original context")
         return context
 
     def serialize(self) -> SerializableDict:
-        return {
+        result: SerializableDict = {
             "type": "branching",
             "cond_to_policy_map": {
                 json.dumps(cond.serialize()): policy.serialize() for cond, policy in self.cond_to_policy_map.items()
             },
             "default_policy": self.default_policy.serialize() if self.default_policy else None,
         }
+        if self.name is not None:
+            result["name"] = self.name
+        return result
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "BranchingPolicy":
@@ -115,7 +113,7 @@ class BranchingPolicy(ControlPolicy):
         resolved_name: Optional[str] = None
         if instance_name is not None:
             if not isinstance(instance_name, str):
-                logger.warning(f"BranchingPolicy name '{instance_name}' is not a string. Coercing.")
-            resolved_name = str(instance_name)
+                raise TypeError(f"BranchingPolicy name must be a string, got {type(instance_name)}")
+            resolved_name = instance_name
 
         return cls(cond_to_policy_map=cond_to_policy_map, default_policy=default_policy, name=resolved_name)

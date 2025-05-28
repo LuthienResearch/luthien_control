@@ -217,7 +217,6 @@ if __name__ == "__main__":
     # Load settings here specifically for running uvicorn if needed,
     # otherwise rely on the lifespan settings
     dev_settings = Settings()
-    logger.info(f"Running Luthien Control on {dev_settings.get_app_host()}:{dev_settings.get_app_port()}")
     uvicorn.run(
         "luthien_control.main:app",
         host=dev_settings.get_app_host(),

@@ -82,10 +82,26 @@ jobs:
       - name: Run unit tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/luthien_test
-        run: poetry run pytest --cov=luthien_control --cov-report=xml --cov-report=term-missing
+        run: |
+          poetry run pytest --cov=luthien_control --cov-report=html --cov-report=xml --cov-report=term-missing | tee pytest-output.log
+          COVERAGE=$(grep "TOTAL" pytest-output.log | awk '{print $4}' | sed 's/%//')
+          echo "Coverage: ${COVERAGE}%"
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "Current coverage: **${COVERAGE}%**" >> $GITHUB_STEP_SUMMARY
+          echo "Coverage report generated. See artifacts for detailed HTML report." >> $GITHUB_STEP_SUMMARY
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
         with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
+          name: coverage-report
+          path: |
+            htmlcov/
+            coverage.xml
+            pytest-output.log
+          retention-days: 30
+
+      - name: Coverage comment on PR
+        if: github.event_name == 'pull_request'
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}

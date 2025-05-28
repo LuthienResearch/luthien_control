@@ -18,6 +18,7 @@
 - **Code Quality:**
   - Applied ruff formatting and fixes across the codebase. (3af80a4)
   - Added development tracking rules and test guidelines in Cursor rules.
+  - codecov support
 - **Fixes**
   - Fixed default POLICY_FILEPATH value breaking deployments
 

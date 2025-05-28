@@ -122,3 +122,11 @@ jobs:
           COVERAGE_PATH: .
           MINIMUM_GREEN: 90
           MINIMUM_ORANGE: 70
+          COMMENT_TEMPLATE: |
+            {% extends "base" %}
+            {% block footer %}
+            
+            ---
+            
+            📊 **[View Detailed Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)** | 🌿 **[Browse Coverage Data Branch](https://github.com/${{ github.repository }}/tree/python-coverage-comment-action-data)**
+            {% endblock footer %}

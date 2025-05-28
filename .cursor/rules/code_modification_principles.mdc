@@ -4,10 +4,11 @@ globs:
 alwaysApply: true
 ---
 # Code Modification Principles
-1.  **Favor Standard Solutions:** Before creating new custom classes, functions, or modules, thoroughly evaluate if standard library features (e.g., `ValueError`, `TypeError`) or existing, simpler project utilities can achieve the same result clearly and effectively.
-2.  **Strict Justification for New Abstractions:** Only introduce new abstractions (e.g., custom classes, non-trivial helper functions, custom exceptions) if at least one of the following conditions is met:
-    a.  A clear pattern of code or logic is repeated in **two or more distinct places**, and the abstraction demonstrably simplifies the codebase by adhering to DRY (Don't Repeat Yourself).
-    b.  The abstraction is essential for encapsulating complex logic that cannot be expressed clearly or safely using simpler, direct code, and significantly improves overall readability and maintainability.
-    c.  The abstraction is explicitly requested by the user for specific, stated architectural reasons.
-3.  **Solve Only the Immediate Problem:** Implement code to solve the current, specific, and explicitly defined task. Do not add functionality, features, or abstractions based on *anticipated* or *potential* future needs unless these are part of the current, agreed-upon requirements.
 
+
+**MANDATORY. FOLLOW THESE RULES.**
+
+1. **Use standard solutions** before custom code.
+2. **Create abstractions only when:** code repeats 2+ times, complex logic requires it, or user requests it.
+3. **Solve the current problem only.** NO future features.
+4. **FIX BUGS DIRECTLY. DO NOT REDESIGN. STAY WITHIN SCOPE. DO NOT OVERENGINEER**

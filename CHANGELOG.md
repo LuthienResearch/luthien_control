@@ -1,8 +1,7 @@
 # Changelog
 
-## [Unreleased] - 2025-05-27
+## [0.2.4] - 2025-05-28
 - **Transaction Logging System:**
-  - pytest CICD
   - Added `TxLoggingPolicy` for configurable transaction logging to database. (7ef9dcf)
   - Added new `luthien_log` database table via Alembic migration to store transaction logs with JSON data. (50deccdf11ab)
   - Added modular logging specification system with built-in specs:
@@ -18,9 +17,13 @@
 - **Code Quality:**
   - Applied ruff formatting and fixes across the codebase. (3af80a4)
   - Added development tracking rules and test guidelines in Cursor rules.
+  - pytest GH
   - codecov support
 - **Fixes**
   - Fixed default POLICY_FILEPATH value breaking deployments
+- **Meta**
+  - Various improvements in cursorrules/claude.md
+  - Better description in pyproject.toml
 
 ## [0.2.3] - 2025-05-19
 - **Enhanced Code Quality & Type Safety:**

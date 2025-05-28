@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any, Dict, Optional, cast
+from typing import Optional
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -122,11 +122,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
             SerializableDict: A dictionary representation of the policy's
                               configuration. It may be empty or contain a 'name' key.
         """
-        config: Dict[str, Any] = {}
-        # Include name if it's not the default class name
-        if self.name != self.__class__.__name__:
-            config["name"] = self.name
-        return cast(SerializableDict, config)
+        return SerializableDict(name=self.name)
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "ClientApiKeyAuthPolicy":
@@ -153,7 +149,5 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
                     f"Coercing to string. Original type: {type(config_name_value)}."
                 )
                 instance.name = str(config_name_value)
-        # If config_name_value is None, instance.name (set in __init__) remains unchanged.
-        # If config had no 'name' key, config.get("name") is None, so no change to default name.
 
         return instance

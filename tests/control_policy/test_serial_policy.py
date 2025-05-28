@@ -259,7 +259,9 @@ async def test_serial_policy_serialization():
     policy0_data = policies_list[0]
     assert isinstance(policy0_data, dict)
     assert policy0_data["type"] == "ClientApiKeyAuth"
-    assert policy0_data["config"] == {}
+    assert policy0_data["config"] == {
+        "name": "ClientApiKeyAuthPolicy",
+    }
 
     policy1_data = policies_list[1]
     assert isinstance(policy1_data, dict)

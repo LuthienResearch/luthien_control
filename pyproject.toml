@@ -75,5 +75,9 @@ select = ["E", "F", "W", "I"]
 # ignore = ["E501"] # Example: ignore line too long
 # exclude = ["docs/*"] # Example: exclude docs directory
 
+[tool.coverage.run]
+relative_files = true
+source = ["luthien_control"]
+
 [tool.pyright]
 include = ["luthien_control", "tests"]

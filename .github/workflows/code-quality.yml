@@ -12,6 +12,7 @@ jobs:
     permissions:
       contents: write       # Needed for coverage data branch
       pull-requests: write  # Needed for coverage comments
+      actions: read         # Needed to read workflow information
     
     services:
       postgres:
@@ -93,6 +94,16 @@ jobs:
           echo "Current coverage: **${COVERAGE}%**" >> $GITHUB_STEP_SUMMARY
           echo "Coverage report generated. See artifacts for detailed HTML report." >> $GITHUB_STEP_SUMMARY
 
+      - name: Debug coverage files
+        run: |
+          echo "=== Coverage files in workspace ==="
+          ls -la .coverage* 2>/dev/null || echo "No .coverage files found"
+          echo "=== HTML coverage directory ==="
+          ls -la htmlcov/ 2>/dev/null || echo "No htmlcov directory found"
+          echo "=== Working directory ==="
+          pwd
+          ls -la
+
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -107,4 +118,7 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: py-cov-action/python-coverage-comment-action@v3
         with:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COVERAGE_PATH: .
+          MINIMUM_GREEN: 90
+          MINIMUM_ORANGE: 70

@@ -128,5 +128,5 @@ jobs:
             
             ---
             
-            📊 **[View Detailed Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)** | 🌿 **[Browse Coverage Data Branch](https://github.com/${{ github.repository }}/tree/python-coverage-comment-action-data)**
+            📊 **[View Detailed Coverage Report](https://github.com/LuthienResearch/luthien_control/actions)** | 🌿 **[Browse Coverage Data Branch](https://github.com/LuthienResearch/luthien_control/tree/python-coverage-comment-action-data)**
             {% endblock footer %}

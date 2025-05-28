@@ -9,6 +9,9 @@ on:
 jobs:
   quality-checks:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # Needed for coverage data branch
+      pull-requests: write  # Needed for coverage comments
     
     services:
       postgres:

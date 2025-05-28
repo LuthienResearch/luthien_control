@@ -22,6 +22,7 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
 * `ruff` is used for linting and formatting
 * Google-style docstrings
 * Unit tests are in `tests`, new code should generally come with new tests. We're targeting 90% coverage.
+* **Coverage Reporting**: Detailed HTML coverage reports are automatically generated and accessible via the [`python-coverage-comment-action-data`](../../tree/python-coverage-comment-action-data) branch.
 
 
 ## Technology Stack

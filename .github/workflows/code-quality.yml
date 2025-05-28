@@ -1,28 +1,40 @@
-name: Code Quality Checks
+name: Code Quality & Tests
 
 on:
   pull_request:
+    branches: [ main, dev ]
+  push:
     branches: [ main, dev ]
 
 jobs:
   quality-checks:
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: luthien_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }} # Checkout the PR branch
 
-      - name: Parse Python version from pyproject.toml
-        id: pyversion
-        run: |
-          echo "version=$(grep -oP 'requires-python\\s*=\\s*"\\K[^,<"]*' pyproject.toml | head -n 1)" >> $GITHUB_OUTPUT
-        shell: bash
-
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ steps.pyversion.outputs.version }}
+          python-version-file: 'pyproject.toml' # Use pyproject.toml directly
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -35,7 +47,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .venv
-          key: venv-${{ runner.os }}-${{ steps.pyversion.outputs.version }}-${{ hashFiles('**/poetry.lock') }}
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
@@ -65,4 +77,15 @@ jobs:
         run: poetry run ruff check .
 
       - name: Run Pyright type check
-        run: poetry run pyright 
+        run: poetry run pyright
+
+      - name: Run unit tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/luthien_test
+        run: poetry run pytest --cov=luthien_control --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: LuthienResearch/luthien_control

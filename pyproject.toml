@@ -1,7 +1,7 @@
 [project]
 name = "luthien-control"
-version = "0.2.3"
-description = "Intelligent proxy server for AI APIs"
+version = "0.2.4"
+description = "Autonomously monitor, investigate, modify, block, and act on traffic going to and from any OpenAI-API-compatible endpoint"
 authors = [
     {name = "Jai Dhyani",email = "jai@luthienresearch.org"}
 ]
@@ -38,7 +38,7 @@ aiosqlite = ">=0.21.0,<0.22.0"
 mkdocs = "^1.6.1"
 mkdocs-material = "^9.6.12"
 mkdocstrings = {extras = ["python"], version = "^0.29.1"}
-pyright = "^1.1.400"
+pyright = "*"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

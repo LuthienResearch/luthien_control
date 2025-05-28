@@ -6,6 +6,16 @@ Items discovered during development that are out of scope for the current task b
   - Reorganize sections based on current status and near-term goals (e.g., Testing Framework, Pipeline Refactor).
   - Clarify distinction between major phases and specific tasks.
 
+- [ ] **Review and Simplify Tests - Remove Unnecessary Mocking:**
+  - **Goal:** Apply test writing guidelines consistently across the codebase to eliminate over-mocking.
+  - **Status:** ✅ Completed for `tests/control_policy/tx_logging/` (removed ~135 lines of mock infrastructure)
+  - **Remaining areas to review:**
+    - `tests/control_policy/` - Check for complex mock factories and unnecessary mocking
+    - `tests/proxy/` - Review proxy-related tests for over-mocking  
+    - `tests/core/` - Ensure core functionality tests use real objects where appropriate
+  - **Guidelines:** Default to real objects, only mock external dependencies (network, file I/O, databases, time), avoid mock factories for simple data objects
+  - **Benefits:** Cleaner code, better test coverage, easier maintenance, clearer test intent
+
 - [ ] Implement package-wide logging system
 
 - [ ] security scan automation

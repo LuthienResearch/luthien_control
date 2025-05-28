@@ -8,8 +8,10 @@ from .add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from .branching_policy import BranchingPolicy
 from .client_api_key_auth import ClientApiKeyAuthPolicy
 from .leaked_api_key_detection import LeakedApiKeyDetectionPolicy
+from .model_name_replacement import ModelNameReplacementPolicy
 from .send_backend_request import SendBackendRequestPolicy
 from .serial_policy import SerialPolicy
+from .tx_logging_policy import TxLoggingPolicy
 
 if TYPE_CHECKING:
     # Use forward reference for ControlPolicy to avoid circular import at runtime
@@ -25,6 +27,8 @@ POLICY_NAME_TO_CLASS: Dict[str, Type["ControlPolicy"]] = {
     "AddApiKeyHeaderFromEnv": AddApiKeyHeaderFromEnvPolicy,
     "LeakedApiKeyDetection": LeakedApiKeyDetectionPolicy,
     "BranchingPolicy": BranchingPolicy,
+    "ModelNameReplacement": ModelNameReplacementPolicy,
+    "TxLoggingPolicy": TxLoggingPolicy,
     # Add other policies here as they are created
 }
 

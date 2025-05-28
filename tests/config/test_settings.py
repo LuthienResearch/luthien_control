@@ -144,3 +144,40 @@ def test_get_db_dsn_missing_base_var(settings, set_postgres_env, monkeypatch, mi
     monkeypatch.delenv(missing_var)
     with pytest.raises(ValueError, match="Missing required database settings .* for base_dsn"):
         settings.get_db_dsn()  # Call method to trigger the check
+
+
+# --- Test for get_policy_filepath ---
+
+
+def test_get_policy_filepath_behavior(monkeypatch):
+    """Test that get_policy_filepath returns None when POLICY_FILEPATH env var is not set.
+
+    This test uses the real Settings class to verify the actual behavior.
+    It would fail if get_policy_filepath returned a default value instead of None.
+    This test is completely isolated from .env files.
+    """
+    # Disable dotenv loading to prevent .env files from affecting the test
+    with monkeypatch.context() as m:
+        # Mock load_dotenv to do nothing
+        m.setattr("luthien_control.settings.load_dotenv", lambda **kwargs: None)
+
+        # Test with POLICY_FILEPATH not set
+        m.delenv("POLICY_FILEPATH", raising=False)
+
+        settings = Settings()
+        result = settings.get_policy_filepath()
+
+        # This should be None when env var is not set
+        assert result is None, f"Expected None when POLICY_FILEPATH not set, got: {result!r}"
+
+        # Test that the boolean evaluation is False (important for the if condition)
+        assert not result, f"Expected falsy value when POLICY_FILEPATH not set, got: {result!r}"
+
+        # Test with POLICY_FILEPATH set
+        m.setenv("POLICY_FILEPATH", "test_path.json")
+
+        settings = Settings()  # Create new instance to pick up env change
+        result = settings.get_policy_filepath()
+
+        assert result == "test_path.json", f"Expected 'test_path.json' when POLICY_FILEPATH is set, got: {result!r}"
+        assert result, f"Expected truthy value when POLICY_FILEPATH is set, got: {result!r}"

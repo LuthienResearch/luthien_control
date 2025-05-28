@@ -77,9 +77,10 @@ async def get_main_control_policy(
     Uses the DependencyContainer to access settings, http_client, and a database session.
     """
     settings = dependencies.settings
-    if settings.get_policy_filepath():
-        logger.info(f"Loading main control policy from file: {settings.get_policy_filepath()}")
-        return load_policy_from_file(settings.get_policy_filepath())
+    policy_filepath = settings.get_policy_filepath()
+    if policy_filepath:
+        logger.info(f"Loading main control policy from file: {policy_filepath}")
+        return load_policy_from_file(policy_filepath)
 
     top_level_policy_name = settings.get_top_level_policy_name()
     if not top_level_policy_name:

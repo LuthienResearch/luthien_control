@@ -286,7 +286,7 @@ async def test_load_policy_from_db_db_query_error(mocker: MockerFixture):
 
     policy_name = "test_policy_db_query_error"
     db_error = LuthienDBQueryError("Database query failed")
-    
+
     mocker.patch(
         "luthien_control.db.control_policy_crud.get_policy_by_name",
         side_effect=db_error,
@@ -305,7 +305,7 @@ async def test_load_policy_from_db_unexpected_exception(mocker: MockerFixture):
 
     policy_name = "test_policy_unexpected_error"
     error_message = "Unexpected error"
-    
+
     mocker.patch(
         "luthien_control.db.control_policy_crud.get_policy_by_name",
         side_effect=Exception(error_message),

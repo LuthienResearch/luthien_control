@@ -513,7 +513,9 @@ async def test_update_policy_integrity_error(mocker: MockerFixture):
     mock_session.execute = AsyncMock(
         return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=existing_policy_mock))
     )
-    mock_session.commit = AsyncMock(side_effect=IntegrityError("commit failed", params=None, orig=Exception("Database constraint violated")))
+    mock_session.commit = AsyncMock(
+        side_effect=IntegrityError("commit failed", params=None, orig=Exception("Database constraint violated"))
+    )
     mock_session.rollback = AsyncMock()
 
     mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.5] - 2025-05-28
+ - 98% test coverage
+ - nits
+
 ## [0.2.4] - 2025-05-28
 - **Transaction Logging System:**
   - Added `TxLoggingPolicy` for configurable transaction logging to database. (7ef9dcf)

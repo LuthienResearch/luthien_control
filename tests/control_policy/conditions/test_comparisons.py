@@ -139,3 +139,9 @@ def test_condition_serialization_deserialization(
     assert from_serializedd_condition.value == original_condition.value
     assert from_serializedd_condition.comparator == original_condition.comparator
     assert type(from_serializedd_condition) is type(original_condition)  # Check same class type
+
+
+def test_condition_from_serialized_nonstring_key():
+    """Test that deserialization fails with invalid type."""
+    with pytest.raises(TypeError):
+        EqualsCondition.from_serialized({"type": "equals", "key": 123, "value": "value"})

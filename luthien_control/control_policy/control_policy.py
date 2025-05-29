@@ -1,15 +1,13 @@
 # Interfaces for the request processing framework.
 
 import abc
-from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar, cast
+from typing import Any, Optional, Type, TypeVar, cast
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.serialization import SerializableDict
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    from luthien_control.core.dependency_container import DependencyContainer
-    from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.transaction_context import TransactionContext
 
 # Type variable for the policy classes
 PolicyT = TypeVar("PolicyT", bound="ControlPolicy")

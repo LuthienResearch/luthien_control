@@ -322,3 +322,45 @@ async def test_apply_handles_invalid_backend_url(
             await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     mock_http_client.send.assert_not_called()
+
+
+async def test_apply_with_no_backend_url(
+    policy: SendBackendRequestPolicy,
+    base_context: TransactionContext,
+    mock_http_client: AsyncMock,
+    mock_settings: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+):
+    """Test that apply raises ValueError if BACKEND_URL is not set."""
+    mock_settings.get_backend_url.return_value = None
+    with pytest.raises(ValueError, match="BACKEND_URL is not configured."):
+        await policy.apply(base_context, container=mock_container, session=mock_db_session)
+
+    mock_http_client.send.assert_not_called()
+
+
+async def test_apply_http_client_weird_exception(
+    policy: SendBackendRequestPolicy,
+    base_context: TransactionContext,
+    mock_http_client: AsyncMock,
+    mock_settings: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+):
+    """Test exception handling for unexpected exceptions from the http client."""
+    mock_http_client.send.side_effect = Exception("Unexpected error")
+    with pytest.raises(Exception, match="Unexpected error"):
+        await policy.apply(base_context, container=mock_container, session=mock_db_session)
+
+    mock_http_client.send.assert_awaited_once()
+    assert base_context.response is None
+
+
+async def test_backend_request_policy_serialize_from_serialized():
+    """Test serialization and deserialization of the policy."""
+    policy = SendBackendRequestPolicy(name="test-policy")
+    serialized = policy.serialize()
+    assert serialized == {"name": "test-policy"}
+    deserialized_policy = SendBackendRequestPolicy.from_serialized(serialized)
+    assert deserialized_policy.name == "test-policy"

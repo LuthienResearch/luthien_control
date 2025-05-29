@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Code Quality
+
+When finalizing significant changes, use pyright, pytest --cov, and ruff.
+
+Command format: `poetry run (cmd and args) | cat`

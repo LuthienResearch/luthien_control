@@ -9,7 +9,14 @@ from luthien_control.db.client_api_key_crud import (
     list_api_keys,
     update_api_key,
 )
+from luthien_control.db.exceptions import (
+    LuthienDBIntegrityError,
+    LuthienDBOperationError,
+    LuthienDBQueryError,
+    LuthienDBTransactionError,
+)
 from luthien_control.db.sqlmodel_models import ClientApiKey
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Test database fixtures (async_engine, async_session) are now expected
@@ -134,9 +141,9 @@ async def test_get_api_key_by_value_exception(async_session: AsyncSession, monke
 
     monkeypatch.setattr(async_session, "execute", mock_execute)
 
-    # Function should return None on exception
-    result = await get_api_key_by_value(async_session, "test-key")
-    assert result is None
+    # Function should raise LuthienDBOperationError
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during API key lookup"):
+        await get_api_key_by_value(async_session, "test-key")
 
 
 async def test_create_api_key_exception(async_session: AsyncSession, monkeypatch):
@@ -149,8 +156,8 @@ async def test_create_api_key_exception(async_session: AsyncSession, monkeypatch
     monkeypatch.setattr(async_session, "commit", mock_commit)
 
     api_key = ClientApiKey(key_value="error-key", name="Error Key")
-    result = await create_api_key(async_session, api_key)
-    assert result is None
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during API key creation"):
+        await create_api_key(async_session, api_key)
 
 
 async def test_list_api_keys_exception(async_session: AsyncSession, monkeypatch):
@@ -162,9 +169,9 @@ async def test_list_api_keys_exception(async_session: AsyncSession, monkeypatch)
 
     monkeypatch.setattr(async_session, "execute", mock_execute)
 
-    # Function should return empty list on exception
-    result = await list_api_keys(async_session)
-    assert result == []
+    # Function should raise LuthienDBOperationError
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during API key listing"):
+        await list_api_keys(async_session)
 
 
 async def test_update_api_key_exception(async_session: AsyncSession, monkeypatch):
@@ -182,5 +189,99 @@ async def test_update_api_key_exception(async_session: AsyncSession, monkeypatch
     monkeypatch.setattr(async_session, "commit", mock_commit)
 
     update_payload = ClientApiKey(key_value="update-exception-key", name="Updated Name")
-    result = await update_api_key(async_session, created_key.id, update_payload)
-    assert result is None
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during API key update"):
+        await update_api_key(async_session, created_key.id, update_payload)
+
+
+async def test_get_api_key_by_value_sqlalchemy_error(async_session: AsyncSession, monkeypatch):
+    """Test SQLAlchemyError handling in get_api_key_by_value."""
+
+    # Mock the session.execute to raise a SQLAlchemyError
+    async def mock_execute(*args, **kwargs):
+        raise SQLAlchemyError("SQLAlchemy database error")
+
+    monkeypatch.setattr(async_session, "execute", mock_execute)
+
+    # Function should raise LuthienDBQueryError
+    with pytest.raises(LuthienDBQueryError, match="Database query failed while fetching API key"):
+        await get_api_key_by_value(async_session, "test-key")
+
+
+async def test_create_api_key_integrity_error(async_session: AsyncSession, monkeypatch):
+    """Test IntegrityError handling in create_api_key."""
+
+    # Mock session.commit to raise an IntegrityError
+    async def mock_commit(*args, **kwargs):
+        raise IntegrityError("statement", "params", Exception("Database constraint violated"))
+
+    monkeypatch.setattr(async_session, "commit", mock_commit)
+
+    api_key = ClientApiKey(key_value="integrity-error-key", name="Integrity Error Key")
+    with pytest.raises(LuthienDBIntegrityError, match="Could not create API key due to constraint violation"):
+        await create_api_key(async_session, api_key)
+
+
+async def test_create_api_key_sqlalchemy_error(async_session: AsyncSession, monkeypatch):
+    """Test SQLAlchemyError handling in create_api_key."""
+
+    # Mock session.commit to raise a SQLAlchemyError
+    async def mock_commit(*args, **kwargs):
+        raise SQLAlchemyError("SQLAlchemy database error")
+
+    monkeypatch.setattr(async_session, "commit", mock_commit)
+
+    api_key = ClientApiKey(key_value="sqlalchemy-error-key", name="SQLAlchemy Error Key")
+    with pytest.raises(LuthienDBTransactionError, match="Database transaction failed while creating API key"):
+        await create_api_key(async_session, api_key)
+
+
+async def test_list_api_keys_sqlalchemy_error(async_session: AsyncSession, monkeypatch):
+    """Test SQLAlchemyError handling in list_api_keys."""
+
+    # Mock session.execute to raise a SQLAlchemyError
+    async def mock_execute(*args, **kwargs):
+        raise SQLAlchemyError("SQLAlchemy database error")
+
+    monkeypatch.setattr(async_session, "execute", mock_execute)
+
+    # Function should raise LuthienDBQueryError
+    with pytest.raises(LuthienDBQueryError, match="Database query failed while listing API keys"):
+        await list_api_keys(async_session)
+
+
+async def test_update_api_key_integrity_error(async_session: AsyncSession, monkeypatch):
+    """Test IntegrityError handling in update_api_key."""
+    # Create a key first
+    api_key = ClientApiKey(key_value="update-integrity-error-key", name="Original Name")
+    created_key = await create_api_key(async_session, api_key)
+    assert created_key is not None
+    assert created_key.id is not None
+
+    # Mock session.commit to raise an IntegrityError
+    async def mock_commit(*args, **kwargs):
+        raise IntegrityError("statement", "params", Exception("Database constraint violated"))
+
+    monkeypatch.setattr(async_session, "commit", mock_commit)
+
+    update_payload = ClientApiKey(key_value="update-integrity-error-key", name="Updated Name")
+    with pytest.raises(LuthienDBIntegrityError, match="Could not update API key due to constraint violation"):
+        await update_api_key(async_session, created_key.id, update_payload)
+
+
+async def test_update_api_key_sqlalchemy_error(async_session: AsyncSession, monkeypatch):
+    """Test SQLAlchemyError handling in update_api_key."""
+    # Create a key first
+    api_key = ClientApiKey(key_value="update-sqlalchemy-error-key", name="Original Name")
+    created_key = await create_api_key(async_session, api_key)
+    assert created_key is not None
+    assert created_key.id is not None
+
+    # Mock session.commit to raise a SQLAlchemyError
+    async def mock_commit(*args, **kwargs):
+        raise SQLAlchemyError("SQLAlchemy database error")
+
+    monkeypatch.setattr(async_session, "commit", mock_commit)
+
+    update_payload = ClientApiKey(key_value="update-sqlalchemy-error-key", name="Updated Name")
+    with pytest.raises(LuthienDBTransactionError, match="Database transaction failed while updating API key"):
+        await update_api_key(async_session, created_key.id, update_payload)

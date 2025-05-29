@@ -212,7 +212,7 @@ async def test_create_api_key_integrity_error(async_session: AsyncSession, monke
 
     # Mock session.commit to raise an IntegrityError
     async def mock_commit(*args, **kwargs):
-        raise IntegrityError("statement", "params", "orig")
+        raise IntegrityError("statement", "params", Exception("Database constraint violated"))
 
     monkeypatch.setattr(async_session, "commit", mock_commit)
 
@@ -259,7 +259,7 @@ async def test_update_api_key_integrity_error(async_session: AsyncSession, monke
 
     # Mock session.commit to raise an IntegrityError
     async def mock_commit(*args, **kwargs):
-        raise IntegrityError("statement", "params", "orig")
+        raise IntegrityError("statement", "params", Exception("Database constraint violated"))
 
     monkeypatch.setattr(async_session, "commit", mock_commit)
 

@@ -9,6 +9,7 @@ from luthien_control.db.client_api_key_crud import (
     list_api_keys,
     update_api_key,
 )
+from luthien_control.db.exceptions import LuthienDBOperationError
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -134,9 +135,9 @@ async def test_get_api_key_by_value_exception(async_session: AsyncSession, monke
 
     monkeypatch.setattr(async_session, "execute", mock_execute)
 
-    # Function should return None on exception
-    result = await get_api_key_by_value(async_session, "test-key")
-    assert result is None
+    # Function should raise LuthienDBOperationError
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during API key lookup"):
+        await get_api_key_by_value(async_session, "test-key")
 
 
 async def test_create_api_key_exception(async_session: AsyncSession, monkeypatch):
@@ -149,8 +150,8 @@ async def test_create_api_key_exception(async_session: AsyncSession, monkeypatch
     monkeypatch.setattr(async_session, "commit", mock_commit)
 
     api_key = ClientApiKey(key_value="error-key", name="Error Key")
-    result = await create_api_key(async_session, api_key)
-    assert result is None
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during API key creation"):
+        await create_api_key(async_session, api_key)
 
 
 async def test_list_api_keys_exception(async_session: AsyncSession, monkeypatch):
@@ -162,9 +163,9 @@ async def test_list_api_keys_exception(async_session: AsyncSession, monkeypatch)
 
     monkeypatch.setattr(async_session, "execute", mock_execute)
 
-    # Function should return empty list on exception
-    result = await list_api_keys(async_session)
-    assert result == []
+    # Function should raise LuthienDBOperationError
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during API key listing"):
+        await list_api_keys(async_session)
 
 
 async def test_update_api_key_exception(async_session: AsyncSession, monkeypatch):
@@ -182,5 +183,5 @@ async def test_update_api_key_exception(async_session: AsyncSession, monkeypatch
     monkeypatch.setattr(async_session, "commit", mock_commit)
 
     update_payload = ClientApiKey(key_value="update-exception-key", name="Updated Name")
-    result = await update_api_key(async_session, created_key.id, update_payload)
-    assert result is None
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during API key update"):
+        await update_api_key(async_session, created_key.id, update_payload)

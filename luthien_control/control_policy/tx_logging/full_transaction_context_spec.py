@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import httpx
 
@@ -15,9 +15,7 @@ from luthien_control.control_policy.tx_logging.tx_logging_spec import (
     LuthienLogData,
     TxLoggingSpec,
 )
-
-if TYPE_CHECKING:
-    from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.transaction_context import TransactionContext
 
 logger = logging.getLogger(__name__)
 
@@ -116,17 +114,7 @@ def _serialize_httpx_response(response: httpx.Response) -> Dict[str, Any]:
     }
 
     content_bytes: Optional[bytes] = None
-    try:
-        content_bytes = response.content
-    except httpx.ResponseNotRead:
-        logger.error("Response content not read or stream consumed")
-        serialized_response["error"] = "[CONTENT_NOT_READ_OR_STREAM_CONSUMED]"
-        return serialized_response
-    except Exception as e:
-        # This error is for failure to access response.content itself
-        logger.error(f"Error reading response content: {e}")
-        serialized_response["error"] = f"[ERROR_READING_CONTENT: {type(e).__name__}]"
-        return serialized_response
+    content_bytes = response.content
 
     serialized_response.update(_serialize_content_bytes(content_bytes, content_type))
 
@@ -145,11 +133,7 @@ class FullTransactionContextSpec(TxLoggingSpec):
         if context.response:
             log_payload["response"] = _serialize_httpx_response(context.response)
         if context.data:
-            try:
-                log_payload["context_data"] = context.data
-            except Exception as e:
-                logger.error(f"Error serializing context data: {e}")
-                log_payload["error"] = f"Error serializing context data: {e}"
+            log_payload["context_data"] = context.data
         return LuthienLogData(datatype="full_transaction_context", data=log_payload, notes=notes)
 
     def serialize(self) -> SerializableDict:

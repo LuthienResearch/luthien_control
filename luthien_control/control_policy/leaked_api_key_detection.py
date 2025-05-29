@@ -143,36 +143,24 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
 
         Returns:
             An instance of LeakedApiKeyDetectionPolicy.
-        """
-        name_val = config.get("name")
-        resolved_name: Optional[str] = None
-        if name_val is not None:
-            if not isinstance(name_val, str):
-                logging.warning(
-                    f"LeakedApiKeyDetectionPolicy name '{name_val}' from config is not a string. "
-                    f"Coercing. Original type: {type(name_val).__name__}."
-                )
-                resolved_name = str(name_val)
-            else:
-                resolved_name = name_val
 
-        patterns_val = config.get("patterns")
-        resolved_patterns: Optional[List[str]] = None
-        if patterns_val is not None:
-            if not isinstance(patterns_val, list):
-                raise TypeError(
-                    f"LeakedApiKeyDetectionPolicy 'patterns' in config must be a list of strings. "
-                    f"Got: {patterns_val!r} (type: {type(patterns_val).__name__})"
-                )
-            # Ensure all elements in the list are strings
-            if not all(isinstance(p, str) for p in patterns_val):
-                # Find the first non-string element for a better error message
-                offending_item = next((p for p in patterns_val if not isinstance(p, str)), None)
-                raise TypeError(
-                    f"All items in the 'patterns' list for LeakedApiKeyDetectionPolicy must be strings. "
-                    f"Found item: {offending_item!r} (type: {type(offending_item).__name__}) in list: {patterns_val!r}"
-                )
-            resolved_patterns = patterns_val  # Now known to be List[str]
+        Raises:
+            ValueError: If the 'name' or 'patterns' keys are missing or incorrectly typed in the config.
+        """
+        resolved_name = str(config.get("name", cls.__name__))
+
+        resolved_patterns = cast(List[str], config.get("patterns", cls.DEFAULT_PATTERNS))
+
+        if not isinstance(resolved_patterns, list):
+            raise ValueError(
+                f"LeakedApiKeyDetectionPolicy 'patterns' must be a list of strings. "
+                f"Got: {resolved_patterns!r} (type: {type(resolved_patterns).__name__})"
+            )
+        if not all(isinstance(p, str) for p in resolved_patterns):
+            raise ValueError(
+                f"LeakedApiKeyDetectionPolicy 'patterns' must be a list of strings. "
+                f"Got: {resolved_patterns!r} (type: {type(resolved_patterns).__name__})"
+            )
 
         return cls(
             name=resolved_name,

@@ -10,6 +10,7 @@ from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPol
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
+from luthien_control.control_policy.noop_policy import NoopPolicy
 from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
@@ -216,8 +217,8 @@ def test_serial_policy_repr():
 def test_serial_policy_serialize_config():
     """Test the serialize_config method for SerialPolicy with nested structure."""
 
-    member1 = MockSimplePolicy(name="MockSimplePolicy1")
-    member2 = MockSimplePolicy(name="MockSimplePolicy2")
+    member1 = NoopPolicy(name="NoopPolicy1")
+    member2 = NoopPolicy(name="NoopPolicy2")
 
     serial = SerialPolicy(policies=[member1, member2], name="MySerial")
 
@@ -226,8 +227,8 @@ def test_serial_policy_serialize_config():
 
     expected_config = {
         "policies": [
-            {"type": None, "config": expected_member1_config},
-            {"type": None, "config": expected_member2_config},
+            {"type": "NoopPolicy", "config": expected_member1_config},
+            {"type": "NoopPolicy", "config": expected_member2_config},
         ]
     }
 
@@ -342,3 +343,11 @@ def test_serial_policy_serialization_unexpected_error(mock_load_policy):
         ),
     ):
         SerialPolicy.from_serialized(config_unexpected_error)
+
+
+def test_serial_policy_deserialize_invalid_policy_type():
+    """Test that SerialPolicy raises ValueError if a policy type is not in the registry."""
+    policy = MockSimplePolicy(name="MockSimplePolicy")
+    policy.serialize = lambda: {"type": "InvalidPolicyType"}
+    with pytest.raises(PolicyLoadError):
+        SerialPolicy.from_serialized(policy.serialize())

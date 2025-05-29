@@ -9,6 +9,7 @@ from .branching_policy import BranchingPolicy
 from .client_api_key_auth import ClientApiKeyAuthPolicy
 from .leaked_api_key_detection import LeakedApiKeyDetectionPolicy
 from .model_name_replacement import ModelNameReplacementPolicy
+from .noop_policy import NoopPolicy
 from .send_backend_request import SendBackendRequestPolicy
 from .serial_policy import SerialPolicy
 from .tx_logging_policy import TxLoggingPolicy
@@ -29,6 +30,7 @@ POLICY_NAME_TO_CLASS: Dict[str, Type["ControlPolicy"]] = {
     "BranchingPolicy": BranchingPolicy,
     "ModelNameReplacement": ModelNameReplacementPolicy,
     "TxLoggingPolicy": TxLoggingPolicy,
+    "NoopPolicy": NoopPolicy,
     # Add other policies here as they are created
 }
 

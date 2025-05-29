@@ -158,6 +158,15 @@ class TestLeakedApiKeyDetectionPolicyApply:
         with pytest.raises(LeakedApiKeyError):
             await policy.apply(mock_transaction_context, mock_container, mock_db_session)
 
+    @pytest.mark.asyncio
+    async def test_apply_with_no_content(self, mock_transaction_context, mock_container, mock_db_session):
+        """Test that a request with no content doesn't cause issues."""
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=b"")
+        policy = LeakedApiKeyDetectionPolicy()
+        result = await policy.apply(mock_transaction_context, mock_container, mock_db_session)
+        assert result == mock_transaction_context
+        assert result.response is None  # No error response set
+
 
 class TestLeakedApiKeyDetectionPolicySerialization:
     """Tests for serialization and deserialization of LeakedApiKeyDetectionPolicy."""

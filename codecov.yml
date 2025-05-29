@@ -1,0 +1,15 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 0%
+        paths:
+          - "luthien_control/**/*.py"
+
+comment:
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+  require_changes: true  # Only comment when coverage changes
+  require_base: false    # Comment even without base coverage
+  require_head: true     # Wait for head coverage before commenting

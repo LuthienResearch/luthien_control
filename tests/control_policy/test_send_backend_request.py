@@ -357,7 +357,7 @@ async def test_apply_http_client_weird_exception(
     assert base_context.response is None
 
 
-def test_backend_request_policy_serialize_from_serialized():
+async def test_backend_request_policy_serialize_from_serialized():
     """Test serialization and deserialization of the policy."""
     policy = SendBackendRequestPolicy(name="test-policy")
     serialized = policy.serialize()

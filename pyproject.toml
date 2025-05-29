@@ -1,6 +1,6 @@
 [project]
 name = "luthien-control"
-version = "0.2.4"
+version = "0.2.5"
 description = "Autonomously monitor, investigate, modify, block, and act on traffic going to and from any OpenAI-API-compatible endpoint"
 authors = [
     {name = "Jai Dhyani",email = "jai@luthienresearch.org"}

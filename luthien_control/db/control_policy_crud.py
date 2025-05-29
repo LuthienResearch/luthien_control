@@ -174,14 +174,14 @@ async def load_policy_from_db(
     container: "DependencyContainer",
 ) -> "ABCControlPolicy":
     """Load a policy configuration from the database and instantiate it using the control_policy loader.
-    
+
     Args:
         name: The name of the policy to load
         container: The dependency container providing access to the database session
-        
+
     Returns:
         The instantiated policy
-        
+
     Raises:
         PolicyLoadError: If the policy is not found or cannot be instantiated
         LuthienDBQueryError: If the database query fails

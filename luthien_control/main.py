@@ -138,3 +138,7 @@ if __name__ == "__main__":
         reload=dev_settings.get_app_reload(),
         log_level=dev_settings.get_log_level().lower(),
     )
+
+
+def test_main():
+    print("lol")

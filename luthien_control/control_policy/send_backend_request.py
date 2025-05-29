@@ -59,11 +59,7 @@ class SendBackendRequestPolicy(ControlPolicy):
             ValueError: If the BACKEND_URL setting is invalid and its hostname
                 cannot be parsed for the Host header.
         """
-        original_request = context.request
-        if original_request is None:
-            # This path should ideally not be reached if apply() checks context.request first.
-            logger.error(f"[{context.transaction_id}] _prepare_backend_headers called with None request.")
-            raise ValueError("original_request cannot be None in _prepare_backend_headers")
+        original_request = cast(httpx.Request, context.request)
 
         backend_headers: list[tuple[bytes, bytes]] = []
         backend_url_base = settings.get_backend_url()
@@ -210,16 +206,6 @@ class SendBackendRequestPolicy(ControlPolicy):
         Returns:
             An instance of SendBackendRequestPolicy.
         """
-        name_val = config.get("name")
-        resolved_name: Optional[str] = None
-        if name_val is not None:
-            if not isinstance(name_val, str):
-                logging.warning(
-                    f"SendBackendRequestPolicy name '{name_val}' from config is not a string. "
-                    f"Coercing. Original type: {type(name_val).__name__}."
-                )
-                resolved_name = str(name_val)
-            else:
-                resolved_name = name_val
+        resolved_name = str(config.get("name", cls.__name__))
         # If name_val is None, resolved_name remains None, and __init__ will use default.
         return cls(name=resolved_name)

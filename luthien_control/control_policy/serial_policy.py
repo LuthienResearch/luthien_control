@@ -116,8 +116,8 @@ class SerialPolicy(ControlPolicy):
         member_configs = []
         for p in self.policies:
             try:
-                policy_type = POLICY_CLASS_TO_NAME.get(type(p))
-            except ImportError:
+                policy_type = POLICY_CLASS_TO_NAME[type(p)]
+            except KeyError:
                 raise PolicyLoadError(
                     f"Could not determine policy type for {type(p)} during serialization in {self.name} "
                     "(Not in POLICY_CLASS_TO_NAME)"

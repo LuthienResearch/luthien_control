@@ -12,7 +12,7 @@ This document outlines the standardized approach to error handling in the Luthie
 
 ## When to Use Exceptions vs. Optional Returns
 
-### Use Exceptions When:
+### When To Use Exceptions
 
 - **Configuration Errors**: Missing or invalid configuration that prevents normal operation
 - **Authentication/Authorization Failures**: Security-related failures
@@ -21,27 +21,11 @@ This document outlines the standardized approach to error handling in the Luthie
 - **Data Integrity Violations**: Constraint violations, invalid data formats
 - **Programming Errors**: Invalid arguments, state violations, assertion failures
 
-### Use Optional Returns (None) When:
+### When To Use [Optional] Returns
 
 - **Resource Not Found**: When looking up an entity by ID/name and it doesn't exist
 - **Empty Collections**: When querying for collections that might be empty
 - **Optional Parameters**: When a parameter is truly optional and None is a valid value
-
-## Error Hierarchy
-
-The project uses two main error hierarchies:
-
-1. **ControlPolicyError**: Base class for all policy-related errors
-2. **LuthienDBException**: Base class for all database-related errors
-
-### New Database Error Types
-
-We are extending the database error hierarchy with:
-
-- **LuthienDBOperationError**: For general database operation failures
-  - **LuthienDBQueryError**: For errors during query execution
-  - **LuthienDBTransactionError**: For transaction-related errors
-  - **LuthienDBIntegrityError**: For data integrity violations (wraps SQLAlchemy's IntegrityError)
 
 ## Error Handling in CRUD Operations
 
@@ -138,14 +122,3 @@ API endpoints should:
 3. Avoid logging sensitive information:
    - API keys
    - Passwords
-   - Personal data
-   - Full request/response bodies
-
-## Implementation Checklist
-
-- [ ] Update exceptions.py with new error types
-- [ ] Standardize client_api_key_crud.py
-- [ ] Standardize control_policy_crud.py
-- [ ] Update other CRUD operations
-- [ ] Update tests to match new error handling
-- [ ] Update documentation

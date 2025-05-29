@@ -18,6 +18,7 @@ from luthien_control.db.control_policy_crud import (
 from luthien_control.db.exceptions import (
     LuthienDBIntegrityError,
     LuthienDBOperationError,
+    LuthienDBQueryError,
     LuthienDBTransactionError,
 )
 from luthien_control.db.sqlmodel_models import ControlPolicy
@@ -276,6 +277,52 @@ async def test_load_policy_from_db_loader_raises_other_exception(
     mock_load_policy.assert_called_once()
 
 
+async def test_load_policy_from_db_db_query_error(mocker: MockerFixture):
+    """Test load_policy_from_db when get_policy_by_name raises a LuthienDBQueryError."""
+    mock_container = MagicMock()
+    mock_session = AsyncMock()
+    mock_container.db_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_container.db_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+    policy_name = "test_policy_db_query_error"
+    db_error = LuthienDBQueryError("Database query failed")
+    
+    mocker.patch(
+        "luthien_control.db.control_policy_crud.get_policy_by_name",
+        side_effect=db_error,
+    )
+
+    with pytest.raises(LuthienDBQueryError, match="Database query failed"):
+        await load_policy_from_db(policy_name, mock_container)
+
+
+async def test_load_policy_from_db_unexpected_exception(mocker: MockerFixture):
+    """Test load_policy_from_db when an unexpected exception occurs outside the loader."""
+    mock_container = MagicMock()
+    mock_session = AsyncMock()
+    mock_container.db_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_container.db_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+    policy_name = "test_policy_unexpected_error"
+    error_message = "Unexpected error"
+    
+    mocker.patch(
+        "luthien_control.db.control_policy_crud.get_policy_by_name",
+        side_effect=Exception(error_message),
+    )
+
+    # Mock logger to check if error is logged
+    mock_logger_exception = mocker.patch("luthien_control.db.control_policy_crud.logger.exception")
+
+    # Function should wrap the exception in a PolicyLoadError
+    with pytest.raises(PolicyLoadError, match=f"Unexpected error during loading process for '{policy_name}'"):
+        await load_policy_from_db(policy_name, mock_container)
+
+    mock_logger_exception.assert_called_once_with(
+        f"Unexpected error during policy loading process for '{policy_name}': {error_message}"
+    )
+
+
 async def test_get_policy_config_by_name_found_active(async_session: AsyncSession):
     """Test getting an active policy config by name."""
     policy_name = "config_test_active"
@@ -340,6 +387,25 @@ async def test_get_policy_config_by_name_db_error(mocker: MockerFixture):
     )
 
 
+async def test_get_policy_config_by_name_sqlalchemy_error(mocker: MockerFixture):
+    """Test SQLAlchemyError during get_policy_config_by_name."""
+    mock_session = AsyncMock(spec=AsyncSession)
+    policy_name = "sqlalchemy_error_policy"
+    mock_session.execute = AsyncMock(side_effect=SQLAlchemyError("Simulated SQLAlchemy error"))
+
+    # Mock logger to check if error is logged
+    mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
+
+    with pytest.raises(LuthienDBQueryError, match="Database query failed while fetching policy config"):
+        await get_policy_config_by_name(mock_session, policy_name)
+
+    mock_session.execute.assert_awaited_once()
+    mock_logger_error.assert_called_once_with(
+        f"SQLAlchemy error fetching policy configuration by name '{policy_name}': Simulated SQLAlchemy error",
+        exc_info=True,
+    )
+
+
 async def test_save_policy_db_sqlalchemy_error(mocker: MockerFixture):
     """Test SQLAlchemyError during save_policy_to_db."""
     mock_session = AsyncMock(spec=AsyncSession)
@@ -394,6 +460,24 @@ async def test_get_policy_by_name_db_error(mocker: MockerFixture):
     )
 
 
+async def test_get_policy_by_name_sqlalchemy_error(mocker: MockerFixture):
+    """Test SQLAlchemyError during get_policy_by_name."""
+    mock_session = AsyncMock(spec=AsyncSession)
+    policy_name = "sqlalchemy_error_policy"
+    mock_session.execute = AsyncMock(side_effect=SQLAlchemyError("Simulated SQLAlchemy error"))
+
+    mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
+
+    with pytest.raises(LuthienDBQueryError, match="Database query failed while fetching policy"):
+        await get_policy_by_name(mock_session, policy_name)
+
+    mock_session.execute.assert_awaited_once()
+    mock_logger_error.assert_called_once_with(
+        f"SQLAlchemy error fetching policy by name '{policy_name}': Simulated SQLAlchemy error",
+        exc_info=True,
+    )
+
+
 async def test_list_policies_db_error(mocker: MockerFixture):
     """Test generic Exception during list_policies."""
     mock_session = AsyncMock(spec=AsyncSession)
@@ -406,6 +490,20 @@ async def test_list_policies_db_error(mocker: MockerFixture):
 
     mock_session.execute.assert_awaited_once()
     mock_logger_error.assert_called_once_with("Unexpected error listing policies: Simulated DB error")
+
+
+async def test_list_policies_sqlalchemy_error(mocker: MockerFixture):
+    """Test SQLAlchemyError during list_policies."""
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock(side_effect=SQLAlchemyError("Simulated SQLAlchemy error"))
+
+    mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
+
+    with pytest.raises(LuthienDBQueryError, match="Database query failed while listing policies"):
+        await list_policies(mock_session)
+
+    mock_session.execute.assert_awaited_once()
+    mock_logger_error.assert_called_once_with("SQLAlchemy error listing policies: Simulated SQLAlchemy error")
 
 
 async def test_update_policy_integrity_error(mocker: MockerFixture):

@@ -1,5 +1,7 @@
 """Database-specific exceptions for the Luthien Control project."""
 
+from typing import Optional
+
 from sqlalchemy.exc import IntegrityError
 
 from luthien_control.exceptions import LuthienDBException
@@ -40,7 +42,7 @@ class LuthienDBIntegrityError(LuthienDBOperationError):
     specific error type for the Luthien Control project.
     """
 
-    def __init__(self, message: str, original_error: IntegrityError = None):
+    def __init__(self, message: str, original_error: Optional[IntegrityError] = None):
         """Initialize the exception.
 
         Args:

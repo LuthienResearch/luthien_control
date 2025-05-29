@@ -567,3 +567,52 @@ async def test_update_policy_generic_exception(mocker: MockerFixture):
     mock_session.commit.assert_awaited_once()
     mock_session.rollback.assert_awaited_once()
     mock_logger_error.assert_called_once_with("Error updating policy: Simulated generic error on update")
+
+
+async def test_load_policy_from_db_luthien_db_query_error_propagation(mocker: MockerFixture):
+    """Test that LuthienDBQueryError from get_policy_by_name is propagated in load_policy_from_db."""
+    mock_container = MagicMock()
+    mock_session = AsyncMock()
+    mock_container.db_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_container.db_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+    policy_name = "test_policy_query_error_propagation"
+    db_error = LuthienDBQueryError("Database query failed during policy lookup")
+
+    mocker.patch(
+        "luthien_control.db.control_policy_crud.get_policy_by_name",
+        side_effect=db_error,
+    )
+
+    # LuthienDBQueryError should be propagated directly (line 215-216)
+    with pytest.raises(LuthienDBQueryError, match="Database query failed during policy lookup"):
+        await load_policy_from_db(policy_name, mock_container)
+
+
+async def test_load_policy_from_db_non_policy_load_error_wrapped(mocker: MockerFixture):
+    """Test that non-PolicyLoadError exceptions are wrapped in PolicyLoadError in load_policy_from_db."""
+    mock_container = MagicMock()
+    mock_session = AsyncMock()
+    mock_container.db_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_container.db_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+    policy_name = "test_policy_non_policy_load_error"
+    unexpected_error = RuntimeError("Some unexpected runtime error")
+
+    mocker.patch(
+        "luthien_control.db.control_policy_crud.get_policy_by_name",
+        side_effect=unexpected_error,
+    )
+
+    mock_logger_exception = mocker.patch("luthien_control.db.control_policy_crud.logger.exception")
+
+    error_msg = f"Unexpected error during loading process for '{policy_name}'"
+    with pytest.raises(PolicyLoadError, match=error_msg) as exc_info:
+        await load_policy_from_db(policy_name, mock_container)
+
+    # Verify the original exception is preserved as the cause
+    assert exc_info.value.__cause__ is unexpected_error
+
+    mock_logger_exception.assert_called_once_with(
+        f"Unexpected error during policy loading process for '{policy_name}': Some unexpected runtime error"
+    )

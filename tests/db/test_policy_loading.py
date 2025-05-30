@@ -10,6 +10,7 @@ from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.serialization import SerializedPolicy
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.db.control_policy_crud import load_policy_from_db
+from luthien_control.db.exceptions import LuthienDBOperationError, LuthienDBQueryError
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from luthien_control.db.sqlmodel_models import ControlPolicy as ControlPolicyModel
 from luthien_control.settings import Settings
@@ -117,15 +118,17 @@ async def test_load_policy_from_db_success(
     assert loaded_policy == mock_instantiated_policy
 
 
-@patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock, return_value=None)
+@patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)
 async def test_load_policy_from_db_not_found_patch_get(
     mock_get_policy_by_name: AsyncMock,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
-    """Test PolicyLoadError using PATCHED get_policy_by_name returning None."""
+    """Test LuthienDBQueryError using PATCHED get_policy_by_name raising exception."""
     policy_name = "non_existent_policy_patch"
-    with pytest.raises(PolicyLoadError, match="not found in database"):
+    mock_get_policy_by_name.side_effect = LuthienDBQueryError(f"Policy with name '{policy_name}' not found")
+
+    with pytest.raises(LuthienDBQueryError, match="not found"):
         await load_policy_from_db(
             name=policy_name,
             container=mock_container,
@@ -140,7 +143,7 @@ async def test_load_policy_from_db_not_found_in_memory_db(
     mock_settings: Settings,  # Use mock settings
     mock_http_client: httpx.AsyncClient,  # Use mock client
 ):
-    """Test PolicyLoadError using an in-memory DB where the policy doesn't exist."""
+    """Test LuthienDBQueryError using an in-memory DB where the policy doesn't exist."""
     policy_name = "non_existent_policy_real"
 
     # Create a simple factory for the provided in-memory session
@@ -156,8 +159,8 @@ async def test_load_policy_from_db_not_found_in_memory_db(
     )
 
     # Since the DB is empty (function-scoped in-memory session),
-    # get_policy_by_name inside load_policy_from_db will return None.
-    with pytest.raises(PolicyLoadError, match="not found in database"):
+    # get_policy_by_name inside load_policy_from_db will raise an exception.
+    with pytest.raises(LuthienDBQueryError, match="not found"):
         await load_policy_from_db(
             name=policy_name,
             container=container,  # Pass the constructed container
@@ -176,7 +179,7 @@ async def test_load_policy_from_db_instantiation_fails_in_memory_db(
     mock_settings: Settings,  # Use mock settings
     mock_http_client: httpx.AsyncClient,  # Use mock client
 ):
-    """Test PolicyLoadError when load_policy fails, using in-memory session."""
+    """Test LuthienDBOperationError when load_policy fails, using in-memory session."""
     policy_name = "instantiation_failure_policy"
     # Create the policy config in the in-memory DB first
     policy_to_create = create_mock_policy_model(name=policy_name)
@@ -197,8 +200,8 @@ async def test_load_policy_from_db_instantiation_fails_in_memory_db(
         db_session_factory=session_factory,
     )
 
-    # Match the error raised by the mock's side_effect
-    with pytest.raises(PolicyLoadError, match="Instantiation failed"):
+    # Match the error raised by the mock's side_effect (wrapped in LuthienDBOperationError)
+    with pytest.raises(LuthienDBOperationError, match="Failed to instantiate policy"):
         await load_policy_from_db(
             name=policy_name,
             container=container,  # Pass the constructed container
@@ -215,14 +218,14 @@ async def test_load_policy_from_db_loader_error(
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
-    """Test PolicyLoadError if load_policy fails internally."""
+    """Test LuthienDBOperationError if load_policy fails internally."""
     policy_name = "test_policy_loader_error"
     mock_policy_config_model = create_mock_policy_model(name=policy_name)
     mock_get_policy_by_name.return_value = mock_policy_config_model
 
     mock_load_policy.side_effect = PolicyLoadError("Mock loader failure")
 
-    with pytest.raises(PolicyLoadError, match="Mock loader failure"):
+    with pytest.raises(LuthienDBOperationError, match="Failed to instantiate policy"):
         await load_policy_from_db(
             name=policy_name,
             container=mock_container,

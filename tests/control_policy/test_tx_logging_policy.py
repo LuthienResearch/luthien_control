@@ -37,10 +37,13 @@ class MockTxLoggingSpec(TxLoggingSpec):
 
     def generate_log_data(
         self, context: "TransactionContext", notes: Optional[SerializableDict] = None
-    ) -> Optional[LuthienLogData]:
+    ) -> LuthienLogData:
         self.generate_log_data_called_with = {"context": context, "notes": notes}
         if self.raise_on_generate:
             raise self.raise_on_generate
+        if self.data_to_return is None:
+            # Return a default LuthienLogData instead of None to match the interface
+            return LuthienLogData(datatype="mock_data", data=None, notes=notes)
         return self.data_to_return
 
     def serialize(self) -> SerializableDict:
@@ -153,8 +156,8 @@ async def test_apply_spec_returns_none(
     mock_dependency_container: DependencyContainer,
     mock_async_session: AsyncMock,
 ):
-    """Test apply when the spec returns no log data."""
-    mock_spec.data_to_return = None  # Spec generates nothing to log
+    """Test apply when the spec returns log data with None data."""
+    mock_spec.data_to_return = None  # Spec generates log data with None data
     policy = TxLoggingPolicy(spec=mock_spec)
 
     returned_context = await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
@@ -162,7 +165,11 @@ async def test_apply_spec_returns_none(
     assert returned_context == mock_transaction_context
     assert mock_spec.generate_log_data_called_with is not None
     assert mock_spec.generate_log_data_called_with["context"] == mock_transaction_context
-    mock_async_session.add.assert_not_called()
+    # The mock now returns a LuthienLogData with data=None, so it should still be logged
+    mock_async_session.add.assert_called_once()
+    added_log_entry = mock_async_session.add.call_args[0][0]
+    assert added_log_entry.datatype == "mock_data"
+    assert added_log_entry.data is None
 
 
 async def test_apply_spec_generate_raises_exception(

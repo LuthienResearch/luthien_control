@@ -164,36 +164,47 @@ def test_openai_response_spec_generate_log_data_no_response():
     spec = OpenAIResponseSpec()
 
     log_data_obj = spec.generate_log_data(context)
-    assert log_data_obj is None
+    assert log_data_obj is not None
+    assert log_data_obj.datatype == "openai_chat_response"
+    assert log_data_obj.data is None
+    assert log_data_obj.notes is None
 
 
-def test_openai_response_spec_generate_log_data_serialization_error(capsys):
+def test_openai_response_spec_generate_log_data_serialization_error(caplog):
     """Test generate_log_data when serialize_openai_chat_response has an unhandled error."""
 
-    class FaultyResponse:
-        status_code = 200
-        headers = {}
-        reason_phrase = "OK"
-        http_version = "HTTP/1.1"
-        elapsed = datetime.timedelta(0)
+    # Create a response with content that will cause JSON parsing errors
+    content_bytes = b"\xff\xfe"  # Invalid UTF-8 content that will cause UnicodeDecodeError
+    request = httpx.Request("GET", "http://example.com")
+    response = httpx.Response(
+        status_code=200,
+        content=content_bytes,
+        request=request,
+        extensions={
+            "reason_phrase": b"OK",
+            "http_version": b"HTTP/1.1",
+        },
+    )
+    response.elapsed = datetime.timedelta(milliseconds=123)
 
-        @property
-        def content(self):  # httpx.Response.json() uses .content
-            raise TypeError("Unexpected content type for json()")
-
-        def json(self):  # This is what serialize_openai_chat_response calls
-            raise TypeError("Cannot parse faulty json")
-
-    response = FaultyResponse()
-    context = TransactionContext(response=response)  # type: ignore
+    context = TransactionContext(response=response)
     spec = OpenAIResponseSpec()
 
-    log_data_obj = spec.generate_log_data(context)
+    with caplog.at_level(logging.ERROR):
+        log_data_obj = spec.generate_log_data(context)
 
-    assert log_data_obj is None
-    captured = capsys.readouterr()
-    assert "Error in OpenAIResponseSpec generating log data:" in captured.out
-    assert "'dict' object has no attribute 'raw'" in captured.out
+    assert log_data_obj is not None
+    assert log_data_obj.datatype == "openai_chat_response"
+    assert log_data_obj.data is not None
+    assert isinstance(log_data_obj.data, dict)
+    assert "content" in log_data_obj.data
+    content = log_data_obj.data["content"]
+    assert isinstance(content, dict)
+    assert "error" in content
+    assert "JSONDecodeError" in content["error"]
+
+    # Check that error was logged
+    assert "Error parsing OpenAI response" in caplog.text
 
 
 def test_openai_response_spec_serialize():

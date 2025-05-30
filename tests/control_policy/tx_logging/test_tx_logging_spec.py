@@ -48,7 +48,7 @@ class DummyLoggingSpec(TxLoggingSpec):
 
     def generate_log_data(
         self, context: "TransactionContext", notes: Optional[SerializableDict] = None
-    ) -> Optional[LuthienLogData]:
+    ) -> LuthienLogData:
         return LuthienLogData(datatype=self.TYPE_NAME, data={"param": self.param}, notes=notes)
 
     def serialize(self) -> SerializableDict:
@@ -82,8 +82,8 @@ def test_tx_logging_spec_registration_warning_missing_type_name(capsys):
         # No TYPE_NAME
         __is_abstract_type__ = False  # Explicitly mark as not an intermediate abstract class
 
-        def generate_log_data(self, context, notes=None):
-            return None
+        def generate_log_data(self, context, notes=None) -> LuthienLogData:
+            return LuthienLogData(datatype="unknown", data=None, notes=notes)
 
         def serialize(self) -> SerializableDict:
             return SerializableDict({})
@@ -108,8 +108,8 @@ def test_tx_logging_spec_registration_abstract_no_warning(capsys):
         __is_abstract_type__ = True  # Mark as an intermediate abstract type
 
         # No TYPE_NAME needed here
-        def generate_log_data(self, context, notes=None):
-            return None
+        def generate_log_data(self, context, notes=None) -> LuthienLogData:
+            return LuthienLogData(datatype="abstract", data=None, notes=notes)
 
         def serialize(self) -> SerializableDict:
             return SerializableDict({})

@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, AsyncGenerator
+from typing import AsyncGenerator
 
 import httpx
 from fastapi import Depends, HTTPException, Request, status
@@ -17,9 +17,6 @@ from luthien_control.db.control_policy_crud import PolicyLoadError, load_policy_
 from luthien_control.db.database_async import create_db_engine
 from luthien_control.db.database_async import get_db_session as db_get_session
 from luthien_control.settings import Settings
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

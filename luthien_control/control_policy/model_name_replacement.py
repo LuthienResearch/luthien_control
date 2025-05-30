@@ -101,6 +101,6 @@ class ModelNameReplacementPolicy(ControlPolicy):
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "ModelNameReplacementPolicy":
         """Constructs the policy from serialized configuration."""
-        instance_name = cast(Optional[str], config.get("name"))
+        instance_name = cast(str, config.get("name"))
         model_mapping = cast(Dict[str, str], config.get("model_mapping", {}))
         return cls(model_mapping=model_mapping, name=instance_name)

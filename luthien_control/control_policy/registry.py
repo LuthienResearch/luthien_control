@@ -1,23 +1,19 @@
 # Policy registry mapping policy names to classes.
 
-from typing import TYPE_CHECKING, Dict, Type
+from typing import Dict, Type
 
 # Import concrete policy types to populate the registry
 from .add_api_key_header import AddApiKeyHeaderPolicy
 from .add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from .branching_policy import BranchingPolicy
 from .client_api_key_auth import ClientApiKeyAuthPolicy
+from .control_policy import ControlPolicy
 from .leaked_api_key_detection import LeakedApiKeyDetectionPolicy
 from .model_name_replacement import ModelNameReplacementPolicy
 from .noop_policy import NoopPolicy
 from .send_backend_request import SendBackendRequestPolicy
 from .serial_policy import SerialPolicy
 from .tx_logging_policy import TxLoggingPolicy
-
-if TYPE_CHECKING:
-    # Use forward reference for ControlPolicy to avoid circular import at runtime
-    from .control_policy import ControlPolicy
-
 
 # Registry mapping policy names (as used in serialization/config) to their classes
 POLICY_NAME_TO_CLASS: Dict[str, Type["ControlPolicy"]] = {

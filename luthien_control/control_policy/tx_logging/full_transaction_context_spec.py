@@ -126,7 +126,17 @@ class FullTransactionContextSpec(TxLoggingSpec):
 
     def generate_log_data(
         self, context: "TransactionContext", notes: Optional[SerializableDict] = None
-    ) -> Optional[LuthienLogData]:
+    ) -> LuthienLogData:
+        """
+        Generates a LuthienLogData object containing the full transaction context.
+
+        Args:
+            context: The TransactionContext object containing the request, response, and data.
+            notes: Optional notes to include in the log data.
+
+        Returns:
+            A LuthienLogData object containing the full transaction context.
+        """
         log_payload: dict[str, Any] = {}
         if context.request:
             log_payload["request"] = _serialize_httpx_request(context.request)

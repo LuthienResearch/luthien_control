@@ -1,7 +1,7 @@
 # CRUD operations specific to ClientApiKey model.
 
 import logging
-from typing import List, Optional
+from typing import List
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -19,7 +19,7 @@ from .sqlmodel_models import ClientApiKey
 logger = logging.getLogger(__name__)
 
 
-async def get_api_key_by_value(session: AsyncSession, key_value: str) -> Optional[ClientApiKey]:
+async def get_api_key_by_value(session: AsyncSession, key_value: str) -> ClientApiKey:
     """Get an active API key by its value.
 
     Args:
@@ -27,16 +27,12 @@ async def get_api_key_by_value(session: AsyncSession, key_value: str) -> Optiona
         key_value: The value of the API key to retrieve
 
     Returns:
-        The API key if found, None otherwise
+        The API key
 
     Raises:
-        TypeError: If the session is not an AsyncSession
-        LuthienDBQueryError: If the query execution fails
+        LuthienDBQueryError: If the API key is not found or if the query execution fails
+        LuthienDBOperationError: For unexpected errors during lookup
     """
-    if not isinstance(session, AsyncSession):
-        # This check might be better handled by type hinting/DI framework upstream
-        logger.error("Invalid session object type passed to get_api_key_by_value")
-        raise TypeError("Invalid session object provided to get_api_key_by_value.")
     try:
         stmt = select(ClientApiKey).where(
             ClientApiKey.key_value == key_value,  # type: ignore[arg-type]
@@ -44,15 +40,17 @@ async def get_api_key_by_value(session: AsyncSession, key_value: str) -> Optiona
         )
         result = await session.execute(stmt)
         api_key = result.scalar_one_or_none()
-        # logger.debug(f"API key lookup for value ending '...{key_value[-4:]}': {'Found' if api_key else 'Not Found'}")
-        return api_key
     except SQLAlchemyError as sqla_err:
-        # Avoid logging the key_value directly in case of errors if it's sensitive
         logger.error(f"SQLAlchemy error fetching API key by value: {sqla_err}", exc_info=True)
         raise LuthienDBQueryError(f"Database query failed while fetching API key: {sqla_err}") from sqla_err
     except Exception as e:
         logger.error(f"Unexpected error fetching API key by value: {e}", exc_info=True)
         raise LuthienDBOperationError(f"Unexpected error during API key lookup: {e}") from e
+
+    if not api_key:
+        raise LuthienDBQueryError(f"Active API key with value '{key_value}' not found")
+
+    return api_key
 
 
 # --- ClientApiKey CRUD Operations ---
@@ -122,7 +120,7 @@ async def list_api_keys(session: AsyncSession, active_only: bool = False) -> Lis
         raise LuthienDBOperationError(f"Unexpected error during API key listing: {e}") from e
 
 
-async def update_api_key(session: AsyncSession, key_id: int, api_key_update: ClientApiKey) -> Optional[ClientApiKey]:
+async def update_api_key(session: AsyncSession, key_id: int, api_key_update: ClientApiKey) -> ClientApiKey:
     """Update an existing API key.
 
     Args:
@@ -131,9 +129,10 @@ async def update_api_key(session: AsyncSession, key_id: int, api_key_update: Cli
         api_key_update: The updated API key data
 
     Returns:
-        The updated API key if found, None if the API key doesn't exist
+        The updated API key
 
     Raises:
+        LuthienDBQueryError: If the API key is not found
         LuthienDBIntegrityError: If a constraint violation occurs
         LuthienDBTransactionError: If the transaction fails
         LuthienDBOperationError: For other database errors
@@ -142,11 +141,17 @@ async def update_api_key(session: AsyncSession, key_id: int, api_key_update: Cli
         stmt = select(ClientApiKey).where(ClientApiKey.id == key_id)  # type: ignore[arg-type]
         result = await session.execute(stmt)
         api_key = result.scalar_one_or_none()
+    except SQLAlchemyError as sqla_err:
+        logger.error(f"SQLAlchemy error updating API key: {sqla_err}")
+        raise LuthienDBTransactionError(f"Database transaction failed while updating API key: {sqla_err}") from sqla_err
+    except Exception as e:
+        logger.error(f"Unexpected error updating API key: {e}")
+        raise LuthienDBOperationError(f"Unexpected error during API key update: {e}") from e
 
-        if not api_key:
-            logger.warning(f"API key with ID {key_id} not found")
-            return None
+    if not api_key:
+        raise LuthienDBQueryError(f"API key with ID {key_id} not found")
 
+    try:
         # Update fields
         api_key.name = api_key_update.name
         api_key.is_active = api_key_update.is_active

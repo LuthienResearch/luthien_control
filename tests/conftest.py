@@ -221,6 +221,7 @@ def real_settings() -> Settings:
     """Provides a real Settings instance for tests that don't need mocking."""
     return Settings()
 
+
 @pytest.fixture
 def mock_settings() -> MagicMock:
     """Provides a mock Settings instance for tests that need specific behavior."""

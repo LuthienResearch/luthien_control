@@ -15,6 +15,7 @@ from luthien_control.core.transaction_context import TransactionContext
 def transaction_context() -> TransactionContext:
     """Provides a real TransactionContext with a real request object."""
     import uuid
+
     context = TransactionContext(transaction_id=uuid.UUID("12345678-1234-5678-1234-567812345678"))
     context.request = httpx.Request("POST", "http://example.com/api")
     context.response = None
@@ -87,9 +88,7 @@ class TestLeakedApiKeyDetectionPolicyApply:
         assert result.response is None  # No error response set
 
     @pytest.mark.asyncio
-    async def test_apply_detects_api_key_in_message_content(
-        self, transaction_context, mock_container, mock_db_session
-    ):
+    async def test_apply_detects_api_key_in_message_content(self, transaction_context, mock_container, mock_db_session):
         """Test detection of API key in message content."""
         # Create a request with an API key in the message content
         body = b"""{
@@ -107,9 +106,7 @@ class TestLeakedApiKeyDetectionPolicyApply:
             await policy.apply(transaction_context, mock_container, mock_db_session)
 
     @pytest.mark.asyncio
-    async def test_apply_detects_api_key_in_system_message(
-        self, transaction_context, mock_container, mock_db_session
-    ):
+    async def test_apply_detects_api_key_in_system_message(self, transaction_context, mock_container, mock_db_session):
         """Test detection of API key in system message content."""
         # Create a request with an API key in the system message
         body = b"""{

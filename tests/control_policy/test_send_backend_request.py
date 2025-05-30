@@ -17,6 +17,7 @@ pytestmark = pytest.mark.asyncio
 def test_settings() -> Settings:
     """Provides a real Settings object for testing."""
     import os
+
     os.environ["BACKEND_URL"] = "https://api.test-backend.com/v1"
     os.environ["OPENAI_API_KEY"] = "test-backend-api-key"
     return Settings()
@@ -50,7 +51,7 @@ def base_context() -> TransactionContext:
             "content-length": "18",
             "authorization": "Bearer client-token",
         },
-        content=b'{"input": "test"}'
+        content=b'{"input": "test"}',
     )
 
     context.request = real_request
@@ -117,6 +118,7 @@ async def test_apply_builds_correct_url_no_base_slash(
     """Verify URL construction with no trailing slash on the base backend URL."""
 
     import os
+
     os.environ["BACKEND_URL"] = "http://backend.internal:8080/api"  # No trailing slash
     test_settings = Settings()
 
@@ -126,7 +128,7 @@ async def test_apply_builds_correct_url_no_base_slash(
         method=base_context.request.method,
         url=original_client_url,
         headers=base_context.request.headers,
-        content=base_context.request.content
+        content=base_context.request.content,
     )
     expected_url = "http://backend.internal:8080/api/specific/endpoint"
 
@@ -151,6 +153,7 @@ async def test_apply_builds_correct_url_with_base_slash(
     """Verify URL construction with a trailing slash on the base backend URL."""
 
     import os
+
     os.environ["BACKEND_URL"] = "http://backend.internal:8080/api/"  # Trailing slash
     test_settings = Settings()
 
@@ -160,7 +163,7 @@ async def test_apply_builds_correct_url_with_base_slash(
         method=base_context.request.method,
         url=original_client_url,
         headers=base_context.request.headers,
-        content=base_context.request.content
+        content=base_context.request.content,
     )
     expected_url = "http://backend.internal:8080/api/specific/endpoint"
 
@@ -185,6 +188,7 @@ async def test_apply_builds_correct_url_root_client_path(
     """Verify URL construction when the client request path is '/'."""
 
     import os
+
     os.environ["BACKEND_URL"] = "http://backend.internal:8080/api"
     test_settings = Settings()
 
@@ -194,7 +198,7 @@ async def test_apply_builds_correct_url_root_client_path(
         method=base_context.request.method,
         url=root_client_url,
         headers=base_context.request.headers,
-        content=base_context.request.content
+        content=base_context.request.content,
     )
     expected_url = "http://backend.internal:8080/api/"  # Should join correctly
 
@@ -221,6 +225,7 @@ async def test_apply_prepares_correct_headers(
 
     # Use specific settings for this test
     import os
+
     os.environ["BACKEND_URL"] = "https://secure-backend.org"
     os.environ["OPENAI_API_KEY"] = "backend-key-for-header-test"
     test_settings_for_headers = Settings()
@@ -342,6 +347,7 @@ async def test_apply_handles_invalid_backend_url(
 ):
     """Test that apply raises ValueError if BACKEND_URL is invalid for host parsing."""
     import os
+
     os.environ["BACKEND_URL"] = "invalid-url"  # Invalid URL
     test_settings = Settings()
 
@@ -362,6 +368,7 @@ async def test_apply_with_no_backend_url(
 ):
     """Test that apply raises ValueError if BACKEND_URL is not set."""
     import os
+
     if "BACKEND_URL" in os.environ:
         del os.environ["BACKEND_URL"]
     test_settings = Settings()

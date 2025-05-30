@@ -14,6 +14,7 @@ from luthien_control.core.transaction_context import TransactionContext
 def transaction_context() -> TransactionContext:
     """Provides a real TransactionContext with a mock request object."""
     import uuid
+
     context = TransactionContext(transaction_id=uuid.UUID("12345678-1234-5678-1234-567812345678"))
     mock_request = MagicMock()
     mock_request.headers = {}
@@ -60,9 +61,7 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
     """Tests for the apply method of AddApiKeyHeaderFromEnvPolicy."""
 
     @pytest.mark.asyncio
-    async def test_apply_success(
-        self, transaction_context, mock_dependency_container, mock_async_session, monkeypatch
-    ):
+    async def test_apply_success(self, transaction_context, mock_dependency_container, mock_async_session, monkeypatch):
         monkeypatch.setenv(API_KEY_ENV_VAR_NAME, API_KEY_VALUE)
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
 

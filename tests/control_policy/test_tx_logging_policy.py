@@ -70,6 +70,7 @@ def mock_spec() -> MockTxLoggingSpec:
 @pytest.fixture
 def transaction_context() -> TransactionContext:
     import uuid
+
     context = TransactionContext(transaction_id=uuid.UUID("12345678-1234-5678-1234-567812345678"))
     context.request = None  # Can be set in specific tests if needed
     context.response = None  # Can be set in specific tests if needed

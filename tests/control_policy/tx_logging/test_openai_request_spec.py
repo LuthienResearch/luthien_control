@@ -125,38 +125,46 @@ def test_openai_request_spec_generate_log_data_no_request(caplog):
     with caplog.at_level(logging.WARNING):
         log_data_obj = spec.generate_log_data(context)
 
-    assert log_data_obj is None
+    assert log_data_obj is not None
+    assert log_data_obj.datatype == "openai_chat_request"
+    assert log_data_obj.data is None
+    assert log_data_obj.notes is None
     assert (
         f"OpenAIRequestSpec: No request found in OpenAIRequestSpec for transaction {context.transaction_id}"
         in caplog.text
     )
 
 
-def test_openai_request_spec_generate_log_data_serialization_error(capsys):
+def test_openai_request_spec_generate_log_data_serialization_error(caplog):
     """Test that generate_log_data handles errors in serialize_openai_chat_request."""
 
-    # Create a request that will cause an unexpected error in serialize_openai_chat_request
-    class FaultyRequest:
-        method = "POST"
-        url = "http://faulty.com"
-        headers = {}
-
-        @property
-        def content(self):
-            raise TypeError("Unexpected content type")
-
-    request = FaultyRequest()
-    context = TransactionContext(request=request)  # type: ignore
+    # Create a request with content that will cause JSON parsing errors
+    content_bytes = b"\xff\xfe"  # Invalid UTF-8 content that will cause UnicodeDecodeError
+    request = httpx.Request(
+        "POST",
+        "https://api.openai.com/v1/chat/completions",
+        content=content_bytes,
+        headers={"Content-Type": "application/json"},
+    )
+    context = TransactionContext(request=request)
     spec = OpenAIRequestSpec()
 
-    log_data_obj = spec.generate_log_data(context)
+    with caplog.at_level(logging.ERROR):
+        log_data_obj = spec.generate_log_data(context)
 
-    assert log_data_obj is None
-    captured = capsys.readouterr()
-    # Check for a more generic part of the error message first
-    assert "Error in OpenAIRequestSpec generating log data" in captured.out
-    # The actual error is different than expected due to _sanitize_headers processing
-    assert "'dict' object has no attribute 'raw'" in captured.out
+    assert log_data_obj is not None
+    assert log_data_obj.datatype == "openai_chat_request"
+    assert log_data_obj.data is not None
+    assert isinstance(log_data_obj.data, dict)
+    assert "content" in log_data_obj.data
+    content = log_data_obj.data["content"]
+    assert isinstance(content, dict)
+    assert "error" in content
+    assert "UnicodeDecodeError" in content["error"]
+
+    # Check that error was logged
+    assert "Error parsing OpenAI request" in caplog.text
+    assert "can't decode byte" in caplog.text
 
 
 def test_openai_request_spec_serialize():

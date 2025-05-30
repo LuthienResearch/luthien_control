@@ -113,14 +113,15 @@ async def test_update_api_key_not_found(async_session: AsyncSession):
     # Pass a ClientApiKey model instance
     # Add a dummy key_value as it's required by the model
     update_payload = ClientApiKey(key_value="dummy-key-for-non-existent", name="Updated Name")
-    updated_key = await update_api_key(async_session, 9999, update_payload)  # Non-existent ID
-    assert updated_key is None
+
+    with pytest.raises(LuthienDBQueryError, match="API key with ID 9999 not found"):
+        await update_api_key(async_session, 9999, update_payload)  # Non-existent ID
 
 
 async def test_get_api_key_by_value_not_found(async_session: AsyncSession):
     """Test getting a non-existent API key by value."""
-    retrieved_key = await get_api_key_by_value(async_session, "non-existent-key")
-    assert retrieved_key is None
+    with pytest.raises(LuthienDBQueryError, match="Active API key with value 'non-existent-key' not found"):
+        await get_api_key_by_value(async_session, "non-existent-key")
 
 
 async def test_get_api_key_by_value_invalid_session():
@@ -128,7 +129,7 @@ async def test_get_api_key_by_value_invalid_session():
     # Create a mock that's not an AsyncSession
     invalid_session = Mock()
 
-    with pytest.raises(TypeError):
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during API key lookup"):
         await get_api_key_by_value(invalid_session, "test-key")
 
 
@@ -285,3 +286,31 @@ async def test_update_api_key_sqlalchemy_error(async_session: AsyncSession, monk
     update_payload = ClientApiKey(key_value="update-sqlalchemy-error-key", name="Updated Name")
     with pytest.raises(LuthienDBTransactionError, match="Database transaction failed while updating API key"):
         await update_api_key(async_session, created_key.id, update_payload)
+
+
+async def test_update_api_key_first_try_block_sqlalchemy_error(async_session: AsyncSession, monkeypatch):
+    """Test SQLAlchemyError handling in the first try block of update_api_key (SELECT operation)."""
+
+    # Mock session.execute to raise a SQLAlchemyError during the SELECT operation
+    async def mock_execute(*args, **kwargs):
+        raise SQLAlchemyError("SQLAlchemy database error during SELECT")
+
+    monkeypatch.setattr(async_session, "execute", mock_execute)
+
+    update_payload = ClientApiKey(key_value="test-key", name="Updated Name")
+    with pytest.raises(LuthienDBTransactionError, match="Database transaction failed while updating API key"):
+        await update_api_key(async_session, 1, update_payload)
+
+
+async def test_update_api_key_first_try_block_general_exception(async_session: AsyncSession, monkeypatch):
+    """Test general Exception handling in the first try block of update_api_key (SELECT operation)."""
+
+    # Mock session.execute to raise a general Exception during the SELECT operation
+    async def mock_execute(*args, **kwargs):
+        raise Exception("General database error during SELECT")
+
+    monkeypatch.setattr(async_session, "execute", mock_execute)
+
+    update_payload = ClientApiKey(key_value="test-key", name="Updated Name")
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during API key update"):
+        await update_api_key(async_session, 1, update_payload)

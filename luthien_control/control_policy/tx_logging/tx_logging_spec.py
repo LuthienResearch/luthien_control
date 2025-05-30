@@ -2,12 +2,10 @@
 
 import abc
 import logging
-from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Type, TypeVar, cast
+from typing import Any, NamedTuple, Optional, Type, TypeVar, cast
 
 from luthien_control.control_policy.serialization import SerializableDict
-
-if TYPE_CHECKING:
-    from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.transaction_context import TransactionContext
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +43,7 @@ class TxLoggingSpec(abc.ABC):
     @abc.abstractmethod
     def generate_log_data(
         self, context: "TransactionContext", notes: Optional[SerializableDict] = None
-    ) -> Optional[LuthienLogData]:
+    ) -> LuthienLogData:
         raise NotImplementedError
 
     @abc.abstractmethod

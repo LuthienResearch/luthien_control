@@ -17,6 +17,7 @@ from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
+from luthien_control.db.exceptions import LuthienDBQueryError
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +79,9 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         if api_key_value.startswith(BEARER_PREFIX):
             api_key_value = api_key_value[len(BEARER_PREFIX) :]
 
-        db_key = await get_api_key_by_value(session, api_key_value)
-
-        if not db_key:
+        try:
+            db_key = await get_api_key_by_value(session, api_key_value)
+        except LuthienDBQueryError:
             self.logger.warning(
                 f"[{context.transaction_id}] Invalid API key provided "
                 f"(key starts with: {api_key_value[:4]}...) ({self.__class__.__name__})."

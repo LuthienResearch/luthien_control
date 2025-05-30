@@ -66,12 +66,11 @@ class TxLoggingPolicy(ControlPolicy):
 
         try:
             log_data_obj = self.spec.generate_log_data(context)
-            if log_data_obj:
-                await self._log_database_entry(session, tx_id, current_dt, log_data_obj)
-                logger.info(
-                    f"Logged data for transaction {tx_id} via spec type {self.spec.TYPE_NAME}, "
-                    f"datatype {log_data_obj.datatype}"
-                )
+            await self._log_database_entry(session, tx_id, current_dt, log_data_obj)
+            logger.info(
+                f"Logged data for transaction {tx_id} via spec type {self.spec.TYPE_NAME}, "
+                f"datatype {log_data_obj.datatype}"
+            )
         except Exception as e:
             logger.error(
                 f"Error during logging for transaction {tx_id} with spec "

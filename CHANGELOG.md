@@ -1,5 +1,10 @@
 # Changelog
 
+## [TBD]
+ - Improved error handling
+ - Tighten up typing
+ - Increased test coverage
+
 ## [0.2.5] - 2025-05-28
  - 98% test coverage
  - nits

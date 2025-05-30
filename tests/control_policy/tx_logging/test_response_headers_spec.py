@@ -72,7 +72,10 @@ def test_generate_log_data_no_response():
     spec = ResponseHeadersSpec()
 
     log_data_obj = spec.generate_log_data(context)
-    assert log_data_obj is None
+    assert log_data_obj is not None
+    assert log_data_obj.datatype == "response_headers"
+    assert log_data_obj.data is None
+    assert log_data_obj.notes is None
 
 
 def test_generate_log_data_header_sanitization():
@@ -135,7 +138,7 @@ def test_generate_log_data_empty_headers():
 
 
 def test_generate_log_data_exception_handling(capsys):
-    """Test that exceptions during log data generation are handled gracefully."""
+    """Test that exceptions during log data generation bubble up."""
 
     class FaultyResponse:
         @property
@@ -148,11 +151,11 @@ def test_generate_log_data_exception_handling(capsys):
     context = TransactionContext(response=FaultyResponse())  # type: ignore
     spec = ResponseHeadersSpec()
 
-    log_data_obj = spec.generate_log_data(context)
-    assert log_data_obj is None
+    # Expect the exception to bubble up rather than being caught
+    import pytest
 
-    captured = capsys.readouterr()
-    assert "Error in ResponseHeadersSpec generating log data: Failed to get headers" in captured.out
+    with pytest.raises(ValueError, match="Failed to get headers"):
+        spec.generate_log_data(context)
 
 
 def test_serialize():

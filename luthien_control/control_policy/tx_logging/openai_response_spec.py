@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -14,9 +14,7 @@ from luthien_control.control_policy.tx_logging.tx_logging_spec import (
     LuthienLogData,
     TxLoggingSpec,
 )
-
-if TYPE_CHECKING:
-    from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.transaction_context import TransactionContext
 
 logger = logging.getLogger(__name__)
 
@@ -74,15 +72,14 @@ class OpenAIResponseSpec(TxLoggingSpec):
 
     def generate_log_data(
         self, context: "TransactionContext", notes: Optional[SerializableDict] = None
-    ) -> Optional[LuthienLogData]:
+    ) -> LuthienLogData:
         if not context.response:
-            return None
-        try:
-            serialized_data = serialize_openai_chat_response(context.response)
-            return LuthienLogData(datatype="openai_chat_response", data=serialized_data, notes=notes)
-        except Exception as e:
-            print(f"Error in {self.TYPE_NAME} generating log data: {e}")
-            return None
+            logger.warning(
+                f"OpenAIResponseSpec: No response found in {self.TYPE_NAME} for transaction {context.transaction_id}"
+            )
+            return LuthienLogData(datatype="openai_chat_response", data=None, notes=notes)
+        serialized_data = serialize_openai_chat_response(context.response)
+        return LuthienLogData(datatype="openai_chat_response", data=serialized_data, notes=notes)
 
     def serialize(self) -> SerializableDict:
         return SerializableDict({"type": self.TYPE_NAME})

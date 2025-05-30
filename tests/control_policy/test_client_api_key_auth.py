@@ -17,6 +17,7 @@ from luthien_control.control_policy.exceptions import (
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.db.exceptions import LuthienDBQueryError
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -86,7 +87,7 @@ async def test_apply_key_not_found_raises_error(
 ):
     """Verify ClientAuthenticationError is raised if key is not found in DB."""
     with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_key_func:
-        mock_get_key_func.return_value = None  # Key not found
+        mock_get_key_func.side_effect = LuthienDBQueryError("Active API key with value 'non-existent-key' not found")
         policy = ClientApiKeyAuthPolicy()
 
         test_api_key = "non-existent-key"

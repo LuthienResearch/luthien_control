@@ -20,29 +20,42 @@ from starlette.datastructures import State
 
 
 @pytest.fixture
-def mock_request_with_state() -> Request:
-    """Creates a mock Request object with a mock app.state."""
-    request = AsyncMock(spec=Request)
-    request.app = AsyncMock()
-    request.app.state = State()
+def request_with_state() -> Request:
+    """Creates a real Request object with a real app.state."""
+    from fastapi import FastAPI
+    from starlette.requests import Request as StarletteRequest
+
+    app = FastAPI()
+    app.state = State()
+
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/",
+        "headers": [],
+        "query_string": b"",
+        "app": app,  # Include app in scope
+    }
+
+    request = StarletteRequest(scope)
     return request
 
 
 # --- Tests for get_container ---
 
 
-def test_get_dependencies_success(mock_request_with_state, mock_container):
+def test_get_dependencies_success(request_with_state, mock_container):
     """Test successfully retrieving the DependencyContainer from request state."""
-    mock_request_with_state.app.state.dependencies = mock_container
-    dependencies = get_dependencies(mock_request_with_state)
+    request_with_state.app.state.dependencies = mock_container
+    dependencies = get_dependencies(request_with_state)
     assert dependencies is mock_container
 
 
-def test_get_dependencies_not_found(mock_request_with_state):
+def test_get_dependencies_not_found(request_with_state):
     """Test raising HTTPException when dependencies are not in request state."""
-    assert not hasattr(mock_request_with_state.app.state, "dependencies")
+    assert not hasattr(request_with_state.app.state, "dependencies")
     with pytest.raises(HTTPException) as exc_info:
-        get_dependencies(mock_request_with_state)
+        get_dependencies(request_with_state)
     assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
     assert "Application dependencies not initialized" in exc_info.value.detail
 

@@ -68,13 +68,12 @@ def mock_spec() -> MockTxLoggingSpec:
 
 
 @pytest.fixture
-def mock_transaction_context() -> TransactionContext:
-    mock_context = MagicMock(spec=TransactionContext)
-    mock_context.transaction_id = "test-tx-123"
-    mock_context.request = None  # Can be set in specific tests if needed
-    mock_context.response = None  # Can be set in specific tests if needed
-    mock_context.data = {}
-    return mock_context
+def transaction_context() -> TransactionContext:
+    import uuid
+    context = TransactionContext(transaction_id=uuid.UUID("12345678-1234-5678-1234-567812345678"))
+    context.request = None  # Can be set in specific tests if needed
+    context.response = None  # Can be set in specific tests if needed
+    return context
 
 
 @pytest.fixture
@@ -125,7 +124,7 @@ async def test_log_database_entry(mock_async_session: AsyncMock):
 
 async def test_apply_successful_logging(
     mock_spec: MockTxLoggingSpec,
-    mock_transaction_context: TransactionContext,
+    transaction_context: TransactionContext,
     mock_dependency_container: DependencyContainer,
     mock_async_session: AsyncMock,
     caplog: pytest.LogCaptureFixture,
@@ -137,22 +136,22 @@ async def test_apply_successful_logging(
     policy = TxLoggingPolicy(spec=mock_spec)
 
     with caplog.at_level(logging.INFO):
-        returned_context = await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
+        returned_context = await policy.apply(transaction_context, mock_dependency_container, mock_async_session)
 
-    assert returned_context == mock_transaction_context  # Context should be returned
+    assert returned_context == transaction_context  # Context should be returned
     assert mock_spec.generate_log_data_called_with is not None
-    assert mock_spec.generate_log_data_called_with["context"] == mock_transaction_context
+    assert mock_spec.generate_log_data_called_with["context"] == transaction_context
     mock_async_session.add.assert_called_once()
     added_log_entry = mock_async_session.add.call_args[0][0]
     assert added_log_entry.datatype == "dummy_data"
-    assert f"Logged data for transaction {mock_transaction_context.transaction_id}" in caplog.text
+    assert f"Logged data for transaction {transaction_context.transaction_id}" in caplog.text
     assert f"via spec type {mock_spec.TYPE_NAME}" in caplog.text
     assert f"datatype {log_data_to_return.datatype}" in caplog.text
 
 
 async def test_apply_spec_returns_none(
     mock_spec: MockTxLoggingSpec,
-    mock_transaction_context: TransactionContext,
+    transaction_context: TransactionContext,
     mock_dependency_container: DependencyContainer,
     mock_async_session: AsyncMock,
 ):
@@ -160,11 +159,11 @@ async def test_apply_spec_returns_none(
     mock_spec.data_to_return = None  # Spec generates log data with None data
     policy = TxLoggingPolicy(spec=mock_spec)
 
-    returned_context = await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
+    returned_context = await policy.apply(transaction_context, mock_dependency_container, mock_async_session)
 
-    assert returned_context == mock_transaction_context
+    assert returned_context == transaction_context
     assert mock_spec.generate_log_data_called_with is not None
-    assert mock_spec.generate_log_data_called_with["context"] == mock_transaction_context
+    assert mock_spec.generate_log_data_called_with["context"] == transaction_context
     # The mock now returns a LuthienLogData with data=None, so it should still be logged
     mock_async_session.add.assert_called_once()
     added_log_entry = mock_async_session.add.call_args[0][0]
@@ -174,7 +173,7 @@ async def test_apply_spec_returns_none(
 
 async def test_apply_spec_generate_raises_exception(
     mock_spec: MockTxLoggingSpec,
-    mock_transaction_context: TransactionContext,
+    transaction_context: TransactionContext,
     mock_dependency_container: DependencyContainer,
     mock_async_session: AsyncMock,
     caplog: pytest.LogCaptureFixture,
@@ -185,11 +184,11 @@ async def test_apply_spec_generate_raises_exception(
     policy = TxLoggingPolicy(spec=mock_spec)
 
     with caplog.at_level(logging.ERROR):
-        returned_context = await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
+        returned_context = await policy.apply(transaction_context, mock_dependency_container, mock_async_session)
 
-    assert returned_context == mock_transaction_context
+    assert returned_context == transaction_context
     mock_async_session.add.assert_not_called()
-    assert f"Error during logging for transaction {mock_transaction_context.transaction_id}" in caplog.text
+    assert f"Error during logging for transaction {transaction_context.transaction_id}" in caplog.text
     assert f"with spec {mock_spec.TYPE_NAME}" in caplog.text
     assert f"(policy: {policy.name})" in caplog.text
     assert str(test_exception) in caplog.text
@@ -197,7 +196,7 @@ async def test_apply_spec_generate_raises_exception(
 
 async def test_apply_log_database_entry_raises_exception(
     mock_spec: MockTxLoggingSpec,
-    mock_transaction_context: TransactionContext,
+    transaction_context: TransactionContext,
     mock_dependency_container: DependencyContainer,
     mock_async_session: AsyncMock,
     caplog: pytest.LogCaptureFixture,
@@ -212,11 +211,11 @@ async def test_apply_log_database_entry_raises_exception(
     policy = TxLoggingPolicy(spec=mock_spec)
 
     with caplog.at_level(logging.ERROR):
-        returned_context = await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
+        returned_context = await policy.apply(transaction_context, mock_dependency_container, mock_async_session)
 
-    assert returned_context == mock_transaction_context
+    assert returned_context == transaction_context
     mock_async_session.add.assert_called_once()  # It was called
-    assert f"Error during logging for transaction {mock_transaction_context.transaction_id}" in caplog.text
+    assert f"Error during logging for transaction {transaction_context.transaction_id}" in caplog.text
     assert str(db_error) in caplog.text  # Ensure the original exception is logged
 
 

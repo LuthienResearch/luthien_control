@@ -217,8 +217,13 @@ def mock_builder() -> MagicMock:
 
 
 @pytest.fixture
+def real_settings() -> Settings:
+    """Provides a real Settings instance for tests that don't need mocking."""
+    return Settings()
+
+@pytest.fixture
 def mock_settings() -> MagicMock:
-    """Provides a mock Settings instance."""
+    """Provides a mock Settings instance for tests that need specific behavior."""
     settings = MagicMock(spec=Settings)
     # Add common default return values if needed by most tests
     settings.get_top_level_policy_name.return_value = "test_policy"
@@ -283,13 +288,9 @@ def mock_api_key_data() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def mock_transaction_context() -> MagicMock:
-    """Provides a basic mock TransactionContext."""
-    context = MagicMock(spec=TransactionContext)
-    context.transaction_id = uuid.uuid4()
-    context.request = None
-    context.response = None
-    return context
+def transaction_context() -> TransactionContext:
+    """Provides a real TransactionContext instance."""
+    return TransactionContext(transaction_id=uuid.uuid4())
 
 
 # --- Fixtures for Overriding Dependencies ---

@@ -12,13 +12,12 @@ from luthien_control.core.transaction_context import TransactionContext
 
 
 @pytest.fixture
-def mock_transaction_context() -> TransactionContext:
-    """Provides a mock TransactionContext with a mock request object."""
-    context = MagicMock(spec=TransactionContext)
-    context.transaction_id = "test_tx_id"
+def transaction_context() -> TransactionContext:
+    """Provides a real TransactionContext with a real request object."""
+    import uuid
+    context = TransactionContext(transaction_id=uuid.UUID("12345678-1234-5678-1234-567812345678"))
     context.request = httpx.Request("POST", "http://example.com/api")
     context.response = None
-    context.data = {}  # Add this for consistency with real TransactionContext
     return context
 
 
@@ -60,16 +59,16 @@ class TestLeakedApiKeyDetectionPolicyApply:
     """Tests for the apply method of LeakedApiKeyDetectionPolicy."""
 
     @pytest.mark.asyncio
-    async def test_apply_no_request_raises_error(self, mock_transaction_context, mock_container, mock_db_session):
+    async def test_apply_no_request_raises_error(self, transaction_context, mock_container, mock_db_session):
         """Test that NoRequestError is raised when no request is in context."""
-        mock_transaction_context.request = None
+        transaction_context.request = None
         policy = LeakedApiKeyDetectionPolicy()
 
-        with pytest.raises(NoRequestError, match=r"\[test_tx_id\] No request in context."):
-            await policy.apply(mock_transaction_context, mock_container, mock_db_session)
+        with pytest.raises(NoRequestError, match=r"\[12345678-1234-5678-1234-567812345678\] No request in context."):
+            await policy.apply(transaction_context, mock_container, mock_db_session)
 
     @pytest.mark.asyncio
-    async def test_apply_clean_message_succeeds(self, mock_transaction_context, mock_container, mock_db_session):
+    async def test_apply_clean_message_succeeds(self, transaction_context, mock_container, mock_db_session):
         """Test that a message without API keys passes through without issues."""
         body = b"""{
             "model": "gpt-3.5-turbo",
@@ -78,18 +77,18 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "What is the square root of 64?"}
             ]
         }"""
-        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
+        transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         policy = LeakedApiKeyDetectionPolicy()
 
-        result = await policy.apply(mock_transaction_context, mock_container, mock_db_session)
+        result = await policy.apply(transaction_context, mock_container, mock_db_session)
 
-        assert result == mock_transaction_context
+        assert result == transaction_context
         assert result.response is None  # No error response set
 
     @pytest.mark.asyncio
     async def test_apply_detects_api_key_in_message_content(
-        self, mock_transaction_context, mock_container, mock_db_session
+        self, transaction_context, mock_container, mock_db_session
     ):
         """Test detection of API key in message content."""
         # Create a request with an API key in the message content
@@ -100,16 +99,16 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "My API key is sk-abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmn. Can you help me use it?"}
             ]
         }"""  # noqa: E501 - not worth breaking up a long line in the middle of a multiline string specifying a JSON body
-        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
+        transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         policy = LeakedApiKeyDetectionPolicy()
 
         with pytest.raises(LeakedApiKeyError):
-            await policy.apply(mock_transaction_context, mock_container, mock_db_session)
+            await policy.apply(transaction_context, mock_container, mock_db_session)
 
     @pytest.mark.asyncio
     async def test_apply_detects_api_key_in_system_message(
-        self, mock_transaction_context, mock_container, mock_db_session
+        self, transaction_context, mock_container, mock_db_session
     ):
         """Test detection of API key in system message content."""
         # Create a request with an API key in the system message
@@ -120,28 +119,28 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "Hello, can you help me?"}
             ]
         }"""  # noqa: E501 - not worth breaking up a long line in the middle of a multiline string specifying a JSON body
-        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
+        transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         policy = LeakedApiKeyDetectionPolicy()
 
         with pytest.raises(LeakedApiKeyError):
-            await policy.apply(mock_transaction_context, mock_container, mock_db_session)
+            await policy.apply(transaction_context, mock_container, mock_db_session)
 
     @pytest.mark.asyncio
-    async def test_apply_with_non_json_body(self, mock_transaction_context, mock_container, mock_db_session):
+    async def test_apply_with_non_json_body(self, transaction_context, mock_container, mock_db_session):
         """Test that a non-JSON body doesn't cause issues."""
         body = b"This is not JSON and should be ignored"
-        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
+        transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         policy = LeakedApiKeyDetectionPolicy()
 
-        result = await policy.apply(mock_transaction_context, mock_container, mock_db_session)
+        result = await policy.apply(transaction_context, mock_container, mock_db_session)
 
-        assert result == mock_transaction_context
+        assert result == transaction_context
         assert result.response is None  # No error response set
 
     @pytest.mark.asyncio
-    async def test_apply_with_custom_patterns(self, mock_transaction_context, mock_container, mock_db_session):
+    async def test_apply_with_custom_patterns(self, transaction_context, mock_container, mock_db_session):
         """Test with custom patterns that match message content."""
         # Create a request with a custom pattern to match
         body = b"""{
@@ -150,21 +149,21 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "My custom key is custom-12345. Can you help me?"}
             ]
         }"""
-        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
+        transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         # Use a custom pattern that matches "custom-" followed by digits
         policy = LeakedApiKeyDetectionPolicy(patterns=["custom-[0-9]+"])
 
         with pytest.raises(LeakedApiKeyError):
-            await policy.apply(mock_transaction_context, mock_container, mock_db_session)
+            await policy.apply(transaction_context, mock_container, mock_db_session)
 
     @pytest.mark.asyncio
-    async def test_apply_with_no_content(self, mock_transaction_context, mock_container, mock_db_session):
+    async def test_apply_with_no_content(self, transaction_context, mock_container, mock_db_session):
         """Test that a request with no content doesn't cause issues."""
-        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=b"")
+        transaction_context.request = httpx.Request("POST", "http://example.com/api", content=b"")
         policy = LeakedApiKeyDetectionPolicy()
-        result = await policy.apply(mock_transaction_context, mock_container, mock_db_session)
-        assert result == mock_transaction_context
+        result = await policy.apply(transaction_context, mock_container, mock_db_session)
+        assert result == transaction_context
         assert result.response is None  # No error response set
 
 

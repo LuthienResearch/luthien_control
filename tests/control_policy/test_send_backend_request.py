@@ -1,7 +1,7 @@
 """Unit tests for ControlPolicy SendBackendRequestPolicy."""
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -14,12 +14,12 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-def mock_settings() -> MagicMock:
-    """Provides a mock Settings object."""
-    settings = MagicMock(spec=Settings)
-    settings.get_backend_url.return_value = "https://api.test-backend.com/v1"
-    settings.get_openai_api_key.return_value = "test-backend-api-key"
-    return settings
+def test_settings() -> Settings:
+    """Provides a real Settings object for testing."""
+    import os
+    os.environ["BACKEND_URL"] = "https://api.test-backend.com/v1"
+    os.environ["OPENAI_API_KEY"] = "test-backend-api-key"
+    return Settings()
 
 
 @pytest.fixture
@@ -29,35 +29,31 @@ def mock_http_client() -> AsyncMock:
 
 
 @pytest.fixture
-def policy(mock_http_client: AsyncMock, mock_settings: MagicMock) -> SendBackendRequestPolicy:
-    """Provides an instance of the policy with a mock client."""
-    # Dependencies are now resolved via the container in apply()
-    return SendBackendRequestPolicy(
-        name="test-policy",
-    )
+def policy() -> SendBackendRequestPolicy:
+    """Provides an instance of the policy."""
+    return SendBackendRequestPolicy(name="test-policy")
 
 
 @pytest.fixture
 def base_context() -> TransactionContext:
-    """Provides a basic TransactionContext with a simple request."""
+    """Provides a basic TransactionContext with a real request."""
     context = TransactionContext(transaction_id=uuid.uuid4())
-    mock_request = MagicMock(spec=httpx.Request)
-    mock_request.method = "POST"
-    mock_request.url = httpx.URL("http://proxy.test/some/path")
-    mock_request.headers = httpx.Headers(
-        [
-            (b"host", b"proxy.test"),
-            (b"content-type", b"application/json"),
-            (b"accept", b"*/*"),
-            (b"x-client-header", b"client-value"),
-            (b"content-length", b"18"),  # Excluded header
-            (b"authorization", b"Bearer client-token"),  # Excluded header
-        ]
-    )
-    mock_request.read = AsyncMock(return_value=b'{"input": "test"}')
-    mock_request.stream = None  # Simulate a request body that can be read
 
-    context.request = mock_request
+    real_request = httpx.Request(
+        method="POST",
+        url="http://proxy.test/some/path",
+        headers={
+            "host": "proxy.test",
+            "content-type": "application/json",
+            "accept": "*/*",
+            "x-client-header": "client-value",
+            "content-length": "18",
+            "authorization": "Bearer client-token",
+        },
+        content=b'{"input": "test"}'
+    )
+
+    context.request = real_request
     return context
 
 
@@ -65,7 +61,7 @@ async def test_apply_success(
     policy: SendBackendRequestPolicy,
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
+    test_settings: Settings,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
@@ -78,9 +74,11 @@ async def test_apply_success(
     # Configure the mock client to return this response
     mock_http_client.send.return_value = mock_backend_response
 
-    # Patch Settings within the test scope
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        updated_context = await policy.apply(base_context, container=mock_container, session=mock_db_session)
+    # Configure container to return real settings
+    mock_container.settings = test_settings
+    mock_container.http_client = mock_http_client
+
+    updated_context = await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Assert
     assert updated_context is base_context
@@ -113,21 +111,29 @@ async def test_apply_builds_correct_url_no_base_slash(
     policy: SendBackendRequestPolicy,
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
     """Verify URL construction with no trailing slash on the base backend URL."""
 
+    import os
+    os.environ["BACKEND_URL"] = "http://backend.internal:8080/api"  # No trailing slash
+    test_settings = Settings()
+
     original_client_url = httpx.URL("http://proxy.test/specific/endpoint")
     assert base_context.request is not None
-    base_context.request.url = original_client_url
-    mock_settings.get_backend_url.return_value = "http://backend.internal:8080/api"  # No trailing slash
+    base_context.request = httpx.Request(
+        method=base_context.request.method,
+        url=original_client_url,
+        headers=base_context.request.headers,
+        content=base_context.request.content
+    )
     expected_url = "http://backend.internal:8080/api/specific/endpoint"
 
-    # Patch Settings and Act
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context, container=mock_container, session=mock_db_session)
+    # Configure container and Act
+    mock_container.settings = test_settings
+    mock_container.http_client = mock_http_client
+    await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Assert
     mock_http_client.send.assert_awaited_once()
@@ -139,21 +145,29 @@ async def test_apply_builds_correct_url_with_base_slash(
     policy: SendBackendRequestPolicy,
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
     """Verify URL construction with a trailing slash on the base backend URL."""
 
+    import os
+    os.environ["BACKEND_URL"] = "http://backend.internal:8080/api/"  # Trailing slash
+    test_settings = Settings()
+
     original_client_url = httpx.URL("http://proxy.test/specific/endpoint")
     assert base_context.request is not None
-    base_context.request.url = original_client_url
-    mock_settings.get_backend_url.return_value = "http://backend.internal:8080/api/"  # Trailing slash
+    base_context.request = httpx.Request(
+        method=base_context.request.method,
+        url=original_client_url,
+        headers=base_context.request.headers,
+        content=base_context.request.content
+    )
     expected_url = "http://backend.internal:8080/api/specific/endpoint"
 
-    # Patch Settings and Act
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context, container=mock_container, session=mock_db_session)
+    # Configure container and Act
+    mock_container.settings = test_settings
+    mock_container.http_client = mock_http_client
+    await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Assert
     mock_http_client.send.assert_awaited_once()
@@ -165,21 +179,29 @@ async def test_apply_builds_correct_url_root_client_path(
     policy: SendBackendRequestPolicy,
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
     """Verify URL construction when the client request path is '/'."""
 
+    import os
+    os.environ["BACKEND_URL"] = "http://backend.internal:8080/api"
+    test_settings = Settings()
+
     root_client_url = httpx.URL("http://proxy.test/")  # Root path
     assert base_context.request is not None
-    base_context.request.url = root_client_url
-    mock_settings.get_backend_url.return_value = "http://backend.internal:8080/api"
+    base_context.request = httpx.Request(
+        method=base_context.request.method,
+        url=root_client_url,
+        headers=base_context.request.headers,
+        content=base_context.request.content
+    )
     expected_url = "http://backend.internal:8080/api/"  # Should join correctly
 
-    # Patch Settings and Act
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context, container=mock_container, session=mock_db_session)
+    # Configure container and Act
+    mock_container.settings = test_settings
+    mock_container.http_client = mock_http_client
+    await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Assert
     mock_http_client.send.assert_awaited_once()
@@ -191,32 +213,35 @@ async def test_apply_prepares_correct_headers(
     policy: SendBackendRequestPolicy,
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
+    test_settings: Settings,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
     """Verify headers sent to the backend are prepared correctly."""
 
     # Use specific settings for this test
-    mock_settings.get_backend_url.return_value = "https://secure-backend.org"
-    mock_settings.get_openai_api_key.return_value = "backend-key-for-header-test"
+    import os
+    os.environ["BACKEND_URL"] = "https://secure-backend.org"
+    os.environ["OPENAI_API_KEY"] = "backend-key-for-header-test"
+    test_settings_for_headers = Settings()
 
     assert base_context.request is not None
     # Capture original headers BEFORE applying the policy
     original_headers = base_context.request.headers.copy()
 
-    # Patch Settings and Act
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context, container=mock_container, session=mock_db_session)
+    # Configure container and Act
+    mock_container.settings = test_settings_for_headers
+    mock_container.http_client = mock_http_client
+    await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Assert
     mock_http_client.send.assert_awaited_once()
     sent_request = mock_http_client.send.await_args.args[0]
     sent_headers = sent_request.headers
 
-    # Check Host header based on mock_settings
+    # Check Host header based on test settings
     assert sent_headers.get("host") == "secure-backend.org"
-    # Check Authorization header based on mock_settings
+    # Check Authorization header based on test settings
     assert sent_headers.get("authorization") == "Bearer backend-key-for-header-test"
     # Check forced Accept-Encoding
     assert sent_headers.get("accept-encoding") == "identity"
@@ -238,7 +263,7 @@ async def test_apply_handles_httpx_request_error(
     policy: SendBackendRequestPolicy,
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
+    test_settings: Settings,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
@@ -251,10 +276,11 @@ async def test_apply_handles_httpx_request_error(
         request_for_error.url = httpx.URL("https://api.test-backend.com/v1/some/path")
     mock_http_client.send.side_effect = httpx.RequestError(error_message, request=request_for_error)
 
-    # Patch Settings and Act/Assert
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        with pytest.raises(httpx.RequestError, match=error_message) as exc_info:
-            await policy.apply(base_context, container=mock_container, session=mock_db_session)
+    # Configure container and Act/Assert
+    mock_container.settings = test_settings
+    mock_container.http_client = mock_http_client
+    with pytest.raises(httpx.RequestError, match=error_message) as exc_info:
+        await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Optional: Assert that the raised exception is the same instance
     assert exc_info.value is mock_http_client.send.side_effect
@@ -268,7 +294,7 @@ async def test_apply_handles_httpx_timeout_error(
     policy: SendBackendRequestPolicy,
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
+    test_settings: Settings,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
@@ -281,10 +307,11 @@ async def test_apply_handles_httpx_timeout_error(
         request_for_error.url = httpx.URL("https://api.test-backend.com/v1/some/path")
     mock_http_client.send.side_effect = httpx.TimeoutException(error_message, request=request_for_error)
 
-    # Patch Settings and Act/Assert
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        with pytest.raises(httpx.TimeoutException, match=error_message) as exc_info:
-            await policy.apply(base_context, container=mock_container, session=mock_db_session)
+    # Configure container and Act/Assert
+    mock_container.settings = test_settings
+    mock_container.http_client = mock_http_client
+    with pytest.raises(httpx.TimeoutException, match=error_message) as exc_info:
+        await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     # Optional: Assert that the raised exception is the same instance
     assert exc_info.value is mock_http_client.send.side_effect
@@ -310,16 +337,18 @@ async def test_apply_handles_invalid_backend_url(
     policy: SendBackendRequestPolicy,
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
     """Test that apply raises ValueError if BACKEND_URL is invalid for host parsing."""
-    mock_settings.get_backend_url.return_value = "invalid-url"  # Invalid URL
+    import os
+    os.environ["BACKEND_URL"] = "invalid-url"  # Invalid URL
+    test_settings = Settings()
 
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        with pytest.raises(ValueError, match="Could not determine backend Host from BACKEND_URL"):
-            await policy.apply(base_context, container=mock_container, session=mock_db_session)
+    mock_container.settings = test_settings
+    mock_container.http_client = mock_http_client
+    with pytest.raises(ValueError, match="Invalid BACKEND_URL format"):
+        await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
     mock_http_client.send.assert_not_called()
 
@@ -328,12 +357,17 @@ async def test_apply_with_no_backend_url(
     policy: SendBackendRequestPolicy,
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
     """Test that apply raises ValueError if BACKEND_URL is not set."""
-    mock_settings.get_backend_url.return_value = None
+    import os
+    if "BACKEND_URL" in os.environ:
+        del os.environ["BACKEND_URL"]
+    test_settings = Settings()
+
+    mock_container.settings = test_settings
+    mock_container.http_client = mock_http_client
     with pytest.raises(ValueError, match="BACKEND_URL is not configured."):
         await policy.apply(base_context, container=mock_container, session=mock_db_session)
 
@@ -344,12 +378,14 @@ async def test_apply_http_client_weird_exception(
     policy: SendBackendRequestPolicy,
     base_context: TransactionContext,
     mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
+    test_settings: Settings,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
     """Test exception handling for unexpected exceptions from the http client."""
     mock_http_client.send.side_effect = Exception("Unexpected error")
+    mock_container.settings = test_settings
+    mock_container.http_client = mock_http_client
     with pytest.raises(Exception, match="Unexpected error"):
         await policy.apply(base_context, container=mock_container, session=mock_db_session)
 

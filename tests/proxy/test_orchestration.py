@@ -55,13 +55,8 @@ def mock_policy() -> AsyncMock:
     async def apply_effect(context, container, session):
         # Simulate some action (optional)
         context.data["main_policy_called"] = True
-        # Return a *new* context mock to avoid identity issues in assertions
-        new_context = MagicMock(spec=TransactionContext)
-        new_context.transaction_id = context.transaction_id
-        new_context.data = context.data.copy()
-        new_context.request = context.request
-        new_context.response = None  # Explicitly set response to None
-        return new_context
+        # Return the same context object (real TransactionContext)
+        return context
 
     policy_mock.apply = AsyncMock(side_effect=apply_effect)
 

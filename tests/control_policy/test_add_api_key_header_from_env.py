@@ -11,12 +11,13 @@ from luthien_control.core.transaction_context import TransactionContext
 
 
 @pytest.fixture
-def mock_transaction_context() -> TransactionContext:
-    """Provides a mock TransactionContext with a mock request object."""
-    context = MagicMock(spec=TransactionContext)
-    context.transaction_id = "test_tx_id"
-    context.request = MagicMock()
-    context.request.headers = {}
+def transaction_context() -> TransactionContext:
+    """Provides a real TransactionContext with a mock request object."""
+    import uuid
+    context = TransactionContext(transaction_id=uuid.UUID("12345678-1234-5678-1234-567812345678"))
+    mock_request = MagicMock()
+    mock_request.headers = {}
+    context.request = mock_request
     context.response = None
     return context
 
@@ -60,30 +61,30 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
 
     @pytest.mark.asyncio
     async def test_apply_success(
-        self, mock_transaction_context, mock_dependency_container, mock_async_session, monkeypatch
+        self, transaction_context, mock_dependency_container, mock_async_session, monkeypatch
     ):
         monkeypatch.setenv(API_KEY_ENV_VAR_NAME, API_KEY_VALUE)
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
 
-        result_context = await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
+        result_context = await policy.apply(transaction_context, mock_dependency_container, mock_async_session)
 
-        assert result_context == mock_transaction_context
-        assert "Authorization" in mock_transaction_context.request.headers
-        assert mock_transaction_context.request.headers["Authorization"] == f"Bearer {API_KEY_VALUE}"
+        assert result_context == transaction_context
+        assert "Authorization" in transaction_context.request.headers
+        assert transaction_context.request.headers["Authorization"] == f"Bearer {API_KEY_VALUE}"
 
     @pytest.mark.asyncio
     async def test_apply_no_request_in_context_raises_no_request_error(
-        self, mock_transaction_context, mock_dependency_container, mock_async_session
+        self, transaction_context, mock_dependency_container, mock_async_session
     ):
-        mock_transaction_context.request = None
+        transaction_context.request = None
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
 
-        with pytest.raises(NoRequestError, match=r"\[test_tx_id\] No request in context."):
-            await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
+        with pytest.raises(NoRequestError, match=r"\[12345678-1234-5678-1234-567812345678\] No request in context."):
+            await policy.apply(transaction_context, mock_dependency_container, mock_async_session)
 
     @pytest.mark.asyncio
     async def test_apply_env_var_not_set_raises_api_key_not_found_error(
-        self, mock_transaction_context, mock_dependency_container, mock_async_session, monkeypatch
+        self, transaction_context, mock_dependency_container, mock_async_session, monkeypatch
     ):
         monkeypatch.delenv(API_KEY_ENV_VAR_NAME, raising=False)
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
@@ -93,11 +94,11 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
         )
 
         with pytest.raises(ApiKeyNotFoundError, match=expected_error_msg_fragment):
-            await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
+            await policy.apply(transaction_context, mock_dependency_container, mock_async_session)
 
     @pytest.mark.asyncio
     async def test_apply_env_var_set_to_empty_string_raises_api_key_not_found_error(
-        self, mock_transaction_context, mock_dependency_container, mock_async_session, monkeypatch
+        self, transaction_context, mock_dependency_container, mock_async_session, monkeypatch
     ):
         monkeypatch.setenv(API_KEY_ENV_VAR_NAME, "")
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
@@ -107,7 +108,7 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
         )
 
         with pytest.raises(ApiKeyNotFoundError, match=expected_error_msg_fragment):
-            await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
+            await policy.apply(transaction_context, mock_dependency_container, mock_async_session)
 
 
 class TestAddApiKeyHeaderFromEnvPolicySerialization:

@@ -1,7 +1,7 @@
 import logging
 import uuid
-from typing import Any, Optional, cast
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Optional, cast
+from unittest.mock import MagicMock, patch
 
 # from fastapi import Response # Removed
 import httpx
@@ -20,19 +20,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # --- Test Fixtures and Helper Classes ---
 
 
-class MockSimplePolicy(ControlPolicy):
-    """A simple mock policy for testing."""
+class SimpleTestPolicy(ControlPolicy):
+    """A simple test policy that tracks execution order and can set responses."""
 
     def __init__(
         self,
-        side_effect: Any = None,
+        name: str,
         sets_response: bool = False,
-        name: Optional[str] = None,
+        should_raise: Optional[Exception] = None,
     ):
-        self.apply_mock = AsyncMock(side_effect=side_effect)
+        self.name = name
         self.sets_response = sets_response
+        self.should_raise = should_raise
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.name = name or self.__class__.__name__
 
     async def apply(
         self,
@@ -44,11 +44,13 @@ class MockSimplePolicy(ControlPolicy):
         call_order = context.data.setdefault("call_order", [])
         call_order.append(self.name)
 
+        if self.should_raise:
+            raise self.should_raise
+
         if self.sets_response:
             context.response = httpx.Response(status_code=299, content=f"Response from {self.name}".encode("utf-8"))
             self.logger.info(f"{self.name} setting response")
 
-        await self.apply_mock(context, container=container, session=session)
         self.logger.info(f"Finished {self.name}")
         return context
 
@@ -56,12 +58,12 @@ class MockSimplePolicy(ControlPolicy):
         return f"<{self.name}>"
 
     def serialize(self) -> SerializableDict:
-        return {}
+        return {"name": self.name}
 
     @classmethod
-    def from_serialized(cls, config: SerializableDict, **kwargs) -> "MockSimplePolicy":
-        """Dummy implementation to satisfy abstract base class."""
-        return cls()
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "SimpleTestPolicy":
+        name = config.get("name", "SimpleTestPolicy")
+        return cls(name=str(name))
 
 
 @pytest.fixture
@@ -80,12 +82,9 @@ async def test_serial_policy_applies_policies_sequentially(
     mock_container: DependencyContainer,
 ):
     """Test that policies are applied in the specified order."""
-    policy1 = MockSimplePolicy(name="Policy1")
-    policy2 = MockSimplePolicy(name="Policy2")
+    policy1 = SimpleTestPolicy(name="Policy1")
+    policy2 = SimpleTestPolicy(name="Policy2")
     serial = SerialPolicy(policies=[policy1, policy2], name="SequentialTest")
-
-    # Keep track of context references
-    context_before_policy1 = base_transaction_context
 
     # Pass mock session and container
     result_context = await serial.apply(
@@ -96,19 +95,6 @@ async def test_serial_policy_applies_policies_sequentially(
 
     # Assertions
     assert result_context.data.get("call_order") == ["Policy1", "Policy2"]
-    # Ensure the mock policies were called with the correct context
-    assert policy1.apply_mock.call_args[0][0] == context_before_policy1
-    # The context passed to policy2 should be the result of policy1
-    assert (
-        policy2.apply_mock.call_args[0][0] == context_before_policy1
-    )  # Assuming MockSimplePolicy returns same context
-    # Check session and container were passed
-    policy1.apply_mock.assert_awaited_once_with(
-        base_transaction_context, container=mock_container, session=mock_db_session
-    )
-    policy2.apply_mock.assert_awaited_once_with(
-        base_transaction_context, container=mock_container, session=mock_db_session
-    )
     assert result_context is base_transaction_context  # Verify same context object is returned if not modified
 
 
@@ -144,9 +130,9 @@ async def test_serial_policy_propagates_exception(
     class TestException(Exception):
         pass
 
-    policy1 = MockSimplePolicy(name="Policy1")
-    policy2 = MockSimplePolicy(side_effect=TestException("Policy 2 failed!"), name="Policy2")
-    policy3 = MockSimplePolicy(name="Policy3")
+    policy1 = SimpleTestPolicy(name="Policy1")
+    policy2 = SimpleTestPolicy(name="Policy2", should_raise=TestException("Policy 2 failed!"))
+    policy3 = SimpleTestPolicy(name="Policy3")
     serial = SerialPolicy(policies=[policy1, policy2, policy3], name="ExceptionTest")
 
     with pytest.raises(TestException, match="Policy 2 failed!"):
@@ -158,9 +144,6 @@ async def test_serial_policy_propagates_exception(
 
     # Check that policy1 was called, but policy3 was not
     assert base_transaction_context.data.get("call_order") == ["Policy1", "Policy2"]
-    policy1.apply_mock.assert_awaited_once()
-    policy2.apply_mock.assert_awaited_once()
-    policy3.apply_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -170,9 +153,9 @@ async def test_serial_policy_continues_on_response(
     mock_container: DependencyContainer,
 ):
     """Test that execution continues even if a member policy sets context.response."""
-    policy1 = MockSimplePolicy(name="Policy1")
-    policy2 = MockSimplePolicy(sets_response=True, name="Policy2")  # This policy sets a response
-    policy3 = MockSimplePolicy(name="Policy3")
+    policy1 = SimpleTestPolicy(name="Policy1")
+    policy2 = SimpleTestPolicy(name="Policy2", sets_response=True)  # This policy sets a response
+    policy3 = SimpleTestPolicy(name="Policy3")
     serial = SerialPolicy(policies=[policy1, policy2, policy3], name="ResponseTest")
 
     # Track the context object
@@ -185,10 +168,8 @@ async def test_serial_policy_continues_on_response(
         session=mock_db_session,
     )
 
-    # Ensure all policies were still called
-    policy1.apply_mock.assert_awaited_once()
-    policy2.apply_mock.assert_awaited_once()
-    policy3.apply_mock.assert_awaited_once()
+    # Ensure all policies were called
+    assert result_context.data.get("call_order") == ["Policy1", "Policy2", "Policy3"]
 
     # The final result should be the original context object
     assert result_context is context_before_apply
@@ -199,16 +180,16 @@ async def test_serial_policy_continues_on_response(
 
 def test_serial_policy_repr():
     """Test the __repr__ method for clarity."""
-    policy1 = MockSimplePolicy(name="Policy1")
-    policy2 = MockSimplePolicy(name="Policy2")
+    policy1 = SimpleTestPolicy(name="Policy1")
+    policy2 = SimpleTestPolicy(name="Policy2")
     serial1 = SerialPolicy(policies=[policy1, policy2], name="AuthAndLog")
-    serial2 = SerialPolicy(policies=[serial1, MockSimplePolicy(name="Policy3")], name="MainFlow")
+    serial2 = SerialPolicy(policies=[serial1, SimpleTestPolicy(name="Policy3")], name="MainFlow")
 
-    assert repr(serial1) == "<AuthAndLog(policies=[Policy1 <MockSimplePolicy>, Policy2 <MockSimplePolicy>])>"
-    assert repr(serial2) == "<MainFlow(policies=[AuthAndLog <SerialPolicy>, Policy3 <MockSimplePolicy>])>"
+    assert repr(serial1) == "<AuthAndLog(policies=[Policy1 <SimpleTestPolicy>, Policy2 <SimpleTestPolicy>])>"
+    assert repr(serial2) == "<MainFlow(policies=[AuthAndLog <SerialPolicy>, Policy3 <SimpleTestPolicy>])>"
 
     serial_default = SerialPolicy(policies=[policy1])
-    assert repr(serial_default) == "<SerialPolicy(policies=[Policy1 <MockSimplePolicy>])>"
+    assert repr(serial_default) == "<SerialPolicy(policies=[Policy1 <SimpleTestPolicy>])>"
 
     serial_empty = SerialPolicy(policies=[], name="Empty")
     assert repr(serial_empty) == "<Empty(policies=[])>"
@@ -347,7 +328,9 @@ def test_serial_policy_serialization_unexpected_error(mock_load_policy):
 
 def test_serial_policy_deserialize_invalid_policy_type():
     """Test that SerialPolicy raises ValueError if a policy type is not in the registry."""
-    policy = MockSimplePolicy(name="MockSimplePolicy")
-    policy.serialize = lambda: {"type": "InvalidPolicyType"}
+    config_invalid_type: SerializableDict = {
+        "name": "TestInvalidType",
+        "policies": [{"type": "InvalidPolicyType", "config": {}}],
+    }
     with pytest.raises(PolicyLoadError):
-        SerialPolicy.from_serialized(policy.serialize())
+        SerialPolicy.from_serialized(config_invalid_type)

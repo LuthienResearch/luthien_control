@@ -96,6 +96,8 @@ class LuthienLog(SQLModel, table=True):
         notes: JSON blob for additional contextual information.
     """
 
+    __tablename__ = "luthien_log"  # type: ignore (shut up pyright)
+
     id: Optional[int] = Field(default=None, primary_key=True, index=True)
     transaction_id: str = Field(index=True, nullable=False)
     datetime: NaiveDatetime = Field(

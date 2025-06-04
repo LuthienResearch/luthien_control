@@ -7,6 +7,7 @@ from typing import List, Optional
 from sqlalchemy import desc, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from luthien_control.db.exceptions import (
     LuthienDBOperationError,
@@ -46,17 +47,17 @@ async def list_logs(
         LuthienDBOperationError: For unexpected errors
     """
     try:
-        stmt = select(LuthienLog).order_by(desc(LuthienLog.datetime))  # type: ignore[arg-type]
+        stmt = select(LuthienLog).order_by(desc(col(LuthienLog.datetime)))
 
         # Apply filters
         if transaction_id:
-            stmt = stmt.where(LuthienLog.transaction_id == transaction_id)  # type: ignore[arg-type]
+            stmt = stmt.where(col(LuthienLog.transaction_id) == transaction_id)
         if datatype:
-            stmt = stmt.where(LuthienLog.datatype == datatype)  # type: ignore[arg-type]
+            stmt = stmt.where(col(LuthienLog.datatype) == datatype)
         if start_datetime:
-            stmt = stmt.where(LuthienLog.datetime >= start_datetime)  # type: ignore[arg-type]
+            stmt = stmt.where(col(LuthienLog.datetime) >= start_datetime)
         if end_datetime:
-            stmt = stmt.where(LuthienLog.datetime <= end_datetime)  # type: ignore[arg-type]
+            stmt = stmt.where(col(LuthienLog.datetime) <= end_datetime)
 
         # Apply pagination
         stmt = stmt.limit(limit).offset(offset)
@@ -86,7 +87,7 @@ async def get_log_by_id(session: AsyncSession, log_id: int) -> LuthienLog:
         LuthienDBOperationError: For unexpected errors during lookup
     """
     try:
-        stmt = select(LuthienLog).where(LuthienLog.id == log_id)  # type: ignore[arg-type]
+        stmt = select(LuthienLog).where(col(LuthienLog.id) == log_id)
         result = await session.execute(stmt)
         log_entry = result.scalar_one_or_none()
     except SQLAlchemyError as sqla_err:
@@ -116,7 +117,7 @@ async def get_unique_datatypes(session: AsyncSession) -> List[str]:
         LuthienDBOperationError: For unexpected errors
     """
     try:
-        stmt = select(LuthienLog.datatype).distinct().order_by(LuthienLog.datatype)  # type: ignore[arg-type]
+        stmt = select(col(LuthienLog.datatype)).distinct().order_by(col(LuthienLog.datatype))
         result = await session.execute(stmt)
         return list(result.scalars().all())
     except SQLAlchemyError as sqla_err:
@@ -144,9 +145,9 @@ async def get_unique_transaction_ids(session: AsyncSession, limit: int = 100) ->
     try:
         # Get distinct transaction_ids ordered by the most recent datetime for each transaction
         stmt = (
-            select(LuthienLog.transaction_id)  # type: ignore[arg-type]
-            .group_by(LuthienLog.transaction_id)  # type: ignore[arg-type]
-            .order_by(desc(LuthienLog.transaction_id))  # type: ignore[arg-type]
+            select(col(LuthienLog.transaction_id))
+            .group_by(col(LuthienLog.transaction_id))
+            .order_by(desc(col(LuthienLog.transaction_id)))
             .limit(limit)
         )
         result = await session.execute(stmt)
@@ -183,17 +184,17 @@ async def count_logs(
         LuthienDBOperationError: For unexpected errors
     """
     try:
-        stmt = select(LuthienLog.id)  # type: ignore[arg-type]
+        stmt = select(col(LuthienLog.id))
 
         # Apply filters
         if transaction_id:
-            stmt = stmt.where(LuthienLog.transaction_id == transaction_id)  # type: ignore[arg-type]
+            stmt = stmt.where(col(LuthienLog.transaction_id) == transaction_id)
         if datatype:
-            stmt = stmt.where(LuthienLog.datatype == datatype)  # type: ignore[arg-type]
+            stmt = stmt.where(col(LuthienLog.datatype) == datatype)
         if start_datetime:
-            stmt = stmt.where(LuthienLog.datetime >= start_datetime)  # type: ignore[arg-type]
+            stmt = stmt.where(col(LuthienLog.datetime) >= start_datetime)
         if end_datetime:
-            stmt = stmt.where(LuthienLog.datetime <= end_datetime)  # type: ignore[arg-type]
+            stmt = stmt.where(col(LuthienLog.datetime) <= end_datetime)
 
         result = await session.execute(stmt)
         return len(list(result.scalars().all()))

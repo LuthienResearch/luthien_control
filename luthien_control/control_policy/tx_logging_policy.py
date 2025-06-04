@@ -61,7 +61,7 @@ class TxLoggingPolicy(ControlPolicy):
     ) -> TransactionContext:
         """Applies all configured logging specifications to the transaction context."""
 
-        current_dt = NaiveDatetime.now()  # Use NaiveDatetime exclusively
+        current_dt = NaiveDatetime.now()
         tx_id = str(context.transaction_id)
 
         try:

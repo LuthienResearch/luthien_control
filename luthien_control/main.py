@@ -8,6 +8,7 @@ from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.logging import setup_logging
 from luthien_control.custom_openapi_schema import create_custom_openapi
 from luthien_control.db.database_async import close_db_engine
+from luthien_control.logs.router import router as logs_router
 from luthien_control.proxy.server import router as proxy_router
 from luthien_control.settings import Settings
 
@@ -102,6 +103,7 @@ async def health_check():
 
 
 app.include_router(proxy_router)
+app.include_router(logs_router)
 
 
 # --- Root Endpoint --- #

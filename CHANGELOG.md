@@ -5,6 +5,7 @@
  - Tighten up typing
  - Increased test coverage
  - Fixed Postgresql issues with tz-aware datetimes (NaiveDatetime)
+ - Logging UX
 
 ## [0.2.5] - 2025-05-28
  - 98% test coverage

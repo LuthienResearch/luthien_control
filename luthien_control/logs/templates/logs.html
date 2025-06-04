@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luthien Control - Logs Explorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 200px;
+        }
+        
+        .filter-group label {
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        
+        .filter-group input, .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .stats {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .pagination {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .logs-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .log-entry {
+            border-bottom: 1px solid #eee;
+            padding: 15px 20px;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-entry.expanded {
+            background: #f8f9fa;
+        }
+        
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+        
+        .log-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .log-datatype {
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .log-details {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .log-details.visible {
+            display: block;
+        }
+        
+        .json-viewer {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .expand-icon {
+            transition: transform 0.2s;
+        }
+        
+        .expand-icon.rotated {
+            transform: rotate(90deg);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Luthien Control - Logs Explorer</h1>
+            <p>Explore and analyze transaction logs from the Luthien Control system</p>
+        </div>
+        
+        <div class="filters">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="transaction-id">Transaction ID</label>
+                    <select id="transaction-id">
+                        <option value="">All Transactions</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="datatype">Data Type</label>
+                    <select id="datatype">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="start-datetime">Start Date</label>
+                    <input type="datetime-local" id="start-datetime">
+                </div>
+                
+                <div class="filter-group">
+                    <label for="end-datetime">End Date</label>
+                    <input type="datetime-local" id="end-datetime">
+                </div>
+                
+                <div class="filter-group">
+                    <label for="limit">Limit</label>
+                    <select id="limit">
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                        <option value="200">200</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button id="search-btn" class="btn-primary">Search</button>
+                <button id="clear-btn" class="btn-secondary">Clear Filters</button>
+                <button id="refresh-btn" class="btn-secondary">Refresh</button>
+            </div>
+        </div>
+        
+        <div class="stats" id="stats" style="display: none;">
+            <div>
+                <span id="results-count">0</span> results found
+            </div>
+            <div class="pagination">
+                <button id="prev-btn" class="btn-secondary" disabled>Previous</button>
+                <span id="page-info">Page 1</span>
+                <button id="next-btn" class="btn-secondary" disabled>Next</button>
+            </div>
+        </div>
+        
+        <div class="logs-container">
+            <div id="loading" class="loading">
+                Loading logs...
+            </div>
+            
+            <div id="error" class="error" style="display: none;">
+                <strong>Error:</strong> <span id="error-message"></span>
+            </div>
+            
+            <div id="empty-state" class="empty-state" style="display: none;">
+                <h3>No logs found</h3>
+                <p>Try adjusting your filters or check if the system is generating logs.</p>
+            </div>
+            
+            <div id="logs-list">
+                <!-- Logs will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let currentOffset = 0;
+        let currentFilters = {};
+        let totalCount = 0;
+        let currentLimit = 100;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadMetadata();
+            loadLogs();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('search-btn').addEventListener('click', handleSearch);
+            document.getElementById('clear-btn').addEventListener('click', handleClear);
+            document.getElementById('refresh-btn').addEventListener('click', handleRefresh);
+            document.getElementById('prev-btn').addEventListener('click', handlePrevious);
+            document.getElementById('next-btn').addEventListener('click', handleNext);
+        }
+
+        async function loadMetadata() {
+            try {
+                // Load datatypes
+                const datatypes = await fetch('/admin/logs-api/metadata/datatypes').then(r => r.json());
+                const datatypeSelect = document.getElementById('datatype');
+                datatypes.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    datatypeSelect.appendChild(option);
+                });
+
+                // Load transaction IDs
+                const transactionIds = await fetch('/admin/logs-api/metadata/transaction-ids').then(r => r.json());
+                const transactionSelect = document.getElementById('transaction-id');
+                transactionIds.forEach(id => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = id;
+                    transactionSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading metadata:', error);
+            }
+        }
+
+        async function loadLogs(offset = 0) {
+            showLoading();
+            currentOffset = offset;
+
+            try {
+                const params = new URLSearchParams({
+                    limit: currentLimit,
+                    offset: offset,
+                    ...currentFilters
+                });
+
+                const response = await fetch(`/admin/logs-api/logs?${params}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+
+                const data = await response.json();
+                displayLogs(data.logs);
+                updatePagination(data.pagination);
+                updateStats(data.pagination.total);
+                hideError();
+            } catch (error) {
+                showError(error.message);
+                console.error('Error loading logs:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function displayLogs(logs) {
+            const container = document.getElementById('logs-list');
+            container.innerHTML = '';
+
+            if (logs.length === 0) {
+                document.getElementById('empty-state').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('empty-state').style.display = 'none';
+
+            logs.forEach(log => {
+                const logElement = createLogElement(log);
+                container.appendChild(logElement);
+            });
+        }
+
+        function createLogElement(log) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            
+            // SECURITY: Create structure using DOM methods to avoid HTML injection.
+            // Always use textContent for user data, never innerHTML.
+            // This prevents XSS attacks if log data contains HTML/JavaScript.
+            const header = document.createElement('div');
+            header.className = 'log-header';
+            header.onclick = function() { toggleLogDetails(this); };
+            
+            const meta = document.createElement('div');
+            meta.className = 'log-meta';
+            
+            // Create meta spans
+            const idSpan = document.createElement('span');
+            idSpan.innerHTML = '<strong>ID:</strong> ';
+            idSpan.appendChild(document.createTextNode(log.id));
+            
+            const txSpan = document.createElement('span');
+            txSpan.innerHTML = '<strong>Transaction:</strong> ';
+            txSpan.appendChild(document.createTextNode(log.transaction_id));
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.innerHTML = '<strong>Time:</strong> ';
+            timeSpan.appendChild(document.createTextNode(formatDateTime(log.datetime)));
+            
+            const datatypeSpan = document.createElement('span');
+            datatypeSpan.className = 'log-datatype';
+            datatypeSpan.textContent = log.datatype;
+            
+            meta.appendChild(idSpan);
+            meta.appendChild(txSpan);
+            meta.appendChild(timeSpan);
+            meta.appendChild(datatypeSpan);
+            
+            const expandIcon = document.createElement('span');
+            expandIcon.className = 'expand-icon';
+            expandIcon.textContent = '▶';
+            
+            header.appendChild(meta);
+            header.appendChild(expandIcon);
+            
+            const details = document.createElement('div');
+            details.className = 'log-details';
+            
+            if (log.data) {
+                const dataDiv = document.createElement('div');
+                const dataLabel = document.createElement('strong');
+                dataLabel.textContent = 'Data:';
+                const dataViewer = document.createElement('div');
+                dataViewer.className = 'json-viewer';
+                dataViewer.textContent = JSON.stringify(log.data, null, 2);
+                dataDiv.appendChild(dataLabel);
+                dataDiv.appendChild(dataViewer);
+                details.appendChild(dataDiv);
+            }
+            
+            if (log.notes) {
+                const notesDiv = document.createElement('div');
+                const notesLabel = document.createElement('strong');
+                notesLabel.textContent = 'Notes:';
+                const notesViewer = document.createElement('div');
+                notesViewer.className = 'json-viewer';
+                notesViewer.textContent = JSON.stringify(log.notes, null, 2);
+                notesDiv.appendChild(notesLabel);
+                notesDiv.appendChild(notesViewer);
+                details.appendChild(notesDiv);
+            }
+            
+            div.appendChild(header);
+            div.appendChild(details);
+            
+            return div;
+        }
+
+        function toggleLogDetails(header) {
+            const logEntry = header.parentElement;
+            const details = logEntry.querySelector('.log-details');
+            const icon = header.querySelector('.expand-icon');
+
+            details.classList.toggle('visible');
+            logEntry.classList.toggle('expanded');
+            icon.classList.toggle('rotated');
+        }
+
+        function formatDateTime(dateTimeStr) {
+            if (!dateTimeStr) return 'N/A';
+            return new Date(dateTimeStr).toLocaleString();
+        }
+
+        function updatePagination(pagination) {
+            totalCount = pagination.total;
+            currentLimit = pagination.limit;
+
+            document.getElementById('prev-btn').disabled = !pagination.has_prev;
+            document.getElementById('next-btn').disabled = !pagination.has_next;
+            
+            const currentPage = Math.floor(pagination.offset / pagination.limit) + 1;
+            const totalPages = Math.ceil(pagination.total / pagination.limit);
+            document.getElementById('page-info').textContent = `Page ${currentPage} of ${totalPages}`;
+        }
+
+        function updateStats(total) {
+            document.getElementById('results-count').textContent = total;
+            document.getElementById('stats').style.display = 'flex';
+        }
+
+        function handleSearch() {
+            currentFilters = {};
+            currentOffset = 0;
+
+            const transactionId = document.getElementById('transaction-id').value;
+            const datatype = document.getElementById('datatype').value;
+            const startDateTime = document.getElementById('start-datetime').value;
+            const endDateTime = document.getElementById('end-datetime').value;
+            const limit = document.getElementById('limit').value;
+
+            if (transactionId) currentFilters.transaction_id = transactionId;
+            if (datatype) currentFilters.datatype = datatype;
+            if (startDateTime) currentFilters.start_datetime = new Date(startDateTime).toISOString();
+            if (endDateTime) currentFilters.end_datetime = new Date(endDateTime).toISOString();
+            
+            currentLimit = parseInt(limit);
+            loadLogs(0);
+        }
+
+        function handleClear() {
+            document.getElementById('transaction-id').value = '';
+            document.getElementById('datatype').value = '';
+            document.getElementById('start-datetime').value = '';
+            document.getElementById('end-datetime').value = '';
+            document.getElementById('limit').value = '100';
+            
+            currentFilters = {};
+            currentOffset = 0;
+            currentLimit = 100;
+            loadLogs(0);
+        }
+
+        function handleRefresh() {
+            loadLogs(currentOffset);
+        }
+
+        function handlePrevious() {
+            if (currentOffset > 0) {
+                loadLogs(Math.max(0, currentOffset - currentLimit));
+            }
+        }
+
+        function handleNext() {
+            if (currentOffset + currentLimit < totalCount) {
+                loadLogs(currentOffset + currentLimit);
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('logs-list').innerHTML = '';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            document.getElementById('error').style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

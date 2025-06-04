@@ -1,7 +1,6 @@
 """Control Policy for logging requests and responses based on TxLoggingSpec instances."""
 
 import logging
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +10,7 @@ from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.control_policy.tx_logging import LuthienLogData, TxLoggingSpec
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.db.sqlmodel_models import LuthienLog
+from luthien_control.db.sqlmodel_models import LuthienLog, NaiveDatetime
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +39,9 @@ class TxLoggingPolicy(ControlPolicy):
 
     async def _log_database_entry(
         self,
-        session: "AsyncSession",
+        session: AsyncSession,
         transaction_id: str,
-        log_datetime: datetime,
+        log_datetime: NaiveDatetime,
         log_data_obj: LuthienLogData,
     ) -> None:
         """Helper to create and add LuthienLog entry to session from LuthienLogData."""
@@ -54,14 +53,15 @@ class TxLoggingPolicy(ControlPolicy):
             notes=log_data_obj.notes,
         )
         session.add(log_entry)
+        await session.commit()
         logger.debug(f"Prepared log entry for {log_data_obj.datatype} (tx: {transaction_id})")
 
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
+        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
+    ) -> TransactionContext:
         """Applies all configured logging specifications to the transaction context."""
 
-        current_dt = datetime.now(timezone.utc)
+        current_dt = NaiveDatetime.now()  # Use NaiveDatetime exclusively
         tx_id = str(context.transaction_id)
 
         try:

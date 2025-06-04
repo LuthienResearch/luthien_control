@@ -9,17 +9,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Run E2E tests: `poetry run pytest -m e2e`
 - Format code: `poetry run ruff format .`
 - Check linting: `poetry run ruff check .`
+- Type checking: `poetry run pyright`
 - Complexity analysis: `poetry run radon cc luthien_control/ -a -s`
 - Use poetry run to run commands in the development environment
+
+## Quality Validation Before Committing
+Always run these commands before committing code:
+1. `poetry run ruff check --fix .` - Check linting
+2. `poetry run ruff format .` - Format code
+3. `poetry run pyright` - Check types
+4. `poetry run pytest --cov=luthien_control` - Run tests with coverage
 
 ## Code Style
 - Mandatory TDD workflow (skeleton → tests → implementation)
 - Python 3.11+, follow PEP 8
-- Line length: 120 characters
+- Max Line length: 120 characters
 - Use type hints for all function signatures
-- Prefer functional components over classes
 - Organize imports with standard order (typing first)
 - Use async functions for I/O-bound tasks
 - Error handling: Specific exception types, HTTPException for API errors
-- Naming: lowercase_with_underscores, descriptive with auxiliary verbs
-- Docstrings for modules, classes, and functions
+- Google-style docstrings for modules, classes, and functions

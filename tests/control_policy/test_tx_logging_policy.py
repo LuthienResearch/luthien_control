@@ -1,5 +1,4 @@
 import logging  # For caplog
-from datetime import datetime, timezone
 from typing import Optional
 from unittest.mock import AsyncMock, MagicMock  # For mocking async session and spec methods
 
@@ -13,7 +12,7 @@ from luthien_control.control_policy.tx_logging.tx_logging_spec import (
 from luthien_control.control_policy.tx_logging_policy import TxLoggingPolicy
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.db.sqlmodel_models import LuthienLog
+from luthien_control.db.sqlmodel_models import LuthienLog, NaiveDatetime
 
 # --- Test Fixtures and Mocks ---
 
@@ -106,7 +105,7 @@ async def test_log_database_entry(mock_async_session: AsyncMock):
     """Test the _log_database_entry helper method."""
     policy = TxLoggingPolicy(spec=MockTxLoggingSpec())  # Spec doesn't matter here
     tx_id = "tx-log-entry-test"
-    dt = datetime.now(timezone.utc)
+    dt = NaiveDatetime.now()
     log_data = LuthienLogData(
         datatype="test_dt", data=SerializableDict({"key": "val"}), notes=SerializableDict({"n": "v"})
     )

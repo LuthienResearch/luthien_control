@@ -7,6 +7,8 @@ from sqlalchemy import JSON, Column, String, types
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
+from .naive_datetime import NaiveDatetime
+
 # SQLModel models combining SQLAlchemy and Pydantic
 
 
@@ -94,18 +96,24 @@ class LuthienLog(SQLModel, table=True):
         notes: JSON blob for additional contextual information.
     """
 
-    # __tablename__ = "luthien_log" # SQLModel infers this or use class Config
-
     id: Optional[int] = Field(default=None, primary_key=True, index=True)
     transaction_id: str = Field(index=True, nullable=False)
-    datetime: dt.datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),  # Store as UTC
+    datetime: NaiveDatetime = Field(
+        default_factory=NaiveDatetime.now,
         nullable=False,
-        index=True,  # Add index directly here
+        index=True,
     )
     data: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JsonBOrJson))
     datatype: str = Field(index=True, nullable=False)
     notes: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JsonBOrJson))
+
+    def __init__(self, **data: Any) -> None:
+        """Override init to ensure datetime is converted to NaiveDatetime."""
+        if "datetime" in data:
+            dt_value = data["datetime"]
+            if isinstance(dt_value, datetime) and not isinstance(dt_value, NaiveDatetime):
+                data["datetime"] = NaiveDatetime(dt_value)
+        super().__init__(**data)
 
     # __table_args__ = (
     #     Index("ix_sqlmodel_luthien_log_transaction_id", "transaction_id"),

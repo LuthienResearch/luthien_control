@@ -227,3 +227,52 @@ def test_luthien_log_with_timezone_aware_datetime():
     assert log.datetime.month == 6
     assert log.datetime.day == 15
     assert log.datetime.hour == 14  # Should preserve the UTC time
+
+
+def test_luthien_log_datetime_conversion():
+    """Test that datetime objects are properly converted to NaiveDatetime."""
+    regular_datetime = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    log = LuthienLog(transaction_id="tx-123", datatype="test_type", datetime=regular_datetime)
+
+    # Should be converted to NaiveDatetime
+    assert isinstance(log.datetime, NaiveDatetime)
+    assert log.datetime == NaiveDatetime(regular_datetime)
+
+
+def test_luthien_log_with_naive_datetime_direct():
+    """Test LuthienLog with NaiveDatetime object passed directly."""
+    naive_dt = NaiveDatetime.now()
+
+    log = LuthienLog(transaction_id="tx-456", datatype="test_type", datetime=naive_dt)
+
+    # Should remain NaiveDatetime (not converted again)
+    assert isinstance(log.datetime, NaiveDatetime)
+    assert log.datetime == naive_dt
+
+
+def test_jsonb_or_json_postgresql_dialect():
+    """Test JsonBOrJson type for PostgreSQL dialect."""
+    from unittest.mock import Mock
+
+    from luthien_control.db.sqlmodel_models import JsonBOrJson
+    from sqlalchemy import JSON
+    from sqlalchemy.dialects.postgresql import JSONB
+
+    json_type = JsonBOrJson()
+
+    # Mock PostgreSQL dialect
+    pg_dialect = Mock()
+    pg_dialect.name = "postgresql"
+    pg_dialect.type_descriptor.return_value = JSONB()
+
+    json_type.load_dialect_impl(pg_dialect)
+    pg_dialect.type_descriptor.assert_called_once()
+
+    # Mock SQLite dialect
+    sqlite_dialect = Mock()
+    sqlite_dialect.name = "sqlite"
+    sqlite_dialect.type_descriptor.return_value = JSON()
+
+    json_type.load_dialect_impl(sqlite_dialect)
+    sqlite_dialect.type_descriptor.assert_called_once()

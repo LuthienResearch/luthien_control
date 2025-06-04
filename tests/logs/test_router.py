@@ -225,6 +225,54 @@ async def test_get_transaction_ids_database_error(mock_get_unique_transaction_id
 
 
 @patch("luthien_control.logs.router.list_logs")
+async def test_get_logs_unexpected_error(mock_list_logs):
+    """Test logs endpoint handling unexpected errors."""
+    mock_list_logs.side_effect = Exception("Unexpected error")
+
+    response = client.get("/admin/logs-api/logs")
+    assert response.status_code == 500
+    assert "An unexpected error occurred" in response.json()["detail"]
+
+
+@patch("luthien_control.logs.router.get_log_by_id")
+async def test_get_log_by_id_unexpected_error(mock_get_log_by_id):
+    """Test log endpoint handling unexpected errors."""
+    mock_get_log_by_id.side_effect = Exception("Unexpected error")
+
+    response = client.get("/admin/logs-api/logs/1")
+    assert response.status_code == 500
+    assert "An unexpected error occurred" in response.json()["detail"]
+
+
+@patch("luthien_control.logs.router.get_unique_datatypes")
+async def test_get_datatypes_unexpected_error(mock_get_unique_datatypes):
+    """Test datatypes endpoint handling unexpected errors."""
+    mock_get_unique_datatypes.side_effect = Exception("Unexpected error")
+
+    response = client.get("/admin/logs-api/metadata/datatypes")
+    assert response.status_code == 500
+    assert "An unexpected error occurred" in response.json()["detail"]
+
+
+@patch("luthien_control.logs.router.get_unique_transaction_ids")
+async def test_get_transaction_ids_unexpected_error(mock_get_unique_transaction_ids):
+    """Test transaction IDs endpoint handling unexpected errors."""
+    mock_get_unique_transaction_ids.side_effect = Exception("Unexpected error")
+
+    response = client.get("/admin/logs-api/metadata/transaction-ids")
+    assert response.status_code == 500
+    assert "An unexpected error occurred" in response.json()["detail"]
+
+
+async def test_get_logs_invalid_end_datetime():
+    """Test logs endpoint with invalid end datetime format."""
+    response = client.get("/admin/logs-api/logs", params={"end_datetime": "invalid-date"})
+
+    assert response.status_code == 400
+    assert "Invalid end_datetime format" in response.json()["detail"]
+
+
+@patch("luthien_control.logs.router.list_logs")
 @patch("luthien_control.logs.router.count_logs")
 async def test_get_logs_with_html_content(mock_count_logs, mock_list_logs):
     """Test that logs containing HTML are returned as-is in the API response.

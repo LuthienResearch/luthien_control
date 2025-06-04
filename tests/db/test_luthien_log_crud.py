@@ -247,6 +247,12 @@ async def test_count_logs(async_session: AsyncSession):
     count = await count_logs(async_session, datatype="test_type")
     assert count == 1
 
+    # Count with datetime filters
+    start_dt = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    end_dt = datetime.now(timezone.utc)
+    count = await count_logs(async_session, start_datetime=start_dt, end_datetime=end_dt)
+    assert count == 2
+
 
 async def test_list_logs_sqlalchemy_error(async_session: AsyncSession):
     """Test handling of SQLAlchemy errors in list_logs."""
@@ -286,3 +292,57 @@ async def test_list_logs_unexpected_error(async_session: AsyncSession):
 
     with pytest.raises(LuthienDBOperationError, match="Unexpected error during log listing"):
         await list_logs(mock_session)
+
+
+async def test_get_log_by_id_unexpected_error():
+    """Test get_log_by_id handling unexpected errors."""
+    mock_session = Mock()
+    mock_session.execute.side_effect = Exception("Unexpected error")
+
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during log lookup"):
+        await get_log_by_id(mock_session, 1)
+
+
+async def test_get_unique_datatypes_unexpected_error():
+    """Test get_unique_datatypes handling unexpected errors."""
+    mock_session = Mock()
+    mock_session.execute.side_effect = Exception("Unexpected error")
+
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during datatype lookup"):
+        await get_unique_datatypes(mock_session)
+
+
+async def test_get_unique_transaction_ids_sqlalchemy_error():
+    """Test get_unique_transaction_ids handling SQL errors."""
+    mock_session = Mock()
+    mock_session.execute.side_effect = SQLAlchemyError("Database error")
+
+    with pytest.raises(LuthienDBQueryError, match="Database query failed while fetching transaction IDs"):
+        await get_unique_transaction_ids(mock_session)
+
+
+async def test_get_unique_transaction_ids_unexpected_error():
+    """Test get_unique_transaction_ids handling unexpected errors."""
+    mock_session = Mock()
+    mock_session.execute.side_effect = Exception("Unexpected error")
+
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during transaction ID lookup"):
+        await get_unique_transaction_ids(mock_session)
+
+
+async def test_count_logs_database_error():
+    """Test count_logs error handling for SQL errors."""
+    mock_session = Mock()
+    mock_session.execute.side_effect = SQLAlchemyError("Database error")
+
+    with pytest.raises(LuthienDBQueryError, match="Database query failed while counting logs"):
+        await count_logs(mock_session)
+
+
+async def test_count_logs_unexpected_error():
+    """Test count_logs handling unexpected errors."""
+    mock_session = Mock()
+    mock_session.execute.side_effect = Exception("Unexpected error")
+
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during log counting"):
+        await count_logs(mock_session)

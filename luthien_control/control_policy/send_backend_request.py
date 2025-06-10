@@ -117,7 +117,7 @@ class SendBackendRequestPolicy(ControlPolicy):
             session: An active SQLAlchemy `AsyncSession`. (Unused by this policy but required by the interface).
 
         Returns:
-            The `TransactionContext`, updated with `context.response`
+            The `TrackedContext`, updated with `context.response`
             containing the `httpx.Response` from the backend.
 
         Raises:

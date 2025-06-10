@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from httpx import Headers
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.response_builder import ResponseBuilder
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -79,52 +79,52 @@ def backend_response() -> httpx.Response:
 
 
 @pytest.fixture
-def context_with_response_content(backend_response: httpx.Response) -> TransactionContext:
+def context_with_response_content(backend_response: httpx.Response) -> TrackedContext:
     """Context where response exists and contains content."""
-    ctx = TransactionContext(transaction_id=uuid.uuid4())
-    ctx.response = backend_response
-    return ctx
-
-
-@pytest.fixture
-def context_with_empty_content(backend_response: httpx.Response) -> TransactionContext:
-    """Context where response exists, but content is None (e.g., 204)."""
-    ctx = TransactionContext(transaction_id=uuid.uuid4())
-    empty_response = httpx.Response(
-        status_code=204,
-        headers=Headers(
-            [
-                ("content-type", "application/json"),  # Keep some headers to test filtering
-                ("x-custom-backend", "value"),
-                ("transfer-encoding", "chunked"),
-            ]
-        ),
-        content=None,  # httpx.Response uses None for empty body
-        request=backend_response.request,
+    ctx = TrackedContext(transaction_id=uuid.uuid4())
+    ctx.set_response(
+        status_code=backend_response.status_code,
+        headers=dict(backend_response.headers),
+        content=backend_response.content,
     )
-    ctx.response = empty_response
     return ctx
 
 
 @pytest.fixture
-def context_without_response() -> TransactionContext:
+def context_with_empty_content(backend_response: httpx.Response) -> TrackedContext:
+    """Context where response exists, but content is None (e.g., 204)."""
+    ctx = TrackedContext(transaction_id=uuid.uuid4())
+    ctx.set_response(
+        status_code=204,
+        headers={
+            "content-type": "application/json",
+            "x-custom-backend": "value",
+            "transfer-encoding": "chunked",
+        },
+        content=b"",  # TrackedResponse uses empty bytes for empty body
+    )
+    return ctx
+
+
+@pytest.fixture
+def context_without_response() -> TrackedContext:
     """Context where response is None."""
-    ctx = TransactionContext(transaction_id=uuid.uuid4())
-    ctx.response = None  # Explicitly set to None
+    ctx = TrackedContext(transaction_id=uuid.uuid4())
+    # Don't set any response - response property will be None
     return ctx
 
 
 @pytest.fixture
-def context_with_invalid_response_type() -> TransactionContext:
-    """Context where response is not an httpx.Response."""
-    ctx = TransactionContext(transaction_id=uuid.uuid4())
-    ctx.response = "not an httpx.Response object"  # type: ignore
+def context_with_invalid_response_type() -> TrackedContext:
+    """Context where response is not a TrackedResponse."""
+    ctx = TrackedContext(transaction_id=uuid.uuid4())
+    ctx._response = "not a TrackedResponse object"  # type: ignore
     return ctx
 
 
 def test_build_response_from_response_content(
     builder: ResponseBuilder,
-    context_with_response_content: TransactionContext,
+    context_with_response_content: TrackedContext,
     mock_dependencies_dev_false: DependencyContainer,
 ):
     """Test building response using context.response status/headers and response.content for content."""
@@ -147,7 +147,7 @@ def test_build_response_from_response_content(
 
 def test_build_response_empty_content(
     builder: ResponseBuilder,
-    context_with_empty_content: TransactionContext,
+    context_with_empty_content: TrackedContext,
     mock_dependencies_dev_false: DependencyContainer,
 ):
     """Test building response when content is None (e.g., 204 No Content)."""
@@ -173,7 +173,7 @@ def test_build_response_empty_content(
 )
 def test_build_response_context_response_is_none(
     builder: ResponseBuilder,
-    context_without_response: TransactionContext,
+    context_without_response: TrackedContext,
     dev_mode_enabled: bool,
     mock_dependencies_dev_true: DependencyContainer,  # Request both
     mock_dependencies_dev_false: DependencyContainer,  # Request both
@@ -195,7 +195,7 @@ def test_build_response_context_response_is_none(
 )
 def test_build_response_invalid_context_response_type(
     builder: ResponseBuilder,
-    context_with_invalid_response_type: TransactionContext,
+    context_with_invalid_response_type: TrackedContext,
     dev_mode_enabled: bool,
     mock_dependencies_dev_true: DependencyContainer,  # Request both
     mock_dependencies_dev_false: DependencyContainer,  # Request both
@@ -214,6 +214,6 @@ def test_build_response_invalid_context_response_type(
     assert response_body["transaction_id"] == str(context_with_invalid_response_type.transaction_id)
     if dev_mode_enabled:
         assert "Policy Error:" in response_body["detail"]
-        assert "_convert_to_fastapi_response expected httpx.Response, got <class 'str'>" in response_body["detail"]
+        assert "'str' object has no attribute 'get_headers'" in response_body["detail"]
     else:
         assert response_body["detail"] == "Internal Server Error"

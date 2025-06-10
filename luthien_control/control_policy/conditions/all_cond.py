@@ -2,7 +2,7 @@ from typing import List
 
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.serialization import SerializableDict
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 
 class AllCondition(Condition):
@@ -11,7 +11,7 @@ class AllCondition(Condition):
     def __init__(self, conditions: List[Condition]):
         self.conditions = conditions
 
-    def evaluate(self, context: TransactionContext) -> bool:
+    def evaluate(self, context: TrackedContext) -> bool:
         return all(condition.evaluate(context) for condition in self.conditions)
 
     def __repr__(self) -> str:

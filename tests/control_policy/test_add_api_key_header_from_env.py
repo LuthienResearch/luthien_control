@@ -7,16 +7,19 @@ import pytest
 from luthien_control.control_policy.add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
 from luthien_control.control_policy.serialization import SerializableDict
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 
 @pytest.fixture
-def mock_transaction_context() -> TransactionContext:
-    """Provides a mock TransactionContext with a mock request object."""
-    context = MagicMock(spec=TransactionContext)
+def mock_transaction_context() -> TrackedContext:
+    """Provides a mock TrackedContext with a mock request object."""
+    context = MagicMock(spec=TrackedContext)
     context.transaction_id = "test_tx_id"
     context.request = MagicMock()
     context.request.headers = {}
+    # Mock the TrackedRequest interface
+    context.request.get_headers.return_value = {}
+    context.request.set_header = MagicMock()
     context.response = None
     return context
 
@@ -68,8 +71,8 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
         result_context = await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
 
         assert result_context == mock_transaction_context
-        assert "Authorization" in mock_transaction_context.request.headers
-        assert mock_transaction_context.request.headers["Authorization"] == f"Bearer {API_KEY_VALUE}"
+        # Verify that set_header was called with the correct values
+        mock_transaction_context.request.set_header.assert_called_once_with("Authorization", f"Bearer {API_KEY_VALUE}")
 
     @pytest.mark.asyncio
     async def test_apply_no_request_in_context_raises_no_request_error(

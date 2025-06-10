@@ -10,7 +10,6 @@ import logging
 import os
 from typing import Optional, cast
 
-import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -19,7 +18,7 @@ from luthien_control.control_policy.exceptions import (
     NoRequestError,
 )
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 from .serialization import SerializableDict
 
@@ -46,10 +45,10 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: TransactionContext,
+        context: TrackedContext,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TransactionContext:
+    ) -> TrackedContext:
         """
         Adds the Authorization: Bearer <api_key> header to the context.request.
 
@@ -69,6 +68,9 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         Returns:
             The potentially modified transaction context.
         """
+        # Set current policy for event tracking
+        context.set_current_policy(self.name)
+
         if context.request is None:
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")
 
@@ -79,9 +81,10 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
                 f"API key not found. Environment variable '{self.api_key_env_var_name}' is not set or is empty."
             )
             self.logger.error(f"[{context.transaction_id}] {error_message} ({self.name})")
-            context.response = httpx.Response(
+            context.set_response(
                 status_code=500,
-                json={"detail": f"Server configuration error: {error_message}"},
+                headers={"Content-Type": "application/json"},
+                content=f'{{"detail": "Server configuration error: {error_message}"}}'.encode(),
             )
             raise ApiKeyNotFoundError(f"[{context.transaction_id}] {error_message} ({self.name})")
 
@@ -89,7 +92,10 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
             f"[{context.transaction_id}] Adding Authorization header from env var "
             f"'{self.api_key_env_var_name}' ({self.name})."
         )
-        context.request.headers["Authorization"] = f"Bearer {api_key}"
+        context.request.set_header("Authorization", f"Bearer {api_key}")
+
+        # Clear current policy
+        context.set_current_policy(None)
         return context
 
     def serialize(self) -> SerializableDict:

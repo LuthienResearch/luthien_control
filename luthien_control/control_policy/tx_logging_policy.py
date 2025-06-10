@@ -9,7 +9,7 @@ from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.control_policy.tx_logging import LuthienLogData, TxLoggingSpec
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from luthien_control.db.sqlmodel_models import LuthienLog, NaiveDatetime
 
 logger = logging.getLogger(__name__)
@@ -57,8 +57,8 @@ class TxLoggingPolicy(ControlPolicy):
         logger.debug(f"Prepared log entry for {log_data_obj.datatype} (tx: {transaction_id})")
 
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
         """Applies all configured logging specifications to the transaction context."""
 
         current_dt = NaiveDatetime.now()

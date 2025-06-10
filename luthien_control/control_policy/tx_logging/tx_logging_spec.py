@@ -5,7 +5,7 @@ import logging
 from typing import Any, NamedTuple, Optional, Type, TypeVar, cast
 
 from luthien_control.control_policy.serialization import SerializableDict
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +41,7 @@ class TxLoggingSpec(abc.ABC):
             )
 
     @abc.abstractmethod
-    def generate_log_data(
-        self, context: "TransactionContext", notes: Optional[SerializableDict] = None
-    ) -> LuthienLogData:
+    def generate_log_data(self, context: "TrackedContext", notes: Optional[SerializableDict] = None) -> LuthienLogData:
         raise NotImplementedError
 
     @abc.abstractmethod

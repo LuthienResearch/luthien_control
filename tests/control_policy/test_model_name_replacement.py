@@ -1,21 +1,14 @@
 import json
 from typing import Dict, cast
 
-import httpx
 import pytest
 from luthien_control.control_policy.exceptions import NoRequestError
 from luthien_control.control_policy.model_name_replacement import ModelNameReplacementPolicy
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
-class MockRequest:
-    def __init__(self, content=None):
-        self.content = content
-        self.headers = {}
-        self.method = "POST"  # Add a default method
-        self.url = "http://testserver/api/chat"  # Add a default URL
+# Remove MockRequest as we'll use TrackedContext directly
 
 
 @pytest.fixture
@@ -40,7 +33,7 @@ def model_mapping():
 @pytest.mark.asyncio
 async def test_model_name_replacement_policy_no_request():
     policy = ModelNameReplacementPolicy(model_mapping={})
-    context = TransactionContext()
+    context = TrackedContext()
 
     with pytest.raises(NoRequestError):
         await policy.apply(context, cast(DependencyContainer, None), cast(AsyncSession, None))
@@ -49,7 +42,13 @@ async def test_model_name_replacement_policy_no_request():
 @pytest.mark.asyncio
 async def test_model_name_replacement_policy_no_content(mock_container, mock_session):
     policy = ModelNameReplacementPolicy(model_mapping={"fakename": "realname"})
-    context = TransactionContext(request=cast(httpx.Request, MockRequest(content=None)))
+    context = TrackedContext()
+    context.set_request(
+        method="POST",
+        url="https://api.example.com/chat",
+        headers={"Content-Type": "application/json"},
+        content=b"",  # Empty content
+    )
 
     result = await policy.apply(context, mock_container, mock_session)
     assert result == context  # Context should be returned unchanged
@@ -58,7 +57,13 @@ async def test_model_name_replacement_policy_no_content(mock_container, mock_ses
 @pytest.mark.asyncio
 async def test_model_name_replacement_policy_invalid_json(mock_container, mock_session):
     policy = ModelNameReplacementPolicy(model_mapping={"fakename": "realname"})
-    context = TransactionContext(request=cast(httpx.Request, MockRequest(content=b"not valid json")))
+    context = TrackedContext()
+    context.set_request(
+        method="POST",
+        url="https://api.example.com/chat",
+        headers={"Content-Type": "application/json"},
+        content=b"not valid json",
+    )
 
     result = await policy.apply(context, mock_container, mock_session)
     assert result == context  # Context should be returned unchanged
@@ -69,7 +74,13 @@ async def test_model_name_replacement_policy_invalid_json(mock_container, mock_s
 async def test_model_name_replacement_policy_no_model_field(mock_container, mock_session):
     policy = ModelNameReplacementPolicy(model_mapping={"fakename": "realname"})
     request_content = json.dumps({"messages": [{"role": "user", "content": "Hello"}]}).encode("utf-8")
-    context = TransactionContext(request=cast(httpx.Request, MockRequest(content=request_content)))
+    context = TrackedContext()
+    context.set_request(
+        method="POST",
+        url="https://api.example.com/chat",
+        headers={"Content-Type": "application/json"},
+        content=request_content,
+    )
 
     result = await policy.apply(context, mock_container, mock_session)
     assert result == context  # Context should be returned unchanged
@@ -80,7 +91,13 @@ async def test_model_name_replacement_policy_no_model_field(mock_container, mock
 async def test_model_name_replacement_policy_model_not_in_mapping(mock_container, mock_session):
     policy = ModelNameReplacementPolicy(model_mapping={"fakename": "realname"})
     request_content = json.dumps({"model": "other-model", "messages": []}).encode("utf-8")
-    context = TransactionContext(request=cast(httpx.Request, MockRequest(content=request_content)))
+    context = TrackedContext()
+    context.set_request(
+        method="POST",
+        url="https://api.example.com/chat",
+        headers={"Content-Type": "application/json"},
+        content=request_content,
+    )
 
     result = await policy.apply(context, mock_container, mock_session)
     assert result == context  # Context should be returned unchanged
@@ -94,7 +111,13 @@ async def test_model_name_replacement_policy_model_in_mapping(mock_container, mo
 
     for fake_name, real_name in model_mapping.items():
         request_content = json.dumps({"model": fake_name, "messages": []}).encode("utf-8")
-        context = TransactionContext(request=cast(httpx.Request, MockRequest(content=request_content)))
+        context = TrackedContext()
+        context.set_request(
+            method="POST",
+            url="https://api.example.com/chat",
+            headers={"Content-Type": "application/json"},
+            content=request_content,
+        )
 
         result = await policy.apply(context, mock_container, mock_session)
         assert result == context  # Context should be returned

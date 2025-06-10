@@ -15,7 +15,7 @@ from luthien_control.control_policy.conditions.comparisons import (
     NotEqualsCondition,
     RegexMatchCondition,
 )
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 
 @pytest.fixture
@@ -47,13 +47,22 @@ def sample_response() -> httpx.Response:
 
 
 @pytest.fixture
-def transaction_context(sample_request: httpx.Request, sample_response: httpx.Response) -> TransactionContext:
-    """Provides a TransactionContext populated with sample request, response, and data."""
-    return TransactionContext(
-        request=sample_request,
-        response=sample_response,
-        data={"arbitrarykey": "arbitraryvalue", "count": 10, "user_permissions": ["read", "write"]},
+def transaction_context(sample_request: httpx.Request, sample_response: httpx.Response) -> TrackedContext:
+    """Provides a TrackedContext populated with sample request, response, and data."""
+    context = TrackedContext()
+    context.set_request(
+        method=sample_request.method,
+        url=str(sample_request.url),
+        headers=dict(sample_request.headers),
+        content=sample_request.content,
     )
+    context.set_response(
+        status_code=sample_response.status_code, headers=dict(sample_response.headers), content=sample_response.content
+    )
+    context.set_data("arbitrarykey", "arbitraryvalue")
+    context.set_data("count", 10)
+    context.set_data("user_permissions", ["read", "write"])
+    return context
 
 
 @pytest.mark.parametrize(
@@ -90,7 +99,7 @@ def transaction_context(sample_request: httpx.Request, sample_response: httpx.Re
     ],
 )
 def test_condition_evaluation(
-    condition_class, key: str, value: Any, expected_result: bool, transaction_context: TransactionContext
+    condition_class, key: str, value: Any, expected_result: bool, transaction_context: TrackedContext
 ) -> None:
     """Tests the evaluation logic for various comparison conditions."""
     condition = condition_class(key=key, value=value)

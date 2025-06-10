@@ -1,6 +1,6 @@
 """Utility functions and constants for logging serialization."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import httpx
 
@@ -19,24 +19,34 @@ REDACTED_PLACEHOLDER: str = "[REDACTED]"
 MAX_CONTENT_BYTES_LOG: int = 1024 * 10  # Log up to 10KB of content
 
 
-def _sanitize_headers(headers: httpx.Headers) -> Dict[str, str]:
+def _sanitize_headers(headers: Union[httpx.Headers, Dict[str, str]]) -> Dict[str, str]:
     """Sanitizes sensitive information from HTTP headers.
 
     Args:
-        headers: An httpx.Headers object representing HTTP headers.
+        headers: HTTP headers, either as httpx.Headers or Dict[str, str].
 
     Returns:
         A dictionary of headers with sensitive values redacted.
     """
     sanitized = {}
-    # Use .raw to preserve original header casing
-    for key_bytes, value_bytes in headers.raw:
-        key = key_bytes.decode("ascii")
-        value = value_bytes.decode("ascii")
-        if key.lower() in SENSITIVE_HEADER_KEYS:
-            sanitized[key] = REDACTED_PLACEHOLDER
-        else:
-            sanitized[key] = value
+
+    if isinstance(headers, httpx.Headers):
+        # Use .raw to preserve original header casing
+        for key_bytes, value_bytes in headers.raw:
+            key = key_bytes.decode("ascii")
+            value = value_bytes.decode("ascii")
+            if key.lower() in SENSITIVE_HEADER_KEYS:
+                sanitized[key] = REDACTED_PLACEHOLDER
+            else:
+                sanitized[key] = value
+    else:
+        # Handle Dict[str, str] headers
+        for key, value in headers.items():
+            if key.lower() in SENSITIVE_HEADER_KEYS:
+                sanitized[key] = REDACTED_PLACEHOLDER
+            else:
+                sanitized[key] = value
+
     return sanitized
 
 

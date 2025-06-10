@@ -1,8 +1,9 @@
 """TrackedContext with explicit mutation API and event tracking."""
 
 import uuid
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, Optional
 
+from ..events import EventBus
 from .mutation_event import MutationEvent
 from .tracked_request import TrackedRequest
 from .tracked_response import TrackedResponse
@@ -18,7 +19,7 @@ class TrackedContext:
         self._response: Optional[TrackedResponse] = None
         self._data: Dict[str, Any] = {}
         self._current_policy: Optional[str] = None
-        self._listeners: List[Callable[[MutationEvent], None]] = []
+        self.event_bus = EventBus()
 
     @property
     def transaction_id(self) -> uuid.UUID:
@@ -29,9 +30,9 @@ class TrackedContext:
         """Set the current policy making changes."""
         self._current_policy = policy_name
 
-    def add_listener(self, listener: Callable[[MutationEvent], None]) -> None:
-        """Add an event listener."""
-        self._listeners.append(listener)
+    def add_listener(self, event_name: str, listener) -> None:
+        """Add an event listener for a specific event."""
+        self.event_bus.add_listener(event_name, listener)
 
     def _emit(self, event: MutationEvent) -> None:
         """Emit an event to all listeners."""
@@ -39,12 +40,16 @@ class TrackedContext:
         event.transaction_id = self._transaction_id
         event.policy_name = self._current_policy or "unknown"
 
-        for listener in self._listeners:
-            try:
-                listener(event)
-            except Exception:
-                # Don't let listener errors break the main flow
-                pass
+        # Dispatch via EventBus
+        self.event_bus.dispatch(
+            event_name=f"TrackedContext.{event.operation}",
+            payload={
+                "transaction_id": str(event.transaction_id),
+                "policy_name": event.policy_name,
+                "operation": event.operation,
+                "details": event.details,
+            },
+        )
 
     def set_request(self, method: str, url: str, headers: Dict[str, str], content: bytes) -> TrackedRequest:
         """Create and set the request."""

@@ -3,7 +3,8 @@
 import uuid
 from unittest.mock import Mock
 
-from luthien_control.core.tracked_context import MutationEvent, TrackedContext
+from luthien_control.core.events import EventBus
+from luthien_control.core.tracked_context import TrackedContext
 
 
 class TestTrackedContext:
@@ -24,6 +25,12 @@ class TestTrackedContext:
 
         assert context.transaction_id == tx_id
 
+    def test_event_bus(self):
+        """Test that event_bus is an EventBus instance."""
+        context = TrackedContext()
+
+        assert isinstance(context.event_bus, EventBus)
+
     def test_set_current_policy(self):
         """Test setting current policy."""
         context = TrackedContext()
@@ -36,7 +43,7 @@ class TestTrackedContext:
         context = TrackedContext()
         listener = Mock()
 
-        context.add_listener(listener)
+        context.add_listener("TrackedContext.set_data", listener)
         # Should not raise - internal state tracking
 
     def test_set_request(self):
@@ -83,18 +90,19 @@ class TestTrackedContext:
         assert all_data["another_key"] == "value"
 
     def test_event_emission(self):
-        """Test that events are emitted to listeners."""
+        """Test that events are emitted to listeners via EventBus."""
         context = TrackedContext()
         listener = Mock()
-        context.add_listener(listener)
+        context.add_listener("TrackedContext.set_data", listener)
         context.set_current_policy("TestPolicy")
 
         # Set data should emit event
         context.set_data("test_key", "test_value")
 
-        # Listener should be called
+        # Listener should be called via EventBus
         listener.assert_called_once()
         event = listener.call_args[0][0]
-        assert isinstance(event, MutationEvent)
-        assert event.policy_name == "TestPolicy"
-        assert event.operation == "set_data"
+        assert event.name == "TrackedContext.set_data"
+        assert event.payload["policy_name"] == "TestPolicy"
+        assert event.payload["operation"] == "set_data"
+        assert event.payload["details"]["key"] == "test_key"

@@ -1,16 +1,15 @@
 import logging
 
-import httpx
 from fastapi import Response
 from fastapi.responses import JSONResponse
 
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 
 class ResponseBuilder:
     """
-    Builds a FastAPI response from the TransactionContext based on successful policy execution.
+    Builds a FastAPI response from the TrackedContext based on successful policy execution.
 
     Headers are filtered to remove hop-by-hop headers.
     Returns a 500 error response ONLY IF building the response itself fails unexpectedly,
@@ -36,43 +35,35 @@ class ResponseBuilder:
             "content-encoding",  # Exclude, FastAPI handles compression if needed
         }
 
-    def _convert_to_fastapi_response(self, context: TransactionContext) -> Response:
-        """Converts an httpx.Response object to a FastAPI Response object.
+    def _convert_to_fastapi_response(self, context: TrackedContext) -> Response:
+        """Converts a TrackedResponse to a FastAPI Response object.
 
         Filters hop-by-hop headers. The content, status code, and headers
-        are taken directly from the httpx_response.
+        are taken directly from the tracked response.
 
         Args:
-            httpx_response: The httpx.Response object to convert.
-            context: The transaction context, used for logging or other metadata.
+            context: The tracked context with response data.
 
         Returns:
             A FastAPI Response object.
 
         Raises:
-            TypeError: if httpx_response is not an instance of httpx.Response.
+            TypeError: if response is None or invalid.
         """
         # This check is a safeguard; callers should ideally ensure type correctness.
         if context.response is None:
             self.logger.error(f"[{context.transaction_id}] _convert_to_fastapi_response received None response.")
             raise TypeError("_convert_to_fastapi_response received None response.")
-        if not isinstance(context.response, httpx.Response):
-            self.logger.error(
-                f"[{context.transaction_id}] _convert_to_fastapi_response received incorrect type: "
-                f"{type(context.response)}. Expected httpx.Response."
-            )
-            raise TypeError(f"_convert_to_fastapi_response expected httpx.Response, got {type(context.response)}")
 
         # Filter headers from the backend response
         filtered_backend_headers = {
-            k: v for k, v in context.response.headers.items() if k.lower() not in self.hop_by_hop_headers
+            k: v for k, v in context.response.get_headers().items() if k.lower() not in self.hop_by_hop_headers
         }
 
         # Extract media type from backend response headers if present
-        media_type = context.response.headers.get("content-type")
+        media_type = context.response.get_header("content-type")
 
-        # Create a FastAPI Response using details from httpx_response
-        # httpx_response.content is bytes
+        # Create a FastAPI Response using details from tracked response
         return Response(
             content=context.response.content,
             status_code=context.response.status_code,
@@ -80,7 +71,7 @@ class ResponseBuilder:
             media_type=media_type,
         )
 
-    def build_response(self, context: TransactionContext, dependencies: DependencyContainer) -> Response:
+    def build_response(self, context: TrackedContext, dependencies: DependencyContainer) -> Response:
         try:
             return self._convert_to_fastapi_response(context)
         except Exception as convert_exc:  # Catch any other unexpected error during conversion

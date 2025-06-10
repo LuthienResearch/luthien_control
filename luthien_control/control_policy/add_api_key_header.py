@@ -3,13 +3,12 @@
 import logging
 from typing import Optional, cast
 
-import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 from .serialization import SerializableDict
 
@@ -27,10 +26,10 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: TransactionContext,
+        context: TrackedContext,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TransactionContext:
+    ) -> TrackedContext:
         """
         Adds the Authorization: Bearer <api_key> header to the context.request.
 
@@ -50,21 +49,28 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         Returns:
             The potentially modified transaction context.
         """
+        # Set current policy for event tracking
+        context.set_current_policy(self.name)
+
         if context.request is None:
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")
         settings = container.settings
         api_key = settings.get_openai_api_key()
         if not api_key:
-            context.response = httpx.Response(
+            context.set_response(
                 status_code=500,
-                json={"detail": "Server configuration error: OpenAI API key not configured"},
+                headers={"Content-Type": "application/json"},
+                content=b'{"detail": "Server configuration error: OpenAI API key not configured"}',
             )
             raise ApiKeyNotFoundError(f"[{context.transaction_id}] OpenAI API key not configured ({self.name}).")
         self.logger.info(f"[{context.transaction_id}] Adding Authorization header for OpenAI key ({self.name}).")
-        context.request.headers["Authorization"] = f"Bearer {api_key}"
+        context.request.set_header("Authorization", f"Bearer {api_key}")
         self.logger.info(
-            f"[{context.transaction_id}] Authorization header added: {context.request.headers['Authorization']}"
+            f"[{context.transaction_id}] Authorization header added: {context.request.get_header('Authorization')}"
         )
+
+        # Clear current policy
+        context.set_current_policy(None)
         return context
 
     def serialize(self) -> SerializableDict:

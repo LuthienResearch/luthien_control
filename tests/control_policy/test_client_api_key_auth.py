@@ -3,7 +3,6 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
-from httpx import Request as HttpxRequest
 from luthien_control.control_policy.client_api_key_auth import (
     API_KEY_HEADER,
     BEARER_PREFIX,
@@ -16,7 +15,7 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from luthien_control.db.exceptions import LuthienDBQueryError
 from luthien_control.db.sqlmodel_models import ClientApiKey
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,18 +25,14 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture
 def base_transaction_context():
-    """Provides a basic TransactionContext instance with a unique ID."""
-    return TransactionContext(transaction_id=uuid.uuid4())
+    """Provides a basic TrackedContext instance with a unique ID."""
+    return TrackedContext(transaction_id=uuid.uuid4())
 
 
 @pytest.fixture
 def transaction_context_with_request(base_transaction_context):
-    """Provides a TransactionContext with a mock HttpxRequest attached."""
-    mock_request = HttpxRequest(
-        method="GET",
-        url="http://test.com",
-    )
-    base_transaction_context.request = mock_request
+    """Provides a TrackedContext with a mock HttpxRequest attached."""
+    base_transaction_context.set_request(method="GET", url="http://test.com", headers={}, content=b"")
     return base_transaction_context
 
 
@@ -67,7 +62,7 @@ async def test_apply_missing_header_raises_error(
     """Verify ClientAuthenticationNotFoundError is raised if header is missing."""
     policy = ClientApiKeyAuthPolicy()
 
-    transaction_context_with_request.request.headers = {}  # Set empty headers
+    # Headers are already empty from fixture
 
     with pytest.raises(ClientAuthenticationNotFoundError):
         await policy.apply(
@@ -91,8 +86,7 @@ async def test_apply_key_not_found_raises_error(
         policy = ClientApiKeyAuthPolicy()
 
         test_api_key = "non-existent-key"
-        headers = {API_KEY_HEADER: f"{BEARER_PREFIX}{test_api_key}"}
-        transaction_context_with_request.request.headers = headers
+        transaction_context_with_request.request.set_header(API_KEY_HEADER, f"{BEARER_PREFIX}{test_api_key}")
 
         with pytest.raises(ClientAuthenticationError, match="Invalid API Key"):
             await policy.apply(
@@ -124,8 +118,7 @@ async def test_apply_inactive_key_raises_error(
         policy = ClientApiKeyAuthPolicy()
 
         test_api_key = "inactive-key-456"
-        headers = {API_KEY_HEADER: f"{BEARER_PREFIX}{test_api_key}"}
-        transaction_context_with_request.request.headers = headers
+        transaction_context_with_request.request.set_header(API_KEY_HEADER, f"{BEARER_PREFIX}{test_api_key}")
 
         with pytest.raises(ClientAuthenticationError, match="Inactive API Key"):
             await policy.apply(
@@ -157,8 +150,7 @@ async def test_apply_no_bearer_prefix_success(
         policy = ClientApiKeyAuthPolicy()
 
         test_api_key = "key-without-bearer-prefix"
-        headers = {API_KEY_HEADER: test_api_key}  # No Bearer prefix
-        transaction_context_with_request.request.headers = headers
+        transaction_context_with_request.request.set_header(API_KEY_HEADER, test_api_key)
 
         result_context = await policy.apply(
             transaction_context_with_request,
@@ -189,8 +181,7 @@ async def test_apply_valid_active_key_success(
         policy = ClientApiKeyAuthPolicy()
 
         test_api_key_value = "valid-active-key-123"
-        headers = {API_KEY_HEADER: f"{BEARER_PREFIX}{test_api_key_value}"}
-        transaction_context_with_request.request.headers = headers
+        transaction_context_with_request.request.set_header(API_KEY_HEADER, f"{BEARER_PREFIX}{test_api_key_value}")
 
         result_context = await policy.apply(
             transaction_context_with_request,

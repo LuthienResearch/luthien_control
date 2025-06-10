@@ -4,7 +4,6 @@ from typing import Any, Optional, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # from fastapi import Response # Removed
-import httpx
 import pytest
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
@@ -14,7 +13,7 @@ from luthien_control.control_policy.noop_policy import NoopPolicy
 from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Test Fixtures and Helper Classes ---
@@ -36,16 +35,19 @@ class MockSimplePolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: TransactionContext,
+        context: TrackedContext,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TransactionContext:
+    ) -> TrackedContext:
         self.logger.info(f"Applying {self.name}")
-        call_order = context.data.setdefault("call_order", [])
+        call_order = context.get_data("call_order", [])
+        if not call_order:
+            context.set_data("call_order", [])
+            call_order = context.get_data("call_order")
         call_order.append(self.name)
 
         if self.sets_response:
-            context.response = httpx.Response(status_code=299, content=f"Response from {self.name}".encode("utf-8"))
+            context.set_response(status_code=299, headers={}, content=f"Response from {self.name}".encode("utf-8"))
             self.logger.info(f"{self.name} setting response")
 
         await self.apply_mock(context, container=container, session=session)
@@ -65,9 +67,9 @@ class MockSimplePolicy(ControlPolicy):
 
 
 @pytest.fixture
-def base_transaction_context() -> TransactionContext:
-    """Provides a basic TransactionContext for tests."""
-    return TransactionContext(transaction_id=uuid.uuid4())
+def base_transaction_context() -> TrackedContext:
+    """Provides a basic TrackedContext for tests."""
+    return TrackedContext(transaction_id=uuid.uuid4())
 
 
 # --- Test Cases ---
@@ -95,7 +97,7 @@ async def test_serial_policy_applies_policies_sequentially(
     )
 
     # Assertions
-    assert result_context.data.get("call_order") == ["Policy1", "Policy2"]
+    assert result_context.get_data("call_order") == ["Policy1", "Policy2"]
     # Ensure the mock policies were called with the correct context
     assert policy1.apply_mock.call_args[0][0] == context_before_policy1
     # The context passed to policy2 should be the result of policy1
@@ -157,7 +159,7 @@ async def test_serial_policy_propagates_exception(
         )
 
     # Check that policy1 was called, but policy3 was not
-    assert base_transaction_context.data.get("call_order") == ["Policy1", "Policy2"]
+    assert base_transaction_context.get_data("call_order") == ["Policy1", "Policy2"]
     policy1.apply_mock.assert_awaited_once()
     policy2.apply_mock.assert_awaited_once()
     policy3.apply_mock.assert_not_awaited()

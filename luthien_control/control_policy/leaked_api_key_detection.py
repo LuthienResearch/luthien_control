@@ -10,13 +10,12 @@ import logging
 import re
 from typing import List, Optional, Pattern, cast
 
-import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import LeakedApiKeyError, NoRequestError
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 from .serialization import SerializableDict
 
@@ -46,10 +45,10 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: TransactionContext,
+        context: TrackedContext,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TransactionContext:
+    ) -> TrackedContext:
         """
         Checks message content for potentially leaked API keys.
 
@@ -65,20 +64,23 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
             NoRequestError: If the request is not found in the context.
             LeakedApiKeyError: If a potential API key is detected in message content.
         """
+        # Set current policy for event tracking
+        context.set_current_policy(self.name)
+
         if context.request is None:
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")
 
         self.logger.info(f"[{context.transaction_id}] Checking for leaked API keys in message content ({self.name}).")
 
         # Only look at POST requests with content
-        if not hasattr(context.request, "content") or not context.request.content:
+        if not context.request.content:
             self.logger.debug(f"[{context.transaction_id}] No content to check for API keys.")
+            context.set_current_policy(None)
             return context
 
         try:
             # Get the request body as JSON
-            body_content = context.request.content.decode("utf-8")
-            body_json = json.loads(body_content)
+            body_json = context.request.get_json()
 
             # Check the "messages" field for leaked API keys
             if "messages" in body_json and isinstance(body_json["messages"], list):
@@ -95,9 +97,10 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
                             )
                             self.logger.warning(f"[{context.transaction_id}] {error_message} ({self.name})")
 
-                            context.response = httpx.Response(
+                            context.set_response(
                                 status_code=403,
-                                json={"detail": error_message},
+                                headers={"Content-Type": "application/json"},
+                                content=json.dumps({"detail": error_message}).encode(),
                             )
                             raise LeakedApiKeyError(detail=error_message)
 
@@ -106,6 +109,8 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
             self.logger.debug(f"[{context.transaction_id}] Could not decode request body as JSON.")
             pass
 
+        # Clear current policy
+        context.set_current_policy(None)
         return context
 
     def _check_text(self, text: str) -> bool:

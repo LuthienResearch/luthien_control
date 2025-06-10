@@ -11,7 +11,7 @@ from luthien_control.control_policy.tx_logging.openai_request_spec import (
     serialize_openai_chat_request,
 )
 from luthien_control.control_policy.tx_logging.tx_logging_spec import LuthienLogData
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 # --- Tests for serialize_openai_chat_request ---#
 
@@ -98,8 +98,10 @@ def test_serialize_openai_chat_request_no_content(caplog):
 def test_openai_request_spec_generate_log_data_with_request():
     """Test generate_log_data with a valid request."""
     body = {"model": "gpt-4", "messages": [{"role": "user", "content": "Test"}]}
-    request = httpx.Request("POST", "url", content=json.dumps(body).encode("utf-8"), headers={"X-Test": "value"})
-    context = TransactionContext(request=request)
+    headers = {"X-Test": "value"}
+    request = httpx.Request("POST", "url", content=json.dumps(body).encode("utf-8"), headers=headers)
+    context = TrackedContext()
+    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = OpenAIRequestSpec()
     notes_dict: SerializableDict = {"note1": "val1"}
 
@@ -119,7 +121,7 @@ def test_openai_request_spec_generate_log_data_with_request():
 
 def test_openai_request_spec_generate_log_data_no_request(caplog):
     """Test generate_log_data when no request is in the context."""
-    context = TransactionContext()
+    context = TrackedContext()
     spec = OpenAIRequestSpec()
 
     with caplog.at_level(logging.WARNING):
@@ -140,13 +142,15 @@ def test_openai_request_spec_generate_log_data_serialization_error(caplog):
 
     # Create a request with content that will cause JSON parsing errors
     content_bytes = b"\xff\xfe"  # Invalid UTF-8 content that will cause UnicodeDecodeError
+    headers = {"Content-Type": "application/json"}
     request = httpx.Request(
         "POST",
         "https://api.openai.com/v1/chat/completions",
         content=content_bytes,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
     )
-    context = TransactionContext(request=request)
+    context = TrackedContext()
+    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = OpenAIRequestSpec()
 
     with caplog.at_level(logging.ERROR):
@@ -160,11 +164,10 @@ def test_openai_request_spec_generate_log_data_serialization_error(caplog):
     content = log_data_obj.data["content"]
     assert isinstance(content, dict)
     assert "error" in content
-    assert "UnicodeDecodeError" in content["error"]
+    assert "JSONDecodeError" in content["error"]
 
     # Check that error was logged
     assert "Error parsing OpenAI request" in caplog.text
-    assert "can't decode byte" in caplog.text
 
 
 def test_openai_request_spec_serialize():

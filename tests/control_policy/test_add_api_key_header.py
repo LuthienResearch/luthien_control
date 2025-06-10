@@ -7,7 +7,7 @@ import httpx
 import pytest
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 
 @pytest.fixture
@@ -27,7 +27,13 @@ async def test_add_api_key_success(
     # Instantiate with name (optional)
     policy = AddApiKeyHeaderPolicy(name="TestPolicy")
 
-    context = TransactionContext(transaction_id=uuid.uuid4(), request=base_request)
+    context = TrackedContext(transaction_id=uuid.uuid4())
+    context.set_request(
+        method=base_request.method,
+        url=str(base_request.url),
+        headers=dict(base_request.headers),
+        content=base_request.content,
+    )
 
     # Mock the container's settings to return the OpenAI key
     mock_container.settings.get_openai_api_key.return_value = "test-openai-key-123"
@@ -35,8 +41,8 @@ async def test_add_api_key_success(
     result_context = await policy.apply(context, container=mock_container, session=mock_db_session)
     assert result_context is context
     assert result_context.request is not None
-    assert "authorization" in result_context.request.headers
-    assert result_context.request.headers["authorization"] == "Bearer test-openai-key-123"
+    assert "Authorization" in result_context.request.get_headers()
+    assert result_context.request.get_headers()["Authorization"] == "Bearer test-openai-key-123"
     # Check the correct specific method was called
     mock_container.settings.get_openai_api_key.assert_called_once()
 
@@ -50,7 +56,13 @@ async def test_add_api_key_missing_key(
     """Test that it raises an error if the OpenAI API key is not configured."""
     policy = AddApiKeyHeaderPolicy()
 
-    context = TransactionContext(transaction_id=uuid.uuid4(), request=base_request)
+    context = TrackedContext(transaction_id=uuid.uuid4())
+    context.set_request(
+        method=base_request.method,
+        url=str(base_request.url),
+        headers=dict(base_request.headers),
+        content=base_request.content,
+    )
 
     # Mock the container's settings to return None for the OpenAI key
     mock_container.settings.get_openai_api_key.return_value = None
@@ -71,7 +83,7 @@ async def test_add_api_key_no_request(
     """Test that it raises an error if the request is not found in the context."""
     policy = AddApiKeyHeaderPolicy()
 
-    context = TransactionContext(transaction_id=uuid.uuid4())
+    context = TrackedContext(transaction_id=uuid.uuid4())
     with pytest.raises(NoRequestError):
         await policy.apply(context, container=mock_container, session=mock_db_session)
     # Ensure get_openai_api_key was NOT called if no request
@@ -88,7 +100,13 @@ async def test_add_api_key_overwrites_existing(
     base_request.headers["Authorization"] = "Bearer old-key"
     policy = AddApiKeyHeaderPolicy()
 
-    context = TransactionContext(transaction_id=uuid.uuid4(), request=base_request)
+    context = TrackedContext(transaction_id=uuid.uuid4())
+    context.set_request(
+        method=base_request.method,
+        url=str(base_request.url),
+        headers=dict(base_request.headers),
+        content=base_request.content,
+    )
 
     # Mock container's settings for OpenAI key
     mock_container.settings.get_openai_api_key.return_value = "new-openai-key-456"
@@ -96,9 +114,9 @@ async def test_add_api_key_overwrites_existing(
     result_context = await policy.apply(context, container=mock_container, session=mock_db_session)
     assert result_context is context
     assert result_context.request is not None
-    assert "authorization" in result_context.request.headers
+    assert "Authorization" in result_context.request.get_headers()
     # Verify the new OpenAI key is present
-    assert result_context.request.headers["authorization"] == "Bearer new-openai-key-456"
+    assert result_context.request.get_headers()["Authorization"] == "Bearer new-openai-key-456"
     mock_container.settings.get_openai_api_key.assert_called_once()
 
 

@@ -2,14 +2,15 @@ import httpx
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.control_policy.tx_logging.logging_utils import REDACTED_PLACEHOLDER
 from luthien_control.control_policy.tx_logging.request_headers_spec import RequestHeadersSpec
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 
 def test_generate_log_data_with_request():
     """Test generating log data when a request is present."""
     headers = {"X-Test-Header": "TestValue", "Content-Type": "application/json"}
     request = httpx.Request(method="GET", url="http://example.com/test", headers=headers)
-    context = TransactionContext(request=request)
+    context = TrackedContext()
+    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = RequestHeadersSpec()
 
     log_data_obj = spec.generate_log_data(context)
@@ -28,8 +29,10 @@ def test_generate_log_data_with_request():
 
 def test_generate_log_data_with_notes():
     """Test generating log data with additional notes."""
-    request = httpx.Request(method="POST", url="http://example.com/submit")
-    context = TransactionContext(request=request)
+    headers = {}
+    request = httpx.Request(method="POST", url="http://example.com/submit", headers=headers)
+    context = TrackedContext()
+    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = RequestHeadersSpec()
     notes_dict: SerializableDict = {"custom_note": "important info"}
 
@@ -41,7 +44,7 @@ def test_generate_log_data_with_notes():
 
 def test_generate_log_data_no_request():
     """Test generating log data when no request is present in the context."""
-    context = TransactionContext()  # No request
+    context = TrackedContext()  # No request
     spec = RequestHeadersSpec()
 
     log_data_obj = spec.generate_log_data(context)
@@ -60,7 +63,8 @@ def test_generate_log_data_header_sanitization():
         "X-Normal-Header": "normal_value",
     }
     request = httpx.Request(method="GET", url="http://example.com/secure", headers=headers)
-    context = TransactionContext(request=request)
+    context = TrackedContext()
+    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = RequestHeadersSpec()
 
     log_data_obj = spec.generate_log_data(context)
@@ -80,30 +84,33 @@ def test_generate_log_data_header_sanitization():
 
 def test_generate_log_data_empty_headers():
     """Test generating log data with an empty headers object."""
-    request = httpx.Request(method="PUT", url="http://example.com/empty", headers={})
-    context = TransactionContext(request=request)
+    headers = {}
+    request = httpx.Request(method="PUT", url="http://example.com/empty", headers=headers)
+    context = TrackedContext()
+    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = RequestHeadersSpec()
     log_data_obj = spec.generate_log_data(context)
     assert log_data_obj is not None
     assert log_data_obj.data is not None
     assert isinstance(log_data_obj.data, dict)
     assert isinstance(log_data_obj.data["headers"], dict)
-    assert "Host" in log_data_obj.data["headers"]
-    assert "Content-Length" in log_data_obj.data["headers"]
+    # With empty original headers, the logged headers should also be empty
+    assert log_data_obj.data["headers"] == {}
 
 
 def test_generate_log_data_exception_handling(capsys):
     """Test that exceptions during log data generation bubble up."""
 
     class FaultyRequest:  # Intentionally faulty request object
-        @property
-        def headers(self):
+        def get_headers(self):
             raise ValueError("Failed to get headers")
 
         method = "GET"
         url = "http://faulty.com"
 
-    context = TransactionContext(request=FaultyRequest())  # type: ignore
+    context = TrackedContext()
+    # Can't use set_request with FaultyRequest, so directly set the request
+    context._request = FaultyRequest()  # type: ignore
     spec = RequestHeadersSpec()
 
     # Expect the exception to bubble up rather than being caught

@@ -1,4 +1,3 @@
-
 import pytest
 from luthien_control.core.tracked_context import TrackedContext
 from luthien_control.core.tracked_context.util import get_tx_value

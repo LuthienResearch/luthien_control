@@ -47,7 +47,7 @@ class MockSimplePolicy(ControlPolicy):
         call_order.append(self.name)
 
         if self.sets_response:
-            context.set_response(status_code=299, headers={}, content=f"Response from {self.name}".encode("utf-8"))
+            context.update_response(status_code=299, headers={}, content=f"Response from {self.name}".encode("utf-8"))
             self.logger.info(f"{self.name} setting response")
 
         await self.apply_mock(context, container=container, session=session)

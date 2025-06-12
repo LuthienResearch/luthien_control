@@ -26,8 +26,6 @@ class EventBus:
     """A simple event bus for a single transaction.
 
     This class manages a collection of listeners and dispatches events to them.
-    It's designed to be instantiated once per transaction and live on the
-    TransactionContext.
     """
 
     def __init__(self) -> None:

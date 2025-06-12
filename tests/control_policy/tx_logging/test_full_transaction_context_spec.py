@@ -115,7 +115,7 @@ def test_serialize_httpx_response():
             "http_version": b"HTTP/1.1",
         },
     )
-    response.elapsed = datetime.timedelta(milliseconds=50)
+    response._elapsed = datetime.timedelta(milliseconds=50)
 
     serialized = _serialize_httpx_response(response)
     assert serialized["status_code"] == 200
@@ -157,10 +157,10 @@ def test_full_transaction_context_spec_generate_log_data():
     # Create transaction context
     context_data = {"custom_field": "custom_value", "sensitive_info": "super_secret"}
     context = TrackedContext()
-    context.set_request(
+    context.update_request(
         method=request.method, url=str(request.url), headers=dict(request.headers), content=request.content
     )
-    context.set_response(status_code=response.status_code, headers=dict(response.headers), content=response.content)
+    context.update_response(status_code=response.status_code, headers=dict(response.headers), content=response.content)
     for key, value in context_data.items():
         context.set_data(key, value)
 

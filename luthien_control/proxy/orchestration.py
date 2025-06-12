@@ -33,7 +33,7 @@ def _initialize_context(fastapi_request: fastapi.Request, body: bytes) -> Tracke
             query_parts.append(f"{key}={value}")
         url = f"{url}?{'&'.join(query_parts)}"
 
-    context.set_request(
+    context.update_request(
         method=fastapi_request.method,
         url=url,
         headers=headers_dict,

@@ -28,7 +28,7 @@ class RequestHeadersSpec(TxLoggingSpec):
                 f"RequestHeadersSpec: No request found in {self.TYPE_NAME} for transaction {context.transaction_id}"
             )
             return LuthienLogData(datatype="request_headers", data=None, notes=notes)
-        sanitized_headers = sanitize_headers_util(context.request.get_headers())
+        sanitized_headers = sanitize_headers_util(context.request.headers)
         log_data = {
             "method": context.request.method,
             "url": context.request.url,

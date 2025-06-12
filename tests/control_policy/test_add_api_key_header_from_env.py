@@ -71,8 +71,9 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
         result_context = await policy.apply(mock_transaction_context, mock_dependency_container, mock_async_session)
 
         assert result_context == mock_transaction_context
-        # Verify that set_header was called with the correct values
-        mock_transaction_context.request.set_header.assert_called_once_with("Authorization", f"Bearer {API_KEY_VALUE}")
+        mock_transaction_context.update_request.assert_called_once_with(
+            headers={"Authorization": f"Bearer {API_KEY_VALUE}"}
+        )
 
     @pytest.mark.asyncio
     async def test_apply_no_request_in_context_raises_no_request_error(

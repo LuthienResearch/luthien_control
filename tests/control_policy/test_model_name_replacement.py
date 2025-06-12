@@ -43,7 +43,7 @@ async def test_model_name_replacement_policy_no_request():
 async def test_model_name_replacement_policy_no_content(mock_container, mock_session):
     policy = ModelNameReplacementPolicy(model_mapping={"fakename": "realname"})
     context = TrackedContext()
-    context.set_request(
+    context.update_request(
         method="POST",
         url="https://api.example.com/chat",
         headers={"Content-Type": "application/json"},
@@ -58,7 +58,7 @@ async def test_model_name_replacement_policy_no_content(mock_container, mock_ses
 async def test_model_name_replacement_policy_invalid_json(mock_container, mock_session):
     policy = ModelNameReplacementPolicy(model_mapping={"fakename": "realname"})
     context = TrackedContext()
-    context.set_request(
+    context.update_request(
         method="POST",
         url="https://api.example.com/chat",
         headers={"Content-Type": "application/json"},
@@ -75,7 +75,7 @@ async def test_model_name_replacement_policy_no_model_field(mock_container, mock
     policy = ModelNameReplacementPolicy(model_mapping={"fakename": "realname"})
     request_content = json.dumps({"messages": [{"role": "user", "content": "Hello"}]}).encode("utf-8")
     context = TrackedContext()
-    context.set_request(
+    context.update_request(
         method="POST",
         url="https://api.example.com/chat",
         headers={"Content-Type": "application/json"},
@@ -92,7 +92,7 @@ async def test_model_name_replacement_policy_model_not_in_mapping(mock_container
     policy = ModelNameReplacementPolicy(model_mapping={"fakename": "realname"})
     request_content = json.dumps({"model": "other-model", "messages": []}).encode("utf-8")
     context = TrackedContext()
-    context.set_request(
+    context.update_request(
         method="POST",
         url="https://api.example.com/chat",
         headers={"Content-Type": "application/json"},
@@ -112,7 +112,7 @@ async def test_model_name_replacement_policy_model_in_mapping(mock_container, mo
     for fake_name, real_name in model_mapping.items():
         request_content = json.dumps({"model": fake_name, "messages": []}).encode("utf-8")
         context = TrackedContext()
-        context.set_request(
+        context.update_request(
             method="POST",
             url="https://api.example.com/chat",
             headers={"Content-Type": "application/json"},

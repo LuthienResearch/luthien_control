@@ -49,28 +49,23 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         Returns:
             The potentially modified transaction context.
         """
-        # Set current policy for event tracking
-        context.set_current_policy(self.name)
-
         if context.request is None:
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")
         settings = container.settings
         api_key = settings.get_openai_api_key()
         if not api_key:
-            context.set_response(
+            context.update_response(
                 status_code=500,
                 headers={"Content-Type": "application/json"},
                 content=b'{"detail": "Server configuration error: OpenAI API key not configured"}',
             )
             raise ApiKeyNotFoundError(f"[{context.transaction_id}] OpenAI API key not configured ({self.name}).")
         self.logger.info(f"[{context.transaction_id}] Adding Authorization header for OpenAI key ({self.name}).")
-        context.request.set_header("Authorization", f"Bearer {api_key}")
+        context.update_request(headers={"Authorization": f"Bearer {api_key}"})
         self.logger.info(
-            f"[{context.transaction_id}] Authorization header added: {context.request.get_header('Authorization')}"
+            f"[{context.transaction_id}] Authorization header added: {context.request.headers['Authorization']}"
         )
 
-        # Clear current policy
-        context.set_current_policy(None)
         return context
 
     def serialize(self) -> SerializableDict:

@@ -1,6 +1,5 @@
 """Unit tests for the LeakedApiKeyDetectionPolicy."""
 
-import json
 from typing import cast
 from unittest.mock import MagicMock
 
@@ -79,10 +78,8 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "What is the square root of 64?"}
             ]
         }"""
-        # Mock the TrackedRequest with get_json method
-        mock_request = MagicMock()
-        mock_request.get_json.return_value = json.loads(body.decode())
-        mock_transaction_context.request = mock_request
+        # Create httpx.Request with content
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         policy = LeakedApiKeyDetectionPolicy()
 
@@ -104,10 +101,8 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "My API key is sk-abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmn. Can you help me use it?"}
             ]
         }"""  # noqa: E501 - not worth breaking up a long line in the middle of a multiline string specifying a JSON body
-        # Mock the TrackedRequest with get_json method
-        mock_request = MagicMock()
-        mock_request.get_json.return_value = json.loads(body.decode())
-        mock_transaction_context.request = mock_request
+        # Create httpx.Request with content
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         policy = LeakedApiKeyDetectionPolicy()
 
@@ -127,10 +122,8 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "Hello, can you help me?"}
             ]
         }"""  # noqa: E501 - not worth breaking up a long line in the middle of a multiline string specifying a JSON body
-        # Mock the TrackedRequest with get_json method
-        mock_request = MagicMock()
-        mock_request.get_json.return_value = json.loads(body.decode())
-        mock_transaction_context.request = mock_request
+        # Create httpx.Request with content
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         policy = LeakedApiKeyDetectionPolicy()
 
@@ -140,10 +133,8 @@ class TestLeakedApiKeyDetectionPolicyApply:
     @pytest.mark.asyncio
     async def test_apply_with_non_json_body(self, mock_transaction_context, mock_container, mock_db_session):
         """Test that a non-JSON body doesn't cause issues."""
-        # Mock the TrackedRequest that raises an exception when get_json is called
-        mock_request = MagicMock()
-        mock_request.get_json.side_effect = json.JSONDecodeError("Not JSON", "", 0)
-        mock_transaction_context.request = mock_request
+        # Create httpx.Request with non-JSON content
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=b"Not JSON content")
 
         policy = LeakedApiKeyDetectionPolicy()
 
@@ -162,10 +153,8 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "My custom key is custom-12345. Can you help me?"}
             ]
         }"""
-        # Mock the TrackedRequest with get_json method
-        mock_request = MagicMock()
-        mock_request.get_json.return_value = json.loads(body.decode())
-        mock_transaction_context.request = mock_request
+        # Create httpx.Request with content
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         # Use a custom pattern that matches "custom-" followed by digits
         policy = LeakedApiKeyDetectionPolicy(patterns=["custom-[0-9]+"])
@@ -176,10 +165,8 @@ class TestLeakedApiKeyDetectionPolicyApply:
     @pytest.mark.asyncio
     async def test_apply_with_no_content(self, mock_transaction_context, mock_container, mock_db_session):
         """Test that a request with no content doesn't cause issues."""
-        # Mock the TrackedRequest with get_json method that returns empty content
-        mock_request = MagicMock()
-        mock_request.get_json.return_value = {}
-        mock_transaction_context.request = mock_request
+        # Create httpx.Request with empty content
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=b"")
         policy = LeakedApiKeyDetectionPolicy()
         result = await policy.apply(mock_transaction_context, mock_container, mock_db_session)
         assert result == mock_transaction_context

@@ -52,19 +52,15 @@ class ModelNameReplacementPolicy(ControlPolicy):
         Raises:
             NoRequestError: If no request is found in the context.
         """
-        # Set current policy for event tracking
-        context.set_current_policy(self.name)
-
         if context.request is None:
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")
 
         if not context.request.content:
             self.logger.debug(f"[{context.transaction_id}] No content to modify for model name replacement.")
-            context.set_current_policy(None)
             return context
 
         try:
-            request_json = context.request.get_json()
+            request_json = json.loads(context.request.content)
 
             if "model" in request_json:
                 original_model = request_json["model"]
@@ -75,13 +71,10 @@ class ModelNameReplacementPolicy(ControlPolicy):
                         f"[{context.transaction_id}] Replacing model name: {original_model} -> {new_model}"
                     )
                     request_json["model"] = new_model
-                    context.request.set_json_content(request_json)
+                    context.update_request(content=json.dumps(request_json).encode())
 
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             self.logger.warning(f"[{context.transaction_id}] Error processing request content: {e}")
-
-        # Clear current policy
-        context.set_current_policy(None)
 
         return context
 

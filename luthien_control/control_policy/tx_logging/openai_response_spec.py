@@ -62,10 +62,14 @@ def serialize_openai_chat_response(response) -> Dict[str, Any]:
         serialized_data = {
             "status_code": response.status_code,
             "headers": _sanitize_headers(response.headers),  # General header sanitization
-            "elapsed_ms": response.elapsed.total_seconds() * 1000,
-            "reason_phrase": response.reason_phrase,
-            "http_version": response.http_version,
         }
+        # Only add optional fields if they exist
+        if hasattr(response, "_elapsed"):
+            serialized_data["elapsed_ms"] = response.elapsed.total_seconds() * 1000
+        if hasattr(response, "reason_phrase") and response.reason_phrase:
+            serialized_data["reason_phrase"] = response.reason_phrase
+        if hasattr(response, "http_version") and response.http_version:
+            serialized_data["http_version"] = response.http_version
         openai_payload = {}
         try:
             # Ensure content is read. httpx.Response.json() handles decoding.

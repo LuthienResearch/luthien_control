@@ -32,7 +32,7 @@ def base_transaction_context():
 @pytest.fixture
 def transaction_context_with_request(base_transaction_context):
     """Provides a TrackedContext with a mock HttpxRequest attached."""
-    base_transaction_context.set_request(method="GET", url="http://test.com", headers={}, content=b"")
+    base_transaction_context.update_request(method="GET", url="http://test.com", headers={}, content=b"")
     return base_transaction_context
 
 
@@ -86,7 +86,7 @@ async def test_apply_key_not_found_raises_error(
         policy = ClientApiKeyAuthPolicy()
 
         test_api_key = "non-existent-key"
-        transaction_context_with_request.request.set_header(API_KEY_HEADER, f"{BEARER_PREFIX}{test_api_key}")
+        transaction_context_with_request.update_request(headers={API_KEY_HEADER: f"{BEARER_PREFIX}{test_api_key}"})
 
         with pytest.raises(ClientAuthenticationError, match="Invalid API Key"):
             await policy.apply(
@@ -118,7 +118,7 @@ async def test_apply_inactive_key_raises_error(
         policy = ClientApiKeyAuthPolicy()
 
         test_api_key = "inactive-key-456"
-        transaction_context_with_request.request.set_header(API_KEY_HEADER, f"{BEARER_PREFIX}{test_api_key}")
+        transaction_context_with_request.update_request(headers={API_KEY_HEADER: f"{BEARER_PREFIX}{test_api_key}"})
 
         with pytest.raises(ClientAuthenticationError, match="Inactive API Key"):
             await policy.apply(
@@ -150,7 +150,7 @@ async def test_apply_no_bearer_prefix_success(
         policy = ClientApiKeyAuthPolicy()
 
         test_api_key = "key-without-bearer-prefix"
-        transaction_context_with_request.request.set_header(API_KEY_HEADER, test_api_key)
+        transaction_context_with_request.update_request(headers={API_KEY_HEADER: test_api_key})
 
         result_context = await policy.apply(
             transaction_context_with_request,
@@ -181,7 +181,9 @@ async def test_apply_valid_active_key_success(
         policy = ClientApiKeyAuthPolicy()
 
         test_api_key_value = "valid-active-key-123"
-        transaction_context_with_request.request.set_header(API_KEY_HEADER, f"{BEARER_PREFIX}{test_api_key_value}")
+        transaction_context_with_request.update_request(
+            headers={API_KEY_HEADER: f"{BEARER_PREFIX}{test_api_key_value}"}
+        )
 
         result_context = await policy.apply(
             transaction_context_with_request,

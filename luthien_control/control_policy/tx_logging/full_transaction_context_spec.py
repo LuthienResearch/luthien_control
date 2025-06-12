@@ -139,11 +139,15 @@ def _serialize_response(response) -> Dict[str, Any]:
         serialized_response = {
             "status_code": response.status_code,
             "headers": headers,
-            "http_version": response.http_version,
-            "elapsed_ms": response.elapsed.total_seconds() * 1000,
-            "reason_phrase": response.reason_phrase,
             "content_type": content_type,
         }
+        # Only add optional fields if they exist
+        if hasattr(response, "_elapsed"):
+            serialized_response["elapsed_ms"] = response.elapsed.total_seconds() * 1000
+        if hasattr(response, "reason_phrase") and response.reason_phrase:
+            serialized_response["reason_phrase"] = response.reason_phrase
+        if hasattr(response, "http_version") and response.http_version:
+            serialized_response["http_version"] = response.http_version
         content_bytes = response.content
 
     serialized_response.update(_serialize_content_bytes(content_bytes, content_type))

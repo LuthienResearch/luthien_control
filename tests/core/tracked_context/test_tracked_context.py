@@ -95,3 +95,96 @@ class TestTrackedContext:
         assert data.operation == "set_data"
         assert data.details["key"] == "test_key"
         assert data.details["new_value"] == "test_value"
+
+    def test_update_request_partial(self):
+        """Test partial request update."""
+        context = TrackedContext()
+
+        # First set a complete request
+        context.update_request(
+            method="GET", url="https://api.test.com/v1", headers={"Authorization": "Bearer token"}, content=b"initial"
+        )
+
+        # Update only some fields
+        context.update_request(method="POST", headers={"Content-Type": "application/json"})
+
+        # Check that method and headers were updated, but url and content remain
+        req = context.request
+        assert req is not None
+        assert req.method == "POST"
+        assert str(req.url) == "https://api.test.com/v1"
+        assert req.headers["Content-Type"] == "application/json"
+        assert req.headers.get("Authorization") is None  # Headers replaced, not merged
+        assert req.content == b"initial"
+
+    def test_update_request_from_scratch(self):
+        """Test request update with from_scratch=True."""
+        context = TrackedContext()
+
+        # Set initial request
+        context.update_request(
+            method="GET", url="https://api.test.com", headers={"Authorization": "Bearer token"}, content=b"initial"
+        )
+
+        # Update from scratch with minimal data
+        context.update_request(url="https://api.new.com", method="GET", from_scratch=True)
+
+        # Check that only url is set, other fields are defaults
+        req = context.request
+        assert req is not None
+        assert req.method == "GET"  # Default method
+        assert str(req.url) == "https://api.new.com"
+        assert req.headers == {"host": "api.new.com"}  # Empty headers
+        assert req.content == b""  # Empty content
+
+    def test_update_response_partial(self):
+        """Test partial response update."""
+        context = TrackedContext()
+
+        # First set a complete response
+        context.update_response(
+            status_code=200, headers={"Content-Type": "application/json"}, content=b'{"result": "success"}'
+        )
+
+        # Update only status code
+        context.update_response(status_code=404)
+
+        # Check that only status_code was updated
+        resp = context.response
+        assert resp is not None
+        assert resp.status_code == 404
+        assert resp.headers["Content-Type"] == "application/json"
+        assert resp.content == b'{"result": "success"}'
+
+    def test_update_response_from_scratch(self):
+        """Test response update with from_scratch=True."""
+        context = TrackedContext()
+
+        # Set initial response
+        context.update_response(status_code=200, headers={"Content-Type": "application/json"}, content=b'{"old": true}')
+
+        # Update from scratch with minimal data
+        context.update_response(status_code=500, from_scratch=True)
+
+        # Check that only status_code is set, other fields are defaults
+        resp = context.response
+        assert resp is not None
+        assert resp.status_code == 500
+        assert resp.headers == {}  # Empty headers
+        assert resp.content == b""  # Empty content
+
+    def test_update_request_when_response_exists(self):
+        """Test that updating request after response is set works correctly."""
+        context = TrackedContext()
+
+        # Set response first
+        context.update_response(status_code=200, content=b"response")
+
+        # Update request
+        context.update_request(method="POST", url="https://api.test.com")
+
+        # Both should exist
+        assert context.request is not None
+        assert context.response is not None
+        assert context.request.method == "POST"
+        assert context.response.status_code == 200

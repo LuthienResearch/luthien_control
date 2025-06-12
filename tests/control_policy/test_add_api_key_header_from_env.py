@@ -18,7 +18,6 @@ def mock_transaction_context() -> TrackedContext:
     context.request = MagicMock()
     context.request.headers = {}
     # Mock the TrackedRequest interface
-    context.request.get_headers.return_value = {}
     context.request.set_header = MagicMock()
     context.response = None
     return context

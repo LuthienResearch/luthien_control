@@ -268,7 +268,7 @@ async def test_apply_prepares_correct_headers(
 
     assert base_context.request is not None
     # Capture original headers BEFORE applying the policy
-    original_headers = base_context.request.headers
+    original_headers = base_context.request.headers.copy()
 
     # Mock the response from the backend
     mock_backend_response = MagicMock(spec=httpx.Response)
@@ -305,7 +305,7 @@ async def test_apply_prepares_correct_headers(
     assert sent_headers.get("x-client-header") == "client-value"
     # Check excluded headers from base_context fixture
     assert "connection" not in sent_headers  # Another hop-by-hop header
-    # Ensure original client Host and Authorization were replaced/excluded
+    # Ensure original client Host and Authorization were preserved
     # Use the captured original_headers here
     assert sent_headers.get("host") != original_headers.get("host")
     assert sent_headers.get("authorization") != original_headers.get("authorization")

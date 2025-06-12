@@ -3,11 +3,28 @@
 import uuid
 from copy import copy
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import httpx
 
 from ..generic_events import Event
+
+httpx_resomething = Union[httpx.Request, httpx.Response]
+
+
+def _update_headers(
+    request: httpx_resomething, headers: Dict[str, str], preserve_existing_headers: bool
+) -> dict[str, Any]:
+    """Update the request headers. Returns a dict of differences."""
+    differences = {
+        k: {"old": request.headers.get(k), "new": v} for k, v in headers.items() if request.headers.get(k) != v
+    }
+    if preserve_existing_headers:
+        for k, v in headers.items():
+            request.headers[k] = v
+    else:
+        request.headers = httpx.Headers(headers)
+    return differences
 
 
 @dataclass
@@ -46,6 +63,7 @@ class TrackedContext:
         headers: Optional[Dict[str, str]] = None,
         content: Optional[bytes] = None,
         from_scratch: bool = False,
+        preserve_existing_headers: bool = True,
     ) -> httpx.Request:
         """Create or set the request."""
         differences = {}
@@ -66,11 +84,8 @@ class TrackedContext:
                 differences["url"] = {"old": self._request.url, "new": url}
                 self._request.url = httpx.URL(url)
             if headers is not None:
-                differences["headers"] = {
-                    k: {"old": self._request.headers.get(k), "new": headers.get(k)}
-                    for k in set(self._request.headers.keys()) | set(headers.keys())
-                }
-                self._request.headers = httpx.Headers(headers)
+                header_diffs = _update_headers(self._request, headers, preserve_existing_headers)
+                differences["headers"] = header_diffs
             if content is not None:
                 differences["content"] = {"old": self._request.content, "new": content}
                 self._request._content = content
@@ -95,6 +110,7 @@ class TrackedContext:
         content: Optional[bytes] = None,
         headers: Optional[Dict[str, str]] = None,
         from_scratch: bool = False,
+        preserve_existing_headers: bool = True,
     ) -> httpx.Response:
         """Update the response."""
         differences = {}
@@ -115,11 +131,7 @@ class TrackedContext:
                 differences["status_code"] = {"old": self._response.status_code, "new": status_code}
                 self._response.status_code = status_code
             if headers is not None:
-                differences["headers"] = {
-                    k: {"old": self._response.headers.get(k), "new": headers.get(k)}
-                    for k in set(self._response.headers.keys()) | set(headers.keys())
-                }
-                self._response.headers = httpx.Headers(headers)
+                differences["headers"] = _update_headers(self._response, headers, preserve_existing_headers)
             if content is not None:
                 differences["content"] = {"old": self._response.content, "new": content}
                 self._response._content = content

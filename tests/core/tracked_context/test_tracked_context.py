@@ -102,11 +102,17 @@ class TestTrackedContext:
 
         # First set a complete request
         context.update_request(
-            method="GET", url="https://api.test.com/v1", headers={"Authorization": "Bearer token"}, content=b"initial"
+            method="GET",
+            url="https://api.test.com/v1",
+            headers={"Authorization": "Bearer token"},
+            content=b"initial",
+            from_scratch=True,
         )
 
         # Update only some fields
-        context.update_request(method="POST", headers={"Content-Type": "application/json"})
+        context.update_request(
+            method="POST", headers={"Content-Type": "application/json"}, preserve_existing_headers=False
+        )
 
         # Check that method and headers were updated, but url and content remain
         req = context.request

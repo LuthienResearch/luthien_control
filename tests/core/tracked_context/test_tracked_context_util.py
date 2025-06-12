@@ -62,3 +62,15 @@ class TestGetTxValueTrackedContext:
 
         with pytest.raises(KeyError):
             get_tx_value(ctx, "data.missing")
+
+    def test_missing_raises_value_error(self):
+        ctx = TrackedContext()
+        with pytest.raises(ValueError):
+            get_tx_value(ctx, "request.headers")
+        with pytest.raises(ValueError):
+            get_tx_value(ctx, "response.headers")
+
+    def test_access_invalid_segment_raises(self):
+        ctx = TrackedContext()
+        with pytest.raises(ValueError):
+            get_tx_value(ctx, "notreal.whatsit")

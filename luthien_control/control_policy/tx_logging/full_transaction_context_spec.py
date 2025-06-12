@@ -75,29 +75,16 @@ def _serialize_request(request) -> Dict[str, Any]:
     Returns:
         A dictionary representing the serialized request.
     """
-    # Handle both TrackedRequest and httpx.Request
-    if hasattr(request, "get_headers"):
-        # TrackedRequest
-        headers = _sanitize_headers(request.get_headers())
-        headers = {k.lower(): v for k, v in headers.items()}
-        serialized_request = {
-            "method": request.method,
-            "url": request.url,
-            "headers": headers,
-        }
-        content_bytes = request.content
-        content_type = headers.get("content-type")
-    else:
-        # httpx.Request (legacy compatibility)
-        headers = _sanitize_headers(request.headers)
-        headers = {k.lower(): v for k, v in headers.items()}
-        serialized_request = {
-            "method": request.method,
-            "url": str(request.url),
-            "headers": headers,
-        }
-        content_bytes = request.content
-        content_type = headers.get("content-type")
+    # httpx.Request (legacy compatibility)
+    headers = _sanitize_headers(request.headers)
+    headers = {k.lower(): v for k, v in headers.items()}
+    serialized_request = {
+        "method": request.method,
+        "url": str(request.url),
+        "headers": headers,
+    }
+    content_bytes = request.content
+    content_type = headers.get("content-type")
 
     serialized_request.update(_serialize_content_bytes(content_bytes, content_type))
     return serialized_request
@@ -117,38 +104,23 @@ def _serialize_response(response) -> Dict[str, Any]:
     Returns:
         A dictionary representing the serialized response.
     """
-    # Handle both TrackedResponse and httpx.Response
-    if hasattr(response, "get_headers"):
-        # TrackedResponse
-        headers = _sanitize_headers(response.get_headers())
-        headers = {k.lower(): v for k, v in headers.items()}
-        content_type = headers.get("content-type")
+    headers = _sanitize_headers(response.headers)
+    headers = {k.lower(): v for k, v in headers.items()}
+    content_type = headers.get("content-type")
 
-        serialized_response = {
-            "status_code": response.status_code,
-            "headers": headers,
-            "content_type": content_type,
-        }
-        content_bytes = response.content
-    else:
-        # httpx.Response (legacy compatibility)
-        headers = _sanitize_headers(response.headers)
-        headers = {k.lower(): v for k, v in headers.items()}
-        content_type = headers.get("content-type")
-
-        serialized_response = {
-            "status_code": response.status_code,
-            "headers": headers,
-            "content_type": content_type,
-        }
-        # Only add optional fields if they exist
-        if hasattr(response, "_elapsed"):
-            serialized_response["elapsed_ms"] = response.elapsed.total_seconds() * 1000
-        if hasattr(response, "reason_phrase") and response.reason_phrase:
-            serialized_response["reason_phrase"] = response.reason_phrase
-        if hasattr(response, "http_version") and response.http_version:
-            serialized_response["http_version"] = response.http_version
-        content_bytes = response.content
+    serialized_response = {
+        "status_code": response.status_code,
+        "headers": headers,
+        "content_type": content_type,
+    }
+    # Only add optional fields if they exist
+    if hasattr(response, "_elapsed"):
+        serialized_response["elapsed_ms"] = response.elapsed.total_seconds() * 1000
+    if hasattr(response, "reason_phrase") and response.reason_phrase:
+        serialized_response["reason_phrase"] = response.reason_phrase
+    if hasattr(response, "http_version") and response.http_version:
+        serialized_response["http_version"] = response.http_version
+    content_bytes = response.content
 
     serialized_response.update(_serialize_content_bytes(content_bytes, content_type))
     return serialized_response

@@ -36,20 +36,12 @@ def get_tx_value(tracked_context: TrackedContext, path: str) -> Any:
     elif first_segment == "data":
         x = tracked_context.get_all_data()
     else:
-        # Try to get attribute from context directly
-        x = getattr(tracked_context, first_segment)
+        raise ValueError(f"Invalid path segment: {first_segment}")
 
     while vals:
         next_segment = vals.pop(0)
 
-        # Handle TrackedRequest/TrackedResponse special properties
-        if hasattr(x, "get_header") and next_segment == "headers":
-            x = x.get_headers()
-            continue
-        elif hasattr(x, "get_json") and next_segment == "json":
-            x = x.get_json()
-            continue
-        elif hasattr(x, "content") and next_segment == "content":
+        if hasattr(x, "content") and next_segment == "content":
             x = x.content
             # If we have more path segments and content is bytes, try to parse as JSON
             if vals and isinstance(x, bytes):
@@ -60,6 +52,14 @@ def get_tx_value(tracked_context: TrackedContext, path: str) -> Any:
                         f"Failed to decode JSON content for path '{path}' at segment '{next_segment}'"
                     ) from e
             continue
+        """
+        # Handle TrackedRequest/TrackedResponse special properties
+        if hasattr(x, "get_header") and next_segment == "headers":
+            x = x.get_headers()
+            continue
+        elif hasattr(x, "get_json") and next_segment == "json":
+            x = x.get_json()
+            continue
         elif hasattr(x, "status_code") and next_segment == "status_code":
             x = x.status_code
             continue
@@ -69,6 +69,7 @@ def get_tx_value(tracked_context: TrackedContext, path: str) -> Any:
         elif hasattr(x, "url") and next_segment == "url":
             x = x.url
             continue
+        """
 
         # If x is bytes, and we still have path segments to process,
         # it implies these segments are keys into the JSON content.

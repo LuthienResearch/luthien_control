@@ -48,40 +48,21 @@ def serialize_openai_chat_request(request) -> Dict[str, Any]:
     Returns:
         A dictionary representing the serialized OpenAI chat request.
     """
-    # Handle both httpx.Request and TrackedRequest
-    if hasattr(request, "get_headers"):
-        # TrackedRequest
-        serialized_data = {
-            "method": request.method,
-            "url": request.url,
-            "headers": _sanitize_headers(request.get_headers()),
-        }
-        openai_payload = {}
-        try:
-            request_body = request.get_json()
-            for field in OPENAI_CHAT_REQUEST_FIELDS:
-                if field in request_body:
-                    openai_payload[field] = request_body[field]
-        except (json.JSONDecodeError, UnicodeDecodeError, AttributeError) as e:
-            logger.error(f"Error parsing OpenAI request: {e}")
-            openai_payload["error"] = f"{type(e).__name__}: {str(e)}"
-    else:
-        # httpx.Request (legacy compatibility)
-        serialized_data = {
-            "method": request.method,
-            "url": str(request.url),
-            "headers": _sanitize_headers(request.headers),  # General header sanitization
-        }
-        openai_payload = {}
-        try:
-            request_body = json.loads(request.content.decode("utf-8"))
-            for field in OPENAI_CHAT_REQUEST_FIELDS:
-                if field in request_body:
-                    openai_payload[field] = request_body[field]
+    serialized_data = {
+        "method": request.method,
+        "url": str(request.url),
+        "headers": _sanitize_headers(request.headers),  # General header sanitization
+    }
+    openai_payload = {}
+    try:
+        request_body = json.loads(request.content.decode("utf-8"))
+        for field in OPENAI_CHAT_REQUEST_FIELDS:
+            if field in request_body:
+                openai_payload[field] = request_body[field]
 
-        except (json.JSONDecodeError, UnicodeDecodeError, AttributeError) as e:
-            logger.error(f"Error parsing OpenAI request: {e}")
-            openai_payload["error"] = f"{type(e).__name__}: {str(e)}"
+    except (json.JSONDecodeError, UnicodeDecodeError, AttributeError) as e:
+        logger.error(f"Error parsing OpenAI request: {e}")
+        openai_payload["error"] = f"{type(e).__name__}: {str(e)}"
 
     serialized_data["content"] = openai_payload
     return serialized_data

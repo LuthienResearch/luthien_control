@@ -10,14 +10,6 @@ import httpx
 from ..generic_events import Event
 
 
-def _get_differences(oldval: Any, newval: Any, fields: List[str]) -> Dict[str, Any]:
-    differences = {}
-    for field in fields:
-        if getattr(oldval, field, None) != getattr(newval, field, None):
-            differences[field] = {"old": getattr(oldval, field, None), "new": getattr(newval, field, None)}
-    return differences
-
-
 @dataclass
 class MutationEventPayload:
     """Record of an explicit mutation."""

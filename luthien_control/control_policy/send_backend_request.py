@@ -147,8 +147,7 @@ class SendBackendRequestPolicy(ControlPolicy):
             backend_headers = self._prepare_backend_headers(context, settings)
 
             # Update request with backend URL and headers
-            for header_name, header_value in backend_headers.items():
-                context.update_request(headers={header_name: header_value})
+            context.update_request(headers=backend_headers)
 
         except ValueError as e:
             # Configuration or header preparation error

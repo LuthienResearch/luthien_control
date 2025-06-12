@@ -41,46 +41,28 @@ def serialize_openai_chat_response(response) -> Dict[str, Any]:
     Returns:
         A dictionary representing the serialized OpenAI chat response.
     """
-    # Handle both httpx.Response and TrackedResponse
-    if hasattr(response, "get_headers"):
-        # TrackedResponse
-        serialized_data = {
-            "status_code": response.status_code,
-            "headers": _sanitize_headers(response.get_headers()),
-        }
-        openai_payload = {}
-        try:
-            response_body = response.get_json()
-            for field in OPENAI_CHAT_RESPONSE_FIELDS:
-                if field in response_body:
-                    openai_payload[field] = response_body[field]
-        except (json.JSONDecodeError, UnicodeDecodeError, AttributeError) as e:
-            logger.error(f"Error parsing OpenAI response: {e}")
-            openai_payload["error"] = f"{type(e).__name__}: {str(e)}"
-    else:
-        # httpx.Response (legacy compatibility)
-        serialized_data = {
-            "status_code": response.status_code,
-            "headers": _sanitize_headers(response.headers),  # General header sanitization
-        }
-        # Only add optional fields if they exist
-        if hasattr(response, "_elapsed"):
-            serialized_data["elapsed_ms"] = response.elapsed.total_seconds() * 1000
-        if hasattr(response, "reason_phrase") and response.reason_phrase:
-            serialized_data["reason_phrase"] = response.reason_phrase
-        if hasattr(response, "http_version") and response.http_version:
-            serialized_data["http_version"] = response.http_version
-        openai_payload = {}
-        try:
-            # Ensure content is read. httpx.Response.json() handles decoding.
-            response_body = response.json()
-            for field in OPENAI_CHAT_RESPONSE_FIELDS:
-                if field in response_body:
-                    openai_payload[field] = response_body[field]
+    serialized_data = {
+        "status_code": response.status_code,
+        "headers": _sanitize_headers(response.headers),  # General header sanitization
+    }
+    # Only add optional fields if they exist
+    if hasattr(response, "_elapsed"):
+        serialized_data["elapsed_ms"] = response.elapsed.total_seconds() * 1000
+    if hasattr(response, "reason_phrase") and response.reason_phrase:
+        serialized_data["reason_phrase"] = response.reason_phrase
+    if hasattr(response, "http_version") and response.http_version:
+        serialized_data["http_version"] = response.http_version
+    openai_payload = {}
+    try:
+        # Ensure content is read. httpx.Response.json() handles decoding.
+        response_body = response.json()
+        for field in OPENAI_CHAT_RESPONSE_FIELDS:
+            if field in response_body:
+                openai_payload[field] = response_body[field]
 
-        except (json.JSONDecodeError, httpx.ResponseNotRead, UnicodeDecodeError, AttributeError) as e:
-            logger.error(f"Error parsing OpenAI response: {e}")
-            openai_payload["error"] = f"{type(e).__name__}: {str(e)}"
+    except (json.JSONDecodeError, httpx.ResponseNotRead, UnicodeDecodeError, AttributeError) as e:
+        logger.error(f"Error parsing OpenAI response: {e}")
+        openai_payload["error"] = f"{type(e).__name__}: {str(e)}"
 
     serialized_data["content"] = openai_payload
     return serialized_data

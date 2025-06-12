@@ -19,10 +19,7 @@ def _initialize_context(fastapi_request: fastapi.Request, body: bytes) -> Tracke
     transaction_id = uuid.uuid4()
     context = TrackedContext(transaction_id=transaction_id)
 
-    # Convert headers to dict
-    headers_dict = {}
-    for key, value in fastapi_request.headers.items():
-        headers_dict[key] = value
+    headers_dict = {k: v for k, v in fastapi_request.headers.items()}
 
     # Build full URL with query params
     url = fastapi_request.path_params["full_path"]

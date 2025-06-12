@@ -3,7 +3,7 @@
 import uuid
 from copy import copy
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import httpx
 

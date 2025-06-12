@@ -56,6 +56,15 @@ def test_sanitize_headers(input_headers: httpx.Headers, expected_headers: Dict[s
     assert sanitized == expected_headers
 
 
+def test_sanitize_headers_plain_dict():
+    """Ensure dictionary headers path (non-httpx.Headers) is sanitized."""
+    raw = {"Authorization": "s3cr3t", "Content-Type": "application/json", "Cookie": "abc"}
+    sanitized = _sanitize_headers(raw)
+    assert sanitized["Authorization"] == REDACTED_PLACEHOLDER
+    assert sanitized["Cookie"] == REDACTED_PLACEHOLDER
+    assert sanitized["Content-Type"] == "application/json"
+
+
 # --- Tests for _sanitize_json_payload --- #
 
 DEFAULT_SENSITIVE_PAYLOAD_KEYS = ["password", "secret", "apikey", "access_token", "client_secret", "token"]

@@ -459,3 +459,12 @@ async def test_backend_request_policy_serialize_from_serialized():
     assert serialized == {"name": "test-policy"}
     deserialized_policy = SendBackendRequestPolicy.from_serialized(serialized)
     assert deserialized_policy.name == "test-policy"
+
+
+@pytest.mark.asyncio
+async def test_prepare_backend_headers_no_request(mock_settings):
+    """_prepare_backend_headers should raise when context.request is None."""
+    policy = SendBackendRequestPolicy()
+    ctx = TrackedContext()
+    with pytest.raises(ValueError, match="No request in context"):
+        policy._prepare_backend_headers(ctx, mock_settings)

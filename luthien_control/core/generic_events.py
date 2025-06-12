@@ -1,12 +1,15 @@
 """Generic event system with type-safe event dispatching."""
 
+from __future__ import annotations
+
 import logging
 from typing import Callable, Dict, Generic, TypeVar
 
 T = TypeVar("T")
 
 
-type EventListener[T] = Callable[[str, T], None]
+# Compatible generic event listener callable type alias for Python 3.11+
+EventListener = Callable[[str, T], None]
 
 
 class Event(Generic[T]):

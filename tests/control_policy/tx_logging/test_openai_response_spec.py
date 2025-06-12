@@ -52,7 +52,7 @@ def test_serialize_openai_chat_response_valid_body(body_dict, expected_content_k
             "http_version": b"HTTP/1.1",
         },
     )
-    response.elapsed = datetime.timedelta(milliseconds=123)
+    response._elapsed = datetime.timedelta(milliseconds=123)
 
     serialized = serialize_openai_chat_response(response)
 
@@ -142,7 +142,7 @@ def test_openai_response_spec_generate_log_data_with_response():
     response.elapsed = datetime.timedelta(milliseconds=123)
 
     context = TrackedContext()
-    context.set_response(status_code=response.status_code, headers=headers, content=response.content)
+    context.update_response(status_code=response.status_code, headers=headers, content=response.content)
     spec = OpenAIResponseSpec()
     notes_dict: SerializableDict = {"res_note": "res_val"}
 
@@ -192,7 +192,7 @@ def test_openai_response_spec_generate_log_data_serialization_error(caplog):
     response.elapsed = datetime.timedelta(milliseconds=123)
 
     context = TrackedContext()
-    context.set_response(status_code=response.status_code, headers=headers, content=response.content)
+    context.update_response(status_code=response.status_code, headers=headers, content=response.content)
     spec = OpenAIResponseSpec()
 
     with caplog.at_level(logging.ERROR):

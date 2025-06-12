@@ -10,7 +10,7 @@ def test_generate_log_data_with_request():
     headers = {"X-Test-Header": "TestValue", "Content-Type": "application/json"}
     request = httpx.Request(method="GET", url="http://example.com/test", headers=headers)
     context = TrackedContext()
-    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
+    context.update_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = RequestHeadersSpec()
 
     log_data_obj = spec.generate_log_data(context)
@@ -32,7 +32,7 @@ def test_generate_log_data_with_notes():
     headers = {}
     request = httpx.Request(method="POST", url="http://example.com/submit", headers=headers)
     context = TrackedContext()
-    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
+    context.update_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = RequestHeadersSpec()
     notes_dict: SerializableDict = {"custom_note": "important info"}
 
@@ -64,7 +64,7 @@ def test_generate_log_data_header_sanitization():
     }
     request = httpx.Request(method="GET", url="http://example.com/secure", headers=headers)
     context = TrackedContext()
-    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
+    context.update_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = RequestHeadersSpec()
 
     log_data_obj = spec.generate_log_data(context)
@@ -87,22 +87,24 @@ def test_generate_log_data_empty_headers():
     headers = {}
     request = httpx.Request(method="PUT", url="http://example.com/empty", headers=headers)
     context = TrackedContext()
-    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
+    context.update_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = RequestHeadersSpec()
     log_data_obj = spec.generate_log_data(context)
     assert log_data_obj is not None
     assert log_data_obj.data is not None
     assert isinstance(log_data_obj.data, dict)
     assert isinstance(log_data_obj.data["headers"], dict)
-    # With empty original headers, the logged headers should also be empty
-    assert log_data_obj.data["headers"] == {}
+    # httpx.Request automatically adds Content-Length and Host headers
+    assert "Host" in log_data_obj.data["headers"]
+    assert "Content-Length" in log_data_obj.data["headers"]
 
 
 def test_generate_log_data_exception_handling(capsys):
     """Test that exceptions during log data generation bubble up."""
 
     class FaultyRequest:  # Intentionally faulty request object
-        def get_headers(self):
+        @property
+        def headers(self):
             raise ValueError("Failed to get headers")
 
         method = "GET"

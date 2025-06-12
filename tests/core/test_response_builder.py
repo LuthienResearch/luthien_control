@@ -82,7 +82,7 @@ def backend_response() -> httpx.Response:
 def context_with_response_content(backend_response: httpx.Response) -> TrackedContext:
     """Context where response exists and contains content."""
     ctx = TrackedContext(transaction_id=uuid.uuid4())
-    ctx.set_response(
+    ctx.update_response(
         status_code=backend_response.status_code,
         headers=dict(backend_response.headers),
         content=backend_response.content,
@@ -94,7 +94,7 @@ def context_with_response_content(backend_response: httpx.Response) -> TrackedCo
 def context_with_empty_content(backend_response: httpx.Response) -> TrackedContext:
     """Context where response exists, but content is None (e.g., 204)."""
     ctx = TrackedContext(transaction_id=uuid.uuid4())
-    ctx.set_response(
+    ctx.update_response(
         status_code=204,
         headers={
             "content-type": "application/json",
@@ -214,6 +214,6 @@ def test_build_response_invalid_context_response_type(
     assert response_body["transaction_id"] == str(context_with_invalid_response_type.transaction_id)
     if dev_mode_enabled:
         assert "Policy Error:" in response_body["detail"]
-        assert "'str' object has no attribute 'get_headers'" in response_body["detail"]
+        assert "'str' object has no attribute 'headers'" in response_body["detail"]
     else:
         assert response_body["detail"] == "Internal Server Error"

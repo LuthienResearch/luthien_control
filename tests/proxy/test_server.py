@@ -327,7 +327,7 @@ class MockSendBackendRequestPolicy(ControlPolicy):
         self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
     ) -> TrackedContext:
         # Simulate setting the response after a backend call
-        context.set_response(
+        context.update_response(
             status_code=self.mock_response.status_code,
             headers=dict(self.mock_response.headers),
             content=self.mock_response.content,

@@ -57,11 +57,11 @@ class ResponseBuilder:
 
         # Filter headers from the backend response
         filtered_backend_headers = {
-            k: v for k, v in context.response.get_headers().items() if k.lower() not in self.hop_by_hop_headers
+            k: v for k, v in context.response.headers.items() if k.lower() not in self.hop_by_hop_headers
         }
 
         # Extract media type from backend response headers if present
-        media_type = context.response.get_header("content-type")
+        media_type = context.response.headers.get("content-type")
 
         # Create a FastAPI Response using details from tracked response
         return Response(

@@ -43,7 +43,7 @@ def base_context() -> TrackedContext:
     context = TrackedContext(transaction_id=uuid.uuid4())
 
     # Use TrackedContext API to set request
-    context.set_request(
+    context.update_request(
         method="POST",
         url="http://proxy.test/some/path",
         headers={
@@ -123,7 +123,7 @@ async def test_apply_builds_correct_url_no_base_slash(
 
     # Create a new context with the specific URL we want to test
     test_context = TrackedContext(transaction_id=base_context.transaction_id)
-    test_context.set_request(
+    test_context.update_request(
         method="POST",
         url="http://proxy.test/specific/endpoint",
         headers={
@@ -170,7 +170,7 @@ async def test_apply_builds_correct_url_with_base_slash(
 
     # Create a new context with the specific URL we want to test
     test_context = TrackedContext(transaction_id=base_context.transaction_id)
-    test_context.set_request(
+    test_context.update_request(
         method="POST",
         url="http://proxy.test/specific/endpoint",
         headers={
@@ -217,7 +217,7 @@ async def test_apply_builds_correct_url_root_client_path(
 
     # Create a new context with the root path we want to test
     test_context = TrackedContext(transaction_id=base_context.transaction_id)
-    test_context.set_request(
+    test_context.update_request(
         method="POST",
         url="http://proxy.test/",  # Root path
         headers={
@@ -268,7 +268,7 @@ async def test_apply_prepares_correct_headers(
 
     assert base_context.request is not None
     # Capture original headers BEFORE applying the policy
-    original_headers = base_context.request.get_headers()
+    original_headers = base_context.request.headers
 
     # Mock the response from the backend
     mock_backend_response = MagicMock(spec=httpx.Response)
@@ -324,7 +324,7 @@ async def test_apply_handles_httpx_request_error(
     error_message = "Connection refused"
     # Create a new context with the specific URL for error testing
     test_context = TrackedContext(transaction_id=base_context.transaction_id)
-    test_context.set_request(
+    test_context.update_request(
         method="POST",
         url="https://api.test-backend.com/v1/some/path",
         headers={
@@ -363,7 +363,7 @@ async def test_apply_handles_httpx_timeout_error(
     error_message = "Read timeout"
     # Create a new context with the specific URL for timeout testing
     test_context = TrackedContext(transaction_id=base_context.transaction_id)
-    test_context.set_request(
+    test_context.update_request(
         method="POST",
         url="https://api.test-backend.com/v1/some/path",
         headers={

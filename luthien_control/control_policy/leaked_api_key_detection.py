@@ -64,9 +64,6 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
             NoRequestError: If the request is not found in the context.
             LeakedApiKeyError: If a potential API key is detected in message content.
         """
-        # Set current policy for event tracking
-        context.set_current_policy(self.name)
-
         if context.request is None:
             raise NoRequestError(f"[{context.transaction_id}] No request in context.")
 
@@ -75,12 +72,11 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
         # Only look at POST requests with content
         if not context.request.content:
             self.logger.debug(f"[{context.transaction_id}] No content to check for API keys.")
-            context.set_current_policy(None)
             return context
 
         try:
             # Get the request body as JSON
-            body_json = context.request.get_json()
+            body_json = json.loads(context.request.content)
 
             # Check the "messages" field for leaked API keys
             if "messages" in body_json and isinstance(body_json["messages"], list):
@@ -97,7 +93,7 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
                             )
                             self.logger.warning(f"[{context.transaction_id}] {error_message} ({self.name})")
 
-                            context.set_response(
+                            context.update_response(
                                 status_code=403,
                                 headers={"Content-Type": "application/json"},
                                 content=json.dumps({"detail": error_message}).encode(),
@@ -109,8 +105,6 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
             self.logger.debug(f"[{context.transaction_id}] Could not decode request body as JSON.")
             pass
 
-        # Clear current policy
-        context.set_current_policy(None)
         return context
 
     def _check_text(self, text: str) -> bool:

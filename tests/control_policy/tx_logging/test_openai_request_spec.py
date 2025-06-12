@@ -101,7 +101,7 @@ def test_openai_request_spec_generate_log_data_with_request():
     headers = {"X-Test": "value"}
     request = httpx.Request("POST", "url", content=json.dumps(body).encode("utf-8"), headers=headers)
     context = TrackedContext()
-    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
+    context.update_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = OpenAIRequestSpec()
     notes_dict: SerializableDict = {"note1": "val1"}
 
@@ -150,7 +150,7 @@ def test_openai_request_spec_generate_log_data_serialization_error(caplog):
         headers=headers,
     )
     context = TrackedContext()
-    context.set_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
+    context.update_request(method=request.method, url=str(request.url), headers=headers, content=request.content)
     spec = OpenAIRequestSpec()
 
     with caplog.at_level(logging.ERROR):
@@ -164,7 +164,7 @@ def test_openai_request_spec_generate_log_data_serialization_error(caplog):
     content = log_data_obj.data["content"]
     assert isinstance(content, dict)
     assert "error" in content
-    assert "JSONDecodeError" in content["error"]
+    assert "UnicodeDecodeError" in content["error"]
 
     # Check that error was logged
     assert "Error parsing OpenAI request" in caplog.text

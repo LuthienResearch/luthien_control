@@ -45,13 +45,13 @@ def sample_response() -> httpx.Response:
 def transaction_context(sample_request: httpx.Request, sample_response: httpx.Response) -> TrackedContext:
     """Provides a TrackedContext populated with sample request, response, and static data for conditions."""
     context = TrackedContext()
-    context.set_request(
+    context.update_request(
         method=sample_request.method,
         url=str(sample_request.url),
         headers=dict(sample_request.headers),
         content=sample_request.content,
     )
-    context.set_response(
+    context.update_response(
         status_code=sample_response.status_code, headers=dict(sample_response.headers), content=sample_response.content
     )
     context.set_data("static_true", True)

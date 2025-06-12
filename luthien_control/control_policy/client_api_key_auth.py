@@ -59,17 +59,14 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         Returns:
             The unmodified transaction context if authentication is successful.
         """
-        # Set current policy for event tracking
-        context.set_current_policy(self.name)
-
         if context.request is None:
             raise NoRequestError(f"[{context.transaction_id}] No request in context for API key auth.")
 
-        api_key_header_value: Optional[str] = context.request.get_header(API_KEY_HEADER)
+        api_key_header_value: Optional[str] = context.request.headers.get(API_KEY_HEADER)
 
         if not api_key_header_value:
             self.logger.warning(f"[{context.transaction_id}] Missing API key in {API_KEY_HEADER} header.")
-            context.set_response(
+            context.update_response(
                 status_code=401,
                 headers={"Content-Type": "application/json"},
                 content=json.dumps({"detail": "Not authenticated: Missing API key."}).encode("utf-8"),
@@ -88,7 +85,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
                 f"[{context.transaction_id}] Invalid API key provided "
                 f"(key starts with: {api_key_value[:4]}...) ({self.__class__.__name__})."
             )
-            context.set_response(
+            context.update_response(
                 status_code=401,
                 headers={"Content-Type": "application/json"},
                 content=json.dumps({"detail": "Invalid API Key"}).encode("utf-8"),
@@ -100,7 +97,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
                 f"[{context.transaction_id}] Inactive API key provided "
                 f"(Name: {db_key.name}, ID: {db_key.id}). ({self.__class__.__name__})."
             )
-            context.set_response(
+            context.update_response(
                 status_code=401,
                 headers={"Content-Type": "application/json"},
                 content=json.dumps({"detail": "Inactive API Key"}).encode("utf-8"),
@@ -112,8 +109,6 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
             f"(Name: {db_key.name}, ID: {db_key.id}). ({self.__class__.__name__})."
         )
 
-        # Clear current policy
-        context.set_current_policy(None)
         return context
 
     def serialize(self) -> SerializableDict:

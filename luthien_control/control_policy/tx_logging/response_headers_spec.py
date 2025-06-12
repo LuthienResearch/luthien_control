@@ -28,7 +28,7 @@ class ResponseHeadersSpec(TxLoggingSpec):
                 f"ResponseHeadersSpec: No response found in {self.TYPE_NAME} for transaction {context.transaction_id}"
             )
             return LuthienLogData(datatype="response_headers", data=None, notes=notes)
-        sanitized_headers = sanitize_headers_util(context.response.get_headers())
+        sanitized_headers = sanitize_headers_util(context.response.headers)
         log_data = {
             "status_code": context.response.status_code,
             "headers": sanitized_headers,

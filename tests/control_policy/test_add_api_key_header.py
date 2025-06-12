@@ -28,7 +28,7 @@ async def test_add_api_key_success(
     policy = AddApiKeyHeaderPolicy(name="TestPolicy")
 
     context = TrackedContext(transaction_id=uuid.uuid4())
-    context.set_request(
+    context.update_request(
         method=base_request.method,
         url=str(base_request.url),
         headers=dict(base_request.headers),
@@ -41,8 +41,8 @@ async def test_add_api_key_success(
     result_context = await policy.apply(context, container=mock_container, session=mock_db_session)
     assert result_context is context
     assert result_context.request is not None
-    assert "Authorization" in result_context.request.get_headers()
-    assert result_context.request.get_headers()["Authorization"] == "Bearer test-openai-key-123"
+    assert "Authorization" in result_context.request.headers
+    assert result_context.request.headers["Authorization"] == "Bearer test-openai-key-123"
     # Check the correct specific method was called
     mock_container.settings.get_openai_api_key.assert_called_once()
 
@@ -57,7 +57,7 @@ async def test_add_api_key_missing_key(
     policy = AddApiKeyHeaderPolicy()
 
     context = TrackedContext(transaction_id=uuid.uuid4())
-    context.set_request(
+    context.update_request(
         method=base_request.method,
         url=str(base_request.url),
         headers=dict(base_request.headers),
@@ -101,7 +101,7 @@ async def test_add_api_key_overwrites_existing(
     policy = AddApiKeyHeaderPolicy()
 
     context = TrackedContext(transaction_id=uuid.uuid4())
-    context.set_request(
+    context.update_request(
         method=base_request.method,
         url=str(base_request.url),
         headers=dict(base_request.headers),
@@ -114,9 +114,9 @@ async def test_add_api_key_overwrites_existing(
     result_context = await policy.apply(context, container=mock_container, session=mock_db_session)
     assert result_context is context
     assert result_context.request is not None
-    assert "Authorization" in result_context.request.get_headers()
+    assert "Authorization" in result_context.request.headers
     # Verify the new OpenAI key is present
-    assert result_context.request.get_headers()["Authorization"] == "Bearer new-openai-key-456"
+    assert result_context.request.headers["Authorization"] == "Bearer new-openai-key-456"
     mock_container.settings.get_openai_api_key.assert_called_once()
 
 

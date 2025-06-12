@@ -25,7 +25,7 @@ def test_generate_log_data_with_response():
     )
 
     context = TrackedContext()
-    context.set_response(status_code=response.status_code, headers=headers, content=response.content)
+    context.update_response(status_code=response.status_code, headers=headers, content=response.content)
     spec = ResponseHeadersSpec()
 
     log_data_obj = spec.generate_log_data(context)
@@ -57,7 +57,7 @@ def test_generate_log_data_with_notes():
     )
 
     context = TrackedContext()
-    context.set_response(status_code=response.status_code, headers=headers, content=response.content)
+    context.update_response(status_code=response.status_code, headers=headers, content=response.content)
     spec = ResponseHeadersSpec()
     notes_dict: SerializableDict = {"custom_note": "resource created"}
 
@@ -101,7 +101,7 @@ def test_generate_log_data_header_sanitization():
     )
 
     context = TrackedContext()
-    context.set_response(status_code=response.status_code, headers=headers, content=response.content)
+    context.update_response(status_code=response.status_code, headers=headers, content=response.content)
     spec = ResponseHeadersSpec()
 
     log_data_obj = spec.generate_log_data(context)
@@ -132,7 +132,7 @@ def test_generate_log_data_empty_headers():
     )
 
     context = TrackedContext()
-    context.set_response(status_code=response.status_code, headers=headers, content=response.content)
+    context.update_response(status_code=response.status_code, headers=headers, content=response.content)
     spec = ResponseHeadersSpec()
     log_data_obj = spec.generate_log_data(context)
     assert log_data_obj is not None
@@ -147,7 +147,8 @@ def test_generate_log_data_exception_handling(capsys):
     """Test that exceptions during log data generation bubble up."""
 
     class FaultyResponse:
-        def get_headers(self):
+        @property
+        def headers(self):
             raise ValueError("Failed to get headers")
 
         status_code = 503

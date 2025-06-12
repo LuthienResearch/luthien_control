@@ -69,7 +69,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         excluded_headers = {"host", "transfer-encoding", "accept-encoding", "authorization"}
 
         # Copy necessary headers from original request, excluding problematic ones
-        for header_name, header_value in context.request.get_headers().items():
+        for header_name, header_value in context.request.headers.items():
             if header_name.lower() not in excluded_headers:
                 backend_headers[header_name] = header_value
 
@@ -126,9 +126,6 @@ class SendBackendRequestPolicy(ControlPolicy):
             httpx.RequestError: For other network-related issues during the backend request.
             Exception: For any other unexpected errors during request preparation or execution.
         """
-        # Set current policy for event tracking
-        context.set_current_policy(self.name)
-
         settings = container.settings
         http_client = container.http_client
 
@@ -145,13 +142,13 @@ class SendBackendRequestPolicy(ControlPolicy):
         try:
             # Extract path from current URL
             current_url = context.request.url
-            parsed_url = urlparse(current_url)
+            parsed_url = urlparse(str(current_url))
             target_url = self._build_target_url(backend_url_base, parsed_url.path)
             backend_headers = self._prepare_backend_headers(context, settings)
 
             # Update request with backend URL and headers
             for header_name, header_value in backend_headers.items():
-                context.request.set_header(header_name, header_value)
+                context.update_request(headers={header_name: header_value})
 
         except ValueError as e:
             # Configuration or header preparation error
@@ -176,7 +173,7 @@ class SendBackendRequestPolicy(ControlPolicy):
             await response.aread()
 
             # Store response in TrackedContext
-            context.set_response(
+            context.update_response(
                 status_code=response.status_code, headers=dict(response.headers), content=response.content
             )
 
@@ -198,8 +195,6 @@ class SendBackendRequestPolicy(ControlPolicy):
             )
             raise  # Re-raise the unexpected error
 
-        # Clear current policy
-        context.set_current_policy(None)
         return context
 
     def serialize(self) -> SerializableDict:

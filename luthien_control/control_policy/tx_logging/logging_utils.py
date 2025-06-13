@@ -23,13 +23,13 @@ def _sanitize_headers(headers: httpx.Headers) -> Dict[str, str]:
     """Sanitizes sensitive information from HTTP headers.
 
     Args:
-        headers: An httpx.Headers object representing HTTP headers.
+        headers: HTTP headers.
 
     Returns:
         A dictionary of headers with sensitive values redacted.
     """
     sanitized = {}
-    # Use .raw to preserve original header casing
+
     for key_bytes, value_bytes in headers.raw:
         key = key_bytes.decode("ascii")
         value = value_bytes.decode("ascii")
@@ -37,6 +37,7 @@ def _sanitize_headers(headers: httpx.Headers) -> Dict[str, str]:
             sanitized[key] = REDACTED_PLACEHOLDER
         else:
             sanitized[key] = value
+
     return sanitized
 
 

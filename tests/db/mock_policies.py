@@ -5,7 +5,7 @@ import httpx
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,10 +24,13 @@ class MockSimplePolicy(ControlPolicy):
         self.mock_init(settings=settings, http_client=http_client, timeout=timeout)
 
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
-        context.data["simple_applied"] = True
-        context.data["simple_timeout"] = self.timeout
+        self,
+        context: TrackedContext,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> TrackedContext:
+        context.set_data("simple_applied", True)
+        context.set_data("simple_timeout", self.timeout)
         return context
 
     def serialize(self) -> Dict[str, Any]:
@@ -46,10 +49,13 @@ class MockNestedPolicy(ControlPolicy):
         self.mock_init(nested_policy=nested_policy, description=description)
 
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
-        context.data["nested_applied"] = True
-        context.data["nested_description"] = self.description
+        self,
+        context: TrackedContext,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> TrackedContext:
+        context.set_data("nested_applied", True)
+        context.set_data("nested_description", self.description)
         # Simulate applying inner policy using the updated attribute name
         context = await self.nested_policy.apply(context, container, session)
         return context
@@ -72,15 +78,18 @@ class MockListPolicy(ControlPolicy):
         self.name: Optional[str] = None
 
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
-        context.data["list_applied"] = True
-        context.data["list_mode"] = self.mode
-        context.data["list_policy_count"] = len(self.policies)
+        self,
+        context: TrackedContext,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> TrackedContext:
+        context.set_data("list_applied", True)
+        context.set_data("list_mode", self.mode)
+        context.set_data("list_policy_count", len(self.policies))
         # Simulate applying inner policies (simplified)
         for i, policy in enumerate(self.policies):
             if isinstance(policy, ControlPolicy):  # Skip non-policy items
-                context.data[f"list_member_{i}_name"] = getattr(policy, "name", "unknown")
+                context.set_data(f"list_member_{i}_name", getattr(policy, "name", "unknown"))
         return context
 
     def serialize(self) -> Dict[str, Any]:
@@ -101,9 +110,12 @@ class MockNoArgsPolicy(ControlPolicy):
         self.mock_init()
 
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
-        context.data["no_args_applied"] = True
+        self,
+        context: TrackedContext,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> TrackedContext:
+        context.set_data("no_args_applied", True)
         return context
 
     def serialize(self) -> Dict[str, Any]:
@@ -118,10 +130,13 @@ class MockMissingArgPolicy(ControlPolicy):
         self.name: Optional[str] = None
 
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
-        context.data["missing_arg_applied"] = True
-        context.data["missing_arg_mandatory"] = self.mandatory
+        self,
+        context: TrackedContext,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> TrackedContext:
+        context.set_data("missing_arg_applied", True)
+        context.set_data("missing_arg_mandatory", self.mandatory)
         return context
 
     def serialize(self) -> Dict[str, Any]:

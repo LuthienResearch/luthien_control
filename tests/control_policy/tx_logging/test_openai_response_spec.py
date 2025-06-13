@@ -12,7 +12,7 @@ from luthien_control.control_policy.tx_logging.openai_response_spec import (
     serialize_openai_chat_response,
 )
 from luthien_control.control_policy.tx_logging.tx_logging_spec import LuthienLogData
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 # --- Tests for serialize_openai_chat_response --- #
 
@@ -52,7 +52,7 @@ def test_serialize_openai_chat_response_valid_body(body_dict, expected_content_k
             "http_version": b"HTTP/1.1",
         },
     )
-    response.elapsed = datetime.timedelta(milliseconds=123)
+    response._elapsed = datetime.timedelta(milliseconds=123)
 
     serialized = serialize_openai_chat_response(response)
 
@@ -126,11 +126,12 @@ def test_serialize_openai_chat_response_empty_content(caplog):
 def test_openai_response_spec_generate_log_data_with_response():
     """Test generate_log_data with a valid response."""
     body = {"id": "res-123", "choices": [{"message": {"content": "Hello there"}}]}
+    headers = {"X-My-Header": "res-val"}
 
     request = httpx.Request("GET", "http://example.com")
     response = httpx.Response(
         status_code=200,
-        headers={"X-My-Header": "res-val"},
+        headers=headers,
         content=json.dumps(body).encode("utf-8"),
         request=request,
         extensions={
@@ -140,7 +141,8 @@ def test_openai_response_spec_generate_log_data_with_response():
     )
     response.elapsed = datetime.timedelta(milliseconds=123)
 
-    context = TransactionContext(response=response)
+    context = TrackedContext()
+    context.update_response(status_code=response.status_code, headers=headers, content=response.content)
     spec = OpenAIResponseSpec()
     notes_dict: SerializableDict = {"res_note": "res_val"}
 
@@ -160,7 +162,7 @@ def test_openai_response_spec_generate_log_data_with_response():
 
 def test_openai_response_spec_generate_log_data_no_response():
     """Test generate_log_data when no response is in the context."""
-    context = TransactionContext()
+    context = TrackedContext()
     spec = OpenAIResponseSpec()
 
     log_data_obj = spec.generate_log_data(context)
@@ -175,9 +177,11 @@ def test_openai_response_spec_generate_log_data_serialization_error(caplog):
 
     # Create a response with content that will cause JSON parsing errors
     content_bytes = b"\xff\xfe"  # Invalid UTF-8 content that will cause UnicodeDecodeError
+    headers = {}
     request = httpx.Request("GET", "http://example.com")
     response = httpx.Response(
         status_code=200,
+        headers=headers,
         content=content_bytes,
         request=request,
         extensions={
@@ -187,7 +191,8 @@ def test_openai_response_spec_generate_log_data_serialization_error(caplog):
     )
     response.elapsed = datetime.timedelta(milliseconds=123)
 
-    context = TransactionContext(response=response)
+    context = TrackedContext()
+    context.update_response(status_code=response.status_code, headers=headers, content=response.content)
     spec = OpenAIResponseSpec()
 
     with caplog.at_level(logging.ERROR):

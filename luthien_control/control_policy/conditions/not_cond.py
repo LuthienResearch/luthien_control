@@ -1,6 +1,6 @@
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.serialization import SerializableDict
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 
 class NotCondition(Condition):
@@ -9,7 +9,7 @@ class NotCondition(Condition):
     def __init__(self, value: Condition):
         self.cond = value
 
-    def evaluate(self, context: TransactionContext) -> bool:
+    def evaluate(self, context: TrackedContext) -> bool:
         return not self.cond.evaluate(context)
 
     def __repr__(self) -> str:

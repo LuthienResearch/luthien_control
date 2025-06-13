@@ -11,7 +11,7 @@ from luthien_control.control_policy.tx_logging.tx_logging_spec import (
     LuthienLogData,
     TxLoggingSpec,
 )
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +22,7 @@ class ResponseHeadersSpec(TxLoggingSpec):
     def __init__(self):
         pass
 
-    def generate_log_data(
-        self, context: "TransactionContext", notes: Optional[SerializableDict] = None
-    ) -> LuthienLogData:
+    def generate_log_data(self, context: "TrackedContext", notes: Optional[SerializableDict] = None) -> LuthienLogData:
         if not context.response:
             logger.warning(
                 f"ResponseHeadersSpec: No response found in {self.TYPE_NAME} for transaction {context.transaction_id}"
@@ -33,7 +31,6 @@ class ResponseHeadersSpec(TxLoggingSpec):
         sanitized_headers = sanitize_headers_util(context.response.headers)
         log_data = {
             "status_code": context.response.status_code,
-            "reason_phrase": context.response.reason_phrase,
             "headers": sanitized_headers,
         }
         return LuthienLogData(datatype="response_headers", data=log_data, notes=notes)

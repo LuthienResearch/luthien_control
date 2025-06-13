@@ -8,17 +8,17 @@ import pytest
 from luthien_control.control_policy.exceptions import LeakedApiKeyError, NoRequestError
 from luthien_control.control_policy.leaked_api_key_detection import LeakedApiKeyDetectionPolicy
 from luthien_control.control_policy.serialization import SerializableDict
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 
 @pytest.fixture
-def mock_transaction_context() -> TransactionContext:
-    """Provides a mock TransactionContext with a mock request object."""
-    context = MagicMock(spec=TransactionContext)
+def mock_transaction_context() -> TrackedContext:
+    """Provides a mock TrackedContext with a mock request object."""
+    context = MagicMock(spec=TrackedContext)
     context.transaction_id = "test_tx_id"
     context.request = httpx.Request("POST", "http://example.com/api")
     context.response = None
-    context.data = {}  # Add this for consistency with real TransactionContext
+    context.data = {}  # Add this for consistency with real TrackedContext
     return context
 
 
@@ -78,6 +78,7 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "What is the square root of 64?"}
             ]
         }"""
+        # Create httpx.Request with content
         mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         policy = LeakedApiKeyDetectionPolicy()
@@ -100,6 +101,7 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "My API key is sk-abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmn. Can you help me use it?"}
             ]
         }"""  # noqa: E501 - not worth breaking up a long line in the middle of a multiline string specifying a JSON body
+        # Create httpx.Request with content
         mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         policy = LeakedApiKeyDetectionPolicy()
@@ -120,6 +122,7 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "Hello, can you help me?"}
             ]
         }"""  # noqa: E501 - not worth breaking up a long line in the middle of a multiline string specifying a JSON body
+        # Create httpx.Request with content
         mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         policy = LeakedApiKeyDetectionPolicy()
@@ -130,8 +133,8 @@ class TestLeakedApiKeyDetectionPolicyApply:
     @pytest.mark.asyncio
     async def test_apply_with_non_json_body(self, mock_transaction_context, mock_container, mock_db_session):
         """Test that a non-JSON body doesn't cause issues."""
-        body = b"This is not JSON and should be ignored"
-        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
+        # Create httpx.Request with non-JSON content
+        mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=b"Not JSON content")
 
         policy = LeakedApiKeyDetectionPolicy()
 
@@ -150,6 +153,7 @@ class TestLeakedApiKeyDetectionPolicyApply:
                 {"role": "user", "content": "My custom key is custom-12345. Can you help me?"}
             ]
         }"""
+        # Create httpx.Request with content
         mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=body)
 
         # Use a custom pattern that matches "custom-" followed by digits
@@ -161,6 +165,7 @@ class TestLeakedApiKeyDetectionPolicyApply:
     @pytest.mark.asyncio
     async def test_apply_with_no_content(self, mock_transaction_context, mock_container, mock_db_session):
         """Test that a request with no content doesn't cause issues."""
+        # Create httpx.Request with empty content
         mock_transaction_context.request = httpx.Request("POST", "http://example.com/api", content=b"")
         policy = LeakedApiKeyDetectionPolicy()
         result = await policy.apply(mock_transaction_context, mock_container, mock_db_session)

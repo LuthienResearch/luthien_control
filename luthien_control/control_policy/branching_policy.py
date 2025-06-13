@@ -9,7 +9,7 @@ from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +26,8 @@ class BranchingPolicy(ControlPolicy):
         self.default_policy = default_policy
 
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
         """
         Apply the first policy that matches the condition. If no condition matches, apply the default policy (if set).
 

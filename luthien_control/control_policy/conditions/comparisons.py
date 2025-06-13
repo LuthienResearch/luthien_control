@@ -15,7 +15,7 @@ from luthien_control.control_policy.conditions.comparators import (
 )
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.serialization import SerializableDict
-from luthien_control.core.transaction_context import TransactionContext, get_tx_value
+from luthien_control.core.tracked_context import TrackedContext, get_tx_value
 
 
 class ComparisonCondition(Condition, ABC):
@@ -38,7 +38,7 @@ class ComparisonCondition(Condition, ABC):
         self.key = key
         self.value = value
 
-    def evaluate(self, context: TransactionContext) -> bool:
+    def evaluate(self, context: TrackedContext) -> bool:
         return type(self).comparator.evaluate(get_tx_value(context, self.key), self.value)
 
     def __repr__(self) -> str:

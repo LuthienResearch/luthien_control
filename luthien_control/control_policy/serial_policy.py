@@ -10,7 +10,7 @@ from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.loader import load_policy
 from luthien_control.control_policy.serialization import SerializableDict, SerializedPolicy
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +46,10 @@ class SerialPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: "TransactionContext",
+        context: TrackedContext,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> "TransactionContext":
+    ) -> TrackedContext:
         """
         Applies the contained policies sequentially to the context.
         Requires the DependencyContainer and an active SQLAlchemy AsyncSession.

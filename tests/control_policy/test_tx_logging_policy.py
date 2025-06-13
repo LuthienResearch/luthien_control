@@ -11,7 +11,7 @@ from luthien_control.control_policy.tx_logging.tx_logging_spec import (
 )
 from luthien_control.control_policy.tx_logging_policy import TxLoggingPolicy
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from luthien_control.db.sqlmodel_models import LuthienLog, NaiveDatetime
 
 # --- Test Fixtures and Mocks ---
@@ -34,9 +34,7 @@ class MockTxLoggingSpec(TxLoggingSpec):
         self.generate_log_data_called_with = None
         self.serialize_called = False
 
-    def generate_log_data(
-        self, context: "TransactionContext", notes: Optional[SerializableDict] = None
-    ) -> LuthienLogData:
+    def generate_log_data(self, context: "TrackedContext", notes: Optional[SerializableDict] = None) -> LuthienLogData:
         self.generate_log_data_called_with = {"context": context, "notes": notes}
         if self.raise_on_generate:
             raise self.raise_on_generate
@@ -67,8 +65,8 @@ def mock_spec() -> MockTxLoggingSpec:
 
 
 @pytest.fixture
-def mock_transaction_context() -> TransactionContext:
-    mock_context = MagicMock(spec=TransactionContext)
+def mock_transaction_context() -> TrackedContext:
+    mock_context = MagicMock(spec=TrackedContext)
     mock_context.transaction_id = "test-tx-123"
     mock_context.request = None  # Can be set in specific tests if needed
     mock_context.response = None  # Can be set in specific tests if needed
@@ -124,7 +122,7 @@ async def test_log_database_entry(mock_async_session: AsyncMock):
 
 async def test_apply_successful_logging(
     mock_spec: MockTxLoggingSpec,
-    mock_transaction_context: TransactionContext,
+    mock_transaction_context: TrackedContext,
     mock_dependency_container: DependencyContainer,
     mock_async_session: AsyncMock,
     caplog: pytest.LogCaptureFixture,
@@ -151,7 +149,7 @@ async def test_apply_successful_logging(
 
 async def test_apply_spec_returns_none(
     mock_spec: MockTxLoggingSpec,
-    mock_transaction_context: TransactionContext,
+    mock_transaction_context: TrackedContext,
     mock_dependency_container: DependencyContainer,
     mock_async_session: AsyncMock,
 ):
@@ -173,7 +171,7 @@ async def test_apply_spec_returns_none(
 
 async def test_apply_spec_generate_raises_exception(
     mock_spec: MockTxLoggingSpec,
-    mock_transaction_context: TransactionContext,
+    mock_transaction_context: TrackedContext,
     mock_dependency_container: DependencyContainer,
     mock_async_session: AsyncMock,
     caplog: pytest.LogCaptureFixture,
@@ -196,7 +194,7 @@ async def test_apply_spec_generate_raises_exception(
 
 async def test_apply_log_database_entry_raises_exception(
     mock_spec: MockTxLoggingSpec,
-    mock_transaction_context: TransactionContext,
+    mock_transaction_context: TrackedContext,
     mock_dependency_container: DependencyContainer,
     mock_async_session: AsyncMock,
     caplog: pytest.LogCaptureFixture,

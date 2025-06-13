@@ -8,7 +8,7 @@ import pytest
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -71,8 +71,8 @@ def test_policy_apply_signature(policy_class: Type[ControlPolicy]):
         pytest.fail(f"Could not get type hints for {policy_class.__name__}.apply: {e}")
 
     # Note: get_type_hints includes the return type
-    assert type_hints.get("context") is TransactionContext, (
-        f"{policy_class.__name__}.apply 'context' hint is not TransactionContext: {type_hints.get('context')}"
+    assert type_hints.get("context") is TrackedContext, (
+        f"{policy_class.__name__}.apply 'context' hint is not TrackedContext: {type_hints.get('context')}"
     )
     assert type_hints.get("container") is DependencyContainer, (
         f"{policy_class.__name__}.apply 'container' hint is not DependencyContainer: {type_hints.get('container')}"
@@ -80,8 +80,8 @@ def test_policy_apply_signature(policy_class: Type[ControlPolicy]):
     assert type_hints.get("session") is AsyncSession, (
         f"{policy_class.__name__}.apply 'session' hint is not AsyncSession: {type_hints.get('session')}"
     )
-    assert type_hints.get("return") is TransactionContext, (
-        f"{policy_class.__name__}.apply return hint is not TransactionContext: {type_hints.get('return')}"
+    assert type_hints.get("return") is TrackedContext, (
+        f"{policy_class.__name__}.apply return hint is not TrackedContext: {type_hints.get('return')}"
     )
 
 

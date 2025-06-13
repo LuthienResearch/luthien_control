@@ -15,7 +15,7 @@ from luthien_control.core.dependencies import (
     get_main_control_policy,
 )
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from luthien_control.main import app  # Import your main FastAPI app
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -304,9 +304,9 @@ def mock_main_policy_for_e2e() -> ControlPolicy:
 # Define a minimal concrete policy locally for the test
 class PassThroughPolicy(ControlPolicy):
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
-        context.data["passthrough_applied"] = True
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
+        context.set_data("passthrough_applied", True)
         return context
 
     def serialize(self) -> SerializableDict:
@@ -324,10 +324,14 @@ class MockSendBackendRequestPolicy(ControlPolicy):
         self.name = self.__class__.__name__
 
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
         # Simulate setting the response after a backend call
-        context.response = self.mock_response
+        context.update_response(
+            status_code=self.mock_response.status_code,
+            headers=dict(self.mock_response.headers),
+            content=self.mock_response.content,
+        )
         return context
 
     def serialize(self) -> SerializableDict:

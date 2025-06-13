@@ -12,7 +12,7 @@ from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -24,11 +24,14 @@ class SimplePolicy(ControlPolicy):
         self.marker = marker
 
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
-        new_data = context.data.copy()
-        new_data["applied_policy"] = self.marker
-        return TransactionContext(data=new_data)
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
+        # Create new context and copy all data
+        new_context = TrackedContext(transaction_id=context.transaction_id)
+        for key, value in context.get_all_data().items():
+            new_context.set_data(key, value)
+        new_context.set_data("applied_policy", self.marker)
+        return new_context
 
     def serialize(self) -> SerializableDict:
         return {"type": "SimplePolicy", "marker": self.marker}
@@ -42,8 +45,11 @@ class SimplePolicy(ControlPolicy):
 
 
 @pytest.fixture
-def context() -> TransactionContext:
-    return TransactionContext(data={"method": "GET", "user_type": "admin"})
+def context() -> TrackedContext:
+    context = TrackedContext()
+    context.set_data("method", "GET")
+    context.set_data("user_type", "admin")
+    return context
 
 
 @pytest.fixture
@@ -73,7 +79,7 @@ async def test_policy_application_order(context, mock_deps, first_matches, expec
     branching_policy = BranchingPolicy(policy_map)
 
     result = await branching_policy.apply(context, container, session)
-    assert result.data["applied_policy"] == expected_policy
+    assert result.get_data("applied_policy") == expected_policy
 
 
 @pytest.mark.asyncio
@@ -96,10 +102,10 @@ async def test_no_conditions_match(context, mock_deps, has_default, expected_pol
     result = await branching_policy.apply(context, container, session)
 
     if expected_policy:
-        assert result.data["applied_policy"] == expected_policy
+        assert result.get_data("applied_policy") == expected_policy
     else:
         assert result == context
-        assert "applied_policy" not in result.data
+        assert result.get_data("applied_policy") is None
 
 
 @pytest.mark.parametrize("has_default", [True, False])

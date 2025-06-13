@@ -2,7 +2,7 @@ import abc
 from typing import ClassVar
 
 from luthien_control.control_policy.serialization import SerializableDict
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 
 class Condition(abc.ABC):
@@ -16,7 +16,7 @@ class Condition(abc.ABC):
     type: ClassVar[str]
 
     @abc.abstractmethod
-    def evaluate(self, context: TransactionContext) -> bool:
+    def evaluate(self, context: TrackedContext) -> bool:
         pass
 
     @abc.abstractmethod

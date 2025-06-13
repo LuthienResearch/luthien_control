@@ -1,4 +1,5 @@
 import uuid
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import fastapi
@@ -8,7 +9,7 @@ from fastapi import Response
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.core.tracked_context import TrackedContext
-from luthien_control.proxy.orchestration import run_policy_flow
+from luthien_control.proxy.orchestration import _initialize_context, run_policy_flow
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -406,3 +407,21 @@ async def test_run_policy_flow_context_init_exception(
     mock_logger.warning.assert_not_called()
     MockDefaultBuilder.assert_not_called()  # Builder instance not created
     MockJSONResponse.assert_not_called()  # Fallback JSONResponse not created
+
+
+def test_initialize_context_query_params():
+    """_initialize_context should build full URL including query parameters."""
+    request = SimpleNamespace()
+    request.headers = {"x-test": "1"}
+    request.method = "GET"
+    request.path_params = {"full_path": "/chat"}
+    request.query_params = {"foo": "bar", "baz": "qux"}
+    body = b"hello"
+
+    # _initialize_context expects a real fastapi.Request; we supply a stub.
+    ctx = _initialize_context(request, body)  # type: ignore[arg-type]
+
+    assert ctx.request is not None
+    url_str = str(ctx.request.url)
+    assert url_str.endswith("/chat?foo=bar&baz=qux")
+    assert ctx.request.content == body

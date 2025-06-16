@@ -65,7 +65,10 @@ async def test_e2e_api_chat_completion(e2e_client: httpx.AsyncClient):
         )
 
     except httpx.HTTPStatusError as e:
-        pytest.fail(f"API E2E test failed with status {e.response.status_code}. Response: {e.response.text}")
+        pytest.fail(
+            f"API E2E test failed with status {e.response.status_code}. "
+            f"Request: {e.request.content}. Response: {e.response.text}"
+        )
     except httpx.RequestError as e:
         pytest.fail(f"API E2E test failed with connection error: {e}")
     except Exception as e:

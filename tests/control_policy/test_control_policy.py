@@ -5,7 +5,7 @@ import pytest
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -15,10 +15,12 @@ class MinimalConcretePolicy(ControlPolicy):
     name = "minimal_concrete"
 
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
         # Minimal implementation for testing instantiation
-        context.data.setdefault("modified_by", []).append(self.name)
+        modified_by = context.get_data("modified_by", [])
+        modified_by.append(self.name)
+        context.set_data("modified_by", modified_by)
         return context
 
     def serialize(self) -> SerializableDict:

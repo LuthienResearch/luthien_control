@@ -1,4 +1,5 @@
 import uuid
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import fastapi
@@ -7,8 +8,8 @@ import pytest
 from fastapi import Response
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
-from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.proxy.orchestration import run_policy_flow
+from luthien_control.core.tracked_context import TrackedContext
+from luthien_control.proxy.orchestration import _initialize_context, run_policy_flow
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,14 +55,9 @@ def mock_policy() -> AsyncMock:
     # Explicitly define apply to return the context passed to it, accepting container and session
     async def apply_effect(context, container, session):
         # Simulate some action (optional)
-        context.data["main_policy_called"] = True
-        # Return a *new* context mock to avoid identity issues in assertions
-        new_context = MagicMock(spec=TransactionContext)
-        new_context.transaction_id = context.transaction_id
-        new_context.data = context.data.copy()
-        new_context.request = context.request
-        new_context.response = None  # Explicitly set response to None
-        return new_context
+        context.set_data("main_policy_called", True)
+        # Return the same context (TrackedContext)
+        return context
 
     policy_mock.apply = AsyncMock(side_effect=apply_effect)
 
@@ -124,7 +120,7 @@ async def test_run_policy_flow_successful(
     mock_uuid4.assert_called_once()
     mock_policy.apply.assert_awaited_once()
     call_args, call_kwargs = mock_policy.apply.await_args
-    assert isinstance(call_kwargs.get("context"), TransactionContext)
+    assert isinstance(call_kwargs.get("context"), TrackedContext)
     assert call_kwargs.get("context").transaction_id == fixed_test_uuid
     assert call_kwargs.get("container") is mock_container  # Check against mock_container
     assert call_kwargs.get("session") is mock_session
@@ -133,9 +129,9 @@ async def test_run_policy_flow_successful(
     MockDefaultBuilder.assert_called_once_with()
     mock_builder_instance.build_response.assert_called_once()
     context_arg = mock_builder_instance.build_response.call_args[0][0]
-    assert isinstance(context_arg, TransactionContext)
+    assert isinstance(context_arg, TrackedContext)
     assert context_arg.transaction_id == fixed_test_uuid
-    assert context_arg.data.get("main_policy_called") is True
+    assert context_arg.get_data("main_policy_called") is True
 
     # Direct JSONResponse should *not* be called in happy path
     MockJSONResponse.assert_not_called()
@@ -189,7 +185,7 @@ async def test_run_policy_flow_policy_exception(
     mock_uuid4.assert_called_once()
     mock_policy_raising_exception.apply.assert_awaited_once()
     call_args, call_kwargs = mock_policy_raising_exception.apply.await_args
-    assert isinstance(call_kwargs.get("context"), TransactionContext)
+    assert isinstance(call_kwargs.get("context"), TrackedContext)
     assert call_kwargs.get("container") is mock_container  # Check against mock_container
     assert call_kwargs.get("session") is mock_session
 
@@ -263,7 +259,7 @@ async def test_run_policy_flow_unexpected_exception(
     mock_uuid4.assert_called_once()
     mock_policy.apply.assert_awaited_once()
     call_args, call_kwargs = mock_policy.apply.await_args
-    assert isinstance(call_kwargs.get("context"), TransactionContext)
+    assert isinstance(call_kwargs.get("context"), TrackedContext)
     assert call_kwargs.get("container") is mock_container
     assert call_kwargs.get("session") is mock_session
 
@@ -278,7 +274,7 @@ async def test_run_policy_flow_unexpected_exception(
     MockDefaultBuilder.assert_called_once_with()
     mock_builder_instance.build_response.assert_called_once()
     context_arg = mock_builder_instance.build_response.call_args[0][0]
-    assert isinstance(context_arg, TransactionContext)
+    assert isinstance(context_arg, TrackedContext)
     assert context_arg.transaction_id == fixed_test_uuid
     MockJSONResponse.assert_not_called()  # Fallback not used
 
@@ -333,7 +329,7 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     mock_uuid4.assert_called_once()
     mock_policy.apply.assert_awaited_once()  # Policy called, raised initial error
     call_args, call_kwargs = mock_policy.apply.await_args
-    assert isinstance(call_kwargs.get("context"), TransactionContext)
+    assert isinstance(call_kwargs.get("context"), TrackedContext)
     assert call_kwargs.get("container") is mock_container
     assert call_kwargs.get("session") is mock_session
 
@@ -411,3 +407,21 @@ async def test_run_policy_flow_context_init_exception(
     mock_logger.warning.assert_not_called()
     MockDefaultBuilder.assert_not_called()  # Builder instance not created
     MockJSONResponse.assert_not_called()  # Fallback JSONResponse not created
+
+
+def test_initialize_context_query_params():
+    """_initialize_context should build full URL including query parameters."""
+    request = SimpleNamespace()
+    request.headers = {"x-test": "1"}
+    request.method = "GET"
+    request.path_params = {"full_path": "/chat"}
+    request.query_params = {"foo": "bar", "baz": "qux"}
+    body = b"hello"
+
+    # _initialize_context expects a real fastapi.Request; we supply a stub.
+    ctx = _initialize_context(request, body)  # type: ignore[arg-type]
+
+    assert ctx.request is not None
+    url_str = str(ctx.request.url)
+    assert url_str.endswith("/chat?foo=bar&baz=qux")
+    assert ctx.request.content == body

@@ -7,7 +7,7 @@ from luthien_control.control_policy.tx_logging.tx_logging_spec import (
     LuthienLogData,
     TxLoggingSpec,
 )
-from luthien_control.core.transaction_context import TransactionContext  # For type hinting
+from luthien_control.core.tracked_context import TrackedContext  # For type hinting
 
 # This can be removed as tests look comprehensive
 
@@ -46,9 +46,7 @@ class DummyLoggingSpec(TxLoggingSpec):
     def __init__(self, param: str = "default"):
         self.param = param
 
-    def generate_log_data(
-        self, context: "TransactionContext", notes: Optional[SerializableDict] = None
-    ) -> LuthienLogData:
+    def generate_log_data(self, context: "TrackedContext", notes: Optional[SerializableDict] = None) -> LuthienLogData:
         return LuthienLogData(datatype=self.TYPE_NAME, data={"param": self.param}, notes=notes)
 
     def serialize(self) -> SerializableDict:

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 # Type variable for the policy classes
 PolicyT = TypeVar("PolicyT", bound="ControlPolicy")
@@ -37,18 +37,21 @@ class ControlPolicy(abc.ABC):
 
     @abc.abstractmethod
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
+        self,
+        context: "TrackedContext",
+        container: "DependencyContainer",
+        session: "AsyncSession",
+    ) -> "TrackedContext":
         """
         Apply the policy to the transaction context using provided dependencies.
 
         Args:
-            context: The current transaction context.
+            context: The current tracked transaction context.
             container: The dependency injection container.
             session: The database session for the current request.
 
         Returns:
-            The potentially modified transaction context.
+            The potentially modified tracked transaction context.
 
         Raises:
             Exception: Processors may raise exceptions to halt the processing flow.

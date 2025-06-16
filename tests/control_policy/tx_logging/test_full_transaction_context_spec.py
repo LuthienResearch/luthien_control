@@ -13,7 +13,7 @@ from luthien_control.control_policy.tx_logging.full_transaction_context_spec imp
 )
 from luthien_control.control_policy.tx_logging.logging_utils import REDACTED_PLACEHOLDER
 from luthien_control.control_policy.tx_logging.tx_logging_spec import LuthienLogData
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 
 # --- Tests for _serialize_content_bytes --- #
@@ -115,7 +115,7 @@ def test_serialize_httpx_response():
             "http_version": b"HTTP/1.1",
         },
     )
-    response.elapsed = datetime.timedelta(milliseconds=50)
+    response._elapsed = datetime.timedelta(milliseconds=50)
 
     serialized = _serialize_httpx_response(response)
     assert serialized["status_code"] == 200
@@ -156,7 +156,13 @@ def test_full_transaction_context_spec_generate_log_data():
 
     # Create transaction context
     context_data = {"custom_field": "custom_value", "sensitive_info": "super_secret"}
-    context = TransactionContext(request=request, response=response, data=context_data)
+    context = TrackedContext()
+    context.update_request(
+        method=request.method, url=str(request.url), headers=dict(request.headers), content=request.content
+    )
+    context.update_response(status_code=response.status_code, headers=dict(response.headers), content=response.content)
+    for key, value in context_data.items():
+        context.set_data(key, value)
 
     spec = FullTransactionContextSpec()
     notes: SerializableDict = {"operation": "full_log"}
@@ -194,7 +200,7 @@ def test_full_transaction_context_spec_generate_log_data():
 
 
 def test_full_transaction_context_spec_generate_log_data_minimal():
-    context = TransactionContext()  # No request, response, or data
+    context = TrackedContext()  # No request, response, or data
     spec = FullTransactionContextSpec()
 
     log_data_obj = spec.generate_log_data(context)
@@ -207,7 +213,9 @@ def test_full_transaction_context_spec_generate_log_data_minimal():
     assert isinstance(data, dict)  # Additional type assertion
     assert "request" not in data  # No request in context
     assert "response" not in data  # No response in context
-    assert "context_data" not in data  # No data in context by default
+    # TrackedContext initializes with empty data dict
+    assert "context_data" in data
+    assert data["context_data"] == {}
 
 
 def test_full_transaction_context_spec_context_data_serialization_error(caplog):
@@ -221,7 +229,9 @@ def test_full_transaction_context_spec_context_data_serialization_error(caplog):
             return "<NonSerializable object>"
 
     context_data = {"key": NonSerializable()}
-    context = TransactionContext(data=context_data)
+    context = TrackedContext()
+    for key, value in context_data.items():
+        context.set_data(key, value)
     spec = FullTransactionContextSpec()
 
     log_data_obj = spec.generate_log_data(context)
@@ -240,7 +250,7 @@ def test_full_transaction_context_spec_context_data_serialization_error(caplog):
 
 
 def test_full_transaction_context_spec_no_request_no_response():
-    context = TransactionContext()
+    context = TrackedContext()
     spec = FullTransactionContextSpec()
     log_data_obj = spec.generate_log_data(context)
     assert isinstance(log_data_obj, LuthienLogData)
@@ -248,8 +258,9 @@ def test_full_transaction_context_spec_no_request_no_response():
     assert isinstance(log_data_obj.data, dict)  # Additional type assertion
     assert "request" not in log_data_obj.data  # Check for absence of key
     assert "response" not in log_data_obj.data  # Check for absence of key
-    # When context.data is empty dict, context.data evaluates to False, so "context_data" key is not added
-    assert "context_data" not in log_data_obj.data
+    # TrackedContext always has data dict, even if empty
+    assert "context_data" in log_data_obj.data
+    assert log_data_obj.data["context_data"] == {}
 
 
 def test_full_transaction_context_spec_serialize_from_serialized():

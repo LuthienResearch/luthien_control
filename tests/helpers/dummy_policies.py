@@ -3,8 +3,9 @@ import logging
 import httpx
 from fastapi import status
 from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,13 +17,16 @@ logger = logging.getLogger(__name__)
 # A valid policy that inherits correctly and takes no args
 class DummyPolicyNoArgs(ControlPolicy):
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
         logger.info(f"[{context.transaction_id}] Running DummyPolicyNoArgs apply")
-        context.data["policy_no_args_ran"] = True
+        context.set_data("policy_no_args_ran", True)
         # Set a success status for testing purposes, as this policy doesn't call a backend
-        context.data["final_status_code"] = status.HTTP_200_OK
+        context.set_data("final_status_code", status.HTTP_200_OK)
         return context
+
+    def serialize(self) -> SerializableDict:
+        return {}
 
 
 # A valid policy requiring settings
@@ -31,14 +35,17 @@ class DummyPolicySettings(ControlPolicy):
         self.settings = settings
 
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
         logger.info(f"[{context.transaction_id}] Running DummyPolicySettings apply")
-        context.data["policy_settings_ran"] = True
-        context.data["settings_value_in_policy"] = self.settings.get_backend_url()
+        context.set_data("policy_settings_ran", True)
+        context.set_data("settings_value_in_policy", self.settings.get_backend_url())
         # Set a success status for testing purposes
-        context.data["final_status_code"] = status.HTTP_200_OK
+        context.set_data("final_status_code", status.HTTP_200_OK)
         return context
+
+    def serialize(self) -> SerializableDict:
+        return {}
 
 
 # A valid policy requiring http_client
@@ -47,13 +54,16 @@ class DummyPolicyHttpClient(ControlPolicy):
         self.client = http_client
 
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
         logger.info(f"[{context.transaction_id}] Running DummyPolicyHttpClient apply")
-        context.data["policy_http_client_ran"] = True
+        context.set_data("policy_http_client_ran", True)
         # Set a success status for testing purposes
-        context.data["final_status_code"] = status.HTTP_200_OK
+        context.set_data("final_status_code", status.HTTP_200_OK)
         return context
+
+    def serialize(self) -> SerializableDict:
+        return {}
 
 
 # A valid policy requiring both
@@ -63,13 +73,16 @@ class DummyPolicyComplex(ControlPolicy):
         self.client = http_client
 
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
         logger.info(f"[{context.transaction_id}] Running DummyPolicyComplex apply")
-        context.data["policy_complex_ran"] = True
+        context.set_data("policy_complex_ran", True)
         # Set a success status for testing purposes
-        context.data["final_status_code"] = status.HTTP_200_OK
+        context.set_data("final_status_code", status.HTTP_200_OK)
         return context
+
+    def serialize(self) -> SerializableDict:
+        return {}
 
 
 # A class that does NOT inherit from ControlPolicy
@@ -83,13 +96,16 @@ class DummyPolicyNeedsSpecificArg(ControlPolicy):
         self.specific_arg = specific_arg
 
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
         # This won't be reached if loading fails, but implement for completeness
         logger.info(f"[{context.transaction_id}] Running DummyPolicyNeedsSpecificArg apply")
-        context.data["policy_specific_arg_ran"] = True
-        context.data["final_status_code"] = status.HTTP_200_OK
+        context.set_data("policy_specific_arg_ran", True)
+        context.set_data("final_status_code", status.HTTP_200_OK)
         return context
+
+    def serialize(self) -> SerializableDict:
+        return {"specific_arg": self.specific_arg}
 
 
 # A policy whose __init__ raises an exception
@@ -98,8 +114,11 @@ class DummyPolicyInitRaises(ControlPolicy):
         raise ValueError("Deliberate init failure")
 
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
+        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
+    ) -> TrackedContext:
         # This method will never be called as __init__ fails
         logger.info(f"[{context.transaction_id}] Running DummyPolicyInitRaises apply (should not happen)")
         return context
+
+    def serialize(self) -> SerializableDict:
+        return {}

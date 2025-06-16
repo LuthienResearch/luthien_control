@@ -8,7 +8,7 @@ from luthien_control.control_policy.conditions.comparisons import EqualsConditio
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.conditions.not_cond import NotCondition
 from luthien_control.control_policy.conditions.util import get_condition_from_serialized  # For testing deserialization
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 
 @pytest.fixture
@@ -42,13 +42,23 @@ def sample_response() -> httpx.Response:
 
 
 @pytest.fixture
-def transaction_context(sample_request: httpx.Request, sample_response: httpx.Response) -> TransactionContext:
-    """Provides a TransactionContext populated with sample request, response, and static data for conditions."""
-    return TransactionContext(
-        request=sample_request,
-        response=sample_response,
-        data={"static_true": True, "static_false": False, "value_a": "hello", "value_b": 10},
+def transaction_context(sample_request: httpx.Request, sample_response: httpx.Response) -> TrackedContext:
+    """Provides a TrackedContext populated with sample request, response, and static data for conditions."""
+    context = TrackedContext()
+    context.update_request(
+        method=sample_request.method,
+        url=str(sample_request.url),
+        headers=dict(sample_request.headers),
+        content=sample_request.content,
     )
+    context.update_response(
+        status_code=sample_response.status_code, headers=dict(sample_response.headers), content=sample_response.content
+    )
+    context.set_data("static_true", True)
+    context.set_data("static_false", False)
+    context.set_data("value_a", "hello")
+    context.set_data("value_b", 10)
+    return context
 
 
 # Tests for AllCondition, AnyCondition, NotCondition will go here
@@ -70,7 +80,7 @@ def transaction_context(sample_request: httpx.Request, sample_response: httpx.Re
 def test_all_condition_evaluation(
     conditions_setup: List[str],
     expected_result: bool,
-    transaction_context: TransactionContext,
+    transaction_context: TrackedContext,
     true_condition: Condition,
     false_condition: Condition,
 ) -> None:
@@ -134,7 +144,7 @@ def test_all_condition_serialization_deserialization(
 def test_any_condition_evaluation(
     conditions_setup: List[str],
     expected_result: bool,
-    transaction_context: TransactionContext,
+    transaction_context: TrackedContext,
     true_condition: Condition,
     false_condition: Condition,
 ) -> None:
@@ -189,7 +199,7 @@ def test_any_condition_serialization_deserialization(
 def test_not_condition_evaluation(
     condition_type: str,
     expected_result: bool,
-    transaction_context: TransactionContext,
+    transaction_context: TrackedContext,
     true_condition: Condition,
     false_condition: Condition,
 ) -> None:

@@ -2,7 +2,6 @@ import logging
 import uuid
 
 import fastapi
-import httpx
 from fastapi import status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,23 +10,30 @@ from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.response_builder import ResponseBuilder
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.tracked_context import TrackedContext
 
 logger = logging.getLogger(__name__)
 
 
-def _initialize_context(fastapi_request: fastapi.Request, body: bytes) -> TransactionContext:
+def _initialize_context(fastapi_request: fastapi.Request, body: bytes) -> TrackedContext:
     transaction_id = uuid.uuid4()
-    context = TransactionContext(transaction_id=transaction_id)
-    method = fastapi_request.method
+    context = TrackedContext(transaction_id=transaction_id)
+
+    headers_dict = {k: v for k, v in fastapi_request.headers.items()}
+
+    # Build full URL with query params
     url = fastapi_request.path_params["full_path"]
-    headers = fastapi_request.headers.raw
-    params = fastapi_request.query_params
-    context.request = httpx.Request(
-        method=method,
+    if fastapi_request.query_params:
+        # Add query parameters to URL
+        query_parts = []
+        for key, value in fastapi_request.query_params.items():
+            query_parts.append(f"{key}={value}")
+        url = f"{url}?{'&'.join(query_parts)}"
+
+    context.update_request(
+        method=fastapi_request.method,
         url=url,
-        headers=headers,
-        params=params,
+        headers=headers_dict,
         content=body,
     )
     return context

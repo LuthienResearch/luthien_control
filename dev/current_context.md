@@ -165,3 +165,25 @@ Last Pyright run summary: **0 errors, 0 warnings, 0 informations** (reduced from
 - Performance optimization if needed
 - Additional logging specs for other API providers
 - Documentation updates
+
+"""Tests for TrackedContext."""
+
+import uuid
+from unittest.mock import Mock
+
+from luthien_control.core.tracked_context import TrackedContext
+
+
+class TestTrackedContext:
+    """Test TrackedContext functionality."""
+
+    def test_init(self):
+        """Test TrackedContext initialization."""
+        context = TrackedContext()
+**Latest Progress (Generic Events)**
+- Added unit tests `tests/core/test_generic_events.py` providing coverage for the internal `Event` helper (registration, dispatch, unregister, error resilience).
+- Fixed `luthien_control/core/generic_events.py` to be compatible with Python 3.11 by replacing the PEP-695 `type` alias with a runtime-friendly `EventListener` alias and adding `from __future__ import annotations`.  All 635 tests now pass.
+- Added unit tests `tests/core/test_generic_events.py` providing coverage for the internal `Event` helper (registration, dispatch, unregister, error resilience).
+- Added `tests/core/tracked_context/test_tracked_context_util.py` covering edge cases in `get_tx_value`, boosting patch coverage for `luthien_control/core/tracked_context/util.py`.
+- Fixed `luthien_control/core/generic_events.py` to be compatible with Python 3.11 by replacing the PEP-695 `type` alias with a runtime-friendly `EventListener` alias and adding `from __future__ import annotations`.
+- All 642 tests now pass locally.

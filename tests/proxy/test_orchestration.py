@@ -409,7 +409,7 @@ async def test_run_policy_flow_context_init_exception(
     MockJSONResponse.assert_not_called()  # Fallback JSONResponse not created
 
 
-def test_initialize_context_query_params():
+async def test_initialize_context_query_params():
     """_initialize_context should build full URL including query parameters."""
     request = SimpleNamespace()
     request.headers = {"x-test": "1"}

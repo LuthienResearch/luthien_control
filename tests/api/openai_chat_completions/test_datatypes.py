@@ -96,10 +96,18 @@ def test_usage_instantiation():
 
 
 def test_image_url_instantiation():
-    """Test that ImageUrl can be instantiated."""
+    """Test that ImageUrl can be instantiated and validates `detail`."""
+    # Test default value
     instance = ImageUrl(url="http://example.com/img.png")
-    assert isinstance(instance, ImageUrl)
-    with pytest.raises(ValueError):
+    assert instance.detail == "auto"
+
+    # Test explicit valid values
+    for detail_value in ["auto", "low", "high"]:
+        instance = ImageUrl(url="http://example.com/img.png", detail=detail_value)
+        assert instance.detail == detail_value
+
+    # Test invalid value
+    with pytest.raises(ValueError, match="detail must be 'auto', 'low', or 'high'"):
         ImageUrl(url="http://example.com/img.png", detail="invalid")
 
 

@@ -1,6 +1,7 @@
 from typing import Any, ClassVar
 
 from psygnal import EventedModel, Signal
+from pydantic import ConfigDict
 
 
 class DeepEventedModel(EventedModel):
@@ -15,6 +16,7 @@ class DeepEventedModel(EventedModel):
                  in the model or its nested evented children changes.
     """
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     changed: ClassVar[Signal] = Signal()
 
     def __init__(self, **kwargs: Any) -> None:

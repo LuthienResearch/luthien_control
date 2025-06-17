@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 from luthien_control.utils.deep_evented_model import DeepEventedModel
+from psygnal import EventedModel as PsygnalEventedModel
 from psygnal.containers import EventedDict, EventedList
 from pydantic import Field
 
@@ -204,4 +205,104 @@ class TestDeepEventedModel:
 
         # The old child should NOT trigger events
         old_child.val = 99
+        mock_handler.assert_not_called()
+
+    def test_item_in_nested_dict_of_models_emits_signal(self):
+        """Test that changing an item in a dict of models emits a signal."""
+
+        class ItemModel(DeepEventedModel):
+            value: int = 0
+
+        class ParentModel(DeepEventedModel):
+            items: EventedDict[str, ItemModel] = Field(default_factory=lambda: EventedDict[str, ItemModel]())
+
+        # Initialize with a dict containing a model
+        parent = ParentModel(items=EventedDict({"first": ItemModel(value=1)}))
+        mock_handler = Mock()
+        parent.changed.connect(mock_handler)
+
+        # Modify the model within the dict
+        parent.items["first"].value = 2
+        mock_handler.assert_called_once()
+        mock_handler.reset_mock()
+
+        # Add a new model and modify it
+        new_item = ItemModel(value=10)
+        parent.items["second"] = new_item
+        mock_handler.assert_called()  # Fired for the dict `added` event
+        mock_handler.reset_mock()
+
+        # A change to the new item should also be detected
+        new_item.value = 11
+        mock_handler.assert_called_once()
+
+    def test_generic_evented_object_emits_signal(self):
+        """Test that a generic (non-Deep) evented object emits signals."""
+
+        class GenericEvented(PsygnalEventedModel):
+            value: int = 0
+
+        class ParentModel(DeepEventedModel):
+            generic: GenericEvented
+
+        model = ParentModel(generic=GenericEvented(value=1))
+        mock_handler = Mock()
+        model.changed.connect(mock_handler)
+
+        # Change on the generic model should be picked up
+        model.generic.value = 2
+        mock_handler.assert_called_once()
+        mock_handler.reset_mock()
+
+        # Test disconnection
+        old_generic = model.generic
+        model.generic = GenericEvented(value=10)
+        mock_handler.assert_called_once()  # for the assignment
+        mock_handler.reset_mock()
+
+        # new one should emit
+        model.generic.value = 11
+        mock_handler.assert_called_once()
+        mock_handler.reset_mock()
+
+        # old one should not
+        old_generic.value = 99
+        mock_handler.assert_not_called()
+
+    def test_generic_evented_item_in_list_emits_signal(self):
+        """Test that a generic evented item in a list emits signals."""
+
+        class GenericEventedItem(PsygnalEventedModel):
+            value: int = 0
+
+        class ParentModel(DeepEventedModel):
+            items: EventedList[GenericEventedItem] = Field(default_factory=lambda: EventedList[GenericEventedItem]())
+
+        model = ParentModel(items=EventedList([GenericEventedItem(value=1)]))
+        mock_handler = Mock()
+        model.changed.connect(mock_handler)
+
+        # A change to the item in the list should be detected
+        model.items[0].value = 2
+        mock_handler.assert_called_once()
+        mock_handler.reset_mock()
+
+        # Adding a new item and changing it should also be detected
+        new_item = GenericEventedItem(value=10)
+        model.items.append(new_item)
+        mock_handler.assert_called()
+        mock_handler.reset_mock()
+
+        new_item.value = 11
+        mock_handler.assert_called_once()
+        mock_handler.reset_mock()
+
+        # Removing an item should disconnect it
+        old_item = model.items[0]
+        model.items.pop(0)
+        mock_handler.assert_called()
+        mock_handler.reset_mock()
+
+        # The old, removed item should no longer emit signals
+        old_item.value = 99
         mock_handler.assert_not_called()

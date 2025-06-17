@@ -1,6 +1,5 @@
 from unittest.mock import Mock
 
-import pytest
 from luthien_control.utils.deep_evented_model import DeepEventedModel
 from psygnal.containers import EventedDict, EventedList
 from pydantic import Field
@@ -128,3 +127,81 @@ class TestDeepEventedModel:
         # Verify connection to nested list
         model.items.append(30)
         mock_handler.assert_called()
+
+    def test_item_in_nested_list_of_models_emits_signal(self):
+        """Test that changing an item in a list of models emits a signal."""
+
+        class ItemModel(DeepEventedModel):
+            value: int = 0
+
+        class ParentModel(DeepEventedModel):
+            items: EventedList[ItemModel] = Field(default_factory=lambda: EventedList[ItemModel]())
+
+        # Initialize with a list containing a model
+        parent = ParentModel(items=EventedList([ItemModel(value=1)]))
+        mock_handler = Mock()
+        parent.changed.connect(mock_handler)
+
+        # Modify the model within the list
+        parent.items[0].value = 2
+        mock_handler.assert_called_once()
+        mock_handler.reset_mock()
+
+        # Add a new model and modify it
+        new_item = ItemModel(value=10)
+        parent.items.append(new_item)
+        # two signals: inserting and inserted
+        mock_handler.assert_called()
+        mock_handler.reset_mock()
+
+        # a change to the new item should also be detected
+        new_item.value = 11
+        mock_handler.assert_called_once()
+
+    def test_deeply_nested_model_change_emits_signal(self):
+        """Test a 3+ level deep change bubbles up."""
+
+        class GrandChild(DeepEventedModel):
+            name: str = "G"
+
+        class Child(DeepEventedModel):
+            grandchild: GrandChild = Field(default_factory=GrandChild)
+
+        class Parent(DeepEventedModel):
+            children: EventedList[Child] = Field(default_factory=lambda: EventedList[Child]())
+
+        model = Parent(children=EventedList([Child()]))
+        mock_handler = Mock()
+        model.changed.connect(mock_handler)
+
+        model.children[0].grandchild.name = "New Name"
+        mock_handler.assert_called_once()
+
+    def test_reassigning_nested_model_disconnects_old(self):
+        """Test reassigning a nested model disconnects the old one."""
+
+        class Child(DeepEventedModel):
+            val: int = 0
+
+        class Parent(DeepEventedModel):
+            child: Child
+
+        old_child = Child(val=1)
+        model = Parent(child=old_child)
+        mock_handler = Mock()
+        model.changed.connect(mock_handler)
+
+        # Reassign the child
+        new_child = Child(val=2)
+        model.child = new_child
+        mock_handler.assert_called_once()
+        mock_handler.reset_mock()
+
+        # The new child should trigger events
+        model.child.val = 3
+        mock_handler.assert_called_once()
+        mock_handler.reset_mock()
+
+        # The old child should NOT trigger events
+        old_child.val = 99
+        mock_handler.assert_not_called()

@@ -172,6 +172,14 @@ class ToolChoice(DeepEventedModel):
     function: ToolChoiceFunction = Field()
 
 
+class RequestFunctionCall(DeepEventedModel):
+    """A function call in a request."""
+
+    name: str = Field()
+
+
+RequestFunctionCallSpec = Union[str, RequestFunctionCall]
+
 Content = Union[str, EList[Union[ContentPartText, ContentPartImage]]]
 
 

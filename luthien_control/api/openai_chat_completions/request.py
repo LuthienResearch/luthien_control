@@ -8,10 +8,10 @@ from luthien_control.utils.deep_evented_model import DeepEventedModel
 
 from .datatypes import (
     Audio,
-    FunctionCall,
     FunctionDefinition,
     Message,
     Prediction,
+    RequestFunctionCallSpec,
     ResponseFormat,
     StreamOptions,
     ToolChoice,
@@ -34,7 +34,7 @@ class OpenAIChatCompletionsRequest(DeepEventedModel):
     model: str = Field()
     audio: Optional[Audio] = Field(default=None)
     frequency_penalty: Optional[float] = Field(default=None)
-    function_call: Optional[FunctionCall] = Field(default=None)  # deprecated
+    function_call: Optional[RequestFunctionCallSpec] = Field(default=None)  # deprecated
     functions: Optional[EList[FunctionDefinition]] = Field(default=None)  # deprecated
     logit_bias: Optional[EDict[str, float]] = Field(default=None)
     logprobs: Optional[bool] = Field(default=None)

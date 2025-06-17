@@ -105,26 +105,6 @@ class TestDeepEventedModel:
         old_list.append(0)
         mock_handler.assert_not_called()
 
-    def test_disconnect_unconnected_child_does_not_raise(self):
-        """Test that replacing a manually disconnected child does not raise."""
-
-        class MyModel(DeepEventedModel):
-            items: EventedList[int]
-
-        model = MyModel(items=EventedList([1, 2]))
-
-        # Manually disconnect the child. Now, when we reassign `model.items`,
-        # the model will try to disconnect it again. This should raise a
-        # ValueError internally, which the `except` block is expected to catch.
-        model.items.events.disconnect(model.changed)
-
-        try:
-            model.items = EventedList([3, 4])
-        except (ValueError, TypeError):
-            pytest.fail(
-                "_disconnect_child should have handled the error when disconnecting an already-disconnected object."
-            )
-
     def test_initialization_connects_children(self):
         """Test that children provided at initialization are connected."""
 

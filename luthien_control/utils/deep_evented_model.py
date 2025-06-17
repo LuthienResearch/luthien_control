@@ -50,10 +50,7 @@ class DeepEventedModel(EventedModel):
     def _disconnect_child(self, child: Any) -> None:
         """If `child` is an evented object, disconnect its events."""
         if self._is_evented(child):
-            try:
-                child.events.disconnect(self.changed)
-            except (TypeError, ValueError):
-                pass  # It's okay if it was never connected
+            child.events.disconnect(self.changed)
 
     def _connect_children(self) -> None:
         """Connect to the events of all evented children in the model."""

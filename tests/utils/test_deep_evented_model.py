@@ -1,5 +1,6 @@
 from unittest.mock import Mock
 
+import pytest
 from luthien_control.utils.deep_evented_model import DeepEventedModel
 from psygnal.containers import EventedDict, EventedList
 from pydantic import Field
@@ -120,7 +121,7 @@ class TestDeepEventedModel:
         try:
             model.items = EventedList([3, 4])
         except (ValueError, TypeError):
-            self.fail(
+            pytest.fail(
                 "_disconnect_child should have handled the error when disconnecting an already-disconnected object."
             )
 

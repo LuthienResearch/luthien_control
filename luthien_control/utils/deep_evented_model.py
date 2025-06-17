@@ -1,6 +1,7 @@
 from typing import Any, ClassVar
 
 from psygnal import EventedModel, Signal
+from psygnal.containers import EventedDict, EventedList
 from pydantic import ConfigDict
 
 
@@ -44,13 +45,43 @@ class DeepEventedModel(EventedModel):
 
     def _connect_child(self, child: Any) -> None:
         """If `child` is an evented object, connect its events to our signal."""
-        if self._is_evented(child):
+        if isinstance(child, DeepEventedModel):
+            child.changed.connect(self.changed)
+        elif isinstance(child, EventedList):
+            child.events.connect(self.changed)
+            child.events.inserted.connect(self._on_item_inserted)
+            for item in child:
+                self._connect_child(item)
+        elif isinstance(child, EventedDict):
+            child.events.connect(self.changed)
+            child.events.added.connect(self._on_item_added)
+            for item in child.values():
+                self._connect_child(item)
+        elif self._is_evented(child):
             child.events.connect(self.changed)
 
     def _disconnect_child(self, child: Any) -> None:
         """If `child` is an evented object, disconnect its events."""
-        if self._is_evented(child):
+        if isinstance(child, DeepEventedModel):
+            child.changed.disconnect(self.changed)
+        elif isinstance(child, EventedList):
             child.events.disconnect(self.changed)
+            child.events.inserted.disconnect(self._on_item_inserted)
+            for item in child:
+                self._disconnect_child(item)
+        elif isinstance(child, EventedDict):
+            child.events.disconnect(self.changed)
+            child.events.added.disconnect(self._on_item_added)
+            for item in child.values():
+                self._disconnect_child(item)
+        elif self._is_evented(child):
+            child.events.disconnect(self.changed)
+
+    def _on_item_inserted(self, index: int, value: Any):
+        self._connect_child(value)
+
+    def _on_item_added(self, key: str, value: Any):
+        self._connect_child(value)
 
     def _connect_children(self) -> None:
         """Connect to the events of all evented children in the model."""

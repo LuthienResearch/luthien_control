@@ -50,6 +50,7 @@ class DeepEventedModel(EventedModel):
         elif isinstance(child, EventedList):
             child.events.connect(self.changed)
             child.events.inserted.connect(self._on_item_inserted)
+            child.events.removed.connect(self._on_item_removed)
             for item in child:
                 self._connect_child(item)
         elif isinstance(child, EventedDict):
@@ -67,6 +68,7 @@ class DeepEventedModel(EventedModel):
         elif isinstance(child, EventedList):
             child.events.disconnect(self.changed)
             child.events.inserted.disconnect(self._on_item_inserted)
+            child.events.removed.disconnect(self._on_item_removed)
             for item in child:
                 self._disconnect_child(item)
         elif isinstance(child, EventedDict):
@@ -79,6 +81,9 @@ class DeepEventedModel(EventedModel):
 
     def _on_item_inserted(self, index: int, value: Any):
         self._connect_child(value)
+
+    def _on_item_removed(self, index: int, value: Any):
+        self._disconnect_child(value)
 
     def _on_item_added(self, key: str, value: Any):
         self._connect_child(value)

@@ -152,8 +152,8 @@ async def initialize_app_dependencies(app_settings: Settings) -> DependencyConta
 
     except Exception as db_exc:
         logger.critical(f"Failed to initialize database for DependencyContainer due to exception: {db_exc}")
-        await http_client.aclose()  # Clean up client
-        logger.info("HTTP Client closed due to DB initialization failure.")
+        await http_client.aclose()  # Clean up HTTP client
+        logger.info("HTTP client closed due to DB initialization failure.")
         # No need to call close_db_engine here, as db_engine might not be valid or fully initialized.
         # The caller (lifespan) will handle global engine cleanup if needed.
         raise RuntimeError(f"Failed to initialize database for DependencyContainer: {db_exc}") from db_exc
@@ -171,7 +171,7 @@ async def initialize_app_dependencies(app_settings: Settings) -> DependencyConta
         logger.critical(f"Failed to create Dependency Container instance: {container_exc}", exc_info=True)
         # Clean up resources created within this helper function
         await http_client.aclose()
-        logger.info("HTTP Client closed due to Dependency Container instantiation failure.")
+        logger.info("HTTP client closed due to Dependency Container instantiation failure.")
         # If db_engine was successfully created, it's now managed by the global close_db_engine,
         # which will be called by the lifespan's shutdown phase.
         # We don't call close_db_engine(db_engine_instance_if_any) here because the global one handles it.

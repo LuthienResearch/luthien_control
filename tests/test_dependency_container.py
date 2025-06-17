@@ -2,6 +2,7 @@ from typing import AsyncContextManager, Callable
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
+import openai
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,3 +32,7 @@ def test_dependency_container_initialization():
     assert container.settings is mock_settings
     assert container.http_client is mock_http_client
     assert container.db_session_factory is mock_session_factory
+
+    # Test the OpenAI client factory
+    mock_openai_client = container.create_openai_client("https://api.openai.com/v1", "test-key")
+    assert isinstance(mock_openai_client, openai.AsyncOpenAI)

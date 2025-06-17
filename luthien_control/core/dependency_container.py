@@ -3,6 +3,7 @@
 from typing import AsyncContextManager, Callable
 
 import httpx
+import openai
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.settings import Settings
@@ -29,3 +30,16 @@ class DependencyContainer:
         self.settings = settings
         self.http_client = http_client
         self.db_session_factory = db_session_factory
+
+    def create_openai_client(self, base_url: str, api_key: str) -> openai.AsyncOpenAI:
+        """
+        Creates an OpenAI client for the specified backend URL and API key.
+
+        Args:
+            base_url: The base URL for the OpenAI-compatible API endpoint.
+            api_key: The API key for authentication.
+
+        Returns:
+            An configured OpenAI AsyncClient instance.
+        """
+        return openai.AsyncOpenAI(api_key=api_key, base_url=base_url)

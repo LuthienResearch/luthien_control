@@ -53,7 +53,7 @@ class BranchingPolicy(ControlPolicy):
 
     def serialize(self) -> SerializableDict:
         result: SerializableDict = {
-            "type": "branching",
+            "type": self.get_policy_type_name(),
             "cond_to_policy_map": {
                 json.dumps(cond.serialize()): policy.serialize() for cond, policy in self.cond_to_policy_map.items()
             },
@@ -62,6 +62,10 @@ class BranchingPolicy(ControlPolicy):
         if self.name is not None:
             result["name"] = self.name
         return result
+
+    def get_policy_config(self) -> SerializableDict:
+        """Not used for container policies that override serialize()."""
+        raise NotImplementedError("BranchingPolicy overrides serialize() directly")
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "BranchingPolicy":
@@ -97,10 +101,6 @@ class BranchingPolicy(ControlPolicy):
                     f"got {type(condition_serializable_dict)}"
                 )
 
-            # Assuming Condition.from_serialized and ControlPolicy.from_serialized
-            # expect SerializableDict (which is Dict[str, Union[SP, List[Any], Dict[str, Any], None]])
-            # The isinstance(..., dict) checks are sufficient for pyright to allow passage
-            # to functions expecting Dict[str, X] or Mapping[str, X].
             condition = Condition.from_serialized(condition_serializable_dict)
             policy = ControlPolicy.from_serialized(policy_config)
             cond_to_policy_map[condition] = policy

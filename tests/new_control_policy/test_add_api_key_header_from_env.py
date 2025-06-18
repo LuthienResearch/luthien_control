@@ -34,16 +34,18 @@ def sample_transaction() -> Transaction:
             object="chat.completion",
             created=1677652288,
             model="gpt-4",
-            choices=EventedList([
-                Choice(index=0, message=Message(role="assistant", content="Hello there!"), finish_reason="stop")
-            ]),
+            choices=EventedList(
+                [Choice(index=0, message=Message(role="assistant", content="Hello there!"), finish_reason="stop")]
+            ),
             usage=Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
         )
     )
 
-    transaction_data = EventedDict({
-        "test_key": "test_value",
-    })
+    transaction_data = EventedDict(
+        {
+            "test_key": "test_value",
+        }
+    )
 
     return Transaction(request=request, response=response, data=transaction_data)
 
@@ -86,9 +88,7 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
     """Tests for the apply method of AddApiKeyHeaderFromEnvPolicy."""
 
     @pytest.mark.asyncio
-    async def test_apply_success(
-        self, sample_transaction, mock_dependency_container, mock_async_session, monkeypatch
-    ):
+    async def test_apply_success(self, sample_transaction, mock_dependency_container, mock_async_session, monkeypatch):
         monkeypatch.setenv(API_KEY_ENV_VAR_NAME, API_KEY_VALUE)
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
 
@@ -146,6 +146,7 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
         expected_config = {
             "name": "TestSerialize",
             "api_key_env_var_name": API_KEY_ENV_VAR_NAME,
+            "type": "AddApiKeyHeaderFromEnv",
         }
         assert policy.serialize() == expected_config
 
@@ -154,6 +155,7 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
         expected_config = {
             "name": "AddApiKeyHeaderFromEnvPolicy",  # Default class name
             "api_key_env_var_name": API_KEY_ENV_VAR_NAME,
+            "type": "AddApiKeyHeaderFromEnv",
         }
         assert policy.serialize() == expected_config
 

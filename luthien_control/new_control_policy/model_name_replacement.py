@@ -64,12 +64,11 @@ class ModelNameReplacementPolicy(ControlPolicy):
 
         return transaction
 
-    def serialize(self) -> SerializableDict:
+    def get_policy_config(self) -> SerializableDict:
         """Serializes the policy configuration."""
         return cast(
             SerializableDict,
             {
-                "type": "ModelNameReplacement",
                 "name": self.name,
                 "model_mapping": self.model_mapping,
             },

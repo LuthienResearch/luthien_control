@@ -17,7 +17,7 @@ class NoopPolicy(ControlPolicy):
     ) -> Transaction:
         return transaction
 
-    def serialize(self) -> SerializableDict:
+    def get_policy_config(self) -> SerializableDict:
         return SerializableDict(name=self.name)
 
     @classmethod

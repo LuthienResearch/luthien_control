@@ -60,7 +60,7 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
 
         return transaction
 
-    def serialize(self) -> SerializableDict:
+    def get_policy_config(self) -> SerializableDict:
         """Serializes config. Returns base info as no instance-specific config needed."""
         return cast(SerializableDict, {"name": self.name})
 

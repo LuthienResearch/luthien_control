@@ -100,7 +100,7 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
                 return True
         return False
 
-    def serialize(self) -> SerializableDict:
+    def get_policy_config(self) -> SerializableDict:
         """Serializes the policy's configuration."""
         return cast(
             SerializableDict,

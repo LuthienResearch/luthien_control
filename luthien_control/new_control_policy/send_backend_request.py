@@ -122,7 +122,7 @@ class SendBackendRequestPolicy(ControlPolicy):
 
         return transaction
 
-    def serialize(self) -> SerializableDict:
+    def get_policy_config(self) -> SerializableDict:
         """Serializes the policy's configuration.
 
         For this policy, only the 'name' attribute is included, as all other

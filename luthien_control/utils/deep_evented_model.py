@@ -2,7 +2,7 @@ from typing import Any, ClassVar
 
 from psygnal import EventedModel, Signal
 from psygnal.containers import EventedDict, EventedList
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_serializer
 
 
 class DeepEventedModel(EventedModel):
@@ -98,3 +98,31 @@ class DeepEventedModel(EventedModel):
         """Check if an object has a connectable `events` signal group."""
         events = getattr(obj, "events", None)
         return events is not None and callable(getattr(events, "connect", None))
+
+    @model_serializer(mode="wrap")
+    def _serialize_model(self, serializer, info):
+        """Custom model serializer that converts EventedList and EventedDict to regular containers."""
+        # First, check if this model actually has any EventedList or EventedDict fields
+        has_evented_containers = False
+        for field_name, field_info in self.__class__.model_fields.items():
+            value = getattr(self, field_name)
+            if isinstance(value, (EventedList, EventedDict)):
+                has_evented_containers = True
+                break
+
+        # If no evented containers, use default serialization
+        if not has_evented_containers:
+            return serializer(self)
+
+        # Otherwise, handle evented containers specially
+        data = {}
+        for field_name, field_info in self.__class__.model_fields.items():
+            value = getattr(self, field_name)
+            if isinstance(value, EventedList):
+                data[field_name] = list(value)
+            elif isinstance(value, EventedDict):
+                data[field_name] = dict(value)
+            else:
+                # For other types, use the default field serialization
+                data[field_name] = value
+        return data

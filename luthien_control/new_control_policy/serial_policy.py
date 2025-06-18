@@ -9,8 +9,7 @@ from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 from luthien_control.new_control_policy.control_policy import ControlPolicy
 from luthien_control.new_control_policy.exceptions import PolicyLoadError
-from luthien_control.new_control_policy.loader import load_policy
-from luthien_control.new_control_policy.serialization import SerializableDict, SerializedPolicy
+from luthien_control.new_control_policy.serialization import SerializableDict
 
 logger = logging.getLogger(__name__)
 
@@ -91,41 +90,22 @@ class SerialPolicy(ControlPolicy):
     def serialize(self) -> SerializableDict:
         """Serializes the SerialPolicy into a dictionary.
 
-        This method converts the policy and its contained member policies
-        into a serializable dictionary format. It uses the POLICY_CLASS_TO_NAME
-        mapping to determine the 'type' string for each member policy.
-
         Returns:
             SerializableDict: A dictionary representation of the policy,
                               suitable for JSON serialization or persistence.
-                              The dictionary has a "policies" key, which is a list
-                              of serialized member policies. Each member policy dict
-                              contains "type" and "config" keys.
-
-        Raises:
-            PolicyLoadError: If the type of a member policy cannot be determined
-                             from POLICY_CLASS_TO_NAME.
         """
-        # Import from registry here to avoid circular import
-        from .registry import POLICY_CLASS_TO_NAME
+        return cast(
+            SerializableDict,
+            {
+                "type": self.get_policy_type_name(),
+                "name": self.name,
+                "policies": [p.serialize() for p in self.policies],
+            },
+        )
 
-        member_configs = []
-        for p in self.policies:
-            try:
-                policy_type = POLICY_CLASS_TO_NAME[type(p)]
-            except KeyError:
-                raise PolicyLoadError(
-                    f"Could not determine policy type for {type(p)} during serialization in {self.name} "
-                    "(Not in POLICY_CLASS_TO_NAME)"
-                )
-
-            member_configs.append(
-                {
-                    "type": policy_type,
-                    "config": p.serialize(),
-                }
-            )
-        return cast(SerializableDict, {"policies": member_configs})
+    def get_policy_config(self) -> SerializableDict:
+        """Not used for container policies that override serialize()."""
+        raise NotImplementedError("SerialPolicy overrides serialize() directly")
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":
@@ -160,25 +140,8 @@ class SerialPolicy(ControlPolicy):
                     f"Item at index {i} in SerialPolicy 'policies' is not a dictionary. Got {type(member_data)}"
                 )
 
-            # Extract 'type' and 'config' for SerializedPolicy construction
-            member_policy_type = member_data.get("type")
-            member_policy_config = member_data.get("config")
-
-            if not isinstance(member_policy_type, str):
-                raise PolicyLoadError(
-                    f"Member policy at index {i} in SerialPolicy 'policies' is missing 'type' "
-                    f"or it's not a string. Got {type(member_policy_type)}"
-                )
-            if not isinstance(member_policy_config, dict):
-                raise PolicyLoadError(
-                    f"Member policy at index {i} in SerialPolicy 'policies' is missing 'config' "
-                    f"or it's not a dictionary. Got {type(member_policy_config)}"
-                )
-
             try:
-                # Construct SerializedPolicy dataclass instance
-                serialized_member_policy = SerializedPolicy(type=member_policy_type, config=member_policy_config)
-                member_policy = load_policy(serialized_member_policy)
+                member_policy = ControlPolicy.from_serialized(member_data)
                 instantiated_policies.append(member_policy)
             except PolicyLoadError as e:
                 raise PolicyLoadError(

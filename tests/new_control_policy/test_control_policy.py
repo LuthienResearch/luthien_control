@@ -19,13 +19,10 @@ class MinimalConcretePolicy(ControlPolicy):
     ) -> Transaction:
         # Minimal implementation for testing instantiation
         # Use _ prefix to indicate intentionally unused parameters
-        _ = container, session
-        modified_by = transaction.data.get("modified_by", [])
-        modified_by.append(self.name)
-        transaction.data["modified_by"] = modified_by
+        _ = container, session, transaction
         return transaction
 
-    def serialize(self) -> SerializableDict:
+    def get_policy_config(self) -> SerializableDict:
         # Minimal implementation for testing instantiation
         return {"name": self.name}
 

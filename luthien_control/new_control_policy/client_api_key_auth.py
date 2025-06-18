@@ -96,7 +96,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
         return transaction
 
-    def serialize(self) -> SerializableDict:
+    def get_policy_config(self) -> SerializableDict:
         """Serializes the policy's configuration.
 
         This method converts the policy's configuration into a serializable

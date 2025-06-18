@@ -24,6 +24,24 @@ class ControlPolicy(abc.ABC):
 
     name: Optional[str] = None
 
+    @classmethod
+    def get_policy_type_name(cls) -> str:
+        """Get the canonical policy type name for serialization.
+
+        By default, this looks up the class in the registry to get its registered name.
+        Subclasses can override this if they need custom behavior.
+
+        Returns:
+            The policy type name used in serialization.
+        """
+        # Import here to avoid circular imports
+        from luthien_control.new_control_policy.registry import POLICY_CLASS_TO_NAME
+
+        policy_type = POLICY_CLASS_TO_NAME.get(cls)
+        if policy_type is None:
+            raise ValueError(f"{cls.__name__} is not registered in POLICY_CLASS_TO_NAME registry")
+        return policy_type
+
     def __init__(self, **kwargs: Any) -> None:
         """Initializes the ControlPolicy.
 
@@ -58,13 +76,30 @@ class ControlPolicy(abc.ABC):
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
     def serialize(self) -> SerializableDict:
         """
         Serialize the policy's instance-specific configuration needed for reloading.
 
+        This default implementation creates a SerializableDict with the policy type
+        and delegates to get_policy_config() for policy-specific configuration.
+
         Returns:
-            A serializable dictionary containing configuration parameters.
+            A serializable dictionary containing the policy type and configuration.
+        """
+        config = self.get_policy_config()
+        config["type"] = self.get_policy_type_name()
+        return config
+
+    @abc.abstractmethod
+    def get_policy_config(self) -> SerializableDict:
+        """
+        Get the policy-specific configuration for serialization.
+
+        Subclasses should implement this to return their configuration without
+        the "type" field, which is handled by the base serialize() method.
+
+        Returns:
+            A dictionary containing the policy's configuration.
         """
         raise NotImplementedError
 

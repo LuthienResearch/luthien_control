@@ -85,7 +85,7 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
 
         return transaction
 
-    def serialize(self) -> SerializableDict:
+    def get_policy_config(self) -> SerializableDict:
         """Serializes the policy's configuration."""
         return cast(
             SerializableDict,

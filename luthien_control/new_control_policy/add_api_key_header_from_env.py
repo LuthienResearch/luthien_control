@@ -83,7 +83,6 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
                 f"API key not found. Environment variable '{self.api_key_env_var_name}' is not set or is empty."
             )
             self.logger.error(f"{error_message} ({self.name})")
-            # In the new model, we don't directly manipulate response - just raise the error
             raise ApiKeyNotFoundError(f"{error_message} ({self.name})")
 
         self.logger.info(f"Setting API key from env var '{self.api_key_env_var_name}' ({self.name}).")

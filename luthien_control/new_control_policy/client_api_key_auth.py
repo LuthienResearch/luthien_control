@@ -67,7 +67,6 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
         if not api_key_value:
             self.logger.warning("Missing API key in transaction request.")
-            # In the new model, we raise the error and let the framework handle the response
             raise ClientAuthenticationNotFoundError(detail="Not authenticated: Missing API key.")
 
         try:
@@ -76,14 +75,12 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
             self.logger.warning(
                 f"Invalid API key provided (key starts with: {api_key_value[:4]}...) ({self.__class__.__name__})."
             )
-            # In the new model, we raise the error and let the framework handle the response
             raise ClientAuthenticationError(detail="Invalid API Key")
 
         if not db_key.is_active:
             self.logger.warning(
                 f"Inactive API key provided (Name: {db_key.name}, ID: {db_key.id}). ({self.__class__.__name__})."
             )
-            # In the new model, we raise the error and let the framework handle the response
             raise ClientAuthenticationError(detail="Inactive API Key")
 
         self.logger.info(
@@ -109,8 +106,6 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         Returns:
             An instance of ClientApiKeyAuthPolicy.
         """
-        instance = cls()  # Name is set to class name by default in __init__
-
+        instance = cls()
         instance.name = str(config.get("name"))
-
         return instance

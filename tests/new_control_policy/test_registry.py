@@ -26,7 +26,6 @@ EXPECTED_POLICY_MAPPINGS: Dict[str, Type[ControlPolicy]] = {
     "SendBackendRequest": SendBackendRequestPolicy,
     "ModelNameReplacement": ModelNameReplacementPolicy,
     "NoopPolicy": NoopPolicy,
-    # Note: TxLoggingPolicy is not migrated per instructions
 }
 
 

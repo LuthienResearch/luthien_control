@@ -57,7 +57,6 @@ class ModelNameReplacementPolicy(ControlPolicy):
         if transaction.request is None:
             raise NoRequestError("No request in transaction.")
 
-        # In the new model, we work directly with the payload object
         if hasattr(transaction.request.payload, "model"):
             original_model = transaction.request.payload.model
 

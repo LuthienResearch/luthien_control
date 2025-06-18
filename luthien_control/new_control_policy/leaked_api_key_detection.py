@@ -75,7 +75,6 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
 
         self.logger.info(f"Checking for leaked API keys in message content ({self.name}).")
 
-        # In the new model, we work directly with the payload object
         if hasattr(transaction.request.payload, "messages"):
             messages = transaction.request.payload.messages
 
@@ -88,7 +87,6 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
                             "Potential API key detected in message content. For security, the request has been blocked."
                         )
                         self.logger.warning(f"{error_message} ({self.name})")
-                        # In the new model, we raise the error and let the framework handle the response
                         raise LeakedApiKeyError(detail=error_message)
 
         return transaction

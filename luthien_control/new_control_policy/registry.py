@@ -2,7 +2,6 @@
 
 from typing import Dict, Type
 
-# Import concrete policy types to populate the registry (only successfully migrated policies)
 from .add_api_key_header import AddApiKeyHeaderPolicy
 from .add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from .branching_policy import BranchingPolicy
@@ -15,7 +14,6 @@ from .send_backend_request import SendBackendRequestPolicy
 from .serial_policy import SerialPolicy
 
 # Registry mapping policy names (as used in serialization/config) to their classes
-# Only includes policies that have been successfully migrated to the Transaction model
 POLICY_NAME_TO_CLASS: Dict[str, Type["ControlPolicy"]] = {
     "AddApiKeyHeader": AddApiKeyHeaderPolicy,
     "BranchingPolicy": BranchingPolicy,
@@ -26,11 +24,9 @@ POLICY_NAME_TO_CLASS: Dict[str, Type["ControlPolicy"]] = {
     "LeakedApiKeyDetection": LeakedApiKeyDetectionPolicy,
     "ModelNameReplacement": ModelNameReplacementPolicy,
     "NoopPolicy": NoopPolicy,
-    # Policies that could not be migrated:
-    # - "TxLoggingPolicy": TxLoggingPolicy (requires migrating all TxLoggingSpec classes)
 }
 
 POLICY_CLASS_TO_NAME: Dict[Type["ControlPolicy"], str] = {v: k for k, v in POLICY_NAME_TO_CLASS.items()}
 
-# Legacy compatibility for successfully migrated policies
+# Legacy compatibility
 POLICY_NAME_TO_CLASS["CompoundPolicy"] = SerialPolicy

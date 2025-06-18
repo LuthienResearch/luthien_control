@@ -22,11 +22,6 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
 
     This policy scans message content for patterns matching common API key formats
     to prevent accidental exposure of sensitive credentials to language models.
-
-    Serialization approach:
-    - Uses the base class serialize() method (no override needed)
-    - _get_policy_specific_config() returns {"patterns": self.patterns}
-    - Serialized form includes: 'type', 'name', and 'patterns'
     """
 
     # Common API key patterns

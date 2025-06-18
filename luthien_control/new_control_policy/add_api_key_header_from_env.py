@@ -27,11 +27,6 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
     The API key is read from an environment variable whose name is configured
     when the policy is instantiated. This allows different API keys to be used
     based on deployment environment.
-
-    Serialization approach:
-    - Uses the base class serialize() method (no override needed)
-    - _get_policy_specific_config() returns {"api_key_env_var_name": self.api_key_env_var_name}
-    - Serialized form includes: 'type', 'name', and 'api_key_env_var_name'
     """
 
     def __init__(self, api_key_env_var_name: str, name: Optional[str] = None):

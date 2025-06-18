@@ -16,11 +16,6 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
 
     This policy reads the API key from the application settings and adds it
     to the request. It has no policy-specific configuration beyond its name.
-
-    Serialization approach:
-    - Uses the base class serialize() method (no override needed)
-    - _get_policy_specific_config() returns empty dict (no additional fields)
-    - Only 'type' and 'name' fields are serialized
     """
 
     def __init__(self, name: Optional[str] = None):

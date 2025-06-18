@@ -82,32 +82,17 @@ class ControlPolicy(abc.ABC):
         """
         Serialize the policy to a dictionary for persistence and reconstruction.
 
-        This method implements a template pattern for serialization:
-        1. It always includes the 'type' field (from get_policy_type_name())
-        2. It includes the 'name' field if the policy has a name
-        3. It calls _get_policy_specific_config() to get policy-specific fields
-        4. Policy-specific fields are merged with the base fields
-
-        Most policies should NOT override this method. Instead:
-        - Simple policies: Override _get_policy_specific_config() to add their fields
-        - Complex policies (e.g., containers): Override serialize() for full control
+        This method implements a template pattern for serialization with 'type' and 'name' fields.
+        Policies should override _get_policy_specific_config() to add their fields
 
         Returns:
             A serializable dictionary containing the complete policy configuration.
         """
         # Start with the type field (always required for deserialization)
-        result: SerializableDict = {"type": self.get_policy_type_name()}
-
-        # Add the name field if set (common to most policies)
+        result = SerializableDict({"type": self.get_policy_type_name()})
         if self.name is not None:
             result["name"] = self.name
-
-        # Get policy-specific configuration
-        policy_config = self._get_policy_specific_config()
-
-        # Merge policy-specific config with base config
-        # Policy-specific config can override base fields if needed
-        result.update(policy_config)
+        result.update(self._get_policy_specific_config())
 
         return result
 
@@ -123,10 +108,6 @@ class ControlPolicy(abc.ABC):
         - AddApiKeyHeaderFromEnvPolicy returns {"api_key_env_var_name": self.api_key_env_var_name}
         - LeakedApiKeyDetectionPolicy returns {"patterns": self.patterns}
         - NoopPolicy returns {} (no additional fields needed)
-
-        For complex policies that need full control over serialization
-        (e.g., SerialPolicy, BranchingPolicy), override serialize() directly
-        instead of using this method.
 
         Returns:
             A dictionary containing policy-specific configuration fields.

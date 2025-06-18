@@ -20,12 +20,6 @@ class BranchingPolicy(ControlPolicy):
 
     This policy evaluates conditions in order and applies the policy associated with the first
     matching condition. If no conditions match, it applies the default policy (if configured).
-
-    Serialization approach:
-    - Overrides serialize() directly for full control over complex nested structure serialization
-    - Does NOT use _get_policy_specific_config() (only used by simple policies)
-    - Serialized form includes: 'type', 'name', 'cond_to_policy_map', and 'default_policy'
-    - Container policies like this need custom serialization to handle nested structures
     """
 
     def __init__(
@@ -59,31 +53,20 @@ class BranchingPolicy(ControlPolicy):
             return await self.default_policy.apply(transaction, container, session)
         return transaction
 
-    def serialize(self) -> SerializableDict:
-        """Serializes the BranchingPolicy into a dictionary.
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """Return policy-specific configuration for serialization.
 
-        This is a container policy that overrides serialize() directly rather than
-        using _get_policy_specific_config() because it needs to serialize complex nested
-        structures (conditions and policies), which requires more specialized logic
-        than the template method can handle.
-
-        Returns:
-            SerializableDict: A dictionary representation containing:
-                - 'type': The policy type name from the registry
-                - 'name': The policy instance name (if set)
-                - 'cond_to_policy_map': Dict mapping JSON-serialized conditions to policies
-                - 'default_policy': Serialized default policy (if set) or None
+        This policy needs to store the environment variable name in addition
+        to the standard type and name fields.
         """
-        result: SerializableDict = {
-            "type": self.get_policy_type_name(),
-            "cond_to_policy_map": {
-                json.dumps(cond.serialize()): policy.serialize() for cond, policy in self.cond_to_policy_map.items()
-            },
-            "default_policy": self.default_policy.serialize() if self.default_policy else None,
-        }
-        if self.name is not None:
-            result["name"] = self.name
-        return result
+        return SerializableDict(
+            {
+                "cond_to_policy_map": {
+                    json.dumps(cond.serialize()): policy.serialize() for cond, policy in self.cond_to_policy_map.items()
+                },
+                "default_policy": self.default_policy.serialize() if self.default_policy else None,
+            }
+        )
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "BranchingPolicy":

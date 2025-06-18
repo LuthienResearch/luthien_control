@@ -26,11 +26,6 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
     Attributes:
         name (str): The name of this policy instance.
-
-    Serialization approach:
-    - Uses the base class serialize() method (no override needed)
-    - _get_policy_specific_config() returns empty dict (no additional fields)
-    - Only 'type' and 'name' fields are serialized
     """
 
     def __init__(self, name: Optional[str] = None):
@@ -88,10 +83,6 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         )
 
         return transaction
-
-    def _get_policy_specific_config(self) -> SerializableDict:
-        """No additional configuration needed beyond type and name."""
-        return {}
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "ClientApiKeyAuthPolicy":

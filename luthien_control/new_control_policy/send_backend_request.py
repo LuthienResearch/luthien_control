@@ -30,11 +30,6 @@ class SendBackendRequestPolicy(ControlPolicy):
             identification. It defaults to the class name if not provided
             during initialization.
         logger (logging.Logger): The logger instance for this policy.
-
-    Serialization approach:
-    - Uses the base class serialize() method (no override needed)
-    - _get_policy_specific_config() returns empty dict (no additional fields)
-    - Only 'type' and 'name' fields are serialized
     """
 
     def __init__(self, name: Optional[str] = None):
@@ -127,11 +122,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         return transaction
 
     def _get_policy_specific_config(self) -> SerializableDict:
-        """No additional configuration needed beyond type and name.
-
-        All dependencies (OpenAI client, settings) are resolved from the
-        DependencyContainer at runtime.
-        """
+        """No additional configuration needed beyond type and name."""
         return {}
 
     @classmethod

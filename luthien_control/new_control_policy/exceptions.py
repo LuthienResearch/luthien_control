@@ -1,7 +1,9 @@
 # Control Policy Exceptions
 
+from luthien_control.exceptions import LuthienException
 
-class ControlPolicyError(Exception):
+
+class ControlPolicyError(LuthienException):
     """Base exception for all control policy errors.
 
     Attributes:

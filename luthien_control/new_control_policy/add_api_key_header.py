@@ -55,8 +55,7 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         """
         if transaction.request is None:
             raise NoRequestError("No request in transaction.")
-        settings = container.settings
-        api_key = settings.get_openai_api_key()
+        api_key = container.settings.get_openai_api_key()
         if not api_key:
             # In the new model, we don't directly manipulate response - just raise the error
             raise ApiKeyNotFoundError(f"OpenAI API key not configured ({self.name}).")

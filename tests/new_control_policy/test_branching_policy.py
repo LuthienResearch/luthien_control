@@ -502,9 +502,7 @@ def test_branching_policy_serialize_unknown_policy_type():
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, unknown_policy)]))
     branching_policy = BranchingPolicy(policy_map)
 
-    with pytest.raises(
-        ValueError, match="MockSimplePolicy is not registered in POLICY_CLASS_TO_NAME registry"
-    ):
+    with pytest.raises(ValueError, match="MockSimplePolicy is not registered in POLICY_CLASS_TO_NAME registry"):
         branching_policy.serialize()
 
 
@@ -515,7 +513,5 @@ def test_branching_policy_serialize_unknown_default_policy_type():
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict())
     branching_policy = BranchingPolicy(policy_map, default_policy=unknown_policy)
 
-    with pytest.raises(
-        ValueError, match="MockSimplePolicy is not registered in POLICY_CLASS_TO_NAME registry"
-    ):
+    with pytest.raises(ValueError, match="MockSimplePolicy is not registered in POLICY_CLASS_TO_NAME registry"):
         branching_policy.serialize()

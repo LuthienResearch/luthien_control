@@ -38,9 +38,6 @@ Replace the **entire** content of `dev/current_context.md` with the current stat
  - Follow-up tasks, if any (Excluding git commit/push/etc)
 ```
 
-### 4. Update ProjectPlan.md (if relevant)
-Update when items from ProjectPlan.md are completed or the plan significantly changes.
-
 ## IMPORTANT GUIDELINES
 
 1.  **Update First**: Always update tracking files BEFORE moving to a new task or ending work.

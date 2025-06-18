@@ -1,8 +1,3 @@
-#
-# MIGRATION NOTE: This policy has been successfully migrated to work with the new
-# Transaction model after migrating all the Condition classes.
-#
-
 import json
 import logging
 from collections import OrderedDict
@@ -26,6 +21,7 @@ class BranchingPolicy(ControlPolicy):
         default_policy: Optional[ControlPolicy] = None,
         name: Optional[str] = None,
     ):
+        super().__init__(name=name, cond_to_policy_map=cond_to_policy_map, default_policy=default_policy)
         self.name = name
         self.cond_to_policy_map = cond_to_policy_map
         self.default_policy = default_policy

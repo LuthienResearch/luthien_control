@@ -10,6 +10,7 @@ class NoopPolicy(ControlPolicy):
     """A policy that does nothing."""
 
     def __init__(self, name: str = "NoopPolicy"):
+        super().__init__(name=name)
         self.name = name
 
     async def apply(

@@ -1,6 +1,7 @@
 # Interfaces for the request processing framework.
 
 import abc
+import logging
 from typing import Any, Optional, Type, TypeVar, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,7 +52,7 @@ class ControlPolicy(abc.ABC):
         Args:
             **kwargs: Arbitrary keyword arguments that subclasses might use.
         """
-        pass
+        self.logger = logging.getLogger(__name__)
 
     @abc.abstractmethod
     async def apply(

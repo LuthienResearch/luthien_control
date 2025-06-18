@@ -26,9 +26,9 @@ class ModelNameReplacementPolicy(ControlPolicy):
             model_mapping: Dictionary mapping fake model names to real model names.
             name: Optional name for this policy instance.
         """
+        super().__init__(name=name, model_mapping=model_mapping)
         self.model_mapping = model_mapping
         self.name = name or self.__class__.__name__
-        self.logger = logging.getLogger(__name__)
 
     async def apply(
         self,

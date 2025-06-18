@@ -17,8 +17,8 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
 
     def __init__(self, name: Optional[str] = None):
         """Initializes the policy."""
+        super().__init__(name=name)
         self.name = name or self.__class__.__name__
-        self.logger = logging.getLogger(__name__)
 
     async def apply(
         self,

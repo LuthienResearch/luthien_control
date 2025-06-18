@@ -1,9 +1,3 @@
-# Control Policy for verifying the client API key.
-#
-# MIGRATION NOTE: This policy has been successfully migrated to use the new
-# Transaction model by reading the client API key from transaction.request.api_key
-# instead of parsing HTTP Authorization headers.
-
 import logging
 from typing import Optional
 
@@ -23,23 +17,18 @@ from luthien_control.new_control_policy.serialization import SerializableDict
 
 logger = logging.getLogger(__name__)
 
-# Constants no longer needed since we read from transaction.request.api_key directly
-# API_KEY_HEADER = "Authorization"
-# BEARER_PREFIX = "Bearer "
-
 
 class ClientApiKeyAuthPolicy(ControlPolicy):
     """Verifies the client API key from the transaction's request.
 
     Attributes:
         name (str): The name of this policy instance.
-        logger (logging.Logger): The logger instance for this policy.
     """
 
     def __init__(self, name: Optional[str] = None):
         """Initializes the policy."""
+        super().__init__(name=name)
         self.name = name or self.__class__.__name__
-        self.logger = logging.getLogger(__name__)
 
     async def apply(
         self,

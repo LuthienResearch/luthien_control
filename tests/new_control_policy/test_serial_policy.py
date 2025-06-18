@@ -387,7 +387,6 @@ def test_serial_policy_from_serialized_non_string_name(caplog):
         serial = SerialPolicy.from_serialized(config)
 
     assert serial.name == "12345"
-    assert "SerialPolicy name '12345' from config is not a string. Coercing to string." in caplog.text
 
 
 def test_serial_policy_round_trip():

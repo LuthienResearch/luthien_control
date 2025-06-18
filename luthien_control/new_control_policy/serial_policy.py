@@ -1,6 +1,5 @@
 # Serial Policy that applies a sequence of other policies.
 
-import logging
 from typing import Iterable, Optional, Sequence, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,8 +9,6 @@ from luthien_control.core.transaction import Transaction
 from luthien_control.new_control_policy.control_policy import ControlPolicy
 from luthien_control.new_control_policy.exceptions import PolicyLoadError
 from luthien_control.new_control_policy.serialization import SerializableDict
-
-logger = logging.getLogger(__name__)
 
 
 class SerialPolicy(ControlPolicy):
@@ -37,10 +34,10 @@ class SerialPolicy(ControlPolicy):
             policies: An ordered sequence of ControlPolicy instances to apply.
             name: An optional name for logging/identification purposes.
         """
+        super().__init__(name=name, policies=policies)
         if not policies:
-            logger.warning(f"Initializing SerialPolicy '{name}' with an empty policy list.")
+            self.logger.warning(f"Initializing SerialPolicy '{name}' with an empty policy list.")
         self.policies = policies
-        self.logger = logger
         self.name = name or self.__class__.__name__
 
     async def apply(
@@ -160,7 +157,6 @@ class SerialPolicy(ControlPolicy):
         resolved_name: Optional[str]
         if name_val is not None:
             if not isinstance(name_val, str):
-                logger.warning(f"SerialPolicy name '{name_val}' from config is not a string. Coercing to string.")
                 resolved_name = str(name_val)
             else:
                 resolved_name = name_val

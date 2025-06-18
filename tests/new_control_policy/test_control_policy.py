@@ -68,7 +68,6 @@ def test_can_instantiate_concrete_subclass():
     try:
         policy = MinimalConcretePolicy()
         assert isinstance(policy, ControlPolicy)
-        assert policy.name == "minimal_concrete"
     except TypeError:
         pytest.fail("MinimalConcretePolicy should be instantiable but raised TypeError.")
 

@@ -118,10 +118,8 @@ def mock_db_session() -> AsyncMock:
 
 
 def test_send_backend_request_policy_initialization_default():
-    """Test SendBackendRequestPolicy initialization with default name."""
-    policy = SendBackendRequestPolicy()
-
-    assert policy.name == "SendBackendRequestPolicy"
+    """Test SendBackendRequestPolicy initialization with no args."""
+    _ = SendBackendRequestPolicy()
 
 
 def test_send_backend_request_policy_initialization_custom():
@@ -413,7 +411,7 @@ def test_send_backend_request_policy_serialize_default():
 
     serialized = policy.serialize()
 
-    expected = {"type": "SendBackendRequest", "name": "SendBackendRequestPolicy"}
+    expected = {"type": "SendBackendRequest"}
     assert serialized == expected
 
 
@@ -484,15 +482,12 @@ def test_send_backend_request_policy_parametrized_initialization(name: str):
     """Test initialization with various name parameters."""
     if name is None:
         policy = SendBackendRequestPolicy()
-        expected_name = "SendBackendRequestPolicy"
     elif name == "":
         policy = SendBackendRequestPolicy(name=name)
-        expected_name = "SendBackendRequestPolicy"  # Empty string should use default
     else:
         policy = SendBackendRequestPolicy(name=name)
-        expected_name = name
 
-    assert policy.name == expected_name
+    assert policy.name == name
 
 
 @pytest.mark.asyncio

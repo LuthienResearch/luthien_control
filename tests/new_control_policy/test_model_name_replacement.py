@@ -85,7 +85,6 @@ def test_model_name_replacement_policy_initialization_default_name():
     policy = ModelNameReplacementPolicy(model_mapping=mapping)
 
     assert policy.model_mapping == mapping
-    assert policy.name == "ModelNameReplacementPolicy"
 
 
 def test_model_name_replacement_policy_initialization_custom_name():
@@ -244,7 +243,6 @@ def test_model_name_replacement_policy_serialize_default_name():
 
     expected = {
         "type": "ModelNameReplacement",
-        "name": "ModelNameReplacementPolicy",
         "model_mapping": mapping,
     }
     assert serialized == expected
@@ -303,7 +301,6 @@ def test_model_name_replacement_policy_from_serialized_without_name():
     policy = ModelNameReplacementPolicy.from_serialized(config)
 
     # When name is not provided, it defaults to the class name in __init__
-    assert policy.name == "ModelNameReplacementPolicy"
     assert policy.model_mapping == {"fake": "real"}
 
 
@@ -323,8 +320,6 @@ def test_model_name_replacement_policy_from_serialized_empty_config():
 
     policy = ModelNameReplacementPolicy.from_serialized(config)
 
-    # When name is None from config, it defaults to class name in __init__
-    assert policy.name == "ModelNameReplacementPolicy"
     assert policy.model_mapping == {}
 
 
@@ -363,13 +358,12 @@ def test_model_name_replacement_policy_parametrized_serialization(mapping: Dict[
     policy = ModelNameReplacementPolicy(model_mapping=mapping, name=name)
 
     serialized = policy.serialize()
-    expected_name = name or "ModelNameReplacementPolicy"
 
-    assert serialized["name"] == expected_name
+    assert serialized.get("name") == name
     assert serialized["model_mapping"] == mapping
     assert serialized["type"] == "ModelNameReplacement"
 
     # Test round trip
     deserialized = ModelNameReplacementPolicy.from_serialized(serialized)
-    assert deserialized.name == expected_name
+    assert deserialized.name == name
     assert deserialized.model_mapping == mapping

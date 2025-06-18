@@ -150,9 +150,7 @@ def mock_db_session() -> AsyncMock:
 
 def test_client_api_key_auth_policy_initialization_default():
     """Test ClientApiKeyAuthPolicy initialization with default name."""
-    policy = ClientApiKeyAuthPolicy()
-
-    assert policy.name == "ClientApiKeyAuthPolicy"
+    _ = ClientApiKeyAuthPolicy()
 
 
 def test_client_api_key_auth_policy_initialization_custom():
@@ -396,7 +394,7 @@ def test_client_api_key_auth_policy_serialize_default():
 
     serialized = policy.serialize()
 
-    expected = {"name": "ClientApiKeyAuthPolicy", "type": "ClientApiKeyAuth"}
+    expected = {"type": "ClientApiKeyAuth"}
     assert serialized == expected
 
 
@@ -475,10 +473,10 @@ def test_client_api_key_auth_policy_round_trip_serialization():
 @pytest.mark.parametrize(
     "name,expected_name",
     [
-        (None, "ClientApiKeyAuthPolicy"),  # Default name
+        (None, None),  # Default name
         ("CustomPolicy", "CustomPolicy"),  # Custom name
         ("Policy123", "Policy123"),  # Alphanumeric name
-        ("", "ClientApiKeyAuthPolicy"),  # Empty string should use default
+        ("", ""),  # Empty string should use default
         (
             "Very-Long-Policy-Name-With-Special-Characters!@#$%",
             "Very-Long-Policy-Name-With-Special-Characters!@#$%",

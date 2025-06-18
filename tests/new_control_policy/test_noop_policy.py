@@ -62,9 +62,8 @@ def mock_db_session() -> AsyncMock:
 
 
 def test_noop_policy_initialization_default_name():
-    """Test NoopPolicy initialization with default name."""
-    policy = NoopPolicy()
-    assert policy.name == "NoopPolicy"
+    """Test NoopPolicy initialization with no args."""
+    _ = NoopPolicy()
 
 
 def test_noop_policy_initialization_custom_name():
@@ -108,7 +107,7 @@ def test_noop_policy_serialization_default_name():
     policy = NoopPolicy()
     serialized = policy.serialize()
 
-    expected = {"name": "NoopPolicy", "type": "NoopPolicy"}
+    expected = {"type": "NoopPolicy"}
     assert serialized == expected
 
 

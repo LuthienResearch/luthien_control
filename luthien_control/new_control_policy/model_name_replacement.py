@@ -32,7 +32,6 @@ class ModelNameReplacementPolicy(ControlPolicy):
         """
         super().__init__(name=name, model_mapping=model_mapping)
         self.model_mapping = model_mapping
-        self.name = name or self.__class__.__name__
 
     async def apply(
         self,

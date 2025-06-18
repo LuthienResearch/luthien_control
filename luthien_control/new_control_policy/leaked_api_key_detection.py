@@ -45,7 +45,6 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
             name: Optional name for this policy instance.
         """
         super().__init__(name=name, patterns=patterns)
-        self.name = name or self.__class__.__name__
         self.patterns = patterns or self.DEFAULT_PATTERNS
         self.compiled_patterns: List[Pattern] = [re.compile(pattern) for pattern in self.patterns]
 

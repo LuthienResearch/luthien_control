@@ -76,7 +76,6 @@ class TestAddApiKeyHeaderFromEnvPolicyInit:
 
     def test_initialization_without_name(self):
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
-        assert policy.name == "AddApiKeyHeaderFromEnvPolicy"
         assert policy.api_key_env_var_name == API_KEY_ENV_VAR_NAME
 
     def test_initialization_empty_env_var_name_raises_value_error(self):
@@ -153,7 +152,6 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
     def test_serialize_default_name(self):
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
         expected_config = {
-            "name": "AddApiKeyHeaderFromEnvPolicy",  # Default class name
             "api_key_env_var_name": API_KEY_ENV_VAR_NAME,
             "type": "AddApiKeyHeaderFromEnv",
         }

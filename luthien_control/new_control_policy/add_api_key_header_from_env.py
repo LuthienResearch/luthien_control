@@ -41,11 +41,9 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
             api_key_env_var_name: The name of the environment variable that holds the API key.
             name: Optional name for this policy instance.
         """
-        super().__init__(name=name, api_key_env_var_name=api_key_env_var_name)
         if not api_key_env_var_name:
             raise ValueError("api_key_env_var_name cannot be empty.")
-
-        self.name = name or self.__class__.__name__
+        super().__init__(name=name, api_key_env_var_name=api_key_env_var_name)
         self.api_key_env_var_name = api_key_env_var_name
 
     async def apply(

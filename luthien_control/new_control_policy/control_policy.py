@@ -43,7 +43,7 @@ class ControlPolicy(abc.ABC):
             raise ValueError(f"{cls.__name__} is not registered in POLICY_CLASS_TO_NAME registry")
         return policy_type
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, name: Optional[str] = None, **kwargs: Any) -> None:
         """Initializes the ControlPolicy.
 
         This is an abstract base class, and this constructor typically handles
@@ -52,6 +52,7 @@ class ControlPolicy(abc.ABC):
         Args:
             **kwargs: Arbitrary keyword arguments that subclasses might use.
         """
+        self.name = name
         self.logger = logging.getLogger(__name__)
 
     @abc.abstractmethod

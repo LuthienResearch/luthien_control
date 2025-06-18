@@ -177,7 +177,6 @@ def test_add_api_key_serialization_defaults():
 
     serialized = policy.serialize()
     # Both default name and type are expected
-    assert serialized == {"name": "AddApiKeyHeaderPolicy", "type": "AddApiKeyHeader"}
+    assert serialized == {"type": "AddApiKeyHeader"}
 
-    rehydrated = AddApiKeyHeaderPolicy.from_serialized(serialized)
-    assert rehydrated.name == "AddApiKeyHeaderPolicy"
+    _ = AddApiKeyHeaderPolicy.from_serialized(serialized)

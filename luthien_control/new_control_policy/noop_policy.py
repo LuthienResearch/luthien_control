@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.core.dependency_container import DependencyContainer
@@ -19,9 +21,8 @@ class NoopPolicy(ControlPolicy):
     - Only 'type' and 'name' fields are serialized
     """
 
-    def __init__(self, name: str = "NoopPolicy"):
+    def __init__(self, name: Optional[str] = None):
         super().__init__(name=name)
-        self.name = name
 
     async def apply(
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession

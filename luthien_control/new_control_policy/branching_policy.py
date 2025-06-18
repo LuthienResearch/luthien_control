@@ -35,7 +35,6 @@ class BranchingPolicy(ControlPolicy):
         name: Optional[str] = None,
     ):
         super().__init__(name=name, cond_to_policy_map=cond_to_policy_map, default_policy=default_policy)
-        self.name = name
         self.cond_to_policy_map = cond_to_policy_map
         self.default_policy = default_policy
 

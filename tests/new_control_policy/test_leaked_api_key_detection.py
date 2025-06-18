@@ -1,7 +1,7 @@
 """Tests for LeakedApiKeyDetectionPolicy."""
 
 import logging
-from typing import List, cast
+from typing import List, Optional, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -161,7 +161,6 @@ def test_leaked_api_key_detection_policy_initialization_default():
     """Test LeakedApiKeyDetectionPolicy initialization with defaults."""
     policy = LeakedApiKeyDetectionPolicy()
 
-    assert policy.name == "LeakedApiKeyDetectionPolicy"
     assert policy.patterns == LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS
     assert len(policy.compiled_patterns) == len(policy.patterns)
 
@@ -463,7 +462,6 @@ def test_leaked_api_key_detection_policy_serialize_default():
     serialized = policy.serialize()
 
     expected = {
-        "name": "LeakedApiKeyDetectionPolicy",
         "patterns": LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS,
         "type": "LeakedApiKeyDetection",
     }
@@ -578,27 +576,23 @@ def test_leaked_api_key_detection_policy_round_trip_serialization():
     ],
 )
 def test_leaked_api_key_detection_policy_parametrized_initialization(
-    patterns: List[str],
-    name: str,
+    patterns: Optional[List[str]],
+    name: Optional[str],
 ):
     """Test initialization with various parameter combinations."""
     if patterns is None and name is None:
         policy = LeakedApiKeyDetectionPolicy()
-        expected_name = "LeakedApiKeyDetectionPolicy"
         expected_patterns = LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS
     elif patterns is None:
         policy = LeakedApiKeyDetectionPolicy(name=name)
-        expected_name = name
         expected_patterns = LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS
     elif name is None:
         policy = LeakedApiKeyDetectionPolicy(patterns=patterns)
-        expected_name = "LeakedApiKeyDetectionPolicy"
         expected_patterns = patterns
     else:
         policy = LeakedApiKeyDetectionPolicy(patterns=patterns, name=name)
-        expected_name = name
         expected_patterns = patterns
 
-    assert policy.name == expected_name
+    assert policy.name == name
     assert policy.patterns == expected_patterns
     assert len(policy.compiled_patterns) == len(expected_patterns)

@@ -414,3 +414,37 @@ def test_compound_policy_alias():
     from luthien_control.new_control_policy.serial_policy import CompoundPolicy
 
     assert CompoundPolicy is SerialPolicy
+
+
+def test_get_policy_config_not_implemented():
+    """Test that SerialPolicy.get_policy_config() raises NotImplementedError."""
+    policy = SerialPolicy(policies=[NoopPolicy()])
+
+    with pytest.raises(NotImplementedError, match="SerialPolicy overrides serialize\\(\\) directly"):
+        policy.get_policy_config()
+
+
+def test_policy_load_error_in_from_serialized():
+    """Test that PolicyLoadError is re-raised with additional context."""
+    from unittest.mock import patch
+
+    # Create a policy config that will cause a PolicyLoadError during loading
+    bad_config = {
+        "type": "serial",
+        "name": "test_serial",
+        "policies": [
+            {
+                "type": "nonexistent_policy_type",  # This should cause a PolicyLoadError
+                "name": "bad_policy",
+            }
+        ],
+    }
+
+    # Mock the ControlPolicy.from_serialized to raise PolicyLoadError
+    with patch(
+        "luthien_control.new_control_policy.control_policy.ControlPolicy.from_serialized"
+    ) as mock_from_serialized:
+        mock_from_serialized.side_effect = PolicyLoadError("Test error")
+
+        with pytest.raises(PolicyLoadError, match="Failed to load member policy at index 0"):
+            SerialPolicy.from_serialized(bad_config)

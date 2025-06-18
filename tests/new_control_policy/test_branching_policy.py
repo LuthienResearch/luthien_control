@@ -515,3 +515,14 @@ def test_branching_policy_serialize_unknown_default_policy_type():
 
     with pytest.raises(ValueError, match="MockSimplePolicy is not registered in POLICY_CLASS_TO_NAME registry"):
         branching_policy.serialize()
+
+
+def test_get_policy_config_not_implemented():
+    """Test that BranchingPolicy.get_policy_config() raises NotImplementedError."""
+    from collections import OrderedDict
+
+    policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict())
+    policy = BranchingPolicy(policy_map)
+
+    with pytest.raises(NotImplementedError, match="BranchingPolicy overrides serialize\\(\\) directly"):
+        policy.get_policy_config()

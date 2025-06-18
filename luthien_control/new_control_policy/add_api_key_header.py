@@ -19,9 +19,6 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         """Initializes the policy."""
         self.name = name or self.__class__.__name__
         self.logger = logging.getLogger(__name__)
-        # log to file /tmp/luthien_control.log, everything INFO and above
-        self.logger.addHandler(logging.FileHandler("luthien_control.log"))
-        self.logger.setLevel(logging.INFO)
 
     async def apply(
         self,

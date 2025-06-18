@@ -1,9 +1,9 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from luthien_control.control_policy.conditions.all_cond import AllCondition
-from luthien_control.control_policy.conditions.any_cond import AnyCondition
-from luthien_control.control_policy.conditions.comparisons import (
+from luthien_control.new_control_policy.conditions.all_cond import AllCondition
+from luthien_control.new_control_policy.conditions.any_cond import AnyCondition
+from luthien_control.new_control_policy.conditions.comparisons import (
     ContainsCondition,
     EqualsCondition,
     GreaterThanCondition,
@@ -13,8 +13,8 @@ from luthien_control.control_policy.conditions.comparisons import (
     NotEqualsCondition,
     RegexMatchCondition,
 )
-from luthien_control.control_policy.conditions.condition import Condition
-from luthien_control.control_policy.conditions.not_cond import NotCondition
+from luthien_control.new_control_policy.conditions.condition import Condition
+from luthien_control.new_control_policy.conditions.not_cond import NotCondition
 
 
 class TestEqualsConditionDunders:
@@ -545,7 +545,7 @@ class TestConditionBaseClass:
             Condition.from_serialized({"type": "unknown_condition_type"})
         assert "Unknown condition type" in str(exc_info.value)
 
-    @patch("luthien_control.control_policy.conditions.registry.NAME_TO_CONDITION_CLASS")
+    @patch("luthien_control.new_control_policy.conditions.registry.NAME_TO_CONDITION_CLASS")
     def test_from_serialized_valid(self, mock_registry):
         """Test Condition.from_serialized with valid type."""
         # Create a mock condition class

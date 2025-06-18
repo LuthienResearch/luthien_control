@@ -114,5 +114,3 @@ def test_from_serialized_valid(mock_registry):
     assert result == mock_policy
     mock_registry.get.assert_called_once_with("mock_policy")
     mock_policy_class.from_serialized.assert_called_once_with(serialized)
-
-

@@ -515,5 +515,3 @@ def test_branching_policy_serialize_unknown_default_policy_type():
 
     with pytest.raises(ValueError, match="MockSimplePolicy is not registered in POLICY_CLASS_TO_NAME registry"):
         branching_policy.serialize()
-
-

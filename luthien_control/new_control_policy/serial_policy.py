@@ -112,7 +112,6 @@ class SerialPolicy(ControlPolicy):
             },
         )
 
-
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":
         """

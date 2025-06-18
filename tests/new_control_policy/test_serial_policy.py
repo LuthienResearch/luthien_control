@@ -415,8 +415,6 @@ def test_compound_policy_alias():
     assert CompoundPolicy is SerialPolicy
 
 
-
-
 def test_policy_load_error_in_from_serialized():
     """Test that PolicyLoadError is re-raised with additional context."""
     from unittest.mock import patch

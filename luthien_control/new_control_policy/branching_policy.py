@@ -27,6 +27,7 @@ class BranchingPolicy(ControlPolicy):
     - Serialized form includes: 'type', 'name', 'cond_to_policy_map', and 'default_policy'
     - Container policies like this need custom serialization to handle nested structures
     """
+
     def __init__(
         self,
         cond_to_policy_map: OrderedDict[Condition, ControlPolicy],
@@ -84,7 +85,6 @@ class BranchingPolicy(ControlPolicy):
         if self.name is not None:
             result["name"] = self.name
         return result
-
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "BranchingPolicy":

@@ -1,6 +1,5 @@
 # Control Policy for adding the API key header to requests.
 
-import logging
 from typing import Optional, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession

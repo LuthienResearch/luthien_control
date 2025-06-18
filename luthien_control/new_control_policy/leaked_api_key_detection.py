@@ -5,7 +5,6 @@ This policy inspects the 'messages' field in request bodies to prevent
 sensitive API keys from being sent to language models.
 """
 
-import logging
 import re
 from typing import List, Optional, Pattern, cast
 

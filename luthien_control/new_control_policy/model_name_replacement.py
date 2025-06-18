@@ -1,4 +1,3 @@
-import logging
 from typing import Dict, Optional, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession

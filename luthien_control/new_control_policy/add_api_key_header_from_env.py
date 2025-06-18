@@ -6,7 +6,6 @@ The API key is read from an environment variable whose name is configured
 when the policy is instantiated.
 """
 
-import logging
 import os
 from typing import Optional, cast
 

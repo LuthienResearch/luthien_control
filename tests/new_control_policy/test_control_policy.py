@@ -116,30 +116,3 @@ def test_from_serialized_valid(mock_registry):
     mock_policy_class.from_serialized.assert_called_once_with(serialized)
 
 
-def test_abstract_methods_raise_not_implemented():
-    """Test that abstract methods raise NotImplementedError when called on base class."""
-
-    class PartiallyImplementedPolicy(ControlPolicy):
-        """A policy that implements only some methods to test NotImplementedError."""
-
-        name = "partial"
-
-        async def apply(
-            self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
-        ) -> Transaction:
-            return transaction
-
-        @classmethod
-        def from_serialized(cls, config: SerializableDict, **kwargs: Any) -> "PartiallyImplementedPolicy":
-            return cls()
-
-        # Override to directly raise NotImplementedError like the base class would
-        def get_policy_config(self) -> SerializableDict:
-            # Simulate what the base class does
-            raise NotImplementedError
-
-    policy = PartiallyImplementedPolicy()
-
-    # Test that get_policy_config raises NotImplementedError
-    with pytest.raises(NotImplementedError):
-        policy.get_policy_config()

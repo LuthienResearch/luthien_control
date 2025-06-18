@@ -24,6 +24,12 @@ class SerialPolicy(ControlPolicy):
         logger (logging.Logger): The logger instance for this policy.
         name (str): The name of this policy instance, used for logging and
             identification.
+
+    Serialization approach:
+    - Overrides serialize() directly for full control over nested policy serialization
+    - Does NOT use _get_policy_specific_config() (only used by simple policies)
+    - Serialized form includes: 'type', 'name', and 'policies' (array of serialized policies)
+    - Container policies like this need custom serialization to handle nested structures
     """
 
     def __init__(self, policies: Sequence[ControlPolicy], name: Optional[str] = None):
@@ -87,9 +93,15 @@ class SerialPolicy(ControlPolicy):
     def serialize(self) -> SerializableDict:
         """Serializes the SerialPolicy into a dictionary.
 
+        This is a container policy that overrides serialize() directly rather than
+        using _get_policy_specific_config() because it needs to serialize nested
+        policies, which requires more complex logic than the template method can handle.
+
         Returns:
-            SerializableDict: A dictionary representation of the policy,
-                              suitable for JSON serialization or persistence.
+            SerializableDict: A dictionary representation containing:
+                - 'type': The policy type name from the registry
+                - 'name': The policy instance name
+                - 'policies': Array of serialized child policies
         """
         return cast(
             SerializableDict,
@@ -100,9 +112,6 @@ class SerialPolicy(ControlPolicy):
             },
         )
 
-    def get_policy_config(self) -> SerializableDict:
-        """Not used for container policies that override serialize()."""
-        raise NotImplementedError("SerialPolicy overrides serialize() directly")
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":

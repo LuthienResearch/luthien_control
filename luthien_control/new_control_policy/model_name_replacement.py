@@ -16,6 +16,11 @@ class ModelNameReplacementPolicy(ControlPolicy):
     replaced with real model names before the request is sent to the backend.
     This is useful for services like Cursor that assume model strings that match
     known models must route through specific endpoints.
+
+    Serialization approach:
+    - Uses the base class serialize() method (no override needed)
+    - _get_policy_specific_config() returns {"model_mapping": self.model_mapping}
+    - Serialized form includes: 'type', 'name', and 'model_mapping'
     """
 
     def __init__(self, model_mapping: Dict[str, str], name: Optional[str] = None):
@@ -63,15 +68,13 @@ class ModelNameReplacementPolicy(ControlPolicy):
 
         return transaction
 
-    def get_policy_config(self) -> SerializableDict:
-        """Serializes the policy configuration."""
-        return cast(
-            SerializableDict,
-            {
-                "name": self.name,
-                "model_mapping": self.model_mapping,
-            },
-        )
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """Return policy-specific configuration for serialization.
+
+        This policy needs to store the model mapping dictionary in addition
+        to the standard type and name fields.
+        """
+        return {"model_mapping": self.model_mapping}
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "ModelNameReplacementPolicy":

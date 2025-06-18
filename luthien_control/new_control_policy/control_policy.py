@@ -79,30 +79,59 @@ class ControlPolicy(abc.ABC):
 
     def serialize(self) -> SerializableDict:
         """
-        Serialize the policy's instance-specific configuration needed for reloading.
+        Serialize the policy to a dictionary for persistence and reconstruction.
 
-        This default implementation creates a SerializableDict with the policy type
-        and delegates to get_policy_config() for policy-specific configuration.
+        This method implements a template pattern for serialization:
+        1. It always includes the 'type' field (from get_policy_type_name())
+        2. It includes the 'name' field if the policy has a name
+        3. It calls _get_policy_specific_config() to get policy-specific fields
+        4. Policy-specific fields are merged with the base fields
 
-        Returns:
-            A serializable dictionary containing the policy type and configuration.
-        """
-        config = self.get_policy_config()
-        config["type"] = self.get_policy_type_name()
-        return config
-
-    @abc.abstractmethod
-    def get_policy_config(self) -> SerializableDict:
-        """
-        Get the policy-specific configuration for serialization.
-
-        Subclasses should implement this to return their configuration without
-        the "type" field, which is handled by the base serialize() method.
+        Most policies should NOT override this method. Instead:
+        - Simple policies: Override _get_policy_specific_config() to add their fields
+        - Complex policies (e.g., containers): Override serialize() for full control
 
         Returns:
-            A dictionary containing the policy's configuration.
+            A serializable dictionary containing the complete policy configuration.
         """
-        raise NotImplementedError
+        # Start with the type field (always required for deserialization)
+        result: SerializableDict = {"type": self.get_policy_type_name()}
+
+        # Add the name field if set (common to most policies)
+        if self.name is not None:
+            result["name"] = self.name
+
+        # Get policy-specific configuration
+        policy_config = self._get_policy_specific_config()
+
+        # Merge policy-specific config with base config
+        # Policy-specific config can override base fields if needed
+        result.update(policy_config)
+
+        return result
+
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """
+        Get the policy-specific configuration fields for serialization.
+
+        This method is called by serialize() to get any additional fields
+        that should be included in the serialized form beyond 'type' and 'name'.
+
+        Override this method in subclasses to add policy-specific fields.
+        For example:
+        - AddApiKeyHeaderFromEnvPolicy returns {"api_key_env_var_name": self.api_key_env_var_name}
+        - LeakedApiKeyDetectionPolicy returns {"patterns": self.patterns}
+        - NoopPolicy returns {} (no additional fields needed)
+
+        For complex policies that need full control over serialization
+        (e.g., SerialPolicy, BranchingPolicy), override serialize() directly
+        instead of using this method.
+
+        Returns:
+            A dictionary containing policy-specific configuration fields.
+            Default implementation returns an empty dict.
+        """
+        return {}
 
     # construct from serialization
     @classmethod

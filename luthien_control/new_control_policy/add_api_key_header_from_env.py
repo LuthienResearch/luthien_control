@@ -7,7 +7,7 @@ when the policy is instantiated.
 """
 
 import os
-from typing import Optional, cast
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,9 +22,16 @@ from luthien_control.new_control_policy.serialization import SerializableDict
 
 
 class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
-    """Adds an API key to the request Authorization header.
+    """Adds an API key to the request Authorization header from an environment variable.
+
     The API key is read from an environment variable whose name is configured
-    when the policy is instantiated.
+    when the policy is instantiated. This allows different API keys to be used
+    based on deployment environment.
+
+    Serialization approach:
+    - Uses the base class serialize() method (no override needed)
+    - _get_policy_specific_config() returns {"api_key_env_var_name": self.api_key_env_var_name}
+    - Serialized form includes: 'type', 'name', and 'api_key_env_var_name'
     """
 
     def __init__(self, api_key_env_var_name: str, name: Optional[str] = None):
@@ -84,15 +91,13 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
 
         return transaction
 
-    def get_policy_config(self) -> SerializableDict:
-        """Serializes the policy's configuration."""
-        return cast(
-            SerializableDict,
-            {
-                "name": self.name,
-                "api_key_env_var_name": self.api_key_env_var_name,
-            },
-        )
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """Return policy-specific configuration for serialization.
+
+        This policy needs to store the environment variable name in addition
+        to the standard type and name fields.
+        """
+        return {"api_key_env_var_name": self.api_key_env_var_name}
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderFromEnvPolicy":

@@ -21,8 +21,16 @@ logger = logging.getLogger(__name__)
 class ClientApiKeyAuthPolicy(ControlPolicy):
     """Verifies the client API key from the transaction's request.
 
+    This policy authenticates clients by checking their API key against
+    the database. It ensures the key exists and is active.
+
     Attributes:
         name (str): The name of this policy instance.
+
+    Serialization approach:
+    - Uses the base class serialize() method (no override needed)
+    - _get_policy_specific_config() returns empty dict (no additional fields)
+    - Only 'type' and 'name' fields are serialized
     """
 
     def __init__(self, name: Optional[str] = None):
@@ -85,18 +93,9 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
 
         return transaction
 
-    def get_policy_config(self) -> SerializableDict:
-        """Serializes the policy's configuration.
-
-        This method converts the policy's configuration into a serializable
-        dictionary. For this policy, only the 'name' attribute is included
-        if it has been set to a non-default value.
-
-        Returns:
-            SerializableDict: A dictionary representation of the policy's
-                              configuration. It may be empty or contain a 'name' key.
-        """
-        return SerializableDict(name=self.name)
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """No additional configuration needed beyond type and name."""
+        return {}
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "ClientApiKeyAuthPolicy":

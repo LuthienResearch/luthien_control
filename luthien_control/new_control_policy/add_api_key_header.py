@@ -12,7 +12,16 @@ from luthien_control.new_control_policy.serialization import SerializableDict
 
 
 class AddApiKeyHeaderPolicy(ControlPolicy):
-    """Adds the configured OpenAI API key to the request Authorization header."""
+    """Adds the configured OpenAI API key to the request Authorization header.
+
+    This policy reads the API key from the application settings and adds it
+    to the request. It has no policy-specific configuration beyond its name.
+
+    Serialization approach:
+    - Uses the base class serialize() method (no override needed)
+    - _get_policy_specific_config() returns empty dict (no additional fields)
+    - Only 'type' and 'name' fields are serialized
+    """
 
     def __init__(self, name: Optional[str] = None):
         """Initializes the policy."""
@@ -56,9 +65,9 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
 
         return transaction
 
-    def get_policy_config(self) -> SerializableDict:
-        """Serializes config. Returns base info as no instance-specific config needed."""
-        return cast(SerializableDict, {"name": self.name})
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """No additional configuration needed beyond type and name."""
+        return {}
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderPolicy":

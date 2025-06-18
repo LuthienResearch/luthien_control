@@ -415,12 +415,6 @@ def test_compound_policy_alias():
     assert CompoundPolicy is SerialPolicy
 
 
-def test_get_policy_config_not_implemented():
-    """Test that SerialPolicy.get_policy_config() raises NotImplementedError."""
-    policy = SerialPolicy(policies=[NoopPolicy()])
-
-    with pytest.raises(NotImplementedError, match="SerialPolicy overrides serialize\\(\\) directly"):
-        policy.get_policy_config()
 
 
 def test_policy_load_error_in_from_serialized():

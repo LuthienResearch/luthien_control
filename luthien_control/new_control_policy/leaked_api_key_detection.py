@@ -18,7 +18,16 @@ from luthien_control.new_control_policy.serialization import SerializableDict
 
 
 class LeakedApiKeyDetectionPolicy(ControlPolicy):
-    """Detects API keys that might be leaked in message content sent to LLMs."""
+    """Detects API keys that might be leaked in message content sent to LLMs.
+
+    This policy scans message content for patterns matching common API key formats
+    to prevent accidental exposure of sensitive credentials to language models.
+
+    Serialization approach:
+    - Uses the base class serialize() method (no override needed)
+    - _get_policy_specific_config() returns {"patterns": self.patterns}
+    - Serialized form includes: 'type', 'name', and 'patterns'
+    """
 
     # Common API key patterns
     DEFAULT_PATTERNS = [
@@ -99,15 +108,13 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
                 return True
         return False
 
-    def get_policy_config(self) -> SerializableDict:
-        """Serializes the policy's configuration."""
-        return cast(
-            SerializableDict,
-            {
-                "name": self.name,
-                "patterns": self.patterns,
-            },
-        )
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """Return policy-specific configuration for serialization.
+
+        This policy needs to store the regex patterns in addition
+        to the standard type and name fields.
+        """
+        return {"patterns": self.patterns}
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "LeakedApiKeyDetectionPolicy":

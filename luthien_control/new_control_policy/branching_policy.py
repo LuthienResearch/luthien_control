@@ -15,6 +15,18 @@ logger = logging.getLogger(__name__)
 
 
 class BranchingPolicy(ControlPolicy):
+    """
+    A Control Policy that conditionally applies different policies based on transaction evaluation.
+
+    This policy evaluates conditions in order and applies the policy associated with the first
+    matching condition. If no conditions match, it applies the default policy (if configured).
+
+    Serialization approach:
+    - Overrides serialize() directly for full control over complex nested structure serialization
+    - Does NOT use _get_policy_specific_config() (only used by simple policies)
+    - Serialized form includes: 'type', 'name', 'cond_to_policy_map', and 'default_policy'
+    - Container policies like this need custom serialization to handle nested structures
+    """
     def __init__(
         self,
         cond_to_policy_map: OrderedDict[Condition, ControlPolicy],
@@ -48,6 +60,20 @@ class BranchingPolicy(ControlPolicy):
         return transaction
 
     def serialize(self) -> SerializableDict:
+        """Serializes the BranchingPolicy into a dictionary.
+
+        This is a container policy that overrides serialize() directly rather than
+        using _get_policy_specific_config() because it needs to serialize complex nested
+        structures (conditions and policies), which requires more specialized logic
+        than the template method can handle.
+
+        Returns:
+            SerializableDict: A dictionary representation containing:
+                - 'type': The policy type name from the registry
+                - 'name': The policy instance name (if set)
+                - 'cond_to_policy_map': Dict mapping JSON-serialized conditions to policies
+                - 'default_policy': Serialized default policy (if set) or None
+        """
         result: SerializableDict = {
             "type": self.get_policy_type_name(),
             "cond_to_policy_map": {
@@ -59,9 +85,6 @@ class BranchingPolicy(ControlPolicy):
             result["name"] = self.name
         return result
 
-    def get_policy_config(self) -> SerializableDict:
-        """Not used for container policies that override serialize()."""
-        raise NotImplementedError("BranchingPolicy overrides serialize() directly")
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "BranchingPolicy":

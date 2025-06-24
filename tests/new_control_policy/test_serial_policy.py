@@ -325,6 +325,16 @@ def test_serial_policy_from_serialized_policy_not_dict():
         SerialPolicy.from_serialized(config)
 
 
+def test_serial_policy_from_serialized_config_not_dict():
+    """Test SerialPolicy deserialization with non-dict member_config."""
+    config = cast(SerializableDict, {"policies": [{"type": "NoopPolicy", "config": "not_a_dict"}]})
+
+    with pytest.raises(
+        PolicyLoadError, match="Member policy at index 0 must have a 'config' field as dict. Got: <class 'str'>"
+    ):
+        SerialPolicy.from_serialized(config)
+
+
 def test_serial_policy_from_serialized_missing_type():
     """Test SerialPolicy deserialization with missing policy type."""
     config = cast(SerializableDict, {"policies": [{"name": "test"}]})

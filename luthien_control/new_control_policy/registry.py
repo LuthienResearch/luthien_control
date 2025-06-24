@@ -12,6 +12,7 @@ from .model_name_replacement import ModelNameReplacementPolicy
 from .noop_policy import NoopPolicy
 from .send_backend_request import SendBackendRequestPolicy
 from .serial_policy import SerialPolicy
+from .set_backend_policy import SetBackendPolicy
 
 # Registry mapping policy names (as used in serialization/config) to their classes
 POLICY_NAME_TO_CLASS: Dict[str, Type["ControlPolicy"]] = {
@@ -23,6 +24,7 @@ POLICY_NAME_TO_CLASS: Dict[str, Type["ControlPolicy"]] = {
     "AddApiKeyHeaderFromEnv": AddApiKeyHeaderFromEnvPolicy,
     "LeakedApiKeyDetection": LeakedApiKeyDetectionPolicy,
     "ModelNameReplacement": ModelNameReplacementPolicy,
+    "SetBackendPolicy": SetBackendPolicy,
     "NoopPolicy": NoopPolicy,
 }
 

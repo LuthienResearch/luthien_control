@@ -2,11 +2,6 @@ from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from luthien_control.control_policy.control_policy import (
-    ControlPolicy as BaseControlPolicy,
-)
-from luthien_control.control_policy.exceptions import PolicyLoadError
-from luthien_control.control_policy.serialization import SerializedPolicy
 from luthien_control.db.control_policy_crud import (
     get_policy_by_name,
     get_policy_config_by_name,
@@ -22,6 +17,11 @@ from luthien_control.db.exceptions import (
     LuthienDBTransactionError,
 )
 from luthien_control.db.sqlmodel_models import ControlPolicy
+from luthien_control.new_control_policy.control_policy import (
+    ControlPolicy as BaseControlPolicy,
+)
+from luthien_control.new_control_policy.exceptions import PolicyLoadError
+from luthien_control.new_control_policy.serialization import SerializedPolicy
 from pytest_mock import MockerFixture
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession

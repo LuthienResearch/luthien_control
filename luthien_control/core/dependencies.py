@@ -5,17 +5,12 @@ import httpx
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Import Settings and the policy loader
-from luthien_control.control_policy.control_policy import ControlPolicy
-
-# Import SQLModel database session providers
-from luthien_control.control_policy.loader import load_policy_from_file
 from luthien_control.core.dependency_container import DependencyContainer
-
-# Import Response Builder
 from luthien_control.db.control_policy_crud import PolicyLoadError, load_policy_from_db
 from luthien_control.db.database_async import create_db_engine
 from luthien_control.db.database_async import get_db_session as db_get_session
+from luthien_control.new_control_policy.control_policy import ControlPolicy
+from luthien_control.new_control_policy.loader import load_policy_from_file
 from luthien_control.settings import Settings
 
 logger = logging.getLogger(__name__)

@@ -9,14 +9,14 @@ from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
 from fastapi.testclient import TestClient
 from httpx import Headers as HttpxHeaders
-from luthien_control.control_policy.control_policy import ControlPolicy
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependencies import (
     get_main_control_policy,
 )
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
+from luthien_control.core.transaction import Transaction
 from luthien_control.main import app  # Import your main FastAPI app
+from luthien_control.new_control_policy.control_policy import ControlPolicy
+from luthien_control.new_control_policy.serialization import SerializableDict
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -303,10 +303,8 @@ def mock_main_policy_for_e2e() -> ControlPolicy:
 
 # Define a minimal concrete policy locally for the test
 class PassThroughPolicy(ControlPolicy):
-    async def apply(
-        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
-    ) -> TrackedContext:
-        context.set_data("passthrough_applied", True)
+    async def apply(self, context: Transaction, container: DependencyContainer, session: AsyncSession) -> Transaction:
+        context.data["passthrough_applied"] = True
         return context
 
     def serialize(self) -> SerializableDict:
@@ -323,15 +321,9 @@ class MockSendBackendRequestPolicy(ControlPolicy):
         self.mock_response = mock_response
         self.name = self.__class__.__name__
 
-    async def apply(
-        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
-    ) -> TrackedContext:
+    async def apply(self, context: Transaction, container: DependencyContainer, session: AsyncSession) -> Transaction:
         # Simulate setting the response after a backend call
-        context.update_response(
-            status_code=self.mock_response.status_code,
-            headers=dict(self.mock_response.headers),
-            content=self.mock_response.content,
-        )
+        context.response = self.mock_response
         return context
 
     def serialize(self) -> SerializableDict:

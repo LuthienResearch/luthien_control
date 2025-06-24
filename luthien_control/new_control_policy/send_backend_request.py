@@ -1,9 +1,3 @@
-# Core control policy implementations.
-#
-# MIGRATION NOTE: This policy has been successfully migrated to use the new
-# Transaction model with OpenAI SDK for backend communication instead of
-# low-level HTTP handling.
-
 import logging
 from typing import Optional
 
@@ -68,8 +62,8 @@ class SendBackendRequestPolicy(ControlPolicy):
             raise NoRequestError("No request in transaction for backend request.")
 
         # Create OpenAI client for the backend request
-        backend_url = container.settings.get_backend_url()
-        api_key = container.settings.get_openai_api_key()
+        backend_url = transaction.request.api_endpoint
+        api_key = transaction.request.api_key
 
         if not backend_url:
             raise ValueError("Backend URL is not configured")
@@ -83,7 +77,8 @@ class SendBackendRequestPolicy(ControlPolicy):
 
         self.logger.info(
             f"Sending chat completions request to backend with model '{request_payload.model}' "
-            f"and {len(request_payload.messages)} messages. ({self.name})"
+            f"and {len(request_payload.messages)} messages. ({self.name}); "
+            f"Target url: {backend_url}"
         )
 
         try:
@@ -100,6 +95,7 @@ class SendBackendRequestPolicy(ControlPolicy):
 
             # Store the structured response in the transaction
             transaction.response.payload = response_payload
+            transaction.response.api_endpoint = backend_url
 
             self.logger.info(
                 f"Received backend response with {len(response_payload.choices)} choices "

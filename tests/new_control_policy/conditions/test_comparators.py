@@ -1,7 +1,7 @@
 import re
 
 import pytest
-from luthien_control.control_policy.conditions.comparators import (
+from luthien_control.new_control_policy.conditions.comparators import (
     COMPARATOR_TO_NAME,
     NAME_TO_COMPARATOR,
     Comparator,

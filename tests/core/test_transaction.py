@@ -1,3 +1,4 @@
+from typing import cast
 from unittest.mock import Mock
 
 import pytest
@@ -91,6 +92,6 @@ def test_transaction_event_emission_on_nested_attribute_change(sample_request, s
     assert len(transaction.request.payload.messages) == 2
 
     mock_callback.reset_mock()
-    transaction.response.payload.choices[0].message.content = "New content"
+    cast(OpenAIChatCompletionsResponse, transaction.response.payload).choices[0].message.content = "New content"
     mock_callback.assert_called_once()
     assert transaction.response.payload.choices[0].message.content == "New content"

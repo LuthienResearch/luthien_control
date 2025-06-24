@@ -2,10 +2,10 @@ from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 
 import httpx
-from luthien_control.control_policy.control_policy import ControlPolicy
-from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
+from luthien_control.core.transaction import Transaction
+from luthien_control.new_control_policy.control_policy import ControlPolicy
+from luthien_control.new_control_policy.serial_policy import SerialPolicy
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,10 +25,10 @@ class MockSimplePolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: TrackedContext,
+        context: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TrackedContext:
+    ) -> Transaction:
         context.set_data("simple_applied", True)
         context.set_data("simple_timeout", self.timeout)
         return context
@@ -50,10 +50,10 @@ class MockNestedPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: TrackedContext,
+        context: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TrackedContext:
+    ) -> Transaction:
         context.set_data("nested_applied", True)
         context.set_data("nested_description", self.description)
         # Simulate applying inner policy using the updated attribute name
@@ -79,10 +79,10 @@ class MockListPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: TrackedContext,
+        context: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TrackedContext:
+    ) -> Transaction:
         context.set_data("list_applied", True)
         context.set_data("list_mode", self.mode)
         context.set_data("list_policy_count", len(self.policies))
@@ -111,10 +111,10 @@ class MockNoArgsPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: TrackedContext,
+        context: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TrackedContext:
+    ) -> Transaction:
         context.set_data("no_args_applied", True)
         return context
 
@@ -131,10 +131,10 @@ class MockMissingArgPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: TrackedContext,
+        context: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TrackedContext:
+    ) -> Transaction:
         context.set_data("missing_arg_applied", True)
         context.set_data("missing_arg_mandatory", self.mandatory)
         return context

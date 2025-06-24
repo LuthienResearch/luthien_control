@@ -3,7 +3,7 @@
 import json
 import logging
 
-from .control_policy import ControlPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
 
 # Import the load error exception
 from .exceptions import PolicyLoadError

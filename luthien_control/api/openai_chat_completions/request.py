@@ -1,5 +1,7 @@
+import json
 from typing import Optional
 
+from fastapi import Request
 from psygnal.containers import EventedDict as EDict
 from psygnal.containers import EventedList as EList
 from pydantic import Field
@@ -61,3 +63,8 @@ class OpenAIChatCompletionsRequest(DeepEventedModel):
     top_p: Optional[float] = Field(default=None)
     user: Optional[str] = Field(default=None)
     web_search_options: Optional[WebSearchOptions] = Field(default=None)
+
+
+def fastapi_request_to_openai_chat_completions_request(body: bytes) -> OpenAIChatCompletionsRequest:
+    data = json.loads(body)
+    return OpenAIChatCompletionsRequest.model_validate(data)

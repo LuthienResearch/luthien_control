@@ -5,15 +5,15 @@ import pytest
 pytestmark = [pytest.mark.e2e, pytest.mark.asyncio]
 
 
-async def test_e2e_api_chat_completion(e2e_client: httpx.AsyncClient):
+async def test_e2e_api_chat_completion_db_based(e2e_client_db_based: httpx.AsyncClient):
     """
-    Performs an end-to-end test of the /api/chat/completions endpoint.
+    Performs an end-to-end test of the /api/chat/completions endpoint using database-based policy.
 
-    Sends a request through the proxy (using the api endpoint) to the actual
+    Sends a request through the proxy (using the api endpoint with DB policy) to the actual
     OpenAI backend (or configured backend) and verifies the basic structure
     of the response.
     """
-    print(f"\nTesting API against base URL: {e2e_client.base_url}")
+    print(f"\nTesting API against base URL (db-based): {e2e_client_db_based.base_url}")
 
     request_payload = {
         "model": "gpt-3.5-turbo",  # Or a model known to be available
@@ -25,7 +25,7 @@ async def test_e2e_api_chat_completion(e2e_client: httpx.AsyncClient):
     }
 
     try:
-        response = await e2e_client.post("/api/chat/completions", json=request_payload)
+        response = await e2e_client_db_based.post("/api/chat/completions", json=request_payload)
         response.raise_for_status()  # Raise HTTPStatusError for 4xx/5xx responses
 
         response_data = response.json()

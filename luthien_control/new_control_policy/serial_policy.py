@@ -8,7 +8,7 @@ from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 from luthien_control.new_control_policy.control_policy import ControlPolicy
 from luthien_control.new_control_policy.exceptions import PolicyLoadError
-from luthien_control.new_control_policy.serialization import SerializableDict
+from luthien_control.new_control_policy.serialization import SerializableDict, SerializedPolicy
 
 
 class SerialPolicy(ControlPolicy):
@@ -125,7 +125,25 @@ class SerialPolicy(ControlPolicy):
                 )
 
             try:
-                member_policy = ControlPolicy.from_serialized(member_data)
+                # Import load_policy to properly handle member policy loading
+                from luthien_control.new_control_policy.loader import load_policy
+
+                # Get the type and config from member_data
+                member_type = member_data.get("type")
+                member_config = member_data.get("config", {})
+
+                if not isinstance(member_type, str):
+                    raise PolicyLoadError(
+                        f"Member policy at index {i} must have a 'type' field as string. Got: {type(member_type)}"
+                    )
+                if not isinstance(member_config, dict):
+                    raise PolicyLoadError(
+                        f"Member policy at index {i} must have a 'config' field as dict. Got: {type(member_config)}"
+                    )
+
+                # Create SerializedPolicy object from member_data
+                serialized_member = SerializedPolicy(type=member_type, config=member_config)
+                member_policy = load_policy(serialized_member)
                 instantiated_policies.append(member_policy)
             except PolicyLoadError as e:
                 raise PolicyLoadError(

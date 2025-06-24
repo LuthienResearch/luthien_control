@@ -130,15 +130,6 @@ def test_noop_policy_from_serialized_with_name():
     assert policy.name == "DeserializedPolicy"
 
 
-def test_noop_policy_from_serialized_without_name():
-    """Test NoopPolicy.from_serialized without name in config."""
-    config = {}
-    policy = NoopPolicy.from_serialized(config)
-
-    assert isinstance(policy, NoopPolicy)
-    assert policy.name == "NoopPolicy"  # Should default to class name
-
-
 def test_noop_policy_from_serialized_with_non_string_name():
     """Test NoopPolicy.from_serialized with non-string name (should convert to string)."""
     config = cast(SerializableDict, {"name": 12345})

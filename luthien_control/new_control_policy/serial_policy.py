@@ -141,6 +141,10 @@ class SerialPolicy(ControlPolicy):
                         f"Member policy at index {i} must have a 'config' field as dict. Got: {type(member_config)}"
                     )
 
+                # If name is at the top level (legacy format), move it to config
+                if "name" in member_data and "name" not in member_config:
+                    member_config["name"] = member_data.get("name")
+
                 # Create SerializedPolicy object from member_data
                 serialized_member = SerializedPolicy(type=member_type, config=member_config)
                 member_policy = load_policy(serialized_member)

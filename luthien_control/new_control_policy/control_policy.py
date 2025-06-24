@@ -90,7 +90,8 @@ class ControlPolicy(abc.ABC):
         """
         # Start with the type field (always required for deserialization)
         result = SerializableDict({"type": self.get_policy_type_name()})
-        if self.name is not None:
+        # Only include name if it's not None and different from the class name
+        if self.name is not None and self.name != self.__class__.__name__:
             result["name"] = self.name
         result.update(self._get_policy_specific_config())
 

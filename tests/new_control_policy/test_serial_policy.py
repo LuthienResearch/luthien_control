@@ -331,7 +331,7 @@ def test_serial_policy_from_serialized_missing_type():
 
     with pytest.raises(
         PolicyLoadError,
-        match="Unexpected error loading member policy at index 0.*Policy configuration must include a 'type' field",
+        match="Failed to load member policy at index 0.*Member policy at index 0 must have a 'type' field as string",
     ):
         SerialPolicy.from_serialized(config)
 
@@ -351,7 +351,7 @@ def test_serial_policy_from_serialized_unknown_policy_type():
     config = cast(SerializableDict, {"policies": [{"type": "UnknownPolicy", "name": "test"}]})
 
     with pytest.raises(
-        PolicyLoadError, match="Unexpected error loading member policy at index 0.*Unknown policy type 'UnknownPolicy'"
+        PolicyLoadError, match="Failed to load member policy at index 0.*Unknown policy type: 'UnknownPolicy'"
     ):
         SerialPolicy.from_serialized(config)
 
@@ -364,8 +364,10 @@ def test_serial_policy_from_serialized_unexpected_error():
 
     config = cast(SerializableDict, {"policies": [{"name": "test", "type": "NoopPolicy"}]})
 
-    with patch("luthien_control.new_control_policy.control_policy.ControlPolicy.from_serialized") as mock_load:
-        mock_load.side_effect = RuntimeError("Unexpected error during loading")
+    # SerialPolicy.from_serialized now uses load_policy which handles the creation
+    # We need to patch the load_policy function where it's imported from
+    with patch("luthien_control.new_control_policy.loader.load_policy") as mock_load:
+        mock_load.side_effect = RuntimeError("Simulated unexpected error")
 
         with pytest.raises(PolicyLoadError, match="Unexpected error loading member policy at index 0"):
             SerialPolicy.from_serialized(config)

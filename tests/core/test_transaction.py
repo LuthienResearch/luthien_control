@@ -8,7 +8,7 @@ from luthien_control.api.openai_chat_completions.response import OpenAIChatCompl
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
-from psygnal.containers import EventedList
+from psygnal.containers import EventedDict, EventedList
 
 
 @pytest.fixture
@@ -53,7 +53,8 @@ def test_transaction_instantiation(sample_request, sample_response):
     assert isinstance(transaction, Transaction)
     assert transaction.request == sample_request
     assert transaction.response == sample_response
-    assert transaction.data is None
+    assert isinstance(transaction.data, EventedDict)
+    assert len(transaction.data) == 0
 
 
 def test_transaction_event_emission_on_attribute_change(sample_request, sample_response):

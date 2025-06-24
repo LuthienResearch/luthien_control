@@ -32,4 +32,5 @@ class NoopPolicy(ControlPolicy):
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "NoopPolicy":
         """Reconstruct from serialized form. Only needs to extract the name."""
-        return cls(name=str(config.get("name", cls.__name__)))
+        name = config.get("name")
+        return cls(name=str(name) if name is not None else None)

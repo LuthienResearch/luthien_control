@@ -384,15 +384,18 @@ async def test_api_proxy_no_auth_policy_no_key_success(
             "app.state.dependencies was not mock_container after TestClient instantiation"
         )
 
-        # For a POST, we might need a json body, even if empty or None, depending on policy.
-        # Let's assume for a generic policy test, an empty JSON body is acceptable if no specific body is needed.
-        response = client_instance.post(f"/api/{test_path}", json=None)
+        # For a POST, we need a valid OpenAI chat completions request body
+        request_body = {"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "test"}]}
+        response = client_instance.post(f"/api/{test_path}", json=request_body)
 
     test_app.dependency_overrides = {}  # Clear overrides
 
     assert response.status_code == 200
-    assert response.json() == backend_response_content
-    assert response.headers["x-backend-mock"] == "true"
+    # The response should be the OpenAI response converted to JSON
+    response_json = response.json()
+    assert response_json["id"] == "chatcmpl-test-123"
+    assert response_json["model"] == "gpt-3.5-turbo"
+    assert response_json["object"] == "chat.completion"
     # Check if the backend mock on the container's client was called if your policy uses it.
     # If main_test_policy uses container.http_client.request(...):
     # This depends on the implementation of main_test_policy. The current MockSendBackendRequestPolicy

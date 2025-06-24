@@ -155,8 +155,8 @@ async def test_send_backend_request_policy_no_backend_url(
     """Test that ValueError is raised when backend URL is not configured."""
     policy = SendBackendRequestPolicy()
 
-    # Configure mock to return None for backend URL
-    mock_container.settings.get_backend_url.return_value = None
+    # Configure transaction to have no backend URL
+    sample_transaction.request.api_endpoint = ""  # type: ignore
 
     with pytest.raises(ValueError, match="Backend URL is not configured"):
         await policy.apply(sample_transaction, mock_container, mock_db_session)
@@ -171,8 +171,8 @@ async def test_send_backend_request_policy_no_api_key(
     """Test that ValueError is raised when API key is not configured."""
     policy = SendBackendRequestPolicy()
 
-    # Configure mock to return None for API key
-    mock_container.settings.get_openai_api_key.return_value = None
+    # Configure transaction to have no API key
+    sample_transaction.request.api_key = ""  # type: ignore
 
     with pytest.raises(ValueError, match="OpenAI API key is not configured"):
         await policy.apply(sample_transaction, mock_container, mock_db_session)
@@ -192,9 +192,9 @@ async def test_send_backend_request_policy_successful_request(
 
     assert result is sample_transaction
 
-    # Verify OpenAI client was created with correct parameters
+    # Verify OpenAI client was created with correct parameters from transaction.request
     mock_container.create_openai_client.assert_called_once_with(
-        "https://api.test-backend.com/v1", "test-backend-api-key"
+        "https://api.openai.com/v1/chat/completions", "test_key"
     )
 
     # Verify chat completion was called
@@ -520,9 +520,9 @@ async def test_send_backend_request_policy_container_client_creation(
 
     await policy.apply(sample_transaction, mock_container, mock_db_session)
 
-    # Verify that create_openai_client was called with the correct parameters
+    # Verify that create_openai_client was called with the correct parameters from transaction.request
     mock_container.create_openai_client.assert_called_once_with(
-        "https://api.test-backend.com/v1", "test-backend-api-key"
+        "https://api.openai.com/v1/chat/completions", "test_key"
     )
 
     # Verify that the returned client was used

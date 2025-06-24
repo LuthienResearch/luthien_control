@@ -9,6 +9,7 @@
  - Event hooks on context tracking
  - DeepEventedModel for eventing on all state changes
  - OpenAI Chat Completions API request/response objects
+ - New Transaction system w/ Evented data objects for tracking changes
 
 ## [0.2.5] - 2025-05-28
  - 98% test coverage

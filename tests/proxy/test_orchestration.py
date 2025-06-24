@@ -1,4 +1,5 @@
 import uuid
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import fastapi
@@ -434,7 +435,7 @@ async def test_run_policy_flow_none_payload(
 
     # Should return JSONResponse with 500 status and error message
     assert response.status_code == 500
-    assert "Internal Server Error: No response payload" in response.body.decode()
+    assert "Internal Server Error: No response payload" in cast(bytes, response.body).decode()
 
 
 async def test_initialize_context_query_params():

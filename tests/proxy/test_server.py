@@ -16,8 +16,8 @@ from luthien_control.core.dependencies import (
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 from luthien_control.main import app  # Import your main FastAPI app
-from luthien_control.new_control_policy.control_policy import ControlPolicy
-from luthien_control.new_control_policy.serialization import SerializableDict
+from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 

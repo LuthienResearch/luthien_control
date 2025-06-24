@@ -10,8 +10,8 @@ from luthien_control.core.dependencies import (
     initialize_app_dependencies,
 )
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.new_control_policy.control_policy import ControlPolicy
-from luthien_control.new_control_policy.exceptions import PolicyLoadError
+from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.exceptions import PolicyLoadError
 from starlette.datastructures import State
 
 # --- Fixtures (reusing mocks from conftest via dependency injection) ---

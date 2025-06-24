@@ -14,8 +14,8 @@ from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
-from luthien_control.new_control_policy.control_policy import ControlPolicy
-from luthien_control.new_control_policy.exceptions import ControlPolicyError
+from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.exceptions import ControlPolicyError
 
 logger = logging.getLogger(__name__)
 

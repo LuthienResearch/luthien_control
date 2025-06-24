@@ -12,10 +12,10 @@ from luthien_control.db.exceptions import (
     LuthienDBQueryError,
     LuthienDBTransactionError,
 )
-from luthien_control.new_control_policy.control_policy import ControlPolicy as ABCControlPolicy
-from luthien_control.new_control_policy.exceptions import PolicyLoadError
-from luthien_control.new_control_policy.loader import load_policy
-from luthien_control.new_control_policy.serialization import SerializedPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy as ABCControlPolicy
+from luthien_control.control_policy.exceptions import PolicyLoadError
+from luthien_control.control_policy.loader import load_policy
+from luthien_control.control_policy.serialization import SerializedPolicy
 
 from .sqlmodel_models import ControlPolicy as DBControlPolicy
 

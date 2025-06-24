@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 import httpx
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
-from luthien_control.new_control_policy.control_policy import ControlPolicy
-from luthien_control.new_control_policy.serial_policy import SerialPolicy
+from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 

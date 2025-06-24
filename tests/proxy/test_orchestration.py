@@ -7,8 +7,8 @@ import httpx
 import pytest
 from fastapi import Response
 from luthien_control.core.transaction import Transaction
-from luthien_control.new_control_policy.control_policy import ControlPolicy
-from luthien_control.new_control_policy.exceptions import ControlPolicyError
+from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.proxy.orchestration import _initialize_transaction, run_policy_flow
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -5,8 +5,6 @@ This policy inspects the 'messages' field in request bodies to prevent
 sensitive API keys from being sent to language models.
 """
 
-import json
-import logging
 import re
 from typing import List, Optional, Pattern, cast
 
@@ -14,14 +12,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import LeakedApiKeyError, NoRequestError
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
-
-from .serialization import SerializableDict
+from luthien_control.core.transaction import Transaction
 
 
 class LeakedApiKeyDetectionPolicy(ControlPolicy):
-    """Detects API keys that might be leaked in message content sent to LLMs."""
+    """Detects API keys that might be leaked in message content sent to LLMs.
+
+    This policy scans message content for patterns matching common API key formats
+    to prevent accidental exposure of sensitive credentials to language models.
+    """
 
     # Common API key patterns
     DEFAULT_PATTERNS = [
@@ -38,74 +39,51 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
                      If not provided, uses DEFAULT_PATTERNS.
             name: Optional name for this policy instance.
         """
-        self.name = name or self.__class__.__name__
+        super().__init__(name=name, patterns=patterns)
         self.patterns = patterns or self.DEFAULT_PATTERNS
         self.compiled_patterns: List[Pattern] = [re.compile(pattern) for pattern in self.patterns]
-        self.logger = logging.getLogger(__name__)
 
     async def apply(
         self,
-        context: TrackedContext,
+        transaction: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TrackedContext:
+    ) -> Transaction:
         """
         Checks message content for potentially leaked API keys.
 
         Args:
-            context: The current transaction context.
+            transaction: The current transaction.
             container: The application dependency container.
             session: An active SQLAlchemy AsyncSession.
 
         Returns:
-            The transaction context, potentially with an error response set.
+            The transaction, potentially with an error response set.
 
         Raises:
-            NoRequestError: If the request is not found in the context.
+            NoRequestError: If the request is not found in the transaction.
             LeakedApiKeyError: If a potential API key is detected in message content.
         """
-        if context.request is None:
-            raise NoRequestError(f"[{context.transaction_id}] No request in context.")
+        if transaction.request is None:
+            raise NoRequestError("No request in transaction.")
 
-        self.logger.info(f"[{context.transaction_id}] Checking for leaked API keys in message content ({self.name}).")
+        self.logger.info(f"Checking for leaked API keys in message content ({self.name}).")
 
-        # Only look at POST requests with content
-        if not context.request.content:
-            self.logger.debug(f"[{context.transaction_id}] No content to check for API keys.")
-            return context
+        if hasattr(transaction.request.payload, "messages"):
+            messages = transaction.request.payload.messages
 
-        try:
-            # Get the request body as JSON
-            body_json = json.loads(context.request.content)
+            # Inspect each message's content
+            for message in messages:
+                if hasattr(message, "content") and isinstance(message.content, str):
+                    content = message.content
+                    if self._check_text(content):
+                        error_message = (
+                            "Potential API key detected in message content. For security, the request has been blocked."
+                        )
+                        self.logger.warning(f"{error_message} ({self.name})")
+                        raise LeakedApiKeyError(detail=error_message)
 
-            # Check the "messages" field for leaked API keys
-            if "messages" in body_json and isinstance(body_json["messages"], list):
-                messages = body_json["messages"]
-
-                # Inspect each message's content
-                for message in messages:
-                    if "content" in message and isinstance(message["content"], str):
-                        content = message["content"]
-                        if self._check_text(content):
-                            error_message = (
-                                "Potential API key detected in message content. "
-                                "For security, the request has been blocked."
-                            )
-                            self.logger.warning(f"[{context.transaction_id}] {error_message} ({self.name})")
-
-                            context.update_response(
-                                status_code=403,
-                                headers={"Content-Type": "application/json"},
-                                content=json.dumps({"detail": error_message}).encode(),
-                            )
-                            raise LeakedApiKeyError(detail=error_message)
-
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            # If the body isn't valid JSON or text, we can't check it effectively
-            self.logger.debug(f"[{context.transaction_id}] Could not decode request body as JSON.")
-            pass
-
-        return context
+        return transaction
 
     def _check_text(self, text: str) -> bool:
         """
@@ -122,15 +100,13 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
                 return True
         return False
 
-    def serialize(self) -> SerializableDict:
-        """Serializes the policy's configuration."""
-        return cast(
-            SerializableDict,
-            {
-                "name": self.name,
-                "patterns": self.patterns,
-            },
-        )
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """Return policy-specific configuration for serialization.
+
+        This policy needs to store the regex patterns in addition
+        to the standard type and name fields.
+        """
+        return {"patterns": self.patterns}
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "LeakedApiKeyDetectionPolicy":

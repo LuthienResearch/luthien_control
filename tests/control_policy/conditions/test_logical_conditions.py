@@ -1,14 +1,19 @@
 from typing import List
 
-import httpx
 import pytest
+from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
+from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
+from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.conditions.all_cond import AllCondition
 from luthien_control.control_policy.conditions.any_cond import AnyCondition
-from luthien_control.control_policy.conditions.comparisons import EqualsCondition  # For constructing test cases
+from luthien_control.control_policy.conditions.comparisons import EqualsCondition
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.conditions.not_cond import NotCondition
-from luthien_control.control_policy.conditions.util import get_condition_from_serialized  # For testing deserialization
-from luthien_control.core.tracked_context import TrackedContext
+from luthien_control.control_policy.conditions.util import get_condition_from_serialized
+from luthien_control.core.request import Request
+from luthien_control.core.response import Response
+from luthien_control.core.transaction import Transaction
+from psygnal.containers import EventedDict, EventedList
 
 
 @pytest.fixture
@@ -20,48 +25,60 @@ def true_condition() -> Condition:
 @pytest.fixture
 def false_condition() -> Condition:
     """A simple condition that always evaluates to False."""
-    return EqualsCondition(key="data.static_false", value=True)  # Note: data.static_false will be False in context
+    return EqualsCondition(key="data.static_false", value=True)  # Note: data.static_false will be False in transaction
 
 
 @pytest.fixture
-def sample_request() -> httpx.Request:
-    """Provides a sample httpx.Request object."""
-    return httpx.Request(
-        method="GET",
-        url="http://example.com/test",
+def sample_transaction() -> Transaction:
+    """Provides a Transaction populated with sample request, response, and static data for conditions."""
+
+    # Create request
+    request = Request(
+        payload=OpenAIChatCompletionsRequest(
+            model="gpt-4",
+            messages=EventedList([Message(role="user", content="Hello, world!")]),
+        ),
+        api_endpoint="https://api.openai.com/v1/chat/completions",
+        api_key="test_key",
     )
 
-
-@pytest.fixture
-def sample_response() -> httpx.Response:
-    """Provides a sample httpx.Response object."""
-    return httpx.Response(
-        status_code=200,
-        json={"message": "ok"},
+    # Create response
+    response = Response(
+        payload=OpenAIChatCompletionsResponse(
+            id="chatcmpl-123",
+            object="chat.completion",
+            created=1677652288,
+            model="gpt-4",
+            choices=EventedList(
+                [
+                    Choice(
+                        index=0,
+                        message=Message(role="assistant", content="Hello there!"),
+                        finish_reason="stop",
+                    )
+                ]
+            ),
+            usage=Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
+        )
     )
 
-
-@pytest.fixture
-def transaction_context(sample_request: httpx.Request, sample_response: httpx.Response) -> TrackedContext:
-    """Provides a TrackedContext populated with sample request, response, and static data for conditions."""
-    context = TrackedContext()
-    context.update_request(
-        method=sample_request.method,
-        url=str(sample_request.url),
-        headers=dict(sample_request.headers),
-        content=sample_request.content,
+    # Create transaction with static data for condition testing
+    transaction_data = EventedDict(
+        {
+            "static_true": True,
+            "static_false": False,
+            "value_a": "hello",
+            "value_b": 10,
+        }
     )
-    context.update_response(
-        status_code=sample_response.status_code, headers=dict(sample_response.headers), content=sample_response.content
+
+    transaction = Transaction(
+        request=request,
+        response=response,
+        data=transaction_data,
     )
-    context.set_data("static_true", True)
-    context.set_data("static_false", False)
-    context.set_data("value_a", "hello")
-    context.set_data("value_b", 10)
-    return context
 
-
-# Tests for AllCondition, AnyCondition, NotCondition will go here
+    return transaction
 
 
 # AllCondition Tests
@@ -80,7 +97,7 @@ def transaction_context(sample_request: httpx.Request, sample_response: httpx.Re
 def test_all_condition_evaluation(
     conditions_setup: List[str],
     expected_result: bool,
-    transaction_context: TrackedContext,
+    sample_transaction: Transaction,
     true_condition: Condition,
     false_condition: Condition,
 ) -> None:
@@ -88,7 +105,7 @@ def test_all_condition_evaluation(
     conditions_map = {"true": true_condition, "false": false_condition}
     conditions = [conditions_map[cond_type] for cond_type in conditions_setup]
     all_cond = AllCondition(conditions)
-    assert all_cond.evaluate(transaction_context) is expected_result
+    assert all_cond.evaluate(sample_transaction) is expected_result
 
 
 @pytest.mark.parametrize(
@@ -144,7 +161,7 @@ def test_all_condition_serialization_deserialization(
 def test_any_condition_evaluation(
     conditions_setup: List[str],
     expected_result: bool,
-    transaction_context: TrackedContext,
+    sample_transaction: Transaction,
     true_condition: Condition,
     false_condition: Condition,
 ) -> None:
@@ -152,7 +169,7 @@ def test_any_condition_evaluation(
     conditions_map = {"true": true_condition, "false": false_condition}
     conditions = [conditions_map[cond_type] for cond_type in conditions_setup]
     any_cond = AnyCondition(conditions)
-    assert any_cond.evaluate(transaction_context) is expected_result
+    assert any_cond.evaluate(sample_transaction) is expected_result
 
 
 @pytest.mark.parametrize(
@@ -199,7 +216,7 @@ def test_any_condition_serialization_deserialization(
 def test_not_condition_evaluation(
     condition_type: str,
     expected_result: bool,
-    transaction_context: TrackedContext,
+    sample_transaction: Transaction,
     true_condition: Condition,
     false_condition: Condition,
 ) -> None:
@@ -207,7 +224,7 @@ def test_not_condition_evaluation(
     condition_map = {"true": true_condition, "false": false_condition}
     inner_condition = condition_map[condition_type]
     not_cond = NotCondition(inner_condition)
-    assert not_cond.evaluate(transaction_context) is expected_result
+    assert not_cond.evaluate(sample_transaction) is expected_result
 
 
 @pytest.mark.parametrize(

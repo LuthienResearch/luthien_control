@@ -9,10 +9,10 @@ from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthP
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.leaked_api_key_detection import LeakedApiKeyDetectionPolicy
 from luthien_control.control_policy.model_name_replacement import ModelNameReplacementPolicy
+from luthien_control.control_policy.noop_policy import NoopPolicy
 from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.control_policy.serial_policy import SerialPolicy
-from luthien_control.control_policy.tx_logging_policy import TxLoggingPolicy
 
 # Define the expected mappings for verification
 EXPECTED_POLICY_MAPPINGS: Dict[str, Type[ControlPolicy]] = {
@@ -25,7 +25,7 @@ EXPECTED_POLICY_MAPPINGS: Dict[str, Type[ControlPolicy]] = {
     "SerialPolicy": SerialPolicy,
     "SendBackendRequest": SendBackendRequestPolicy,
     "ModelNameReplacement": ModelNameReplacementPolicy,
-    "TxLoggingPolicy": TxLoggingPolicy,
+    "NoopPolicy": NoopPolicy,
 }
 
 

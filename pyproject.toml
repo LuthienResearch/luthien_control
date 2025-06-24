@@ -21,6 +21,7 @@ dependencies = [
     "pdoc (>=15.0.3,<16.0.0)",
     "mkdocs-material (>=9.6.12,<10.0.0)",
     "psygnal (>=0.13.0,<0.14.0)",
+    "openai (>=1.0.0,<2.0.0)",
 ]
 
 [tool.poetry.group.dev.dependencies]
@@ -39,7 +40,7 @@ aiosqlite = ">=0.21.0,<0.22.0"
 mkdocs = "^1.6.1"
 mkdocs-material = "^9.6.12"
 mkdocstrings = {extras = ["python"], version = "^0.29.1"}
-pyright = "*"
+pyright = "^1.1.402"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -55,7 +56,7 @@ markers = [
     "e2e: marks tests as end-to-end tests (excluded by default, requires network access)",
     "envvars(vars): mark test to set specific environment variables"
 ]
-addopts = "-m 'not integration and not e2e'"
+addopts = "-m 'not integration and not e2e' --import-mode=importlib"
 # Configure asyncio mode and loop scope
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
@@ -78,3 +79,8 @@ select = ["E", "F", "W", "I"]
 
 [tool.pyright]
 include = ["luthien_control", "tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "@(abc\\.)?abstractmethod",
+]

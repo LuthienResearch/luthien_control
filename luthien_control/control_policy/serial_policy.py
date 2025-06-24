@@ -1,18 +1,14 @@
 # Serial Policy that applies a sequence of other policies.
 
-import logging
-from typing import Iterable, Optional, Sequence, cast
+from typing import Iterable, Optional, Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
-from luthien_control.control_policy.loader import load_policy
 from luthien_control.control_policy.serialization import SerializableDict, SerializedPolicy
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
-
-logger = logging.getLogger(__name__)
+from luthien_control.core.transaction import Transaction
 
 
 class SerialPolicy(ControlPolicy):
@@ -38,52 +34,48 @@ class SerialPolicy(ControlPolicy):
             policies: An ordered sequence of ControlPolicy instances to apply.
             name: An optional name for logging/identification purposes.
         """
+        super().__init__(name=name, policies=policies)
         if not policies:
-            logger.warning(f"Initializing SerialPolicy '{name}' with an empty policy list.")
+            self.logger.warning(f"Initializing SerialPolicy '{name}' with an empty policy list.")
         self.policies = policies
-        self.logger = logger
         self.name = name or self.__class__.__name__
 
     async def apply(
         self,
-        context: TrackedContext,
+        transaction: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TrackedContext:
+    ) -> Transaction:
         """
-        Applies the contained policies sequentially to the context.
+        Applies the contained policies sequentially to the transaction.
         Requires the DependencyContainer and an active SQLAlchemy AsyncSession.
 
         Args:
-            context: The current transaction context.
+            transaction: The current transaction.
             container: The application dependency container.
             session: An active SQLAlchemy AsyncSession, passed to member policies.
 
         Returns:
-            The transaction context after all contained policies have been applied.
+            The transaction after all contained policies have been applied.
 
         Raises:
             Exception: Propagates any exception raised by a contained policy.
         """
-        self.logger.debug(f"[{context.transaction_id}] Entering SerialPolicy: {self.name}")
-        current_context = context
+        self.logger.debug(f"Entering SerialPolicy: {self.name}")
+        current_transaction = transaction
         for i, policy in enumerate(self.policies):
             member_policy_name = getattr(policy, "name", policy.__class__.__name__)  # Get policy name if available
-            self.logger.info(
-                f"[{current_context.transaction_id}] Applying policy {i + 1}/{len(self.policies)} "
-                f"in {self.name}: {member_policy_name}"
-            )
+            self.logger.info(f"Applying policy {i + 1}/{len(self.policies)} in {self.name}: {member_policy_name}")
             try:
-                current_context = await policy.apply(current_context, container=container, session=session)
+                current_transaction = await policy.apply(current_transaction, container=container, session=session)
             except Exception as e:
                 self.logger.error(
-                    f"[{current_context.transaction_id}] Error applying policy {member_policy_name} "
-                    f"within {self.name}: {e}",
+                    f"Error applying policy {member_policy_name} within {self.name}: {e}",
                     exc_info=True,
                 )
                 raise  # Re-raise the exception to halt processing
-        self.logger.debug(f"[{context.transaction_id}] Exiting SerialPolicy: {self.name}")
-        return current_context
+        self.logger.debug(f"Exiting SerialPolicy: {self.name}")
+        return current_transaction
 
     def __repr__(self) -> str:
         """Provides a developer-friendly representation."""
@@ -92,44 +84,12 @@ class SerialPolicy(ControlPolicy):
         policy_list_str = ", ".join(policy_reprs)
         return f"<{self.name}(policies=[{policy_list_str}])>"
 
-    def serialize(self) -> SerializableDict:
-        """Serializes the SerialPolicy into a dictionary.
-
-        This method converts the policy and its contained member policies
-        into a serializable dictionary format. It uses the POLICY_CLASS_TO_NAME
-        mapping to determine the 'type' string for each member policy.
-
-        Returns:
-            SerializableDict: A dictionary representation of the policy,
-                              suitable for JSON serialization or persistence.
-                              The dictionary has a "policies" key, which is a list
-                              of serialized member policies. Each member policy dict
-                              contains "type" and "config" keys.
-
-        Raises:
-            PolicyLoadError: If the type of a member policy cannot be determined
-                             from POLICY_CLASS_TO_NAME.
-        """
-        # Import from registry here to avoid circular import
-        from .registry import POLICY_CLASS_TO_NAME
-
-        member_configs = []
-        for p in self.policies:
-            try:
-                policy_type = POLICY_CLASS_TO_NAME[type(p)]
-            except KeyError:
-                raise PolicyLoadError(
-                    f"Could not determine policy type for {type(p)} during serialization in {self.name} "
-                    "(Not in POLICY_CLASS_TO_NAME)"
-                )
-
-            member_configs.append(
-                {
-                    "type": policy_type,
-                    "config": p.serialize(),
-                }
-            )
-        return cast(SerializableDict, {"policies": member_configs})
+    def _get_policy_specific_config(self) -> SerializableDict:
+        return SerializableDict(
+            {
+                "policies": [p.serialize() for p in self.policies],
+            }
+        )
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":
@@ -164,25 +124,30 @@ class SerialPolicy(ControlPolicy):
                     f"Item at index {i} in SerialPolicy 'policies' is not a dictionary. Got {type(member_data)}"
                 )
 
-            # Extract 'type' and 'config' for SerializedPolicy construction
-            member_policy_type = member_data.get("type")
-            member_policy_config = member_data.get("config")
-
-            if not isinstance(member_policy_type, str):
-                raise PolicyLoadError(
-                    f"Member policy at index {i} in SerialPolicy 'policies' is missing 'type' "
-                    f"or it's not a string. Got {type(member_policy_type)}"
-                )
-            if not isinstance(member_policy_config, dict):
-                raise PolicyLoadError(
-                    f"Member policy at index {i} in SerialPolicy 'policies' is missing 'config' "
-                    f"or it's not a dictionary. Got {type(member_policy_config)}"
-                )
-
             try:
-                # Construct SerializedPolicy dataclass instance
-                serialized_member_policy = SerializedPolicy(type=member_policy_type, config=member_policy_config)
-                member_policy = load_policy(serialized_member_policy)
+                # Import load_policy to properly handle member policy loading
+                from luthien_control.control_policy.loader import load_policy
+
+                # Get the type and config from member_data
+                member_type = member_data.get("type")
+                member_config = member_data.get("config", {})
+
+                if not isinstance(member_type, str):
+                    raise PolicyLoadError(
+                        f"Member policy at index {i} must have a 'type' field as string. Got: {type(member_type)}"
+                    )
+                if not isinstance(member_config, dict):
+                    raise PolicyLoadError(
+                        f"Member policy at index {i} must have a 'config' field as dict. Got: {type(member_config)}"
+                    )
+
+                # If name is at the top level (legacy format), move it to config
+                if "name" in member_data and "name" not in member_config:
+                    member_config["name"] = member_data.get("name")
+
+                # Create SerializedPolicy object from member_data
+                serialized_member = SerializedPolicy(type=member_type, config=member_config)
+                member_policy = load_policy(serialized_member)
                 instantiated_policies.append(member_policy)
             except PolicyLoadError as e:
                 raise PolicyLoadError(
@@ -201,7 +166,6 @@ class SerialPolicy(ControlPolicy):
         resolved_name: Optional[str]
         if name_val is not None:
             if not isinstance(name_val, str):
-                logger.warning(f"SerialPolicy name '{name_val}' from config is not a string. Coercing to string.")
                 resolved_name = str(name_val)
             else:
                 resolved_name = name_val

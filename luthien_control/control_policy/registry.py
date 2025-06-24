@@ -2,7 +2,6 @@
 
 from typing import Dict, Type
 
-# Import concrete policy types to populate the registry
 from .add_api_key_header import AddApiKeyHeaderPolicy
 from .add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from .branching_policy import BranchingPolicy
@@ -13,23 +12,23 @@ from .model_name_replacement import ModelNameReplacementPolicy
 from .noop_policy import NoopPolicy
 from .send_backend_request import SendBackendRequestPolicy
 from .serial_policy import SerialPolicy
-from .tx_logging_policy import TxLoggingPolicy
+from .set_backend_policy import SetBackendPolicy
 
 # Registry mapping policy names (as used in serialization/config) to their classes
 POLICY_NAME_TO_CLASS: Dict[str, Type["ControlPolicy"]] = {
     "AddApiKeyHeader": AddApiKeyHeaderPolicy,
+    "BranchingPolicy": BranchingPolicy,
     "ClientApiKeyAuth": ClientApiKeyAuthPolicy,
-    "SerialPolicy": SerialPolicy,
     "SendBackendRequest": SendBackendRequestPolicy,
+    "SerialPolicy": SerialPolicy,
     "AddApiKeyHeaderFromEnv": AddApiKeyHeaderFromEnvPolicy,
     "LeakedApiKeyDetection": LeakedApiKeyDetectionPolicy,
-    "BranchingPolicy": BranchingPolicy,
     "ModelNameReplacement": ModelNameReplacementPolicy,
-    "TxLoggingPolicy": TxLoggingPolicy,
+    "SetBackendPolicy": SetBackendPolicy,
     "NoopPolicy": NoopPolicy,
-    # Add other policies here as they are created
 }
 
 POLICY_CLASS_TO_NAME: Dict[Type["ControlPolicy"], str] = {v: k for k, v in POLICY_NAME_TO_CLASS.items()}
 
-POLICY_NAME_TO_CLASS["CompoundPolicy"] = SerialPolicy  # legacy compatibility
+# Legacy compatibility
+POLICY_NAME_TO_CLASS["CompoundPolicy"] = SerialPolicy

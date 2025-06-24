@@ -1,13 +1,14 @@
 # Interfaces for the request processing framework.
 
 import abc
+import logging
 from typing import Any, Optional, Type, TypeVar, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
+from luthien_control.core.transaction import Transaction
 
 # Type variable for the policy classes
 PolicyT = TypeVar("PolicyT", bound="ControlPolicy")
@@ -24,7 +25,25 @@ class ControlPolicy(abc.ABC):
 
     name: Optional[str] = None
 
-    def __init__(self, **kwargs: Any) -> None:
+    @classmethod
+    def get_policy_type_name(cls) -> str:
+        """Get the canonical policy type name for serialization.
+
+        By default, this looks up the class in the registry to get its registered name.
+        Subclasses can override this if they need custom behavior.
+
+        Returns:
+            The policy type name used in serialization.
+        """
+        # Import here to avoid circular imports
+        from luthien_control.control_policy.registry import POLICY_CLASS_TO_NAME
+
+        policy_type = POLICY_CLASS_TO_NAME.get(cls)
+        if policy_type is None:
+            raise ValueError(f"{cls.__name__} is not registered in POLICY_CLASS_TO_NAME registry")
+        return policy_type
+
+    def __init__(self, name: Optional[str] = None, **kwargs: Any) -> None:
         """Initializes the ControlPolicy.
 
         This is an abstract base class, and this constructor typically handles
@@ -33,40 +52,69 @@ class ControlPolicy(abc.ABC):
         Args:
             **kwargs: Arbitrary keyword arguments that subclasses might use.
         """
-        pass
+        self.name = name
+        self.logger = logging.getLogger(__name__)
 
     @abc.abstractmethod
     async def apply(
         self,
-        context: "TrackedContext",
+        transaction: "Transaction",
         container: "DependencyContainer",
         session: "AsyncSession",
-    ) -> "TrackedContext":
+    ) -> "Transaction":
         """
-        Apply the policy to the transaction context using provided dependencies.
+        Apply the policy to the transaction using provided dependencies.
 
         Args:
-            context: The current tracked transaction context.
+            transaction: The current transaction.
             container: The dependency injection container.
             session: The database session for the current request.
 
         Returns:
-            The potentially modified tracked transaction context.
+            The potentially modified transaction.
 
         Raises:
             Exception: Processors may raise exceptions to halt the processing flow.
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
     def serialize(self) -> SerializableDict:
         """
-        Serialize the policy's instance-specific configuration needed for reloading.
+        Serialize the policy to a dictionary for persistence and reconstruction.
+
+        This method implements a template pattern for serialization with 'type' and 'name' fields.
+        Policies should override _get_policy_specific_config() to add their fields
 
         Returns:
-            A serializable dictionary containing configuration parameters.
+            A serializable dictionary containing the complete policy configuration.
         """
-        raise NotImplementedError
+        # Start with the type field (always required for deserialization)
+        result = SerializableDict({"type": self.get_policy_type_name()})
+        # Only include name if it's not None and different from the class name
+        if self.name is not None and self.name != self.__class__.__name__:
+            result["name"] = self.name
+        result.update(self._get_policy_specific_config())
+
+        return result
+
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """
+        Get the policy-specific configuration fields for serialization.
+
+        This method is called by serialize() to get any additional fields
+        that should be included in the serialized form beyond 'type' and 'name'.
+
+        Override this method in subclasses to add policy-specific fields.
+        For example:
+        - AddApiKeyHeaderFromEnvPolicy returns {"api_key_env_var_name": self.api_key_env_var_name}
+        - LeakedApiKeyDetectionPolicy returns {"patterns": self.patterns}
+        - NoopPolicy returns {} (no additional fields needed)
+
+        Returns:
+            A dictionary containing policy-specific configuration fields.
+            Default implementation returns an empty dict.
+        """
+        return {}
 
     # construct from serialization
     @classmethod
@@ -89,7 +137,7 @@ class ControlPolicy(abc.ABC):
         Raises:
             ValueError: If the 'type' key is missing in config or the type is not registered.
         """
-        # Mimport inside the method to break circular dependency
+        # Import inside the method to break circular dependency
         from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
 
         policy_type_name_val = config.get("type")

@@ -9,54 +9,64 @@ from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
+from luthien_control.core.transaction import Transaction
 
 logger = logging.getLogger(__name__)
 
 
 class BranchingPolicy(ControlPolicy):
+    """
+    A Control Policy that conditionally applies different policies based on transaction evaluation.
+
+    This policy evaluates conditions in order and applies the policy associated with the first
+    matching condition. If no conditions match, it applies the default policy (if configured).
+    """
+
     def __init__(
         self,
         cond_to_policy_map: OrderedDict[Condition, ControlPolicy],
         default_policy: Optional[ControlPolicy] = None,
         name: Optional[str] = None,
     ):
-        self.name = name
+        super().__init__(name=name, cond_to_policy_map=cond_to_policy_map, default_policy=default_policy)
         self.cond_to_policy_map = cond_to_policy_map
         self.default_policy = default_policy
 
     async def apply(
-        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
-    ) -> TrackedContext:
+        self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
+    ) -> Transaction:
         """
         Apply the first policy that matches the condition. If no condition matches, apply the default policy (if set).
 
         Args:
-            context: The transaction context to apply the policy to.
+            transaction: The transaction to apply the policy to.
             container: The dependency container.
             session: The database session.
 
         Returns:
-            The potentially modified transaction context.
+            The potentially modified transaction.
         """
         for cond, policy in self.cond_to_policy_map.items():
-            if cond.evaluate(context):
-                return await policy.apply(context, container, session)
+            if cond.evaluate(transaction):
+                return await policy.apply(transaction, container, session)
         if self.default_policy:
-            return await self.default_policy.apply(context, container, session)
-        return context
+            return await self.default_policy.apply(transaction, container, session)
+        return transaction
 
-    def serialize(self) -> SerializableDict:
-        result: SerializableDict = {
-            "type": "branching",
-            "cond_to_policy_map": {
-                json.dumps(cond.serialize()): policy.serialize() for cond, policy in self.cond_to_policy_map.items()
-            },
-            "default_policy": self.default_policy.serialize() if self.default_policy else None,
-        }
-        if self.name is not None:
-            result["name"] = self.name
-        return result
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """Return policy-specific configuration for serialization.
+
+        This policy needs to store the environment variable name in addition
+        to the standard type and name fields.
+        """
+        return SerializableDict(
+            {
+                "cond_to_policy_map": {
+                    json.dumps(cond.serialize()): policy.serialize() for cond, policy in self.cond_to_policy_map.items()
+                },
+                "default_policy": self.default_policy.serialize() if self.default_policy else None,
+            }
+        )
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "BranchingPolicy":
@@ -68,8 +78,6 @@ class BranchingPolicy(ControlPolicy):
                 f"Expected 'cond_to_policy_map' to be a dict in BranchingPolicy config, got {type(serialized_cond_map)}"
             )
 
-        # The keys of serialized_cond_map are expected to be JSON strings of condition configs
-        # The values are expected to be policy configs (SerializableDict)
         for cond_json_str, policy_config in serialized_cond_map.items():
             if not isinstance(cond_json_str, str):
                 raise TypeError(
@@ -92,10 +100,6 @@ class BranchingPolicy(ControlPolicy):
                     f"got {type(condition_serializable_dict)}"
                 )
 
-            # Assuming Condition.from_serialized and ControlPolicy.from_serialized
-            # expect SerializableDict (which is Dict[str, Union[SP, List[Any], Dict[str, Any], None]])
-            # The isinstance(..., dict) checks are sufficient for pyright to allow passage
-            # to functions expecting Dict[str, X] or Mapping[str, X].
             condition = Condition.from_serialized(condition_serializable_dict)
             policy = ControlPolicy.from_serialized(policy_config)
             cond_to_policy_map[condition] = policy

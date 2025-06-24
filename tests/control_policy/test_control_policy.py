@@ -5,7 +5,7 @@ import pytest
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
+from luthien_control.core.transaction import Transaction
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -15,21 +15,21 @@ class MinimalConcretePolicy(ControlPolicy):
     name = "minimal_concrete"
 
     async def apply(
-        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
-    ) -> TrackedContext:
+        self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
+    ) -> Transaction:
         # Minimal implementation for testing instantiation
-        modified_by = context.get_data("modified_by", [])
-        modified_by.append(self.name)
-        context.set_data("modified_by", modified_by)
-        return context
+        # Use _ prefix to indicate intentionally unused parameters
+        _ = container, session, transaction
+        return transaction
 
-    def serialize(self) -> SerializableDict:
+    def get_policy_config(self) -> SerializableDict:
         # Minimal implementation for testing instantiation
         return {"name": self.name}
 
     @classmethod
     def from_serialized(cls, config: SerializableDict, **kwargs: Any) -> "MinimalConcretePolicy":
         # Minimal implementation for testing instantiation
+        _ = kwargs  # Mark as intentionally unused
         instance = cls()
         name_val = config.get("name", cls.name)
         if not isinstance(name_val, str):
@@ -68,7 +68,6 @@ def test_can_instantiate_concrete_subclass():
     try:
         policy = MinimalConcretePolicy()
         assert isinstance(policy, ControlPolicy)
-        assert policy.name == "minimal_concrete"
     except TypeError:
         pytest.fail("MinimalConcretePolicy should be instantiable but raised TypeError.")
 

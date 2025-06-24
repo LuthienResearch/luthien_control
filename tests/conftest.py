@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Dict
 from unittest.mock import AsyncMock, MagicMock
 
-import fastapi
 import httpx
 import psycopg2
 import pytest
@@ -13,7 +12,6 @@ from alembic import command
 from alembic.config import Config
 from dotenv import load_dotenv
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.response_builder import ResponseBuilder
 from luthien_control.core.transaction_context import TransactionContext
 
 # Import centralized type alias
@@ -197,23 +195,6 @@ def client():
     # TestClient handles startup/shutdown implicitly when used as context manager
     with TestClient(app) as test_client:
         yield test_client
-
-
-@pytest.fixture
-def mock_builder() -> MagicMock:
-    """Fixture to provide a mock ResponseBuilder."""
-    # Mock the single ResponseBuilder class now
-    mock = MagicMock(spec=ResponseBuilder)
-    mock.build_response.return_value = fastapi.Response(status_code=299, content=b"mocked response")
-    return mock
-
-
-# --- End Moved Fixtures --- #
-
-
-# --- Mock Fixtures for Dependencies --- #
-
-# Keep individual mocks as they can be useful and are used by mock_dependencies
 
 
 @pytest.fixture

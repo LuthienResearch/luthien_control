@@ -29,3 +29,6 @@ Always run these commands before committing code:
 - Use async functions for I/O-bound tasks
 - Error handling: Specific exception types, HTTPException for API errors
 - Google-style docstrings for modules, classes, and functions
+
+## Testing Principles
+- Unit tests should be as simple as possible; mock only when needed to avoid external dependencies, or when mocking significantly reduces the complexity of the test, otherwise prefer using Real Stuff

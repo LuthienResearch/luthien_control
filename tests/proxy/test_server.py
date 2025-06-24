@@ -9,13 +9,14 @@ from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
 from fastapi.testclient import TestClient
 from httpx import Headers as HttpxHeaders
+from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependencies import (
     get_main_control_policy,
 )
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
+from luthien_control.core.transaction import Transaction
 from luthien_control.main import app  # Import your main FastAPI app
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -304,10 +305,10 @@ def mock_main_policy_for_e2e() -> ControlPolicy:
 # Define a minimal concrete policy locally for the test
 class PassThroughPolicy(ControlPolicy):
     async def apply(
-        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
-    ) -> TrackedContext:
-        context.set_data("passthrough_applied", True)
-        return context
+        self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
+    ) -> Transaction:
+        transaction.data["passthrough_applied"] = True
+        return transaction
 
     def serialize(self) -> SerializableDict:
         return {}
@@ -319,20 +320,16 @@ class PassThroughPolicy(ControlPolicy):
 
 # Define a second minimal policy that just sets the response
 class MockSendBackendRequestPolicy(ControlPolicy):
-    def __init__(self, mock_response: httpx.Response):
+    def __init__(self, mock_response: OpenAIChatCompletionsResponse):
         self.mock_response = mock_response
         self.name = self.__class__.__name__
 
     async def apply(
-        self, context: TrackedContext, container: DependencyContainer, session: AsyncSession
-    ) -> TrackedContext:
+        self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
+    ) -> Transaction:
         # Simulate setting the response after a backend call
-        context.update_response(
-            status_code=self.mock_response.status_code,
-            headers=dict(self.mock_response.headers),
-            content=self.mock_response.content,
-        )
-        return context
+        transaction.response.payload = self.mock_response
+        return transaction
 
     def serialize(self) -> SerializableDict:
         # Not needed for this test
@@ -361,13 +358,18 @@ async def test_api_proxy_no_auth_policy_no_key_success(
     backend_response_content = {"detail": "Success from mocked backend via policy"}
     mock_backend_httpx_response = httpx.Response(200, json=backend_response_content, headers={"X-Backend-Mock": "true"})
 
+    # Create a proper OpenAI response for the policy
+    mock_openai_response = OpenAIChatCompletionsResponse(
+        id="chatcmpl-test-123", object="chat.completion", created=1677652288, model="gpt-3.5-turbo"
+    )
+
     mock_container.http_client.request = AsyncMock(return_value=mock_backend_httpx_response)
 
     mocker.patch(
         "luthien_control.main.initialize_app_dependencies", new_callable=AsyncMock, return_value=mock_container
     )
 
-    main_test_policy = MockSendBackendRequestPolicy(mock_response=mock_backend_httpx_response)
+    main_test_policy = MockSendBackendRequestPolicy(mock_response=mock_openai_response)
 
     async def override_get_main_policy():
         return main_test_policy
@@ -382,15 +384,18 @@ async def test_api_proxy_no_auth_policy_no_key_success(
             "app.state.dependencies was not mock_container after TestClient instantiation"
         )
 
-        # For a POST, we might need a json body, even if empty or None, depending on policy.
-        # Let's assume for a generic policy test, an empty JSON body is acceptable if no specific body is needed.
-        response = client_instance.post(f"/api/{test_path}", json=None)
+        # For a POST, we need a valid OpenAI chat completions request body
+        request_body = {"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "test"}]}
+        response = client_instance.post(f"/api/{test_path}", json=request_body)
 
     test_app.dependency_overrides = {}  # Clear overrides
 
     assert response.status_code == 200
-    assert response.json() == backend_response_content
-    assert response.headers["x-backend-mock"] == "true"
+    # The response should be the OpenAI response converted to JSON
+    response_json = response.json()
+    assert response_json["id"] == "chatcmpl-test-123"
+    assert response_json["model"] == "gpt-3.5-turbo"
+    assert response_json["object"] == "chat.completion"
     # Check if the backend mock on the container's client was called if your policy uses it.
     # If main_test_policy uses container.http_client.request(...):
     # This depends on the implementation of main_test_policy. The current MockSendBackendRequestPolicy

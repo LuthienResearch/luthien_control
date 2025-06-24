@@ -14,8 +14,9 @@ from luthien_control.control_policy.conditions.comparators import (
     regex_match,
 )
 from luthien_control.control_policy.conditions.condition import Condition
+from luthien_control.control_policy.conditions.util import get_transaction_value
 from luthien_control.control_policy.serialization import SerializableDict
-from luthien_control.core.tracked_context import TrackedContext, get_tx_value
+from luthien_control.core.transaction import Transaction
 
 
 class ComparisonCondition(Condition, ABC):
@@ -28,18 +29,18 @@ class ComparisonCondition(Condition, ABC):
     def __init__(self, key: str, value: Any):
         """
         Args:
-            key: The key to the value to compare against in the transaction context (see get_tx_value)
+            key: The key to the value to compare against in the transaction (see get_transaction_value)
             value: The value to compare against the key.
 
         Example:
-            key = "request.data.user"
-            value = "John"
+            key = "request.payload.model"
+            value = "gpt-4o"
         """
         self.key = key
         self.value = value
 
-    def evaluate(self, context: TrackedContext) -> bool:
-        return type(self).comparator.evaluate(get_tx_value(context, self.key), self.value)
+    def evaluate(self, transaction: Transaction) -> bool:
+        return type(self).comparator.evaluate(get_transaction_value(transaction, self.key), self.value)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(key={self.key!r}, value={self.value!r})"
@@ -71,10 +72,10 @@ class EqualsCondition(ComparisonCondition):
     Condition to check if a value is equal to another value.
 
     Example:
-        key = "request.content.model"
+        key = "request.payload.model"
         value = "gpt-4o"
 
-        Matches when the value of `'content'` in `request.content` is "gpt-4o"
+        Matches when the value of `'model'` in `request.payload` is "gpt-4o"
     """
 
     type = "equals"
@@ -86,10 +87,10 @@ class NotEqualsCondition(ComparisonCondition):
     Condition to check if a value is *NOT* equal to another value.
 
     Example:
-        key = "request.content.model"
+        key = "request.payload.model"
         value = "gpt-4o"
 
-        Matches when the value of `'content'` in `request.content` is NOT "gpt-4o"
+        Matches when the value of `'model'` in `request.payload` is NOT "gpt-4o"
     """
 
     type = "not_equals"
@@ -101,10 +102,10 @@ class ContainsCondition(ComparisonCondition):
     Condition to check if a value contains another value.
 
     Example:
-        key = "response.completion_tokens_details"
-        value = "audio_tokens"
+        key = "response.payload.usage.completion_tokens"
+        value = 100
 
-        Matches when the `completion_tokens_details` in the response contains "audio_tokens"
+        Matches when the `completion_tokens` in the response payload is greater than 100
     """
 
     type = "contains"
@@ -176,10 +177,10 @@ class RegexMatchCondition(ComparisonCondition):
     Condition to check if a value matches a regular expression.
 
     Example:
-        key = "request.content.model"
-        value = "gpt-4"
+        key = "request.payload.model"
+        value = "gpt-4.*"
 
-        Matches when the model specified in the request contains "gpt-4"
+        Matches when the model specified in the request matches the pattern "gpt-4.*"
     """
 
     type = "regex_match"

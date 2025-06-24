@@ -1,13 +1,14 @@
+"""Tests for ClientApiKeyAuthPolicy."""
+
 import logging
-import uuid
-from unittest.mock import MagicMock, patch
+from typing import cast
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from luthien_control.control_policy.client_api_key_auth import (
-    API_KEY_HEADER,
-    BEARER_PREFIX,
-    ClientApiKeyAuthPolicy,
-)
+from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
+from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
+from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
+from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
     ClientAuthenticationNotFoundError,
@@ -15,202 +16,585 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
+from luthien_control.core.request import Request
+from luthien_control.core.response import Response
+from luthien_control.core.transaction import Transaction
 from luthien_control.db.exceptions import LuthienDBQueryError
 from luthien_control.db.sqlmodel_models import ClientApiKey
+from psygnal.containers import EventedDict, EventedList
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
+# --- Test Fixtures ---
 
 
 @pytest.fixture
-def base_transaction_context():
-    """Provides a basic TrackedContext instance with a unique ID."""
-    return TrackedContext(transaction_id=uuid.uuid4())
+def sample_transaction() -> Transaction:
+    """Provides a Transaction with clean API key for testing."""
+    request = Request(
+        payload=OpenAIChatCompletionsRequest(
+            model="gpt-4",
+            messages=EventedList(
+                [
+                    Message(role="system", content="You are a helpful assistant."),
+                    Message(role="user", content="What is the square root of 64?"),
+                ]
+            ),
+        ),
+        api_endpoint="https://api.openai.com/v1/chat/completions",
+        api_key="valid-api-key-123",
+    )
+
+    response = Response(
+        payload=OpenAIChatCompletionsResponse(
+            id="chatcmpl-123",
+            object="chat.completion",
+            created=1677652288,
+            model="gpt-4",
+            choices=EventedList(
+                [
+                    Choice(
+                        index=0,
+                        message=Message(role="assistant", content="The square root of 64 is 8."),
+                        finish_reason="stop",
+                    )
+                ]
+            ),
+            usage=Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
+        )
+    )
+
+    transaction_data = EventedDict(
+        {
+            "test_key": "test_value",
+        }
+    )
+
+    return Transaction(request=request, response=response, data=transaction_data)
 
 
 @pytest.fixture
-def transaction_context_with_request(base_transaction_context):
-    """Provides a TrackedContext with a mock HttpxRequest attached."""
-    base_transaction_context.update_request(method="GET", url="http://test.com", headers={}, content=b"")
-    return base_transaction_context
+def transaction_with_missing_api_key() -> Transaction:
+    """Provides a Transaction with missing API key for testing."""
+    request = Request(
+        payload=OpenAIChatCompletionsRequest(
+            model="gpt-4",
+            messages=EventedList([Message(role="user", content="Hello, world!")]),
+        ),
+        api_endpoint="https://api.openai.com/v1/chat/completions",
+        api_key="",  # Empty API key
+    )
+
+    response = Response(
+        payload=OpenAIChatCompletionsResponse(
+            id="chatcmpl-123",
+            object="chat.completion",
+            created=1677652288,
+            model="gpt-4",
+            choices=EventedList(
+                [Choice(index=0, message=Message(role="assistant", content="Hello there!"), finish_reason="stop")]
+            ),
+            usage=Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
+        )
+    )
+
+    return Transaction(request=request, response=response, data=EventedDict())
+
+
+@pytest.fixture
+def transaction_with_none_api_key() -> Transaction:
+    """Provides a Transaction with None API key for testing."""
+    # Create a mock transaction where api_key can be None
+    mock_transaction = MagicMock(spec=Transaction)
+    mock_request = MagicMock()
+    mock_request.api_key = None
+    mock_transaction.request = mock_request
+    return mock_transaction
+
+
+@pytest.fixture
+def mock_active_api_key() -> MagicMock:
+    """Provides a mock active ClientApiKey."""
+    api_key = MagicMock(spec=ClientApiKey)
+    api_key.id = 1
+    api_key.name = "TestApiKey"
+    api_key.value = "valid-api-key-123"
+    api_key.is_active = True
+    return api_key
+
+
+@pytest.fixture
+def mock_inactive_api_key() -> MagicMock:
+    """Provides a mock inactive ClientApiKey."""
+    api_key = MagicMock(spec=ClientApiKey)
+    api_key.id = 2
+    api_key.name = "InactiveApiKey"
+    api_key.value = "inactive-api-key-456"
+    api_key.is_active = False
+    return api_key
+
+
+@pytest.fixture
+def mock_container() -> MagicMock:
+    """Provides a mock dependency container."""
+    return MagicMock(spec=DependencyContainer)
+
+
+@pytest.fixture
+def mock_db_session() -> AsyncMock:
+    """Provides a mock database session."""
+    return AsyncMock(spec=AsyncSession)
+
+
+# --- Test Cases ---
+
+
+def test_client_api_key_auth_policy_initialization_default():
+    """Test ClientApiKeyAuthPolicy initialization with default name."""
+    _ = ClientApiKeyAuthPolicy()
+
+
+def test_client_api_key_auth_policy_initialization_custom():
+    """Test ClientApiKeyAuthPolicy initialization with custom name."""
+    custom_name = "CustomAuthPolicy"
+    policy = ClientApiKeyAuthPolicy(name=custom_name)
+
+    assert policy.name == custom_name
 
 
 @pytest.mark.asyncio
-async def test_apply_no_request_raises_error(
-    base_transaction_context,
-    mock_db_session: AsyncSession,
-    mock_container: DependencyContainer,
+async def test_client_api_key_auth_policy_no_request(
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
-    """Verify NoRequestError is raised if context has no request."""
+    """Test that NoRequestError is raised when transaction has no request."""
     policy = ClientApiKeyAuthPolicy()
 
-    with pytest.raises(NoRequestError):
-        await policy.apply(
-            base_transaction_context,
-            session=mock_db_session,
-            container=mock_container,
-        )
+    # Create a mock transaction with request=None
+    mock_transaction = MagicMock(spec=Transaction)
+    mock_transaction.request = None
+
+    with pytest.raises(NoRequestError, match="No request in transaction for API key auth"):
+        await policy.apply(mock_transaction, mock_container, mock_db_session)
 
 
 @pytest.mark.asyncio
-async def test_apply_missing_header_raises_error(
-    transaction_context_with_request,
-    mock_db_session: AsyncSession,
-    mock_container: DependencyContainer,
+async def test_client_api_key_auth_policy_missing_api_key(
+    transaction_with_missing_api_key: Transaction,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+    caplog,
 ):
-    """Verify ClientAuthenticationNotFoundError is raised if header is missing."""
+    """Test that ClientAuthenticationNotFoundError is raised when API key is missing."""
     policy = ClientApiKeyAuthPolicy()
 
-    # Headers are already empty from fixture
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(ClientAuthenticationNotFoundError, match="Not authenticated: Missing API key"):
+            await policy.apply(transaction_with_missing_api_key, mock_container, mock_db_session)
 
-    with pytest.raises(ClientAuthenticationNotFoundError):
-        await policy.apply(
-            transaction_context_with_request,
-            session=mock_db_session,
-            container=mock_container,
-        )
-    assert transaction_context_with_request.response is not None
-    assert transaction_context_with_request.response.status_code == 401
+    assert "Missing API key in transaction request" in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_apply_key_not_found_raises_error(
-    transaction_context_with_request,
-    mock_db_session: AsyncSession,
-    mock_container: DependencyContainer,
+async def test_client_api_key_auth_policy_none_api_key(
+    transaction_with_none_api_key: Transaction,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+    caplog,
 ):
-    """Verify ClientAuthenticationError is raised if key is not found in DB."""
-    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_key_func:
-        mock_get_key_func.side_effect = LuthienDBQueryError("Active API key with value 'non-existent-key' not found")
-        policy = ClientApiKeyAuthPolicy()
+    """Test that ClientAuthenticationNotFoundError is raised when API key is None."""
+    policy = ClientApiKeyAuthPolicy()
 
-        test_api_key = "non-existent-key"
-        transaction_context_with_request.update_request(headers={API_KEY_HEADER: f"{BEARER_PREFIX}{test_api_key}"})
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(ClientAuthenticationNotFoundError, match="Not authenticated: Missing API key"):
+            await policy.apply(transaction_with_none_api_key, mock_container, mock_db_session)
+
+    assert "Missing API key in transaction request" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_client_api_key_auth_policy_invalid_api_key(
+    sample_transaction: Transaction,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+    caplog,
+):
+    """Test that ClientAuthenticationError is raised when API key is invalid."""
+    from unittest.mock import patch
+
+    policy = ClientApiKeyAuthPolicy()
+
+    # Modify the transaction to use an invalid API key
+    sample_transaction.request.api_key = "invalid-api-key"
+
+    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+        mock_get_api_key.side_effect = LuthienDBQueryError("API key not found")
+
+        with caplog.at_level(logging.WARNING):
+            with pytest.raises(ClientAuthenticationError, match="Invalid API Key"):
+                await policy.apply(sample_transaction, mock_container, mock_db_session)
+
+        mock_get_api_key.assert_awaited_once_with(mock_db_session, "invalid-api-key")
+
+    assert "Invalid API key provided (key starts with: inva...)" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_client_api_key_auth_policy_inactive_api_key(
+    sample_transaction: Transaction,
+    mock_inactive_api_key: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+    caplog,
+):
+    """Test that ClientAuthenticationError is raised when API key is inactive."""
+    from unittest.mock import patch
+
+    policy = ClientApiKeyAuthPolicy()
+
+    # Modify the transaction to use the inactive API key
+    sample_transaction.request.api_key = "inactive-api-key-456"
+
+    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+        mock_get_api_key.return_value = mock_inactive_api_key
+
+        with caplog.at_level(logging.WARNING):
+            with pytest.raises(ClientAuthenticationError, match="Inactive API Key"):
+                await policy.apply(sample_transaction, mock_container, mock_db_session)
+
+        mock_get_api_key.assert_awaited_once_with(mock_db_session, "inactive-api-key-456")
+
+    assert "Inactive API key provided (Name: InactiveApiKey, ID: 2)" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_client_api_key_auth_policy_valid_active_api_key(
+    sample_transaction: Transaction,
+    mock_active_api_key: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+    caplog,
+):
+    """Test successful authentication with a valid, active API key."""
+    from unittest.mock import patch
+
+    policy = ClientApiKeyAuthPolicy()
+
+    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+        mock_get_api_key.return_value = mock_active_api_key
+
+        with caplog.at_level(logging.INFO):
+            result = await policy.apply(sample_transaction, mock_container, mock_db_session)
+
+        mock_get_api_key.assert_awaited_once_with(mock_db_session, "valid-api-key-123")
+
+    assert result is sample_transaction
+    assert "Client API key authenticated successfully (Name: TestApiKey, ID: 1)" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_client_api_key_auth_policy_db_query_error(
+    sample_transaction: Transaction,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+):
+    """Test that LuthienDBQueryError is properly handled."""
+    from unittest.mock import patch
+
+    policy = ClientApiKeyAuthPolicy()
+
+    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+        mock_get_api_key.side_effect = LuthienDBQueryError("Database connection failed")
 
         with pytest.raises(ClientAuthenticationError, match="Invalid API Key"):
-            await policy.apply(
-                transaction_context_with_request,
-                session=mock_db_session,
-                container=mock_container,
+            await policy.apply(sample_transaction, mock_container, mock_db_session)
+
+        mock_get_api_key.assert_awaited_once_with(mock_db_session, "valid-api-key-123")
+
+
+@pytest.mark.asyncio
+async def test_client_api_key_auth_policy_logging_with_custom_name(
+    sample_transaction: Transaction,
+    mock_active_api_key: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+    caplog,
+):
+    """Test that logging includes the custom policy name."""
+    from unittest.mock import patch
+
+    policy = ClientApiKeyAuthPolicy(name="CustomAuthPolicy")
+
+    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+        mock_get_api_key.return_value = mock_active_api_key
+
+        with caplog.at_level(logging.INFO):
+            await policy.apply(sample_transaction, mock_container, mock_db_session)
+
+    assert "(ClientApiKeyAuthPolicy)" in caplog.text  # The logger name is still the class name
+
+
+@pytest.mark.asyncio
+async def test_client_api_key_auth_policy_different_api_keys(
+    mock_active_api_key: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+):
+    """Test authentication with different API key formats."""
+    from unittest.mock import patch
+
+    policy = ClientApiKeyAuthPolicy()
+
+    # Test with various API key formats
+    test_api_keys = [
+        "sk-1234567890abcdef",
+        "api_key_with_underscores",
+        "api-key-with-dashes",
+        "UPPERCASE_API_KEY",
+        "mixed_Case-API_key123",
+    ]
+
+    for api_key in test_api_keys:
+        # Create a fresh transaction for each test
+        request = Request(
+            payload=OpenAIChatCompletionsRequest(
+                model="gpt-4",
+                messages=EventedList([Message(role="user", content="Test")]),
+            ),
+            api_endpoint="https://api.openai.com/v1/chat/completions",
+            api_key=api_key,
+        )
+
+        response = Response(
+            payload=OpenAIChatCompletionsResponse(
+                id="chatcmpl-123",
+                object="chat.completion",
+                created=1677652288,
+                model="gpt-4",
+                choices=EventedList(
+                    [Choice(index=0, message=Message(role="assistant", content="Response"), finish_reason="stop")]
+                ),
+                usage=Usage(prompt_tokens=5, completion_tokens=3, total_tokens=8),
             )
+        )
 
-        mock_get_key_func.assert_awaited_once_with(mock_db_session, test_api_key)
+        transaction = Transaction(request=request, response=response, data=EventedDict())
 
-    assert transaction_context_with_request.response is not None
-    assert transaction_context_with_request.response.status_code == 401
+        with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+            mock_get_api_key.return_value = mock_active_api_key
+
+            result = await policy.apply(transaction, mock_container, mock_db_session)
+
+            assert result is transaction
+            mock_get_api_key.assert_awaited_once_with(mock_db_session, api_key)
+
+
+def test_client_api_key_auth_policy_serialize_default():
+    """Test serialization with default name."""
+    policy = ClientApiKeyAuthPolicy()
+
+    serialized = policy.serialize()
+
+    expected = {"type": "ClientApiKeyAuth"}
+    assert serialized == expected
+
+
+def test_client_api_key_auth_policy_serialize_custom():
+    """Test serialization with custom name."""
+    custom_name = "CustomAuthPolicy"
+    policy = ClientApiKeyAuthPolicy(name=custom_name)
+
+    serialized = policy.serialize()
+
+    expected = {"name": custom_name, "type": "ClientApiKeyAuth"}
+    assert serialized == expected
+
+
+def test_client_api_key_auth_policy_from_serialized_with_name():
+    """Test deserialization with name in config."""
+    config = cast(SerializableDict, {"name": "DeserializedPolicy"})
+
+    policy = ClientApiKeyAuthPolicy.from_serialized(config)
+
+    assert policy.name == "DeserializedPolicy"
+
+
+def test_client_api_key_auth_policy_from_serialized_without_name():
+    """Test deserialization without name in config."""
+    config = {}
+
+    policy = ClientApiKeyAuthPolicy.from_serialized(config)
+
+    assert policy.name == "None"  # str(config.get("name")) when name is None
+
+
+def test_client_api_key_auth_policy_from_serialized_empty_name():
+    """Test deserialization with empty string name."""
+    config = cast(SerializableDict, {"name": ""})
+
+    policy = ClientApiKeyAuthPolicy.from_serialized(config)
+
+    assert policy.name == ""
+
+
+def test_client_api_key_auth_policy_from_serialized_non_string_name():
+    """Test deserialization with non-string name (should convert to string)."""
+    config = cast(SerializableDict, {"name": 12345})
+
+    policy = ClientApiKeyAuthPolicy.from_serialized(config)
+
+    assert policy.name == "12345"  # Should be converted to string
+
+
+def test_client_api_key_auth_policy_from_serialized_null_name():
+    """Test deserialization with null name."""
+    config = cast(SerializableDict, {"name": None})
+
+    policy = ClientApiKeyAuthPolicy.from_serialized(config)
+
+    assert policy.name == "None"  # str(None) = "None"
+
+
+def test_client_api_key_auth_policy_round_trip_serialization():
+    """Test serialization and deserialization round trip."""
+    original_name = "RoundTripTestPolicy"
+    original_policy = ClientApiKeyAuthPolicy(name=original_name)
+
+    # Serialize
+    serialized = original_policy.serialize()
+
+    # Deserialize
+    restored_policy = ClientApiKeyAuthPolicy.from_serialized(serialized)
+
+    # Verify
+    assert restored_policy.name == original_policy.name
+    assert restored_policy.serialize() == original_policy.serialize()
+
+
+@pytest.mark.parametrize(
+    "name,expected_name",
+    [
+        (None, None),  # Default name
+        ("CustomPolicy", "CustomPolicy"),  # Custom name
+        ("Policy123", "Policy123"),  # Alphanumeric name
+        ("", ""),  # Empty string should use default
+        (
+            "Very-Long-Policy-Name-With-Special-Characters!@#$%",
+            "Very-Long-Policy-Name-With-Special-Characters!@#$%",
+        ),  # Special characters
+    ],
+)
+def test_client_api_key_auth_policy_parametrized_initialization(name: str, expected_name: str):
+    """Test initialization with various name parameters."""
+    if name is None:
+        policy = ClientApiKeyAuthPolicy()
+    else:
+        policy = ClientApiKeyAuthPolicy(name=name)
+
+    assert policy.name == expected_name
 
 
 @pytest.mark.asyncio
-async def test_apply_inactive_key_raises_error(
-    transaction_context_with_request,
-    mock_db_session: AsyncSession,
-    mock_container: DependencyContainer,
+async def test_client_api_key_auth_policy_preserves_transaction_data(
+    sample_transaction: Transaction,
+    mock_active_api_key: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
-    """Verify ClientAuthenticationError is raised if key is inactive."""
-    mock_db_key = MagicMock(spec=ClientApiKey)
-    mock_db_key.is_active = False
-    mock_db_key.name = "InactiveKey"
-    mock_db_key.id = 2
+    """Test that the policy preserves existing transaction data."""
+    from unittest.mock import patch
 
-    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_key_func:
-        mock_get_key_func.return_value = mock_db_key  # Return inactive key
-        policy = ClientApiKeyAuthPolicy()
+    policy = ClientApiKeyAuthPolicy()
 
-        test_api_key = "inactive-key-456"
-        transaction_context_with_request.update_request(headers={API_KEY_HEADER: f"{BEARER_PREFIX}{test_api_key}"})
+    # Ensure transaction has some data
+    assert sample_transaction.data is not None
+    original_data = sample_transaction.data.copy()
 
-        with pytest.raises(ClientAuthenticationError, match="Inactive API Key"):
-            await policy.apply(
-                transaction_context_with_request,
-                session=mock_db_session,
-                container=mock_container,
-            )
+    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+        mock_get_api_key.return_value = mock_active_api_key
 
-        mock_get_key_func.assert_awaited_once_with(mock_db_session, test_api_key)
+        result = await policy.apply(sample_transaction, mock_container, mock_db_session)
 
-    assert transaction_context_with_request.response is not None
-    assert transaction_context_with_request.response.status_code == 401
+    assert result is sample_transaction
+    assert result.data == original_data  # Data should be unchanged
 
 
 @pytest.mark.asyncio
-async def test_apply_no_bearer_prefix_success(
-    transaction_context_with_request,
-    mock_db_session: AsyncSession,
-    mock_container: DependencyContainer,
+async def test_client_api_key_auth_policy_preserves_request_and_response(
+    sample_transaction: Transaction,
+    mock_active_api_key: MagicMock,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
 ):
-    """Verify that apply works correctly if 'Bearer ' prefix is missing."""
-    mock_db_key = MagicMock(spec=ClientApiKey)
-    mock_db_key.is_active = True
-    mock_db_key.name = "TestKeyNoBearer"
-    mock_db_key.id = 3
+    """Test that the policy preserves the request and response objects."""
+    from unittest.mock import patch
 
-    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_key_func:
-        mock_get_key_func.return_value = mock_db_key  # Return active key
-        policy = ClientApiKeyAuthPolicy()
+    policy = ClientApiKeyAuthPolicy()
 
-        test_api_key = "key-without-bearer-prefix"
-        transaction_context_with_request.update_request(headers={API_KEY_HEADER: test_api_key})
+    # Store references to original objects
+    original_request = sample_transaction.request
+    original_response = sample_transaction.response
 
-        result_context = await policy.apply(
-            transaction_context_with_request,
-            session=mock_db_session,
-            container=mock_container,
-        )
+    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+        mock_get_api_key.return_value = mock_active_api_key
 
-        mock_get_key_func.assert_awaited_once_with(mock_db_session, test_api_key)
+        result = await policy.apply(sample_transaction, mock_container, mock_db_session)
 
-    assert result_context == transaction_context_with_request
-    assert transaction_context_with_request.response is None
+    assert result is sample_transaction
+    assert result.request is original_request
+    assert result.response is original_response
 
 
 @pytest.mark.asyncio
-async def test_apply_valid_active_key_success(
-    transaction_context_with_request,
-    mock_db_session: AsyncSession,
-    mock_container: DependencyContainer,
+async def test_client_api_key_auth_policy_api_key_logging_truncation(
+    sample_transaction: Transaction,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+    caplog,
 ):
-    """Verify apply succeeds with a valid, active API key and Bearer prefix."""
-    mock_db_key = MagicMock(spec=ClientApiKey)
-    mock_db_key.is_active = True
-    mock_db_key.name = "TestKeyActive"
-    mock_db_key.id = 1
+    """Test that API key logging is properly truncated for security."""
+    from unittest.mock import patch
 
-    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_key_func:
-        mock_get_key_func.return_value = mock_db_key  # Return active key
-        policy = ClientApiKeyAuthPolicy()
+    policy = ClientApiKeyAuthPolicy()
 
-        test_api_key_value = "valid-active-key-123"
-        transaction_context_with_request.update_request(
-            headers={API_KEY_HEADER: f"{BEARER_PREFIX}{test_api_key_value}"}
-        )
+    # Use a longer API key to test truncation
+    long_api_key = "very-long-api-key-that-should-be-truncated-for-security-purposes"
+    sample_transaction.request.api_key = long_api_key
 
-        result_context = await policy.apply(
-            transaction_context_with_request,
-            session=mock_db_session,
-            container=mock_container,
-        )
+    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+        mock_get_api_key.side_effect = LuthienDBQueryError("API key not found")
 
-        mock_get_key_func.assert_awaited_once_with(mock_db_session, test_api_key_value)
+        with caplog.at_level(logging.WARNING):
+            with pytest.raises(ClientAuthenticationError):
+                await policy.apply(sample_transaction, mock_container, mock_db_session)
 
-    assert result_context == transaction_context_with_request
-    assert transaction_context_with_request.response is None
+    # Check that only the first 4 characters are logged
+    assert "Invalid API key provided (key starts with: very...)" in caplog.text
+    # Ensure the full key is not logged
+    assert long_api_key not in caplog.text
 
 
-def test_client_api_key_auth_policy_serialization():
-    """Test that ClientApiKeyAuthPolicy can be serialized and deserialized correctly."""
-    # Arrange
-    # ClientApiKeyAuthPolicy no longer requires api_key_lookup on init
-    # And name is no longer an init argument
-    original_policy = ClientApiKeyAuthPolicy()
+@pytest.mark.asyncio
+async def test_client_api_key_auth_policy_short_api_key_logging(
+    sample_transaction: Transaction,
+    mock_container: MagicMock,
+    mock_db_session: AsyncMock,
+    caplog,
+):
+    """Test logging behavior with short API keys."""
+    from unittest.mock import patch
 
-    # Act
-    serialized_data = original_policy.serialize()
-    # No dependencies are needed for deserialization anymore
-    rehydrated_policy = ClientApiKeyAuthPolicy.from_serialized(serialized_data)
+    policy = ClientApiKeyAuthPolicy()
 
-    # Assert
-    assert isinstance(serialized_data, dict)
-    # Default name serialization is now empty dict
-    assert serialized_data == SerializableDict(name="ClientApiKeyAuthPolicy")
-    assert isinstance(rehydrated_policy, ClientApiKeyAuthPolicy)
+    # Use a short API key
+    short_api_key = "abc"
+    sample_transaction.request.api_key = short_api_key
+
+    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+        mock_get_api_key.side_effect = LuthienDBQueryError("API key not found")
+
+        with caplog.at_level(logging.WARNING):
+            with pytest.raises(ClientAuthenticationError):
+                await policy.apply(sample_transaction, mock_container, mock_db_session)
+
+    # Check that the truncation works with short keys too
+    assert "Invalid API key provided (key starts with: abc...)" in caplog.text

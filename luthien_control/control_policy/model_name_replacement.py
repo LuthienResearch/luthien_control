@@ -1,15 +1,12 @@
-import json
-import logging
 from typing import Dict, Optional, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import NoRequestError
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
-
-from .serialization import SerializableDict
+from luthien_control.core.transaction import Transaction
 
 
 class ModelNameReplacementPolicy(ControlPolicy):
@@ -28,66 +25,49 @@ class ModelNameReplacementPolicy(ControlPolicy):
             model_mapping: Dictionary mapping fake model names to real model names.
             name: Optional name for this policy instance.
         """
+        super().__init__(name=name, model_mapping=model_mapping)
         self.model_mapping = model_mapping
-        self.name = name or self.__class__.__name__
-        self.logger = logging.getLogger(__name__)
 
     async def apply(
         self,
-        context: TrackedContext,
+        transaction: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TrackedContext:
+    ) -> Transaction:
         """
-        Replaces the model name in the request content based on the configured mapping.
+        Replaces the model name in the request payload based on the configured mapping.
 
         Args:
-            context: The current tracked transaction context.
+            transaction: The current transaction.
             container: The application dependency container.
             session: An active SQLAlchemy AsyncSession (unused).
 
         Returns:
-            The potentially modified tracked transaction context.
+            The potentially modified transaction.
 
         Raises:
-            NoRequestError: If no request is found in the context.
+            NoRequestError: If no request is found in the transaction.
         """
-        if context.request is None:
-            raise NoRequestError(f"[{context.transaction_id}] No request in context.")
+        if transaction.request is None:
+            raise NoRequestError("No request in transaction.")
 
-        if not context.request.content:
-            self.logger.debug(f"[{context.transaction_id}] No content to modify for model name replacement.")
-            return context
+        if hasattr(transaction.request.payload, "model"):
+            original_model = transaction.request.payload.model
 
-        try:
-            request_json = json.loads(context.request.content)
+            if original_model in self.model_mapping:
+                new_model = self.model_mapping[original_model]
+                self.logger.info(f"Replacing model name: {original_model} -> {new_model}")
+                transaction.request.payload.model = new_model
 
-            if "model" in request_json:
-                original_model = request_json["model"]
+        return transaction
 
-                if original_model in self.model_mapping:
-                    new_model = self.model_mapping[original_model]
-                    self.logger.info(
-                        f"[{context.transaction_id}] Replacing model name: {original_model} -> {new_model}"
-                    )
-                    request_json["model"] = new_model
-                    context.update_request(content=json.dumps(request_json).encode())
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """Return policy-specific configuration for serialization.
 
-        except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            self.logger.warning(f"[{context.transaction_id}] Error processing request content: {e}")
-
-        return context
-
-    def serialize(self) -> SerializableDict:
-        """Serializes the policy configuration."""
-        return cast(
-            SerializableDict,
-            {
-                "type": "ModelNameReplacement",
-                "name": self.name,
-                "model_mapping": self.model_mapping,
-            },
-        )
+        This policy needs to store the model mapping dictionary in addition
+        to the standard type and name fields.
+        """
+        return {"model_mapping": self.model_mapping}
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "ModelNameReplacementPolicy":

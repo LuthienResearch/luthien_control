@@ -6,9 +6,8 @@ The API key is read from an environment variable whose name is configured
 when the policy is instantiated.
 """
 
-import logging
 import os
-from typing import Optional, cast
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,16 +16,17 @@ from luthien_control.control_policy.exceptions import (
     ApiKeyNotFoundError,
     NoRequestError,
 )
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
-
-from .serialization import SerializableDict
+from luthien_control.core.transaction import Transaction
 
 
 class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
-    """Adds an API key to the request Authorization header.
+    """Adds an API key to the request Authorization header from an environment variable.
+
     The API key is read from an environment variable whose name is configured
-    when the policy is instantiated.
+    when the policy is instantiated. This allows different API keys to be used
+    based on deployment environment.
     """
 
     def __init__(self, api_key_env_var_name: str, name: Optional[str] = None):
@@ -38,38 +38,36 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         """
         if not api_key_env_var_name:
             raise ValueError("api_key_env_var_name cannot be empty.")
-
-        self.name = name or self.__class__.__name__
+        super().__init__(name=name, api_key_env_var_name=api_key_env_var_name)
         self.api_key_env_var_name = api_key_env_var_name
-        self.logger = logging.getLogger(__name__)
 
     async def apply(
         self,
-        context: TrackedContext,
+        transaction: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TrackedContext:
+    ) -> Transaction:
         """
-        Adds the Authorization: Bearer <api_key> header to the context.request.
+        Sets the API key on the transaction's request.
 
         The API key is read from the environment variable specified by self.api_key_env_var_name.
         Requires DependencyContainer and AsyncSession for interface compliance, but they are not
         directly used in this policy's primary logic beyond what ControlPolicy might require.
 
         Raises:
-            NoRequestError if the request is not found in the context.
+            NoRequestError if the request is not found in the transaction.
             ApiKeyNotFoundError if the configured environment variable is not set or is empty.
 
         Args:
-            context: The current transaction context.
+            transaction: The current transaction.
             container: The application dependency container (unused).
             session: An active SQLAlchemy AsyncSession (unused).
 
         Returns:
-            The potentially modified transaction context.
+            The potentially modified transaction.
         """
-        if context.request is None:
-            raise NoRequestError(f"[{context.transaction_id}] No request in context.")
+        if transaction.request is None:
+            raise NoRequestError("No request in transaction.")
 
         api_key = os.environ.get(self.api_key_env_var_name)
 
@@ -77,31 +75,21 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
             error_message = (
                 f"API key not found. Environment variable '{self.api_key_env_var_name}' is not set or is empty."
             )
-            self.logger.error(f"[{context.transaction_id}] {error_message} ({self.name})")
-            context.update_response(
-                status_code=500,
-                headers={"Content-Type": "application/json"},
-                content=f'{{"detail": "Server configuration error: {error_message}"}}'.encode(),
-            )
-            raise ApiKeyNotFoundError(f"[{context.transaction_id}] {error_message} ({self.name})")
+            self.logger.error(f"{error_message} ({self.name})")
+            raise ApiKeyNotFoundError(f"{error_message} ({self.name})")
 
-        self.logger.info(
-            f"[{context.transaction_id}] Adding Authorization header from env var "
-            f"'{self.api_key_env_var_name}' ({self.name})."
-        )
-        context.update_request(headers={"Authorization": f"Bearer {api_key}"})
+        self.logger.info(f"Setting API key from env var '{self.api_key_env_var_name}' ({self.name}).")
+        transaction.request.api_key = api_key
 
-        return context
+        return transaction
 
-    def serialize(self) -> SerializableDict:
-        """Serializes the policy's configuration."""
-        return cast(
-            SerializableDict,
-            {
-                "name": self.name,
-                "api_key_env_var_name": self.api_key_env_var_name,
-            },
-        )
+    def _get_policy_specific_config(self) -> SerializableDict:
+        """Return policy-specific configuration for serialization.
+
+        This policy needs to store the environment variable name in addition
+        to the standard type and name fields.
+        """
+        return {"api_key_env_var_name": self.api_key_env_var_name}
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderFromEnvPolicy":

@@ -1,7 +1,15 @@
 from typing import Any
 
-import httpx
 import pytest
+from luthien_control.api.openai_chat_completions.datatypes import (
+    Choice,
+    FunctionDefinition,
+    Message,
+    ToolDefinition,
+    Usage,
+)
+from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
+from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.conditions.comparators import (
     COMPARATOR_TO_NAME,
 )
@@ -15,108 +23,122 @@ from luthien_control.control_policy.conditions.comparisons import (
     NotEqualsCondition,
     RegexMatchCondition,
 )
-from luthien_control.core.tracked_context import TrackedContext
+from luthien_control.core.request import Request
+from luthien_control.core.response import Response
+from luthien_control.core.transaction import Transaction
+from psygnal.containers import EventedDict, EventedList
 
 
 @pytest.fixture
-def sample_request() -> httpx.Request:
-    """Provides a sample httpx.Request object."""
-    return httpx.Request(
-        method="POST",
-        url="http://example.com/api/v1/chat/completions",
-        headers={"Authorization": "Bearer testkey", "Content-Type": "application/json"},
-        json={"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}], "tools": ["tool_a", "tool_b"]},
+def sample_transaction() -> Transaction:
+    """Provides a Transaction populated with sample request, response, and data."""
+
+    # Create request with OpenAI chat completions data
+    request = Request(
+        payload=OpenAIChatCompletionsRequest(
+            model="gpt-4o",
+            messages=EventedList([Message(role="user", content="Hello")]),
+            tools=EventedList(
+                [
+                    ToolDefinition(function=FunctionDefinition(name="tool_a")),
+                    ToolDefinition(function=FunctionDefinition(name="tool_b")),
+                ]
+            ),
+        ),
+        api_endpoint="https://api.openai.com/v1/chat/completions",
+        api_key="Bearer testkey",
     )
 
-
-@pytest.fixture
-def sample_response() -> httpx.Response:
-    """Provides a sample httpx.Response object."""
-    return httpx.Response(
-        status_code=200,
-        headers={"Content-Type": "application/json"},
-        json={
-            "id": "chatcmpl-xxxxxxxx",
-            "object": "chat.completion",
-            "created": 1678886400,
-            "model": "gpt-4o",
-            "choices": [{"index": 0, "message": {"role": "assistant", "content": "World"}, "finish_reason": "stop"}],
-            "usage": {"prompt_tokens": 10, "completion_tokens": 50, "total_tokens": 60},
-        },
+    # Create response with OpenAI chat completions data
+    response = Response(
+        payload=OpenAIChatCompletionsResponse(
+            id="chatcmpl-xxxxxxxx",
+            object="chat.completion",
+            created=1678886400,
+            model="gpt-4o",
+            choices=EventedList(
+                [
+                    Choice(
+                        index=0,
+                        message=Message(role="assistant", content="World"),
+                        finish_reason="stop",
+                    )
+                ]
+            ),
+            usage=Usage(prompt_tokens=10, completion_tokens=50, total_tokens=60),
+        )
     )
 
+    # Create transaction with test data
+    transaction_data = EventedDict(
+        {
+            "arbitrarykey": "arbitraryvalue",
+            "count": 10,
+            "user_permissions": ["read", "write"],
+        }
+    )
 
-@pytest.fixture
-def transaction_context(sample_request: httpx.Request, sample_response: httpx.Response) -> TrackedContext:
-    """Provides a TrackedContext populated with sample request, response, and data."""
-    context = TrackedContext()
-    context.update_request(
-        method=sample_request.method,
-        url=str(sample_request.url),
-        headers=dict(sample_request.headers),
-        content=sample_request.content,
+    transaction = Transaction(
+        request=request,
+        response=response,
+        data=transaction_data,
     )
-    context.update_response(
-        status_code=sample_response.status_code, headers=dict(sample_response.headers), content=sample_response.content
-    )
-    context.set_data("arbitrarykey", "arbitraryvalue")
-    context.set_data("count", 10)
-    context.set_data("user_permissions", ["read", "write"])
-    return context
+
+    return transaction
 
 
 @pytest.mark.parametrize(
     "condition_class, key, value, expected_result",
     [
         # EqualsCondition
-        (EqualsCondition, "request.content.model", "gpt-4o", True),
-        (EqualsCondition, "request.content.model", "gpt-3.5-turbo", False),
+        (EqualsCondition, "request.payload.model", "gpt-4o", True),
+        (EqualsCondition, "request.payload.model", "gpt-3.5-turbo", False),
         (EqualsCondition, "data.count", 10, True),
         (EqualsCondition, "data.count", 11, False),
         # NotEqualsCondition
-        (NotEqualsCondition, "request.content.model", "gpt-3.5-turbo", True),
-        (NotEqualsCondition, "request.content.model", "gpt-4o", False),
-        # ContainsCondition
-        (ContainsCondition, "request.content.tools", "tool_a", True),
-        (ContainsCondition, "request.content.tools", "tool_c", False),
+        (NotEqualsCondition, "request.payload.model", "gpt-3.5-turbo", True),
+        (NotEqualsCondition, "request.payload.model", "gpt-4o", False),
+        # ContainsCondition - testing on lists
+        (ContainsCondition, "data.user_permissions", "read", True),
+        (ContainsCondition, "data.user_permissions", "admin", False),
         (ContainsCondition, "data.arbitrarykey", "value", True),
         # LessThanCondition
-        (LessThanCondition, "response.content.created", 1678886401, True),
-        (LessThanCondition, "response.content.usage.completion_tokens", 50, False),
+        (LessThanCondition, "response.payload.created", 1678886401, True),
+        (LessThanCondition, "response.payload.usage.completion_tokens", 50, False),
         # LessThanOrEqualCondition
-        (LessThanOrEqualCondition, "response.content.created", 1678886400, True),
-        (LessThanOrEqualCondition, "response.content.usage.completion_tokens", 49, False),
+        (LessThanOrEqualCondition, "response.payload.created", 1678886400, True),
+        (LessThanOrEqualCondition, "response.payload.usage.completion_tokens", 49, False),
         # GreaterThanCondition
-        (GreaterThanCondition, "response.content.created", 1678886399, True),
-        (GreaterThanCondition, "response.content.usage.completion_tokens", 50, False),
+        (GreaterThanCondition, "response.payload.created", 1678886399, True),
+        (GreaterThanCondition, "response.payload.usage.completion_tokens", 50, False),
         # GreaterThanOrEqualCondition
-        (GreaterThanOrEqualCondition, "response.content.created", 1678886400, True),
-        (GreaterThanOrEqualCondition, "response.content.usage.completion_tokens", 51, False),
+        (GreaterThanOrEqualCondition, "response.payload.created", 1678886400, True),
+        (GreaterThanOrEqualCondition, "response.payload.usage.completion_tokens", 51, False),
         # RegexMatchCondition
-        (RegexMatchCondition, "request.content.model", "^gpt-4o$", True),
-        (RegexMatchCondition, "request.content.model", "^gpt-3.*", False),
+        (RegexMatchCondition, "request.payload.model", "^gpt-4o$", True),
+        (RegexMatchCondition, "request.payload.model", "^gpt-3.*", False),
         (RegexMatchCondition, "data.arbitrarykey", ".*value$", True),
     ],
 )
 def test_condition_evaluation(
-    condition_class, key: str, value: Any, expected_result: bool, transaction_context: TrackedContext
+    condition_class, key: str, value: Any, expected_result: bool, sample_transaction: Transaction
 ) -> None:
     """Tests the evaluation logic for various comparison conditions."""
     condition = condition_class(key=key, value=value)
-    assert condition.evaluate(transaction_context) is expected_result
+    assert condition.evaluate(sample_transaction) is expected_result
 
 
 @pytest.mark.parametrize(
     "condition_class, key, value",
     [
-        (EqualsCondition, "request.content.model", "gpt-4o"),
+        (EqualsCondition, "request.payload.model", "gpt-4o"),
         (NotEqualsCondition, "data.count", 10),
-        (ContainsCondition, "request.content.tools", "tool_a"),
-        (LessThanCondition, "response.content.created", 1678886401),
-        (LessThanOrEqualCondition, "response.content.usage.completion_tokens", 50),
+        (ContainsCondition, "data.user_permissions", "read"),
+        (LessThanCondition, "response.payload.created", 1678886401),
+        (LessThanOrEqualCondition, "response.payload.usage.completion_tokens", 50),
         (GreaterThanCondition, "data.arbitrarykey", "some_value"),
-        (GreaterThanOrEqualCondition, "response.content.created", 1678886400),
-        (RegexMatchCondition, "request.content.model", "^gpt-4.*$"),
+        (GreaterThanOrEqualCondition, "response.payload.created", 1678886400),
+        (RegexMatchCondition, "request.payload.model", "^gpt-4.*$"),
     ],
 )
 def test_condition_serialization_deserialization(

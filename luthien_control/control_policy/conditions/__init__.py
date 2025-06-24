@@ -1,6 +1,5 @@
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.conditions.registry import (
-    NAME_TO_CONDITION_CLASS,
     AllCondition,
     AnyCondition,
     ContainsCondition,
@@ -27,7 +26,6 @@ __all__ = [
     "GreaterThanCondition",
     "GreaterThanOrEqualCondition",
     "RegexMatchCondition",
-    "NAME_TO_CONDITION_CLASS",
 ]
 
 ALL_CONDITION_CLASSES = [

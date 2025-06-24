@@ -12,8 +12,10 @@ from luthien_control.control_policy.conditions.util import (
     get_condition_class_from_serialized,
     get_condition_from_serialized,
     get_conditions_from_serialized,
+    get_transaction_value,
 )
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.transaction import Transaction
 
 
 def test_get_condition_class_valid() -> None:
@@ -151,3 +153,85 @@ def test_all_conditions_registered() -> None:
     for type_str, cond_cls in NAME_TO_CONDITION_CLASS.items():
         if cond_cls in expected_condition_classes:  # Only check relevant ones for this test scope
             assert get_condition_class(type_str) is cond_cls
+
+
+def test_get_conditions_from_serialized_reraises_key_error() -> None:
+    """Tests that get_conditions_from_serialized re-raises KeyError from line 27."""
+    serialized_input: SerializableDict = {"other_key": []}
+    with pytest.raises(KeyError):
+        get_conditions_from_serialized(serialized_input)
+
+
+def _create_minimal_transaction() -> Transaction:
+    """Create a minimal transaction for testing."""
+    from luthien_control.api.openai_chat_completions.datatypes import Message
+    from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
+    from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
+    from luthien_control.core.request import Request
+    from luthien_control.core.response import Response
+    from psygnal.containers import EventedList
+
+    request = Request(
+        payload=OpenAIChatCompletionsRequest(
+            model="gpt-4",
+            messages=EventedList([Message(role="user", content="test")]),
+        ),
+        api_endpoint="https://api.openai.com/v1/chat/completions",
+        api_key="test",
+    )
+
+    response = Response(
+        payload=OpenAIChatCompletionsResponse(
+            id="test",
+            object="chat.completion",
+            created=1,
+            model="gpt-4",
+        )
+    )
+
+    return Transaction(request=request, response=response)
+
+
+def test_get_transaction_value_short_path() -> None:
+    """Tests get_transaction_value with a path that's too short."""
+    transaction = _create_minimal_transaction()
+
+    with pytest.raises(ValueError, match="Path must contain at least two components"):
+        get_transaction_value(transaction, "single")
+
+
+def test_get_transaction_value_attribute_error() -> None:
+    """Tests get_transaction_value when attribute access fails."""
+    transaction = _create_minimal_transaction()
+
+    # This should raise AttributeError because 'nonexistent' doesn't exist on transaction
+    with pytest.raises(AttributeError):
+        get_transaction_value(transaction, "nonexistent.key")
+
+
+def test_get_transaction_value_key_error_then_attribute_error() -> None:
+    """Tests get_transaction_value when dict access fails then attribute access fails."""
+    from psygnal.containers import EventedDict
+
+    transaction = _create_minimal_transaction()
+
+    # Set up data so it has dict-like access but will fail on key lookup
+    transaction.data = EventedDict({"existing_key": "value"})
+
+    # This should try dict access first, fail, then try attribute access, fail
+    with pytest.raises(AttributeError, match="Cannot access 'nonexistent' on"):
+        get_transaction_value(transaction, "data.nonexistent")
+
+
+def test_get_transaction_value_index_access_failure() -> None:
+    """Tests get_transaction_value when index access fails."""
+    from psygnal.containers import EventedDict
+
+    transaction = _create_minimal_transaction()
+
+    # Set up a list that we'll try to access with an invalid index
+    transaction.data = EventedDict({"items": ["item1", "item2"]})
+
+    # This should fail when trying to access index 5 on a 2-item list
+    with pytest.raises(AttributeError, match="Cannot access '5' on"):
+        get_transaction_value(transaction, "data.items.5")

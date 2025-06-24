@@ -1,6 +1,3 @@
-# Control Policy for verifying the client API key.
-
-import json
 import logging
 from typing import Optional
 
@@ -14,115 +11,78 @@ from luthien_control.control_policy.exceptions import (
 )
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.tracked_context import TrackedContext
+from luthien_control.core.transaction import Transaction
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
 from luthien_control.db.exceptions import LuthienDBQueryError
 
 logger = logging.getLogger(__name__)
 
-API_KEY_HEADER = "Authorization"
-BEARER_PREFIX = "Bearer "
-
 
 class ClientApiKeyAuthPolicy(ControlPolicy):
-    """Verifies the client API key provided in the Authorization header.
+    """Verifies the client API key from the transaction's request.
+
+    This policy authenticates clients by checking their API key against
+    the database. It ensures the key exists and is active.
 
     Attributes:
         name (str): The name of this policy instance.
-        logger (logging.Logger): The logger instance for this policy.
     """
 
     def __init__(self, name: Optional[str] = None):
         """Initializes the policy."""
-        self.name = name or self.__class__.__name__
-        self.logger = logging.getLogger(__name__)
+        super().__init__(name=name)
 
     async def apply(
         self,
-        context: TrackedContext,
+        transaction: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TrackedContext:
+    ) -> Transaction:
         """
-        Verifies the API key from the Authorization header in the context's request.
+        Verifies the API key from the transaction's request.
         Requires the DependencyContainer and an active SQLAlchemy AsyncSession.
 
         Raises:
-            NoRequestError: If context.fastapi_request is None.
+            NoRequestError: If transaction.request is None.
             ClientAuthenticationError: If the key is missing, invalid, or inactive.
 
         Args:
-            context: The current transaction context.
+            transaction: The current transaction.
             container: The application dependency container.
             session: An active SQLAlchemy AsyncSession.
 
         Returns:
-            The unmodified transaction context if authentication is successful.
+            The unmodified transaction if authentication is successful.
         """
-        if context.request is None:
-            raise NoRequestError(f"[{context.transaction_id}] No request in context for API key auth.")
+        if transaction.request is None:
+            raise NoRequestError("No request in transaction for API key auth.")
 
-        api_key_header_value: Optional[str] = context.request.headers.get(API_KEY_HEADER)
+        api_key_value = transaction.request.api_key
 
-        if not api_key_header_value:
-            self.logger.warning(f"[{context.transaction_id}] Missing API key in {API_KEY_HEADER} header.")
-            context.update_response(
-                status_code=401,
-                headers={"Content-Type": "application/json"},
-                content=json.dumps({"detail": "Not authenticated: Missing API key."}).encode("utf-8"),
-            )
+        if not api_key_value:
+            self.logger.warning("Missing API key in transaction request.")
             raise ClientAuthenticationNotFoundError(detail="Not authenticated: Missing API key.")
-
-        # Strip "Bearer " prefix if present
-        api_key_value = api_key_header_value
-        if api_key_value.startswith(BEARER_PREFIX):
-            api_key_value = api_key_value[len(BEARER_PREFIX) :]
 
         try:
             db_key = await get_api_key_by_value(session, api_key_value)
         except LuthienDBQueryError:
             self.logger.warning(
-                f"[{context.transaction_id}] Invalid API key provided "
-                f"(key starts with: {api_key_value[:4]}...) ({self.__class__.__name__})."
-            )
-            context.update_response(
-                status_code=401,
-                headers={"Content-Type": "application/json"},
-                content=json.dumps({"detail": "Invalid API Key"}).encode("utf-8"),
+                f"Invalid API key provided (key starts with: {api_key_value[:4]}...) ({self.__class__.__name__})."
             )
             raise ClientAuthenticationError(detail="Invalid API Key")
 
         if not db_key.is_active:
             self.logger.warning(
-                f"[{context.transaction_id}] Inactive API key provided "
-                f"(Name: {db_key.name}, ID: {db_key.id}). ({self.__class__.__name__})."
-            )
-            context.update_response(
-                status_code=401,
-                headers={"Content-Type": "application/json"},
-                content=json.dumps({"detail": "Inactive API Key"}).encode("utf-8"),
+                f"Inactive API key provided (Name: {db_key.name}, ID: {db_key.id}). ({self.__class__.__name__})."
             )
             raise ClientAuthenticationError(detail="Inactive API Key")
 
         self.logger.info(
-            f"[{context.transaction_id}] Client API key authenticated successfully "
+            f"Client API key authenticated successfully "
             f"(Name: {db_key.name}, ID: {db_key.id}). ({self.__class__.__name__})."
         )
 
-        return context
-
-    def serialize(self) -> SerializableDict:
-        """Serializes the policy's configuration.
-
-        This method converts the policy's configuration into a serializable
-        dictionary. For this policy, only the 'name' attribute is included
-        if it has been set to a non-default value.
-
-        Returns:
-            SerializableDict: A dictionary representation of the policy's
-                              configuration. It may be empty or contain a 'name' key.
-        """
-        return SerializableDict(name=self.name)
+        return transaction
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "ClientApiKeyAuthPolicy":
@@ -136,8 +96,6 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         Returns:
             An instance of ClientApiKeyAuthPolicy.
         """
-        instance = cls()  # Name is set to class name by default in __init__
-
+        instance = cls()
         instance.name = str(config.get("name"))
-
         return instance

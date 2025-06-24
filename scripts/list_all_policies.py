@@ -61,7 +61,7 @@ async def list_all_policies():
             else:
                 for i, policy in enumerate(all_matching_policies):
                     status = "✅ ACTIVE" if policy.is_active else "❌ INACTIVE"
-                    logger.info(f"[{i+1}] {status}")
+                    logger.info(f"[{i + 1}] {status}")
                     logger.info(f"    ID: {policy.id}")
                     logger.info(f"    Name: {policy.name}")
                     logger.info(f"    Type: {policy.type}")
@@ -69,7 +69,7 @@ async def list_all_policies():
                     logger.info(f"    Description: {policy.description}")
                     logger.info(f"    Created: {policy.created_at}")
                     logger.info(f"    Updated: {policy.updated_at}")
-                    
+
                     # Check for legacy content
                     if isinstance(policy.config, dict) and "policies" in policy.config:
                         has_legacy = False
@@ -78,25 +78,22 @@ async def list_all_policies():
                             if policy_type == "TxLoggingPolicy":
                                 has_legacy = True
                                 break
-                        
+
                         if has_legacy:
-                            logger.info(f"    🚨 LEGACY: Contains TxLoggingPolicy")
+                            logger.info("    🚨 LEGACY: Contains TxLoggingPolicy")
                         else:
-                            logger.info(f"    ✅ MODERN: No legacy policy types detected")
-                    
+                            logger.info("    ✅ MODERN: No legacy policy types detected")
+
                     logger.info(f"    Config preview: {str(policy.config)[:100]}...")
                     logger.info("-" * 60)
 
             # Now get only the ACTIVE policy (what the app would actually load)
-            stmt_active = select(ControlPolicy).where(
-                ControlPolicy.name == E2E_DB_POLICY_NAME,
-                ControlPolicy.is_active
-            )
+            stmt_active = select(ControlPolicy).where(ControlPolicy.name == E2E_DB_POLICY_NAME, ControlPolicy.is_active)
             result_active = await session.execute(stmt_active)
             active_policy = result_active.scalar_one_or_none()
 
             logger.info("=" * 80)
-            logger.info(f"🎯 ACTIVE policy that would be loaded by the app:")
+            logger.info("🎯 ACTIVE policy that would be loaded by the app:")
             logger.info("=" * 80)
 
             if not active_policy:
@@ -106,7 +103,7 @@ async def list_all_policies():
                 logger.info(f"✅ Found ACTIVE policy: {active_policy.name} (ID: {active_policy.id})")
                 logger.info(f"Type: {active_policy.type}")
                 logger.info(f"Description: {active_policy.description}")
-                
+
                 # Show full config
                 logger.info("Full configuration:")
                 logger.info(json.dumps(active_policy.config, indent=2))
@@ -118,7 +115,7 @@ async def list_all_policies():
                         policy_type = sub_policy.get("type", "unknown")
                         policy_name = sub_policy.get("config", {}).get("name", "unknown")
                         logger.info(f"  [{i}] Type: {policy_type}, Name: {policy_name}")
-                        
+
                         if policy_type == "TxLoggingPolicy":
                             logger.warning(f"  🚨 PROBLEM: Legacy TxLoggingPolicy found at index {i}")
 

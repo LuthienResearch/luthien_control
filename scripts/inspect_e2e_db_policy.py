@@ -2,7 +2,7 @@
 """
 Utility script to inspect the current E2E test policy in the database.
 
-This script shows the current configuration of 'e2e_db_test_policy' 
+This script shows the current configuration of 'e2e_db_test_policy'
 to help debug policy loading issues.
 
 Usage:
@@ -62,7 +62,7 @@ async def inspect_e2e_db_policy():
                 logger.info("Configuration:")
                 logger.info(json.dumps(policy.config, indent=2))
                 logger.info("=" * 60)
-                
+
                 # Check for legacy policy types
                 if isinstance(policy.config, dict) and "policies" in policy.config:
                     logger.info("Checking for legacy policy types...")
@@ -70,17 +70,20 @@ async def inspect_e2e_db_policy():
                         policy_type = sub_policy.get("type", "unknown")
                         policy_name = sub_policy.get("config", {}).get("name", "unknown")
                         logger.info(f"  [{i}] Type: {policy_type}, Name: {policy_name}")
-                        
+
                         if policy_type == "TxLoggingPolicy":
                             logger.warning(f"  ⚠️  Found legacy TxLoggingPolicy at index {i}")
                         elif policy_type not in [
-                            "ClientApiKeyAuth", "LeakedApiKeyDetection", "AddApiKeyHeaderFromEnv", 
-                            "SetBackendPolicy", "SendBackendRequest"
+                            "ClientApiKeyAuth",
+                            "LeakedApiKeyDetection",
+                            "AddApiKeyHeaderFromEnv",
+                            "SetBackendPolicy",
+                            "SendBackendRequest",
                         ]:
                             logger.warning(f"  ⚠️  Unexpected policy type: {policy_type}")
-                
+
                 return True
-                
+
             except LuthienDBQueryError:
                 logger.warning(f"❌ Policy '{E2E_DB_POLICY_NAME}' not found in database")
                 return False

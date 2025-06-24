@@ -1,7 +1,6 @@
 import json
 from typing import Optional
 
-from fastapi import Request
 from psygnal.containers import EventedDict as EDict
 from psygnal.containers import EventedList as EList
 from pydantic import Field

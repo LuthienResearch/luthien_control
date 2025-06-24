@@ -15,7 +15,9 @@ class SetBackendPolicy(ControlPolicy):
         super().__init__(name=name)
         self.backend_url = backend_url
 
-    async def apply(self, transaction: Transaction, container: DependencyContainer, session: AsyncSession) -> Transaction:
+    async def apply(
+        self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
+    ) -> Transaction:
         transaction.request.api_endpoint = self.backend_url
         return transaction
 

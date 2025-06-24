@@ -79,3 +79,8 @@ select = ["E", "F", "W", "I"]
 
 [tool.pyright]
 include = ["luthien_control", "tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "@(abc\\.)?abstractmethod",
+]

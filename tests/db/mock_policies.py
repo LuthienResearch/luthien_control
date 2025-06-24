@@ -25,13 +25,13 @@ class MockSimplePolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: Transaction,
+        transaction: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
     ) -> Transaction:
-        context.set_data("simple_applied", True)
-        context.set_data("simple_timeout", self.timeout)
-        return context
+        transaction.data["simple_applied"] = True
+        transaction.data["simple_timeout"] = self.timeout
+        return transaction
 
     def serialize(self) -> Dict[str, Any]:
         # In tests, we often manually set these, don\'t include them if None
@@ -50,15 +50,15 @@ class MockNestedPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: Transaction,
+        transaction: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
     ) -> Transaction:
-        context.set_data("nested_applied", True)
-        context.set_data("nested_description", self.description)
+        transaction.data["nested_applied"] = True
+        transaction.data["nested_description"] = self.description
         # Simulate applying inner policy using the updated attribute name
-        context = await self.nested_policy.apply(context, container, session)
-        return context
+        transaction = await self.nested_policy.apply(transaction, container, session)
+        return transaction
 
     def serialize(self) -> Dict[str, Any]:
         # In tests, we often manually set these, don\'t include them if None
@@ -79,18 +79,18 @@ class MockListPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: Transaction,
+        transaction: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
     ) -> Transaction:
-        context.set_data("list_applied", True)
-        context.set_data("list_mode", self.mode)
-        context.set_data("list_policy_count", len(self.policies))
+        transaction.data["list_applied"] = True
+        transaction.data["list_mode"] = self.mode
+        transaction.data["list_policy_count"] = len(self.policies)
         # Simulate applying inner policies (simplified)
         for i, policy in enumerate(self.policies):
             if isinstance(policy, ControlPolicy):  # Skip non-policy items
-                context.set_data(f"list_member_{i}_name", getattr(policy, "name", "unknown"))
-        return context
+                transaction.data[f"list_member_{i}_name"] = getattr(policy, "name", "unknown")
+        return transaction
 
     def serialize(self) -> Dict[str, Any]:
         # Filter out non-policy items for serialization
@@ -111,12 +111,12 @@ class MockNoArgsPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: Transaction,
+        transaction: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
     ) -> Transaction:
-        context.set_data("no_args_applied", True)
-        return context
+        transaction.data["no_args_applied"] = True
+        return transaction
 
     def serialize(self) -> Dict[str, Any]:
         config = {}
@@ -131,13 +131,13 @@ class MockMissingArgPolicy(ControlPolicy):
 
     async def apply(
         self,
-        context: Transaction,
+        transaction: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
     ) -> Transaction:
-        context.set_data("missing_arg_applied", True)
-        context.set_data("missing_arg_mandatory", self.mandatory)
-        return context
+        transaction.data["missing_arg_applied"] = True
+        transaction.data["missing_arg_mandatory"] = self.mandatory
+        return transaction
 
     def serialize(self) -> Dict[str, Any]:
         config = {"mandatory": self.mandatory}

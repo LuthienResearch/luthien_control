@@ -78,8 +78,6 @@ class BranchingPolicy(ControlPolicy):
                 f"Expected 'cond_to_policy_map' to be a dict in BranchingPolicy config, got {type(serialized_cond_map)}"
             )
 
-        # The keys of serialized_cond_map are expected to be JSON strings of condition configs
-        # The values are expected to be policy configs (SerializableDict)
         for cond_json_str, policy_config in serialized_cond_map.items():
             if not isinstance(cond_json_str, str):
                 raise TypeError(

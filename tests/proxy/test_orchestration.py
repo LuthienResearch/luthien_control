@@ -131,7 +131,7 @@ async def test_run_policy_flow_successful(
     context_arg = mock_builder_instance.build_response.call_args[0][0]
     assert isinstance(context_arg, Transaction)
     assert context_arg.transaction_id == fixed_test_uuid
-    assert context_arg.get_data("main_policy_called") is True
+    assert context_arg.data.get("main_policy_called") is True
 
     # Direct JSONResponse should *not* be called in happy path
     MockJSONResponse.assert_not_called()

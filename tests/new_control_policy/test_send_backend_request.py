@@ -210,6 +210,7 @@ async def test_send_backend_request_policy_successful_request(
     assert "stream" not in call_kwargs  # This would be None and should be filtered
 
     # Verify response was stored in transaction
+    assert sample_transaction.response.payload is not None
     assert sample_transaction.response.payload.id == "chatcmpl-backend-123"
     assert sample_transaction.response.payload.model == "gpt-4"
     assert len(sample_transaction.response.payload.choices) == 1

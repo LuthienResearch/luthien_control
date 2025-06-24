@@ -94,4 +94,5 @@ def test_transaction_event_emission_on_nested_attribute_change(sample_request, s
     mock_callback.reset_mock()
     cast(OpenAIChatCompletionsResponse, transaction.response.payload).choices[0].message.content = "New content"
     mock_callback.assert_called_once()
+    assert transaction.response.payload is not None
     assert transaction.response.payload.choices[0].message.content == "New content"

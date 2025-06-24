@@ -9,6 +9,7 @@ from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
 from fastapi.testclient import TestClient
 from httpx import Headers as HttpxHeaders
+from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
 from luthien_control.core.dependencies import (
     get_main_control_policy,
 )
@@ -303,9 +304,11 @@ def mock_main_policy_for_e2e() -> ControlPolicy:
 
 # Define a minimal concrete policy locally for the test
 class PassThroughPolicy(ControlPolicy):
-    async def apply(self, context: Transaction, container: DependencyContainer, session: AsyncSession) -> Transaction:
-        context.data["passthrough_applied"] = True
-        return context
+    async def apply(
+        self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
+    ) -> Transaction:
+        transaction.data["passthrough_applied"] = True
+        return transaction
 
     def serialize(self) -> SerializableDict:
         return {}
@@ -317,14 +320,16 @@ class PassThroughPolicy(ControlPolicy):
 
 # Define a second minimal policy that just sets the response
 class MockSendBackendRequestPolicy(ControlPolicy):
-    def __init__(self, mock_response: httpx.Response):
+    def __init__(self, mock_response: OpenAIChatCompletionsResponse):
         self.mock_response = mock_response
         self.name = self.__class__.__name__
 
-    async def apply(self, context: Transaction, container: DependencyContainer, session: AsyncSession) -> Transaction:
+    async def apply(
+        self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
+    ) -> Transaction:
         # Simulate setting the response after a backend call
-        context.response = self.mock_response
-        return context
+        transaction.response.payload = self.mock_response
+        return transaction
 
     def serialize(self) -> SerializableDict:
         # Not needed for this test
@@ -353,13 +358,18 @@ async def test_api_proxy_no_auth_policy_no_key_success(
     backend_response_content = {"detail": "Success from mocked backend via policy"}
     mock_backend_httpx_response = httpx.Response(200, json=backend_response_content, headers={"X-Backend-Mock": "true"})
 
+    # Create a proper OpenAI response for the policy
+    mock_openai_response = OpenAIChatCompletionsResponse(
+        id="chatcmpl-test-123", object="chat.completion", created=1677652288, model="gpt-3.5-turbo"
+    )
+
     mock_container.http_client.request = AsyncMock(return_value=mock_backend_httpx_response)
 
     mocker.patch(
         "luthien_control.main.initialize_app_dependencies", new_callable=AsyncMock, return_value=mock_container
     )
 
-    main_test_policy = MockSendBackendRequestPolicy(mock_response=mock_backend_httpx_response)
+    main_test_policy = MockSendBackendRequestPolicy(mock_response=mock_openai_response)
 
     async def override_get_main_policy():
         return main_test_policy

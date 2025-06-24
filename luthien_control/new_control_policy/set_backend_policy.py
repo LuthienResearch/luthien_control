@@ -18,7 +18,8 @@ class SetBackendPolicy(ControlPolicy):
     async def apply(
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
     ) -> Transaction:
-        transaction.request.api_endpoint = self.backend_url
+        if self.backend_url is not None:
+            transaction.request.api_endpoint = self.backend_url
         return transaction
 
     def _get_policy_specific_config(self) -> SerializableDict:
@@ -31,4 +32,9 @@ class SetBackendPolicy(ControlPolicy):
         """Create a SetBackendPolicy from serialized configuration."""
         name = config.get("name")
         backend_url = config.get("backend_url")
-        return cls(name=name, backend_url=backend_url)
+
+        # Ensure types are correct
+        name_str = name if isinstance(name, str) else None
+        backend_url_str = backend_url if isinstance(backend_url, str) else None
+
+        return cls(name=name_str, backend_url=backend_url_str)

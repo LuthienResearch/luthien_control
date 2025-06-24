@@ -80,6 +80,22 @@ def mock_policy() -> AsyncMock:
 
 
 @pytest.fixture
+def mock_policy_none_payload() -> AsyncMock:
+    """Provides a mock ControlPolicy that leaves transaction.response.payload as None."""
+    policy_mock = AsyncMock(spec=ControlPolicy)
+
+    # Explicitly define apply that doesn't set response payload
+    async def apply_effect(transaction, container, session):
+        transaction.data["main_policy_called"] = True
+        # Explicitly leave transaction.response.payload as None
+        transaction.response.payload = None
+        return transaction
+
+    policy_mock.apply = AsyncMock(side_effect=apply_effect)
+    return policy_mock
+
+
+@pytest.fixture
 def mock_policy_raising_exception() -> AsyncMock:
     """Provides a single mock ControlPolicy that raises ControlPolicyError."""
     policy_mock = AsyncMock(spec=ControlPolicy)
@@ -398,6 +414,27 @@ async def test_run_policy_flow_context_init_exception(
     mock_logger.exception.assert_not_called()  # Logger within run_policy_flow not called
     mock_logger.warning.assert_not_called()
     MockJSONResponse.assert_not_called()  # Fallback JSONResponse not created
+
+
+async def test_run_policy_flow_none_payload(
+    mock_request: MagicMock,
+    mock_policy_none_payload: AsyncMock,
+    mock_container: MagicMock,
+    mock_session: AsyncMock,
+):
+    """Test that None response payload returns 500 error with proper message."""
+    mock_policy_none_payload.name = "TestPolicy"
+
+    response = await run_policy_flow(
+        request=mock_request,
+        main_policy=mock_policy_none_payload,
+        dependencies=mock_container,
+        session=mock_session,
+    )
+
+    # Should return JSONResponse with 500 status and error message
+    assert response.status_code == 500
+    assert "Internal Server Error: No response payload" in response.body.decode()
 
 
 async def test_initialize_context_query_params():

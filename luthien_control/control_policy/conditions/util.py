@@ -1,8 +1,8 @@
 from typing import Any, List, Type, cast
 
-from luthien_control.core.transaction import Transaction
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.transaction import Transaction
 
 
 def get_condition_class(name: str) -> Type[Condition]:

@@ -1,10 +1,10 @@
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from luthien_control.core.transaction import Transaction
 from luthien_control.control_policy.conditions.comparisons import EqualsCondition
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.transaction import Transaction
 
 
 class MockCondition(Condition):

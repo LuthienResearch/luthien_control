@@ -3,10 +3,6 @@ from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction import Transaction
-from luthien_control.db.client_api_key_crud import get_api_key_by_value
-from luthien_control.db.exceptions import LuthienDBQueryError
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
@@ -14,6 +10,10 @@ from luthien_control.control_policy.exceptions import (
     NoRequestError,
 )
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.transaction import Transaction
+from luthien_control.db.client_api_key_crud import get_api_key_by_value
+from luthien_control.db.exceptions import LuthienDBQueryError
 
 logger = logging.getLogger(__name__)
 

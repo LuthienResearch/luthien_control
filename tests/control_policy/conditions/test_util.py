@@ -1,5 +1,4 @@
 import pytest
-from luthien_control.core.transaction import Transaction
 from luthien_control.control_policy.conditions.all_cond import AllCondition
 from luthien_control.control_policy.conditions.any_cond import AnyCondition
 from luthien_control.control_policy.conditions.comparisons import EqualsCondition
@@ -16,6 +15,7 @@ from luthien_control.control_policy.conditions.util import (
     get_transaction_value,
 )
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.transaction import Transaction
 
 
 def test_get_condition_class_valid() -> None:

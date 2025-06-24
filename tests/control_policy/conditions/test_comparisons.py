@@ -10,9 +10,6 @@ from luthien_control.api.openai_chat_completions.datatypes import (
 )
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
-from luthien_control.core.request import Request
-from luthien_control.core.response import Response
-from luthien_control.core.transaction import Transaction
 from luthien_control.control_policy.conditions.comparators import (
     COMPARATOR_TO_NAME,
 )
@@ -26,6 +23,9 @@ from luthien_control.control_policy.conditions.comparisons import (
     NotEqualsCondition,
     RegexMatchCondition,
 )
+from luthien_control.core.request import Request
+from luthien_control.core.response import Response
+from luthien_control.core.transaction import Transaction
 from psygnal.containers import EventedDict, EventedList
 
 

@@ -9,10 +9,6 @@ import pytest
 from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
-from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.request import Request
-from luthien_control.core.response import Response
-from luthien_control.core.transaction import Transaction
 from luthien_control.control_policy.branching_policy import BranchingPolicy
 from luthien_control.control_policy.conditions.comparisons import EqualsCondition
 from luthien_control.control_policy.conditions.condition import Condition
@@ -21,6 +17,10 @@ from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.noop_policy import NoopPolicy
 from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.request import Request
+from luthien_control.core.response import Response
+from luthien_control.core.transaction import Transaction
 from psygnal.containers import EventedDict, EventedList
 from sqlalchemy.ext.asyncio import AsyncSession
 

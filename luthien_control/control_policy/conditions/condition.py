@@ -1,8 +1,8 @@
 import abc
 from typing import ClassVar
 
-from luthien_control.core.transaction import Transaction
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.transaction import Transaction
 
 
 class Condition(abc.ABC):

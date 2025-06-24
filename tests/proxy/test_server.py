@@ -10,14 +10,14 @@ from fastapi import Response as FastAPIResponse
 from fastapi.testclient import TestClient
 from httpx import Headers as HttpxHeaders
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
+from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependencies import (
     get_main_control_policy,
 )
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 from luthien_control.main import app  # Import your main FastAPI app
-from luthien_control.control_policy.control_policy import ControlPolicy
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 

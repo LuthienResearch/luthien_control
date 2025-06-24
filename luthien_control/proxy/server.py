@@ -5,13 +5,13 @@ from fastapi import APIRouter, Body, Depends, Path, Request, Response, Security
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.dependencies import (
     get_db_session,
     get_dependencies,
     get_main_control_policy,
 )
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.proxy.orchestration import run_policy_flow
 
 logger = logging.getLogger(__name__)

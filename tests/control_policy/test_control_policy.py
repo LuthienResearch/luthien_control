@@ -2,10 +2,10 @@ from typing import Any, cast
 from unittest.mock import Mock, patch
 
 import pytest
-from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction import Transaction
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.transaction import Transaction
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

@@ -6,9 +6,9 @@ from typing import Any, Optional, Type, TypeVar, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
-from luthien_control.control_policy.serialization import SerializableDict
 
 # Type variable for the policy classes
 PolicyT = TypeVar("PolicyT", bound="ControlPolicy")

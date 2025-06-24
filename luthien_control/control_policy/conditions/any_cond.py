@@ -1,8 +1,8 @@
 from typing import List
 
-from luthien_control.core.transaction import Transaction
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.transaction import Transaction
 
 
 class AnyCondition(Condition):

@@ -1,7 +1,6 @@
 from abc import ABC
 from typing import Any, ClassVar
 
-from luthien_control.core.transaction import Transaction
 from luthien_control.control_policy.conditions.comparators import (
     COMPARATOR_TO_NAME,
     Comparator,
@@ -17,6 +16,7 @@ from luthien_control.control_policy.conditions.comparators import (
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.conditions.util import get_transaction_value
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.transaction import Transaction
 
 
 class ComparisonCondition(Condition, ABC):

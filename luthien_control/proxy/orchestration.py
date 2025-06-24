@@ -10,12 +10,12 @@ from luthien_control.api.openai_chat_completions.request import (
     fastapi_request_to_openai_chat_completions_request,
 )
 from luthien_control.api.openai_chat_completions.response import openai_chat_completions_response_to_fastapi_response
+from luthien_control.control_policy.control_policy import ControlPolicy
+from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
-from luthien_control.control_policy.control_policy import ControlPolicy
-from luthien_control.control_policy.exceptions import ControlPolicyError
 
 logger = logging.getLogger(__name__)
 

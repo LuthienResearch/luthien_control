@@ -8,12 +8,6 @@ import pytest
 from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
-from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.request import Request
-from luthien_control.core.response import Response
-from luthien_control.core.transaction import Transaction
-from luthien_control.db.exceptions import LuthienDBQueryError
-from luthien_control.db.sqlmodel_models import ClientApiKey
 from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
@@ -21,6 +15,12 @@ from luthien_control.control_policy.exceptions import (
     NoRequestError,
 )
 from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.request import Request
+from luthien_control.core.response import Response
+from luthien_control.core.transaction import Transaction
+from luthien_control.db.exceptions import LuthienDBQueryError
+from luthien_control.db.sqlmodel_models import ClientApiKey
 from psygnal.containers import EventedDict, EventedList
 from sqlalchemy.ext.asyncio import AsyncSession
 

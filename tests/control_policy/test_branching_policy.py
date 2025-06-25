@@ -108,15 +108,26 @@ def mock_db_session() -> AsyncMock:
 # --- Test Cases ---
 
 
+@pytest.mark.parametrize(
+    "condition_values,expected_policy",
+    [
+        # First condition matches (GET method)
+        ([("data.method", "GET"), ("data.user_type", "admin")], "policy1"),
+        # Second condition matches (POST method, but user_type admin)
+        ([("data.method", "POST"), ("data.user_type", "admin")], "policy2"),
+    ],
+)
 @pytest.mark.asyncio
-async def test_branching_policy_first_condition_matches(
+async def test_branching_policy_condition_matching(
     sample_transaction: Transaction,
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
+    condition_values: list[tuple[str, str]],
+    expected_policy: str,
 ):
-    """Test that the first matching condition's policy is applied."""
-    cond1 = EqualsCondition(key="data.method", value="GET")  # This will match
-    cond2 = EqualsCondition(key="data.user_type", value="admin")  # This would also match but shouldn't be reached
+    """Test that the correct policy is applied based on condition matching order."""
+    cond1 = EqualsCondition(key=condition_values[0][0], value=condition_values[0][1])
+    cond2 = EqualsCondition(key=condition_values[1][0], value=condition_values[1][1])
 
     policy1 = MockSimplePolicy("policy1")
     policy2 = MockSimplePolicy("policy2")
@@ -129,31 +140,7 @@ async def test_branching_policy_first_condition_matches(
 
     assert result is sample_transaction
     assert result.data is not None
-    assert result.data["applied_policy"] == "policy1"
-
-
-@pytest.mark.asyncio
-async def test_branching_policy_second_condition_matches(
-    sample_transaction: Transaction,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Test that the second condition is checked when the first doesn't match."""
-    cond1 = EqualsCondition(key="data.method", value="POST")  # This won't match
-    cond2 = EqualsCondition(key="data.user_type", value="admin")  # This will match
-
-    policy1 = MockSimplePolicy("policy1")
-    policy2 = MockSimplePolicy("policy2")
-
-    policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond1, policy1), (cond2, policy2)]))
-
-    branching_policy = BranchingPolicy(policy_map)
-
-    result = await branching_policy.apply(sample_transaction, mock_container, mock_db_session)
-
-    assert result is sample_transaction
-    assert result.data is not None
-    assert result.data["applied_policy"] == "policy2"
+    assert result.data["applied_policy"] == expected_policy
 
 
 @pytest.mark.asyncio
@@ -258,37 +245,32 @@ async def test_branching_policy_policy_exception_propagates(
         await branching_policy.apply(sample_transaction, mock_container, mock_db_session)
 
 
-def test_branching_policy_initialization_with_name():
-    """Test BranchingPolicy initialization with custom name."""
+@pytest.mark.parametrize(
+    "name,expected_name",
+    [
+        ("CustomBranching", "CustomBranching"),
+        (None, None),
+    ],
+)
+def test_branching_policy_initialization_name(name: str | None, expected_name: str | None):
+    """Test BranchingPolicy initialization with and without name."""
     cond = EqualsCondition(key="data.test", value="value")
     policy = NoopPolicy()
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, policy)]))
 
-    branching_policy = BranchingPolicy(policy_map, name="CustomBranching")
+    branching_policy = BranchingPolicy(policy_map, name=name) if name else BranchingPolicy(policy_map)
 
-    assert branching_policy.name == "CustomBranching"
-
-
-def test_branching_policy_initialization_without_name():
-    """Test BranchingPolicy initialization without name."""
-    cond = EqualsCondition(key="data.test", value="value")
-    policy = NoopPolicy()
-    policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, policy)]))
-
-    branching_policy = BranchingPolicy(policy_map)
-
-    assert branching_policy.name is None
+    assert branching_policy.name == expected_name
 
 
-def test_branching_policy_serialize_with_default_policy():
-    """Test BranchingPolicy serialization with default policy."""
+def test_branching_policy_serialize_with_default_policy_and_name():
+    """Test BranchingPolicy serialization with default policy and name."""
     cond = EqualsCondition(key="data.method", value="GET")
     policy = NoopPolicy(name="TestPolicy")
     default_policy = NoopPolicy(name="DefaultPolicy")
-
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, policy)]))
-    branching_policy = BranchingPolicy(policy_map, default_policy=default_policy, name="TestBranching")
 
+    branching_policy = BranchingPolicy(policy_map, default_policy=default_policy, name="TestBranching")
     serialized = branching_policy.serialize()
 
     assert serialized["type"] == "BranchingPolicy"
@@ -304,18 +286,17 @@ def test_branching_policy_serialize_with_default_policy():
     assert cond_map[cond_key] == policy.serialize()
 
 
-def test_branching_policy_serialize_without_default_policy():
-    """Test BranchingPolicy serialization without default policy."""
+def test_branching_policy_serialize_without_default_policy_and_name():
+    """Test BranchingPolicy serialization without default policy and name."""
     cond = EqualsCondition(key="data.method", value="GET")
     policy = NoopPolicy(name="TestPolicy")
-
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, policy)]))
-    branching_policy = BranchingPolicy(policy_map)
 
+    branching_policy = BranchingPolicy(policy_map)
     serialized = branching_policy.serialize()
 
     assert serialized["type"] == "BranchingPolicy"
-    assert "name" not in serialized  # No name provided
+    assert "name" not in serialized
     assert serialized["default_policy"] is None
 
     # Check condition mapping

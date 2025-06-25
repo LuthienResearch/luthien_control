@@ -48,35 +48,35 @@ def mock_http_client() -> AsyncMock:
     return AsyncMock(spec=httpx.AsyncClient)
 
 
+def create_test_response():
+    """Helper to create a test OpenAI response payload."""
+    from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
+    from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
+    from psygnal.containers import EventedList
+
+    return OpenAIChatCompletionsResponse(
+        id="test-response",
+        object="chat.completion",
+        created=1234567890,
+        model="gpt-4",
+        choices=EventedList(
+            [Choice(index=0, message=Message(role="assistant", content="Test response"), finish_reason="stop")]
+        ),
+        usage=Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
+    )
+
+
 @pytest.fixture
 def mock_policy() -> AsyncMock:
-    """Provides a single mock ControlPolicy instance that doesn't set context.response."""
+    """Provides a single mock ControlPolicy instance that sets a test response."""
     policy_mock = AsyncMock(spec=ControlPolicy)
 
-    # Explicitly define apply to return the transaction passed to it, accepting container and session
     async def apply_effect(transaction, container, session):
-        # Simulate some action (optional)
         transaction.data["main_policy_called"] = True
-        # Set a mock response payload for testing
-        from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
-        from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
-        from psygnal.containers import EventedList
-
-        transaction.response.payload = OpenAIChatCompletionsResponse(
-            id="test-response",
-            object="chat.completion",
-            created=1234567890,
-            model="gpt-4",
-            choices=EventedList(
-                [Choice(index=0, message=Message(role="assistant", content="Test response"), finish_reason="stop")]
-            ),
-            usage=Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
-        )
-        # Return the same transaction
+        transaction.response.payload = create_test_response()
         return transaction
 
     policy_mock.apply = AsyncMock(side_effect=apply_effect)
-
     return policy_mock
 
 
@@ -112,6 +112,12 @@ def mock_policy_raising_exception() -> AsyncMock:
 def mock_session() -> AsyncMock:
     """Provides a mock AsyncSession."""
     return AsyncMock(spec=AsyncSession)
+
+
+@pytest.fixture
+def mock_container() -> MagicMock:
+    """Provides a mock dependency container."""
+    return MagicMock()
 
 
 @patch("luthien_control.proxy.orchestration.uuid.uuid4")

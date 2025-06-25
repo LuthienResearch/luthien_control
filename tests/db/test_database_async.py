@@ -34,29 +34,37 @@ async def test_get_db_url_with_postgres_url():
         assert url_result == "postgresql+asyncpg://user:pass@localhost/dbname"
 
 
-@patch.object(db_async_settings, "get_postgres_db", return_value="testdb")
-@patch.object(db_async_settings, "get_postgres_port", return_value=5433)
-@patch.object(db_async_settings, "get_postgres_host", return_value="testhost")
-@patch.object(db_async_settings, "get_postgres_password", return_value="testpass")
-@patch.object(db_async_settings, "get_postgres_user", return_value="testuser")
-@patch.object(db_async_settings, "get_database_url", return_value=None)
-async def test_get_db_url_with_postgres_vars(m_db, m_port, m_host, m_pass, m_user, m_db_url):
+async def test_get_db_url_with_postgres_vars():
     """Test _get_db_url with individual DB_* environment variables."""
-    url_result = _get_db_url()
-    assert url_result is not None
-    assert url_result == "postgresql+asyncpg://testuser:testpass@testhost:5433/testdb"
+    postgres_config = {
+        "get_database_url": lambda: None,
+        "get_postgres_user": lambda: "testuser",
+        "get_postgres_password": lambda: "testpass",
+        "get_postgres_host": lambda: "testhost",
+        "get_postgres_port": lambda: 5433,
+        "get_postgres_db": lambda: "testdb",
+    }
+
+    with patch.multiple(db_async_settings, **postgres_config):
+        url_result = _get_db_url()
+        assert url_result is not None
+        assert url_result == "postgresql+asyncpg://testuser:testpass@testhost:5433/testdb"
 
 
-@patch.object(db_async_settings, "get_postgres_db", return_value=None)
-@patch.object(db_async_settings, "get_postgres_port", return_value=5433)
-@patch.object(db_async_settings, "get_postgres_host", return_value="testhost")
-@patch.object(db_async_settings, "get_postgres_password", return_value=None)
-@patch.object(db_async_settings, "get_postgres_user", return_value="testuser")
-@patch.object(db_async_settings, "get_database_url", return_value=None)
-async def test_get_db_url_missing_vars(m_db, m_port, m_host, m_pass, m_user, m_db_url):
+async def test_get_db_url_missing_vars():
     """Test _get_db_url with missing required environment variables."""
-    with pytest.raises(LuthienDBConfigurationError):
-        _get_db_url()
+    missing_config = {
+        "get_database_url": lambda: None,
+        "get_postgres_user": lambda: "testuser",
+        "get_postgres_password": lambda: None,  # Missing password
+        "get_postgres_host": lambda: "testhost",
+        "get_postgres_port": lambda: 5433,
+        "get_postgres_db": lambda: None,  # Missing database name
+    }
+
+    with patch.multiple(db_async_settings, **missing_config):
+        with pytest.raises(LuthienDBConfigurationError):
+            _get_db_url()
 
 
 def test_mask_password():

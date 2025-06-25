@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.api.openai_chat_completions import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.control_policy import ControlPolicy
-from luthien_control.control_policy.exceptions import NoRequestError
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
@@ -52,15 +51,12 @@ class SendBackendRequestPolicy(ControlPolicy):
             OpenAIChatCompletionsResponse from the backend.
 
         Raises:
-            NoRequestError: If transaction.request is None.
+            ValueError: If backend URL or API key is not configured.
             openai.APIError: For API-related errors from the OpenAI backend.
             openai.APITimeoutError: If the request to the backend times out.
             openai.APIConnectionError: For network-related issues during the backend request.
             Exception: For any other unexpected errors during request execution.
         """
-        if transaction.request is None:
-            raise NoRequestError("No request in transaction for backend request.")
-
         # Create OpenAI client for the backend request
         backend_url = transaction.request.api_endpoint
         api_key = transaction.request.api_key

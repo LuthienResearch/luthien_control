@@ -10,7 +10,6 @@ import pytest
 from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
-from luthien_control.control_policy.exceptions import NoRequestError
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
@@ -20,98 +19,118 @@ from luthien_control.core.transaction import Transaction
 from psygnal.containers import EventedDict, EventedList
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# --- Test Fixtures ---
+# --- Helper Functions ---
 
 
-@pytest.fixture
-def sample_transaction() -> Transaction:
-    """Provides a Transaction with OpenAI chat completions request for testing."""
-    request = Request(
+def create_chat_request(
+    model: str = "gpt-4",
+    messages: list[Message] | None = None,
+    temperature: float = 0.7,
+    max_tokens: int = 100,
+    api_endpoint: str = "https://api.openai.com/v1/chat/completions",
+    api_key: str = "test_key",
+) -> Request:
+    """Create a chat completions request with sensible defaults."""
+    if messages is None:
+        messages = [
+            Message(role="system", content="You are a helpful assistant."),
+            Message(role="user", content="Hello, world!"),
+        ]
+
+    return Request(
         payload=OpenAIChatCompletionsRequest(
-            model="gpt-4",
-            messages=EventedList(
-                [
-                    Message(role="system", content="You are a helpful assistant."),
-                    Message(role="user", content="Hello, world!"),
-                ]
-            ),
-            temperature=0.7,
-            max_tokens=100,
+            model=model,
+            messages=EventedList(messages),
+            temperature=temperature,
+            max_tokens=max_tokens,
         ),
-        api_endpoint="https://api.openai.com/v1/chat/completions",
-        api_key="test_key",
+        api_endpoint=api_endpoint,
+        api_key=api_key,
     )
 
-    response = Response(
+
+def create_chat_response(
+    id: str = "chatcmpl-123",
+    model: str = "gpt-4",
+    content: str = "Hello there!",
+    prompt_tokens: int = 10,
+    completion_tokens: int = 5,
+) -> Response:
+    """Create a chat completions response with sensible defaults."""
+    return Response(
         payload=OpenAIChatCompletionsResponse(
-            id="chatcmpl-123",
+            id=id,
             object="chat.completion",
             created=1677652288,
-            model="gpt-4",
+            model=model,
             choices=EventedList(
-                [Choice(index=0, message=Message(role="assistant", content="Hello there!"), finish_reason="stop")]
+                [Choice(index=0, message=Message(role="assistant", content=content), finish_reason="stop")]
             ),
-            usage=Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
+            usage=Usage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
+            ),
         )
     )
 
-    transaction_data = EventedDict(
-        {
-            "test_key": "test_value",
-        }
-    )
 
-    return Transaction(request=request, response=response, data=transaction_data)
-
-
-@pytest.fixture
-def mock_settings() -> MagicMock:
-    """Provides a mock Settings object."""
-    settings = MagicMock()
-    settings.get_backend_url.return_value = "https://api.test-backend.com/v1"
-    settings.get_openai_api_key.return_value = "test-backend-api-key"
-    return settings
-
-
-@pytest.fixture
-def mock_openai_client() -> AsyncMock:
-    """Provides a mock OpenAI client."""
-    client = AsyncMock()
-
-    # Mock a successful chat completion response
-    mock_response = MagicMock()
-    mock_response.model_dump.return_value = {
-        "id": "chatcmpl-backend-123",
+def create_mock_openai_response(
+    id: str = "chatcmpl-backend-123",
+    content: str = "Hello! How can I help you today?",
+) -> dict:
+    """Create a mock OpenAI API response dict."""
+    return {
+        "id": id,
         "object": "chat.completion",
         "created": 1677652388,
         "model": "gpt-4",
         "choices": [
             {
                 "index": 0,
-                "message": {"role": "assistant", "content": "Hello! How can I help you today?"},
+                "message": {"role": "assistant", "content": content},
                 "finish_reason": "stop",
             }
         ],
         "usage": {"prompt_tokens": 15, "completion_tokens": 10, "total_tokens": 25},
     }
 
+
+# --- Test Fixtures ---
+
+
+@pytest.fixture
+def sample_transaction() -> Transaction:
+    """Provides a Transaction with OpenAI chat completions request for testing."""
+    request = create_chat_request()
+    response = create_chat_response()
+    transaction_data = EventedDict({"test_key": "test_value"})
+    return Transaction(request=request, response=response, data=transaction_data)
+
+
+@pytest.fixture
+def mock_openai_client() -> AsyncMock:
+    """Provides a mock OpenAI client with default successful response."""
+    client = AsyncMock()
+    mock_response = MagicMock()
+    mock_response.model_dump.return_value = create_mock_openai_response()
     client.chat.completions.create.return_value = mock_response
     return client
 
 
 @pytest.fixture
-def mock_container(mock_settings: MagicMock, mock_openai_client: AsyncMock) -> MagicMock:
-    """Provides a mock dependency container."""
+def test_container(mock_openai_client: AsyncMock) -> MagicMock:
+    """Provides a test dependency container with minimal mocking."""
     container = MagicMock(spec=DependencyContainer)
-    container.settings = mock_settings
+
+    # Create settings with real values instead of mocked methods
+    settings = MagicMock()
+    settings.get_backend_url.return_value = "https://api.test-backend.com/v1"
+    settings.get_openai_api_key.return_value = "test-backend-api-key"
+
+    container.settings = settings
     container.create_openai_client.return_value = mock_openai_client
     return container
-
-
-@pytest.fixture
-def mock_db_session() -> AsyncMock:
-    """Provides a mock database session."""
-    return AsyncMock(spec=AsyncSession)
 
 
 # --- Test Cases ---
@@ -131,69 +150,51 @@ def test_send_backend_request_policy_initialization_custom():
 
 
 @pytest.mark.asyncio
-async def test_send_backend_request_policy_no_request(
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Test that NoRequestError is raised when transaction has no request."""
-    policy = SendBackendRequestPolicy()
-
-    # Create a mock transaction with request=None
-    mock_transaction = MagicMock(spec=Transaction)
-    mock_transaction.request = None
-
-    with pytest.raises(NoRequestError, match="No request in transaction for backend request"):
-        await policy.apply(mock_transaction, mock_container, mock_db_session)
-
-
-@pytest.mark.asyncio
-async def test_send_backend_request_policy_no_backend_url(
-    sample_transaction: Transaction,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
+async def test_send_backend_request_policy_no_backend_url(test_container: MagicMock):
     """Test that ValueError is raised when backend URL is not configured."""
     policy = SendBackendRequestPolicy()
-
-    # Configure transaction to have no backend URL
-    sample_transaction.request.api_endpoint = ""  # type: ignore
+    transaction = Transaction(
+        request=create_chat_request(api_endpoint=""),
+        response=create_chat_response(),
+        data=EventedDict(),
+    )
+    db_session = AsyncMock(spec=AsyncSession)
 
     with pytest.raises(ValueError, match="Backend URL is not configured"):
-        await policy.apply(sample_transaction, mock_container, mock_db_session)
+        await policy.apply(transaction, test_container, db_session)
 
 
 @pytest.mark.asyncio
-async def test_send_backend_request_policy_no_api_key(
-    sample_transaction: Transaction,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
+async def test_send_backend_request_policy_no_api_key(test_container: MagicMock):
     """Test that ValueError is raised when API key is not configured."""
     policy = SendBackendRequestPolicy()
-
-    # Configure transaction to have no API key
-    sample_transaction.request.api_key = ""  # type: ignore
+    transaction = Transaction(
+        request=create_chat_request(api_key=""),
+        response=create_chat_response(),
+        data=EventedDict(),
+    )
+    db_session = AsyncMock(spec=AsyncSession)
 
     with pytest.raises(ValueError, match="OpenAI API key is not configured"):
-        await policy.apply(sample_transaction, mock_container, mock_db_session)
+        await policy.apply(transaction, test_container, db_session)
 
 
 @pytest.mark.asyncio
 async def test_send_backend_request_policy_successful_request(
     sample_transaction: Transaction,
-    mock_container: MagicMock,
+    test_container: MagicMock,
     mock_openai_client: AsyncMock,
-    mock_db_session: AsyncMock,
 ):
     """Test successful backend request and response handling."""
     policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
 
-    result = await policy.apply(sample_transaction, mock_container, mock_db_session)
+    result = await policy.apply(sample_transaction, test_container, db_session)
 
     assert result is sample_transaction
 
     # Verify OpenAI client was created with correct parameters from transaction.request
-    mock_container.create_openai_client.assert_called_once_with(
+    test_container.create_openai_client.assert_called_once_with(
         "https://api.openai.com/v1/chat/completions", "test_key"
     )
 
@@ -221,16 +222,15 @@ async def test_send_backend_request_policy_successful_request(
 @pytest.mark.asyncio
 async def test_send_backend_request_policy_logging(
     sample_transaction: Transaction,
-    mock_container: MagicMock,
-    mock_openai_client: AsyncMock,
-    mock_db_session: AsyncMock,
+    test_container: MagicMock,
     caplog,
 ):
     """Test that requests and responses are logged correctly."""
     policy = SendBackendRequestPolicy(name="TestPolicy")
+    db_session = AsyncMock(spec=AsyncSession)
 
     with caplog.at_level(logging.INFO):
-        await policy.apply(sample_transaction, mock_container, mock_db_session)
+        await policy.apply(sample_transaction, test_container, db_session)
 
     # Check request logging
     assert "Sending chat completions request to backend with model 'gpt-4' and 2 messages. (TestPolicy)" in caplog.text
@@ -243,13 +243,13 @@ async def test_send_backend_request_policy_logging(
 @pytest.mark.asyncio
 async def test_send_backend_request_policy_api_timeout_error(
     sample_transaction: Transaction,
-    mock_container: MagicMock,
+    test_container: MagicMock,
     mock_openai_client: AsyncMock,
-    mock_db_session: AsyncMock,
     caplog,
 ):
     """Test handling of OpenAI API timeout errors."""
     policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
 
     # Configure client to raise timeout error
     mock_request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
@@ -258,7 +258,7 @@ async def test_send_backend_request_policy_api_timeout_error(
 
     with caplog.at_level(logging.ERROR):
         with pytest.raises(openai.APITimeoutError):
-            await policy.apply(sample_transaction, mock_container, mock_db_session)
+            await policy.apply(sample_transaction, test_container, db_session)
 
     assert "Timeout error during backend request" in caplog.text
 
@@ -266,15 +266,13 @@ async def test_send_backend_request_policy_api_timeout_error(
 @pytest.mark.asyncio
 async def test_send_backend_request_policy_api_connection_error(
     sample_transaction: Transaction,
-    mock_container: MagicMock,
+    test_container: MagicMock,
     mock_openai_client: AsyncMock,
-    mock_db_session: AsyncMock,
     caplog,
 ):
     """Test handling of OpenAI API connection errors."""
-    import httpx
-
     policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
 
     # Configure client to raise connection error
     mock_request = httpx.Request("POST", "https://api.test-backend.com/v1/chat/completions")
@@ -283,7 +281,7 @@ async def test_send_backend_request_policy_api_connection_error(
 
     with caplog.at_level(logging.ERROR):
         with pytest.raises(openai.APIConnectionError, match="Connection failed"):
-            await policy.apply(sample_transaction, mock_container, mock_db_session)
+            await policy.apply(sample_transaction, test_container, db_session)
 
     assert "Connection error during backend request" in caplog.text
 
@@ -291,15 +289,13 @@ async def test_send_backend_request_policy_api_connection_error(
 @pytest.mark.asyncio
 async def test_send_backend_request_policy_api_error(
     sample_transaction: Transaction,
-    mock_container: MagicMock,
+    test_container: MagicMock,
     mock_openai_client: AsyncMock,
-    mock_db_session: AsyncMock,
     caplog,
 ):
     """Test handling of general OpenAI API errors."""
-    import httpx
-
     policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
 
     # Configure client to raise API error
     mock_request = httpx.Request("POST", "https://api.test-backend.com/v1/chat/completions")
@@ -308,7 +304,7 @@ async def test_send_backend_request_policy_api_error(
 
     with caplog.at_level(logging.ERROR):
         with pytest.raises(openai.APIError, match="Invalid request"):
-            await policy.apply(sample_transaction, mock_container, mock_db_session)
+            await policy.apply(sample_transaction, test_container, db_session)
 
     assert "OpenAI API error during backend request" in caplog.text
 
@@ -316,13 +312,13 @@ async def test_send_backend_request_policy_api_error(
 @pytest.mark.asyncio
 async def test_send_backend_request_policy_unexpected_error(
     sample_transaction: Transaction,
-    mock_container: MagicMock,
+    test_container: MagicMock,
     mock_openai_client: AsyncMock,
-    mock_db_session: AsyncMock,
     caplog,
 ):
     """Test handling of unexpected errors during backend request."""
     policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
 
     # Configure client to raise unexpected error
     unexpected_error = RuntimeError("Something went wrong")
@@ -330,7 +326,7 @@ async def test_send_backend_request_policy_unexpected_error(
 
     with caplog.at_level(logging.ERROR):
         with pytest.raises(RuntimeError, match="Something went wrong"):
-            await policy.apply(sample_transaction, mock_container, mock_db_session)
+            await policy.apply(sample_transaction, test_container, db_session)
 
     assert "Unexpected error during backend request" in caplog.text
 
@@ -338,18 +334,18 @@ async def test_send_backend_request_policy_unexpected_error(
 @pytest.mark.asyncio
 async def test_send_backend_request_policy_filters_none_values(
     sample_transaction: Transaction,
-    mock_container: MagicMock,
+    test_container: MagicMock,
     mock_openai_client: AsyncMock,
-    mock_db_session: AsyncMock,
 ):
     """Test that None values are filtered from request payload."""
     policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
 
     # Add some None values to the request payload
     sample_transaction.request.payload.stream = None
     sample_transaction.request.payload.stop = None
 
-    await policy.apply(sample_transaction, mock_container, mock_db_session)
+    await policy.apply(sample_transaction, test_container, db_session)
 
     call_kwargs = mock_openai_client.chat.completions.create.call_args.kwargs
 
@@ -363,43 +359,23 @@ async def test_send_backend_request_policy_filters_none_values(
 
 @pytest.mark.asyncio
 async def test_send_backend_request_policy_different_model(
-    mock_container: MagicMock,
+    test_container: MagicMock,
     mock_openai_client: AsyncMock,
-    mock_db_session: AsyncMock,
 ):
     """Test with a different model in the request."""
     # Create transaction with different model
-    request = Request(
-        payload=OpenAIChatCompletionsRequest(
+    transaction = Transaction(
+        request=create_chat_request(
             model="gpt-3.5-turbo",
-            messages=EventedList(
-                [
-                    Message(role="user", content="Test message"),
-                ]
-            ),
+            messages=[Message(role="user", content="Test message")],
         ),
-        api_endpoint="https://api.openai.com/v1/chat/completions",
-        api_key="test_key",
+        response=create_chat_response(model="gpt-3.5-turbo", prompt_tokens=5, completion_tokens=3),
+        data=EventedDict(),
     )
-
-    response = Response(
-        payload=OpenAIChatCompletionsResponse(
-            id="chatcmpl-123",
-            object="chat.completion",
-            created=1677652288,
-            model="gpt-3.5-turbo",
-            choices=EventedList(
-                [Choice(index=0, message=Message(role="assistant", content="Response"), finish_reason="stop")]
-            ),
-            usage=Usage(prompt_tokens=5, completion_tokens=3, total_tokens=8),
-        )
-    )
-
-    transaction = Transaction(request=request, response=response, data=EventedDict())
+    db_session = AsyncMock(spec=AsyncSession)
 
     policy = SendBackendRequestPolicy()
-
-    await policy.apply(transaction, mock_container, mock_db_session)
+    await policy.apply(transaction, test_container, db_session)
 
     call_kwargs = mock_openai_client.chat.completions.create.call_args.kwargs
     assert call_kwargs["model"] == "gpt-3.5-turbo"
@@ -471,59 +447,43 @@ def test_send_backend_request_policy_round_trip_serialization():
 
 
 @pytest.mark.parametrize(
-    "name",
+    "name,expected",
     [
-        None,  # Default name
-        "CustomPolicy",  # Custom name
-        "Policy123",  # Alphanumeric name
-        "",  # Empty string (will use default)
+        (None, None),  # Default name (actually returns None)
+        ("CustomPolicy", "CustomPolicy"),  # Custom name
+        ("Policy123", "Policy123"),  # Alphanumeric name
+        ("", ""),  # Empty string
     ],
 )
-def test_send_backend_request_policy_parametrized_initialization(name: str):
+def test_send_backend_request_policy_parametrized_initialization(name: str | None, expected: str):
     """Test initialization with various name parameters."""
-    if name is None:
-        policy = SendBackendRequestPolicy()
-    elif name == "":
-        policy = SendBackendRequestPolicy(name=name)
-    else:
-        policy = SendBackendRequestPolicy(name=name)
-
-    assert policy.name == name
+    policy = SendBackendRequestPolicy() if name is None else SendBackendRequestPolicy(name=name)
+    assert policy.name == expected
 
 
 @pytest.mark.asyncio
 async def test_send_backend_request_policy_container_client_creation(
     sample_transaction: Transaction,
-    mock_settings: MagicMock,
-    mock_db_session: AsyncMock,
 ):
     """Test that the policy correctly uses container to create OpenAI client."""
     policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
 
-    # Create a real container mock that we can verify calls on
-    mock_container = MagicMock(spec=DependencyContainer)
-    mock_container.settings = mock_settings
+    # Create a minimal container with only what we need
+    container = MagicMock(spec=DependencyContainer)
 
-    # Create a fresh mock client for this test
-    test_openai_client = AsyncMock()
-    mock_response = MagicMock()
-    mock_response.model_dump.return_value = {
-        "id": "test-response",
-        "object": "chat.completion",
-        "created": 1677652388,
-        "model": "gpt-4",
-        "choices": [{"index": 0, "message": {"role": "assistant", "content": "Test"}, "finish_reason": "stop"}],
-        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
-    }
-    test_openai_client.chat.completions.create.return_value = mock_response
-    mock_container.create_openai_client.return_value = test_openai_client
+    # Create a test client
+    test_client = AsyncMock()
+    test_response = MagicMock()
+    test_response.model_dump.return_value = create_mock_openai_response(id="test-response", content="Test")
+    test_client.chat.completions.create.return_value = test_response
 
-    await policy.apply(sample_transaction, mock_container, mock_db_session)
+    container.create_openai_client.return_value = test_client
+
+    await policy.apply(sample_transaction, container, db_session)
 
     # Verify that create_openai_client was called with the correct parameters from transaction.request
-    mock_container.create_openai_client.assert_called_once_with(
-        "https://api.openai.com/v1/chat/completions", "test_key"
-    )
+    container.create_openai_client.assert_called_once_with("https://api.openai.com/v1/chat/completions", "test_key")
 
     # Verify that the returned client was used
-    test_openai_client.chat.completions.create.assert_called_once()
+    test_client.chat.completions.create.assert_called_once()

@@ -1,7 +1,7 @@
 import pytest
+from luthien_control.control_policy.conditions import EqualsCondition, path
 from luthien_control.control_policy.conditions.all_cond import AllCondition
 from luthien_control.control_policy.conditions.any_cond import AnyCondition
-from luthien_control.control_policy.conditions.comparisons import EqualsCondition
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.conditions.not_cond import NotCondition
 from luthien_control.control_policy.conditions.registry import (
@@ -57,13 +57,13 @@ def test_get_condition_from_serialized_simple_cases(condition_type_str: str, con
     original_condition: Condition
 
     if condition_class == EqualsCondition:
-        original_condition = EqualsCondition(key="test.key", value="test_value")
+        original_condition = EqualsCondition(path("test.key"), "test_value")
     elif condition_class == NotCondition:
-        original_condition = NotCondition(EqualsCondition(key="inner.key", value=1))
+        original_condition = NotCondition(EqualsCondition(path("inner.key"), 1))
     elif condition_class == AllCondition:
-        original_condition = AllCondition(conditions=[EqualsCondition(key="all.key1", value=True)])
+        original_condition = AllCondition(conditions=[EqualsCondition(path("all.key1"), True)])
     elif condition_class == AnyCondition:
-        original_condition = AnyCondition(conditions=[EqualsCondition(key="any.key1", value=False)])
+        original_condition = AnyCondition(conditions=[EqualsCondition(path("any.key1"), False)])
     else:
         pytest.fail(f"Unhandled condition class in test setup: {condition_class}")
 
@@ -78,8 +78,8 @@ def test_get_condition_from_serialized_simple_cases(condition_type_str: str, con
 
 def test_get_condition_from_serialized_nested() -> None:
     """Tests get_condition_from_serialized with nested conditions."""
-    eq_cond1 = EqualsCondition(key="data.x", value=10)
-    eq_cond2 = EqualsCondition(key="request.method", value="POST")
+    eq_cond1 = EqualsCondition(path("data.x"), 10)
+    eq_cond2 = EqualsCondition(path("request.method"), "POST")
     not_cond = NotCondition(value=eq_cond1)
     all_cond = AllCondition(conditions=[not_cond, eq_cond2])
     any_cond = AnyCondition(conditions=[all_cond, eq_cond1])
@@ -95,8 +95,8 @@ def test_get_condition_from_serialized_nested() -> None:
 
 def test_get_conditions_from_serialized() -> None:
     """Tests get_conditions_from_serialized with default key."""
-    eq_cond1_s = EqualsCondition(key="k1", value="v1").serialize()
-    eq_cond2_s = EqualsCondition(key="k2", value="v2").serialize()
+    eq_cond1_s = EqualsCondition(path("k1"), "v1").serialize()
+    eq_cond2_s = EqualsCondition(path("k2"), "v2").serialize()
     serialized_input: SerializableDict = {"conditions": [eq_cond1_s, eq_cond2_s]}
 
     from_serializedd_list = get_conditions_from_serialized(serialized_input)
@@ -109,7 +109,7 @@ def test_get_conditions_from_serialized() -> None:
 
 def test_get_conditions_from_serialized_custom_key() -> None:
     """Tests get_conditions_from_serialized with a custom key."""
-    eq_cond_s = EqualsCondition(key="k", value="v").serialize()
+    eq_cond_s = EqualsCondition(path("k"), "v").serialize()
     serialized_input: SerializableDict = {"my_custom_key": [eq_cond_s]}
 
     from_serializedd_list = get_conditions_from_serialized(serialized_input, key="my_custom_key")

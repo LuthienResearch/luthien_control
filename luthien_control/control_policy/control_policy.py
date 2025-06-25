@@ -68,7 +68,8 @@ class ControlPolicy(abc.ABC):
         Args:
             transaction: The current transaction.
             container: The dependency injection container.
-            session: The database session for the current request.
+            session: The database session for the current request. We include this separately because
+                it's request-scoped rather than application-scoped.
 
         Returns:
             The potentially modified transaction.

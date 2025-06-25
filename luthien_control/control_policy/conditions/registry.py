@@ -1,6 +1,6 @@
 from luthien_control.control_policy.conditions.all_cond import AllCondition
 from luthien_control.control_policy.conditions.any_cond import AnyCondition
-from luthien_control.control_policy.conditions.comparisons import (
+from luthien_control.control_policy.conditions.clean_comparisons import (
     ContainsCondition,
     EqualsCondition,
     GreaterThanCondition,
@@ -16,6 +16,7 @@ NAME_TO_CONDITION_CLASS = {
     "not": NotCondition,
     "any": AnyCondition,
     "all": AllCondition,
+    # Clean comparison conditions
     "equals": EqualsCondition,
     "not_equals": NotEqualsCondition,
     "less_than": LessThanCondition,

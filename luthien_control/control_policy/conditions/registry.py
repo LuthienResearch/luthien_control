@@ -1,6 +1,6 @@
 from luthien_control.control_policy.conditions.all_cond import AllCondition
 from luthien_control.control_policy.conditions.any_cond import AnyCondition
-from luthien_control.control_policy.conditions.clean_comparisons import (
+from luthien_control.control_policy.conditions.comparison_conditions import (
     ContainsCondition,
     EqualsCondition,
     GreaterThanCondition,

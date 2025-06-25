@@ -8,7 +8,7 @@ from luthien_control.api.openai_chat_completions.datatypes import (
 )
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
-from luthien_control.control_policy.conditions.clean_comparisons import (
+from luthien_control.control_policy.conditions.comparison_conditions import (
     ContainsCondition,
     EqualsCondition,
     GreaterThanCondition,

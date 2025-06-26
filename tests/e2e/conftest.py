@@ -216,7 +216,7 @@ async def live_local_proxy_server_file_based(openai_api_key: str) -> AsyncGenera
     server_env["BACKEND_URL"] = backend_url
 
     # Tell the server process to load the specific policy file for E2E tests
-    server_env["POLICY_FILEPATH"] = "e2e_policy.json"
+    server_env["POLICY_FILEPATH"] = "tests/e2e/e2e_policy.json"
 
     # Define base URL after preparing environment
     base_url = f"http://{host}:{port}"

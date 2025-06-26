@@ -4,9 +4,9 @@ import pytest
 from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
+from luthien_control.control_policy.conditions import EqualsCondition, path
 from luthien_control.control_policy.conditions.all_cond import AllCondition
 from luthien_control.control_policy.conditions.any_cond import AnyCondition
-from luthien_control.control_policy.conditions.comparisons import EqualsCondition
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.conditions.not_cond import NotCondition
 from luthien_control.control_policy.conditions.util import get_condition_from_serialized
@@ -19,13 +19,13 @@ from psygnal.containers import EventedDict, EventedList
 @pytest.fixture
 def true_condition() -> Condition:
     """A simple condition that always evaluates to True."""
-    return EqualsCondition(key="data.static_true", value=True)
+    return EqualsCondition(path("data.static_true"), True)
 
 
 @pytest.fixture
 def false_condition() -> Condition:
     """A simple condition that always evaluates to False."""
-    return EqualsCondition(key="data.static_false", value=True)  # Note: data.static_false will be False in transaction
+    return EqualsCondition(path("data.static_false"), True)  # Note: data.static_false will be False in transaction
 
 
 @pytest.fixture

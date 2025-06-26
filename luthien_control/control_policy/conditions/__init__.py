@@ -12,13 +12,14 @@ from luthien_control.control_policy.conditions.registry import (
     NotEqualsCondition,
     RegexMatchCondition,
 )
+from luthien_control.control_policy.conditions.value_resolvers import path
 
 __all__ = [
     "Condition",
     "AllCondition",
     "AnyCondition",
-    "EqualsCondition",
     "NotCondition",
+    "EqualsCondition",
     "NotEqualsCondition",
     "ContainsCondition",
     "LessThanCondition",
@@ -26,6 +27,7 @@ __all__ = [
     "GreaterThanCondition",
     "GreaterThanOrEqualCondition",
     "RegexMatchCondition",
+    "path",
 ]
 
 ALL_CONDITION_CLASSES = [

@@ -1,7 +1,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from luthien_control.control_policy.conditions.comparisons import EqualsCondition
+from luthien_control.control_policy.conditions import EqualsCondition, path
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction import Transaction
@@ -74,7 +74,7 @@ class TestConditionBaseClass:
 
     def test_repr_format(self):
         """Test the __repr__ format."""
-        condition = EqualsCondition(key="test", value="value")
+        condition = EqualsCondition(path("test"), "value")
         repr_str = repr(condition)
         assert "EqualsCondition" in repr_str
         assert "test" in repr_str
@@ -82,26 +82,26 @@ class TestConditionBaseClass:
 
     def test_hash_consistency(self):
         """Test that hash is consistent and based on string representation."""
-        condition = EqualsCondition(key="test", value="value")
+        condition = EqualsCondition(path("test"), "value")
         expected_hash = hash(str(condition))
         assert hash(condition) == expected_hash
 
     def test_eq_different_class(self):
         """Test __eq__ with different class types."""
-        condition1 = EqualsCondition(key="test", value="value")
+        condition1 = EqualsCondition(path("test"), "value")
         condition2 = "not a condition"
         assert condition1 != condition2
 
     def test_eq_same_class_different_serialization(self):
         """Test __eq__ with same class but different serialization."""
-        condition1 = EqualsCondition(key="test", value="value1")
-        condition2 = EqualsCondition(key="test", value="value2")
+        condition1 = EqualsCondition(path("test"), "value1")
+        condition2 = EqualsCondition(path("test"), "value2")
         assert condition1 != condition2
 
     def test_eq_same_class_same_serialization(self):
         """Test __eq__ with same class and same serialization."""
-        condition1 = EqualsCondition(key="test", value="value")
-        condition2 = EqualsCondition(key="test", value="value")
+        condition1 = EqualsCondition(path("test"), "value")
+        condition2 = EqualsCondition(path("test"), "value")
         assert condition1 == condition2
 
     def test_repr_base_implementation(self):

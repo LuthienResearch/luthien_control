@@ -49,29 +49,30 @@ Luthien Control is a framework to implement AI Control policies on OpenAI-API co
 ## Development
 
 - **[`pyproject.toml`](./pyproject.toml)**: The primary configuration file for the Python project, mostly managed by Poetry. It defines project metadata, dependencies, and settings for tools like Ruff, Pytest, and Pyright.
-- [`dev/`](./dev/): Development tracking files (Mostly used to keep track of plans and progress on those plans during development).
-- [`scripts/`](./scripts/): Helper scripts (database creation, log rotation, etc.).
+- **[`CHANGELOG.md`](./CHANGELOG.md)**: Logs changes.
+- **[`dev/`](./dev/)**: Development tracking files (Mostly used to keep track of plans and progress on those plans during development).
+- **[`scripts/`](./scripts/)**: Helper scripts (database creation, log rotation, etc.).
 - **[`.pre-commit-config.yaml`](./.pre-commit-config.yaml)**: Configures `pre-commit` hooks for linting, formatting, and other automated checks before code is committed.
 - **[`codecov.yml`](./codecov.yml)**: Codecov coverage reporting.
 
 ### Documentation
 
 - **[`mkdocs.yml`](./mkdocs.yml)**: Configures MkDocs, the static site generator used for building project documentation.
-- [`docs/`](./docs/): Generated static documentation site.
+- **[`docs/`](./docs/)**: Generated static documentation site.
 
 ### Database
 
 - **[`alembic.ini`](./alembic.ini)**: Alembic config for database migration
-- [`alembic/`](./alembic/): Database migration files for SQLModel.
+- **[`alembic/`](./alembic/)**: Database migration files for SQLModel.
 
 ### AI Assistant Support
 
-- [`CLAUDE.md`](./CLAUDE.md): Claude Code guidelines
-- [`.cursor/rules/`](./.cursor/rules/): Cursor assistant guidelines.
+- **[`CLAUDE.md`](./CLAUDE.md)**: Claude Code guidelines
+- **[`.cursor/rules/`](./.cursor/rules/)**: Cursor assistant guidelines.
 
 ### CICD
 
-- [`.github/workflows/`](./.github/workflows/): Github Actions for code analysis, coverage, testing, etc.
+- **[`.github/workflows/`](./.github/workflows/)**: Github Actions for code analysis, coverage, testing, etc.
 
 ### Docker
 

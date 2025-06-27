@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Type
 
 from psygnal.containers import EventedDict as EDict
 from psygnal.containers import EventedList as EList
@@ -132,15 +132,29 @@ class ContentPartImage(DeepEventedModel):
 
 
 class ResponseFormat(DeepEventedModel):
-    """An object specifying the format that the model must output."""
+    """An object specifying the format that the model must output.
+
+    See https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses
+    """
 
     type: str = Field(default="text")
+    json_schema: Optional[EDict[str, Type]] = Field(default=None)
 
     @field_validator("type")
     def type_must_be_valid(cls, v: str) -> str:
-        """Validate that type is one of 'text' or 'json_object'."""
-        if v not in ("text", "json_object"):
-            raise ValueError("type must be 'text' or 'json_object'")
+        if v not in ("text", "json_object", "json_schema"):
+            raise ValueError("type must be 'text', 'json_object', or 'json_schema'")
+        return v
+
+    @field_validator("json_schema")
+    def json_schema_must_be_valid(cls, v: Optional[EDict[str, Type]]) -> Optional[EDict[str, Type]]:
+        if v is None:
+            return v
+        for key, value in v.items():
+            if not isinstance(key, str):
+                raise ValueError(f"json_schema keys must be strings, got {key} of type {type(key)}")
+            if not isinstance(value, type):
+                raise ValueError(f"json_schema values must be types, got {value} of type {type(value)}")
         return v
 
 

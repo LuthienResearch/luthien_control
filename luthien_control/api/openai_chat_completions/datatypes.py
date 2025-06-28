@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union, Type
+from typing import Any, Optional, Type, Union
 
 from psygnal.containers import EventedDict as EDict
 from psygnal.containers import EventedList as EList

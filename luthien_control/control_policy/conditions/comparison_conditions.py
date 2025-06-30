@@ -23,7 +23,6 @@ from luthien_control.control_policy.conditions.value_resolvers import (
     create_value_resolver,
     path,
 )
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction import Transaction
 
 

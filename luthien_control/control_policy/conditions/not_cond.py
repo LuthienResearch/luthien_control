@@ -3,7 +3,6 @@ from typing import ClassVar
 from pydantic import Field, field_serializer, field_validator
 
 from luthien_control.control_policy.conditions.condition import Condition
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction import Transaction
 
 

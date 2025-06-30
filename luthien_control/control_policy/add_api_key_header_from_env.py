@@ -7,7 +7,6 @@ when the policy is instantiated.
 """
 
 import os
-from typing import Optional
 
 from pydantic import Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +16,6 @@ from luthien_control.control_policy.exceptions import (
     ApiKeyNotFoundError,
     NoRequestError,
 )
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 

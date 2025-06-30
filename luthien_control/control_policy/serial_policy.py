@@ -1,6 +1,6 @@
 # Serial Policy that applies a sequence of other policies.
 
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Sequence
 
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession

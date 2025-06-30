@@ -57,17 +57,6 @@ class StaticValue(ValueResolver):
     type: Literal["static"] = Field(default="static")
     value: Any = Field(...)
 
-    def __init__(self, value: Any = None, **data):
-        """
-        Args:
-            value: The static value to return
-        """
-        if 'value' not in data and value is not None:
-            data['value'] = value
-        elif 'value' not in data and value is None:
-            data['value'] = value
-
-        super().__init__(**data)
 
     def resolve(self, transaction: Transaction) -> Any:
         """Return the static value."""
@@ -89,6 +78,7 @@ class TransactionPath(ValueResolver):
     type: Literal["transaction_path"] = Field(default="transaction_path")
     path: str = Field(...)
 
+
     @field_validator('path', mode='before')
     @classmethod
     def validate_path(cls, value):
@@ -98,16 +88,6 @@ class TransactionPath(ValueResolver):
         if not isinstance(value, str):
             raise TypeError("TransactionPath path must be a string")
         return value
-
-    def __init__(self, path: str | None = None, **data):
-        """
-        Args:
-            path: The path to the value in the transaction (e.g., "request.payload.model")
-        """
-        if path is not None:
-            data['path'] = path
-
-        super().__init__(**data)
 
     def resolve(self, transaction: Transaction) -> Any:
         """Resolve the value from the transaction using the path."""

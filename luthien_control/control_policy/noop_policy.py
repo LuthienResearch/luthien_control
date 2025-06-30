@@ -1,5 +1,7 @@
 
-from pydantic import field_validator
+from typing import Optional
+
+from pydantic import Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -15,11 +17,7 @@ class NoopPolicy(ControlPolicy):
     its name.
     """
 
-    @field_validator('name', mode='before')
-    @classmethod
-    def validate_name(cls, value):
-        """Convert name to string for backward compatibility with tests."""
-        return str(value) if value is not None else None
+    name: str = Field(default="NoopPolicy")
 
     async def apply(
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession

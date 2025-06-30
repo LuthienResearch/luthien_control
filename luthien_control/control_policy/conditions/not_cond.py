@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from pydantic import Field, field_serializer, field_validator
+from pydantic import Field, field_validator
 
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.serialization import SerializableDict
@@ -11,27 +11,8 @@ class NotCondition(Condition):
     type: ClassVar[str] = "not"
     cond: Condition = Field(...)
 
-    def __init__(self, value: Condition | None = None, **data):
-        """
-        Args:
-            value: The condition to negate
-        """
-        if value is not None:
-            data['cond'] = value
 
-        super().__init__(**data)
 
-    @field_serializer('cond', when_used='json')
-    def serialize_cond(self, value: Condition) -> dict:
-        """Custom serializer for cond field."""
-        return value.serialize()
-
-    def serialize(self) -> SerializableDict:
-        """Override serialize to use 'value' field name for backward compatibility."""
-        return SerializableDict({
-            "type": self.type,
-            "value": self.cond.serialize()
-        })
 
     @field_validator('cond', mode='before')
     @classmethod
@@ -43,14 +24,6 @@ class NotCondition(Condition):
             return value
         else:
             raise TypeError(f"Condition value must be a dictionary, got {type(value).__name__}")
-
-    @classmethod
-    def from_serialized(cls, serialized: SerializableDict) -> "NotCondition":
-        """Custom from_serialized to handle 'value' field name for backward compatibility."""
-        if 'value' in serialized:
-            serialized = dict(serialized)  # Make a copy
-            serialized['cond'] = serialized.pop('value')
-        return super().from_serialized(serialized)
 
     def evaluate(self, transaction: Transaction) -> bool:
         return not self.cond.evaluate(transaction)

@@ -90,12 +90,12 @@ def sample_transaction_clean() -> Transaction:
 class TestValueResolvers:
     def test_static_value_resolver(self, sample_transaction_clean: Transaction):
         """Test StaticValue resolver."""
-        resolver = StaticValue("test_value")
+        resolver = StaticValue(value="test_value")
         assert resolver.resolve(sample_transaction_clean) == "test_value"
 
     def test_transaction_path_resolver(self, sample_transaction_clean: Transaction):
         """Test TransactionPath resolver."""
-        resolver = TransactionPath("request.payload.model")
+        resolver = TransactionPath(path="request.payload.model")
         assert resolver.resolve(sample_transaction_clean) == "gpt-4o"
 
     def test_path_convenience_function(self, sample_transaction_clean: Transaction):
@@ -106,12 +106,12 @@ class TestValueResolvers:
 
     def test_transaction_path_invalid_path(self, sample_transaction_clean: Transaction):
         """Test TransactionPath with invalid path returns None."""
-        resolver = TransactionPath("request.nonexistent.path")
+        resolver = TransactionPath(path="request.nonexistent.path")
         assert resolver.resolve(sample_transaction_clean) is None
 
     def test_static_value_serialization(self):
         """Test StaticValue serialization."""
-        resolver = StaticValue("test_value")
+        resolver = StaticValue(value="test_value")
         serialized = resolver.serialize()
         assert serialized == {"type": "static", "value": "test_value"}
 
@@ -120,7 +120,7 @@ class TestValueResolvers:
 
     def test_transaction_path_serialization(self):
         """Test TransactionPath serialization."""
-        resolver = TransactionPath("request.payload.model")
+        resolver = TransactionPath(path="request.payload.model")
         serialized = resolver.serialize()
         assert serialized == {"type": "transaction_path", "path": "request.payload.model"}
 
@@ -129,9 +129,9 @@ class TestValueResolvers:
 
     def test_static_value_equality(self):
         """Test StaticValue equality."""
-        resolver1 = StaticValue("test")
-        resolver2 = StaticValue("test")
-        resolver3 = StaticValue("different")
+        resolver1 = StaticValue(value="test")
+        resolver2 = StaticValue(value="test")
+        resolver3 = StaticValue(value="different")
 
         assert resolver1 == resolver2
         assert resolver1 != resolver3
@@ -139,9 +139,9 @@ class TestValueResolvers:
 
     def test_transaction_path_equality(self):
         """Test TransactionPath equality."""
-        resolver1 = TransactionPath("request.payload.model")
-        resolver2 = TransactionPath("request.payload.model")
-        resolver3 = TransactionPath("data.model")
+        resolver1 = TransactionPath(path="request.payload.model")
+        resolver2 = TransactionPath(path="request.payload.model")
+        resolver3 = TransactionPath(path="data.model")
 
         assert resolver1 == resolver2
         assert resolver1 != resolver3

@@ -12,23 +12,8 @@ from luthien_control.core.transaction import Transaction
 class SetBackendPolicy(ControlPolicy):
     """A policy that sets the backend URL for the transaction."""
 
+    name: str = Field(default="SetBackendPolicy")
     backend_url: Optional[str] = Field(default=None)
-
-    @field_validator('name', mode='before')
-    @classmethod
-    def validate_name(cls, value):
-        """Convert non-string names to None for backward compatibility."""
-        if value is None or isinstance(value, str):
-            return value
-        return None
-
-    @field_validator('backend_url', mode='before')
-    @classmethod
-    def validate_backend_url(cls, value):
-        """Convert non-string backend_url to None for backward compatibility."""
-        if value is None or isinstance(value, str):
-            return value
-        return None
 
     async def apply(
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession

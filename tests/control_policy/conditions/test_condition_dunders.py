@@ -45,7 +45,7 @@ class TestEqualsConditionDunders:
 
         # Test against a non-ComparisonCondition type (logical condition)
         # For this, we need a simple logical condition instance
-        dummy_logical_cond = NotCondition(value=EqualsCondition(path("dummy"), True))
+        dummy_logical_cond = NotCondition(cond=EqualsCondition(path("dummy"), True))
         assert cond1a != dummy_logical_cond, "EqualsCondition should not be equal to NotCondition"
 
     def test_hash(self) -> None:
@@ -304,7 +304,7 @@ class TestNotConditionDunders:
         """Test repr - disabled due to API change."""
         pass
         inner_cond = EqualsCondition(path("data.isAdmin"), True)
-        NotCondition(value=inner_cond)
+        NotCondition(cond=inner_cond)
 
         # The new __repr__ for NotCondition is f"{type(self).__name__}(value={self.cond!r})"
         # and for EqualsCondition it's f"{type(self).__name__}(key={self.key!r}, value={self.value!r})"
@@ -318,10 +318,10 @@ class TestNotConditionDunders:
         inner_cond2 = EqualsCondition(path("data.isAdmin"), False)  # Different inner value
         inner_cond3 = EqualsCondition(path("data.isUser"), True)  # Different inner key
 
-        cond1a = NotCondition(value=inner_cond1)
-        cond1b = NotCondition(value=inner_cond1)  # Identical
-        cond2_diff_inner_val = NotCondition(value=inner_cond2)  # Different inner condition (value)
-        cond3_diff_inner_key = NotCondition(value=inner_cond3)  # Different inner condition (key)
+        cond1a = NotCondition(cond=inner_cond1)
+        cond1b = NotCondition(cond=inner_cond1)  # Identical
+        cond2_diff_inner_val = NotCondition(cond=inner_cond2)  # Different inner condition (value)
+        cond3_diff_inner_key = NotCondition(cond=inner_cond3)  # Different inner condition (key)
 
         assert cond1a == cond1b, "Identical instances should be equal"
         assert cond1a != cond2_diff_inner_val, "Instances with different inner conditions (value) should not be equal"
@@ -340,9 +340,9 @@ class TestNotConditionDunders:
         inner_cond1 = EqualsCondition(path("data.isAdmin"), True)
         inner_cond2 = EqualsCondition(path("data.isAdmin"), False)
 
-        cond1a = NotCondition(value=inner_cond1)
-        cond1b = NotCondition(value=inner_cond1)
-        cond2_diff_inner = NotCondition(value=inner_cond2)
+        cond1a = NotCondition(cond=inner_cond1)
+        cond1b = NotCondition(cond=inner_cond1)
+        cond2_diff_inner = NotCondition(cond=inner_cond2)
 
         assert hash(cond1a) == hash(cond1b), "Hashes of identical instances should be equal"
 

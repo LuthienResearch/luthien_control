@@ -1,6 +1,6 @@
 from typing import ClassVar, List
 
-from pydantic import Field, field_serializer, field_validator
+from pydantic import Field, field_validator
 
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.core.transaction import Transaction
@@ -10,20 +10,8 @@ class AllCondition(Condition):
     type: ClassVar[str] = "all"
     conditions: List[Condition] = Field(...)
 
-    def __init__(self, conditions: List[Condition] | None = None, **data):
-        """
-        Args:
-            conditions: List of conditions that must all be true
-        """
-        if conditions is not None:
-            data['conditions'] = conditions
 
-        super().__init__(**data)
 
-    @field_serializer('conditions')
-    def serialize_conditions(self, value: List[Condition]) -> List[dict]:
-        """Custom serializer for conditions field."""
-        return [condition.serialize() for condition in value]
 
     @field_validator('conditions', mode='before')
     @classmethod

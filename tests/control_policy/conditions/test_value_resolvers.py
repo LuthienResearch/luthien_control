@@ -102,7 +102,7 @@ class TestAutoResolveValue:
 
     def test_auto_resolve_value_with_resolver(self, sample_transaction: Transaction):
         """Test that auto_resolve_value returns ValueResolver instances unchanged."""
-        resolver = StaticValue("test")
+        resolver = StaticValue(value="test")
         result = auto_resolve_value(resolver)
 
         assert result is resolver

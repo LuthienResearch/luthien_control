@@ -2,6 +2,7 @@ import logging
 from typing import Optional
 
 import openai
+from pydantic import field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.api.openai_chat_completions import OpenAIChatCompletionsResponse
@@ -24,6 +25,20 @@ class SendBackendRequestPolicy(ControlPolicy):
             during initialization.
         logger (logging.Logger): The logger instance for this policy.
     """
+
+    @field_validator('name', mode='before')
+    @classmethod
+    def validate_name(cls, value):
+        """Convert name to string for backward compatibility with tests."""
+        return str(value) if value is not None else None
+    
+    @classmethod
+    def from_serialized(cls, config: SerializableDict) -> "SendBackendRequestPolicy":
+        """Custom from_serialized to handle missing name field for backward compatibility."""
+        config_copy = dict(config)
+        if 'name' not in config_copy:
+            config_copy['name'] = cls.__name__
+        return super().from_serialized(config_copy)
 
 
     async def apply(

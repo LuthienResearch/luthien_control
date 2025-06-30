@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Any, ClassVar, Literal, Union
 
-from pydantic import Field, field_serializer, field_validator
+from pydantic import Field, field_validator
 
 from luthien_control.control_policy.conditions.comparators import (
     COMPARATOR_TO_NAME,
@@ -40,10 +40,6 @@ class ComparisonCondition(Condition, ABC):
     right_resolver: ValueResolver = Field(..., alias="right")
     comparator_name: str = Field(..., alias="comparator")
 
-    @field_serializer('left_resolver', 'right_resolver')
-    def serialize_value_resolver(self, value: ValueResolver) -> dict:
-        """Custom serializer for ValueResolver fields."""
-        return value.serialize()
 
     @field_validator('left_resolver', 'right_resolver', mode='before')
     @classmethod
@@ -101,19 +97,6 @@ class ComparisonCondition(Condition, ABC):
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.left_resolver!r}, {self.right_resolver!r})"
 
-    @classmethod
-    def from_serialized(cls, serialized: SerializableDict) -> "ComparisonCondition":
-        """Create a condition from serialized data."""
-        left_data = serialized.get("left")
-        right_data = serialized.get("right")
-
-        if not isinstance(left_data, dict) or not isinstance(right_data, dict):
-            raise TypeError("Left and right must be serialized ValueResolver objects")
-
-        left_resolver = create_value_resolver(left_data)
-        right_resolver = create_value_resolver(right_data)
-
-        return cls(left=left_resolver, right=right_resolver)
 
     @classmethod
     def from_legacy_format(cls, key: str, value: Any) -> "ComparisonCondition":

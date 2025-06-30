@@ -349,7 +349,7 @@ def test_model_name_replacement_policy_parametrized_serialization(mapping: Dict[
     """Test ModelNameReplacementPolicy serialization with various configurations."""
     if name is None:
         pytest.skip("Pydantic now requires string names, None not supported")
-    
+
     policy = ModelNameReplacementPolicy(model_mapping=mapping, name=name)
 
     serialized = policy.serialize()

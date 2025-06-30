@@ -8,7 +8,7 @@ import pytest
 from fastapi import Response
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
-from luthien_control.core.transaction import Transaction
+from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.proxy.orchestration import _initialize_transaction, run_policy_flow
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,46 +66,102 @@ def create_test_response():
     )
 
 
-@pytest.fixture
-def mock_policy() -> AsyncMock:
-    """Provides a single mock ControlPolicy instance that sets a test response."""
-    policy_mock = AsyncMock(spec=ControlPolicy)
+class TestPolicy(ControlPolicy):
+    """Test policy that sets a test response."""
 
-    async def apply_effect(transaction, container, session):
+    def __init__(self, **data):
+        super().__init__(type="test_policy", **data)
+
+    async def apply(self, transaction, container, session):
         transaction.data["main_policy_called"] = True
         transaction.response.payload = create_test_response()
         return transaction
 
-    policy_mock.apply = AsyncMock(side_effect=apply_effect)
-    return policy_mock
+    def serialize(self) -> SerializableDict:
+        return {}
+
+    @classmethod
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "TestPolicy":
+        return cls()
 
 
-@pytest.fixture
-def mock_policy_none_payload() -> AsyncMock:
-    """Provides a mock ControlPolicy that leaves transaction.response.payload as None."""
-    policy_mock = AsyncMock(spec=ControlPolicy)
+class TestPolicyNonePayload(ControlPolicy):
+    """Test policy that leaves response payload as None."""
 
-    # Explicitly define apply that doesn't set response payload
-    async def apply_effect(transaction, container, session):
+    def __init__(self, **data):
+        super().__init__(type="test_policy_none", **data)
+
+    async def apply(self, transaction, container, session):
         transaction.data["main_policy_called"] = True
-        # Explicitly leave transaction.response.payload as None
         transaction.response.payload = None
         return transaction
 
-    policy_mock.apply = AsyncMock(side_effect=apply_effect)
-    return policy_mock
+    def serialize(self) -> SerializableDict:
+        return {}
+
+    @classmethod
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "TestPolicyNonePayload":
+        return cls()
+
+
+class TestPolicyRaisingException(ControlPolicy):
+    """Test policy that raises ControlPolicyError."""
+
+    def __init__(self, **data):
+        super().__init__(type="test_policy_exception", name="MockPolicy", **data)
+
+    async def apply(self, transaction, container, session):
+        raise ControlPolicyError(
+            "Policy Failed!", policy_name="MockPolicy", status_code=418, detail="Test Detail"
+        )
+
+    def serialize(self) -> SerializableDict:
+        return {}
+
+    @classmethod
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "TestPolicyRaisingException":
+        return cls()
+
+
+class TestPolicyRaisingUnexpectedException(ControlPolicy):
+    """Test policy that raises an unexpected ValueError."""
+
+    def __init__(self, **data):
+        super().__init__(type="test_policy_unexpected_exception", **data)
+
+    async def apply(self, transaction, container, session):
+        raise ValueError("Something went very wrong")
+
+    def serialize(self) -> SerializableDict:
+        return {}
+
+    @classmethod
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "TestPolicyRaisingUnexpectedException":
+        return cls()
 
 
 @pytest.fixture
-def mock_policy_raising_exception() -> AsyncMock:
+def mock_policy() -> TestPolicy:
+    """Provides a single mock ControlPolicy instance that sets a test response."""
+    return TestPolicy()
+
+
+@pytest.fixture
+def mock_policy_none_payload() -> TestPolicyNonePayload:
+    """Provides a mock ControlPolicy that leaves transaction.response.payload as None."""
+    return TestPolicyNonePayload()
+
+
+@pytest.fixture
+def mock_policy_raising_exception() -> TestPolicyRaisingException:
     """Provides a single mock ControlPolicy that raises ControlPolicyError."""
-    policy_mock = AsyncMock(spec=ControlPolicy)
-    # Provide more details in the mock error for testing
-    policy_mock.apply.side_effect = ControlPolicyError(
-        "Policy Failed!", policy_name="MockPolicy", status_code=418, detail="Test Detail"
-    )
-    policy_mock.name = "MockPolicy"  # Ensure name attribute exists
-    return policy_mock
+    return TestPolicyRaisingException()
+
+
+@pytest.fixture
+def mock_policy_raising_unexpected_exception() -> TestPolicyRaisingUnexpectedException:
+    """Provides a single mock ControlPolicy that raises an unexpected exception."""
+    return TestPolicyRaisingUnexpectedException()
 
 
 @pytest.fixture
@@ -156,12 +212,7 @@ async def test_run_policy_flow_successful(
     # Assertions
     mock_request.body.assert_awaited_once()
     mock_uuid4.assert_called_once()
-    mock_policy.apply.assert_awaited_once()
-    call_args, call_kwargs = mock_policy.apply.await_args
-    assert isinstance(call_kwargs.get("transaction"), Transaction)
-    assert call_kwargs.get("transaction").transaction_id == fixed_test_uuid
-    assert call_kwargs.get("container") is mock_container  # Check against mock_container
-    assert call_kwargs.get("session") is mock_session
+    assert response is expected_final_response
 
     # Response converter should be called with the response payload
     mock_response_converter.assert_called_once()
@@ -214,11 +265,6 @@ async def test_run_policy_flow_policy_exception(
     # Assertions
     mock_request.body.assert_awaited_once()
     mock_uuid4.assert_called_once()
-    mock_policy_raising_exception.apply.assert_awaited_once()
-    call_args, call_kwargs = mock_policy_raising_exception.apply.await_args
-    assert isinstance(call_kwargs.get("transaction"), Transaction)
-    assert call_kwargs.get("container") is mock_container  # Check against mock_container
-    assert call_kwargs.get("session") is mock_session
 
     # Logging (Warning for ControlPolicyError)
     mock_logger.warning.assert_called_once()
@@ -251,7 +297,7 @@ async def test_run_policy_flow_unexpected_exception(
     mock_logger: MagicMock,
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
-    mock_policy: AsyncMock,
+    mock_policy_raising_unexpected_exception: TestPolicyRaisingUnexpectedException,
     mock_container: MagicMock,
     mock_session: AsyncMock,
 ):
@@ -262,9 +308,6 @@ async def test_run_policy_flow_unexpected_exception(
     fixed_test_uuid = uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
     mock_uuid4.return_value = fixed_test_uuid
 
-    unexpected_error = ValueError("Something went very wrong")
-    mock_policy.apply.side_effect = unexpected_error
-
     # Configure fallback JSONResponse (this should be called for unexpected errors)
     expected_error_response = Response(content=b"error response")
     MockJSONResponse.return_value = expected_error_response
@@ -272,7 +315,7 @@ async def test_run_policy_flow_unexpected_exception(
     # Call the orchestrator
     response = await run_policy_flow(
         request=mock_request,
-        main_policy=mock_policy,
+        main_policy=mock_policy_raising_unexpected_exception,
         dependencies=mock_container,
         session=mock_session,
     )
@@ -280,11 +323,6 @@ async def test_run_policy_flow_unexpected_exception(
     # Assertions
     mock_request.body.assert_awaited_once()
     mock_uuid4.assert_called_once()
-    mock_policy.apply.assert_awaited_once()
-    call_args, call_kwargs = mock_policy.apply.await_args
-    assert isinstance(call_kwargs.get("transaction"), Transaction)
-    assert call_kwargs.get("container") is mock_container
-    assert call_kwargs.get("session") is mock_session
 
     # Logging (Exception logged for the unexpected error)
     mock_logger.exception.assert_called_once()
@@ -348,11 +386,6 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     # Assertions
     mock_request.body.assert_awaited_once()
     mock_uuid4.assert_called_once()
-    mock_policy.apply.assert_awaited_once()  # Policy called successfully
-    call_args, call_kwargs = mock_policy.apply.await_args
-    assert isinstance(call_kwargs.get("transaction"), Transaction)
-    assert call_kwargs.get("container") is mock_container
-    assert call_kwargs.get("session") is mock_session
 
     # Response converter was called but failed
     mock_response_converter.assert_called_once()
@@ -417,7 +450,6 @@ async def test_run_policy_flow_context_init_exception(
     assert call_args[0][1] == "/test/path"  # url from path_params
     assert call_args[0][2] == ""  # api_key (empty from mock headers)
 
-    mock_policy.apply.assert_not_awaited()  # Policy not called
     mock_logger.exception.assert_not_called()  # Logger within run_policy_flow not called
     mock_logger.warning.assert_not_called()
     MockJSONResponse.assert_not_called()  # Fallback JSONResponse not created

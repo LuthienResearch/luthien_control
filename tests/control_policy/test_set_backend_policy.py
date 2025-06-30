@@ -20,7 +20,7 @@ class TestSetBackendPolicy:
     def test_init_with_defaults(self):
         """Test initialization with default values."""
         policy = SetBackendPolicy()
-        assert policy.name is None
+        assert policy.name == "SetBackendPolicy"  # Now uses default class name
         assert policy.backend_url is None
 
     def test_init_with_only_name(self):
@@ -32,7 +32,7 @@ class TestSetBackendPolicy:
     def test_init_with_only_backend_url(self):
         """Test initialization with only backend_url."""
         policy = SetBackendPolicy(backend_url="https://api.example.com")
-        assert policy.name is None
+        assert policy.name == "SetBackendPolicy"  # Now uses default class name
         assert policy.backend_url == "https://api.example.com"
 
     @pytest.mark.asyncio
@@ -101,29 +101,23 @@ class TestSetBackendPolicy:
         config = SerializableDict()
         policy = SetBackendPolicy.from_serialized(config)
 
-        assert policy.name is None
+        assert policy.name == "SetBackendPolicy"  # Now uses default class name
         assert policy.backend_url is None
 
-    def test_from_serialized_with_non_string_name(self):
-        """Test from_serialized with non-string name."""
+    def test_from_serialized_with_non_string_name_raises_validation_error(self):
+        """Test from_serialized with non-string name raises ValidationError."""
         config = SerializableDict(name=123, backend_url="https://api.example.com")
-        policy = SetBackendPolicy.from_serialized(config)
+        with pytest.raises(Exception):  # Pydantic will raise ValidationError for invalid types
+            SetBackendPolicy.from_serialized(config)
 
-        assert policy.name is None  # Non-string name should be converted to None
-        assert policy.backend_url == "https://api.example.com"
-
-    def test_from_serialized_with_non_string_backend_url(self):
-        """Test from_serialized with non-string backend_url."""
+    def test_from_serialized_with_non_string_backend_url_raises_validation_error(self):
+        """Test from_serialized with non-string backend_url raises ValidationError."""
         config = SerializableDict(name="test_policy", backend_url=123)
-        policy = SetBackendPolicy.from_serialized(config)
+        with pytest.raises(Exception):  # Pydantic will raise ValidationError for invalid types
+            SetBackendPolicy.from_serialized(config)
 
-        assert policy.name == "test_policy"
-        assert policy.backend_url is None  # Non-string backend_url should be converted to None
-
-    def test_from_serialized_with_all_non_strings(self):
-        """Test from_serialized with all non-string values."""
+    def test_from_serialized_with_all_non_strings_raises_validation_error(self):
+        """Test from_serialized with all non-string values raises ValidationError."""
         config = SerializableDict(name=123, backend_url=456)
-        policy = SetBackendPolicy.from_serialized(config)
-
-        assert policy.name is None
-        assert policy.backend_url is None
+        with pytest.raises(Exception):  # Pydantic will raise ValidationError for invalid types
+            SetBackendPolicy.from_serialized(config)

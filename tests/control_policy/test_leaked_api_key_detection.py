@@ -588,6 +588,7 @@ def test_leaked_api_key_detection_policy_parametrized_initialization(
         policy = LeakedApiKeyDetectionPolicy(patterns=patterns, name=name)
         expected_patterns = patterns
 
-    assert policy.name == name
+    expected_name = name if name is not None else "LeakedApiKeyDetectionPolicy"
+    assert policy.name == expected_name
     assert policy.patterns == expected_patterns
     assert len(policy.compiled_patterns) == len(expected_patterns)

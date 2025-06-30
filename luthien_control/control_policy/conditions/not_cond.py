@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_serializer, field_validator
 
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.serialization import SerializableDict
@@ -11,8 +11,10 @@ class NotCondition(Condition):
     type: ClassVar[str] = "not"
     cond: Condition = Field(...)
 
-
-
+    @field_serializer('cond')
+    def serialize_cond(self, value: Condition) -> dict:
+        """Custom serializer for cond field."""
+        return value.serialize()
 
     @field_validator('cond', mode='before')
     @classmethod

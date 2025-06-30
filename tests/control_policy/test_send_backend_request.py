@@ -422,12 +422,11 @@ def test_send_backend_request_policy_from_serialized_without_name():
 
 
 def test_send_backend_request_policy_from_serialized_non_string_name():
-    """Test deserialization with non-string name (should convert to string)."""
+    """Test deserialization with non-string name raises ValidationError."""
     config = cast(SerializableDict, {"name": 12345})
 
-    policy = SendBackendRequestPolicy.from_serialized(config)
-
-    assert policy.name == "12345"  # Should be converted to string
+    with pytest.raises(Exception):  # Pydantic will raise ValidationError for invalid types
+        SendBackendRequestPolicy.from_serialized(config)
 
 
 def test_send_backend_request_policy_round_trip_serialization():

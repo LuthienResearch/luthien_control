@@ -402,14 +402,12 @@ def test_serial_policy_from_serialized_no_name():
     assert serial.name == "SerialPolicy"
 
 
-def test_serial_policy_from_serialized_non_string_name(caplog):
-    """Test SerialPolicy deserialization with non-string name."""
+def test_serial_policy_from_serialized_non_string_name():
+    """Test SerialPolicy deserialization with non-string name raises ValidationError."""
     config = cast(SerializableDict, {"name": 12345, "policies": []})
 
-    with caplog.at_level(logging.WARNING):
-        serial = SerialPolicy.from_serialized(config)
-
-    assert serial.name == "12345"
+    with pytest.raises(Exception):  # Pydantic will raise ValidationError for invalid types
+        SerialPolicy.from_serialized(config)
 
 
 def test_serial_policy_round_trip():

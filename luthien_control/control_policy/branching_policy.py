@@ -23,6 +23,7 @@ class BranchingPolicy(ControlPolicy):
     matching condition. If no conditions match, it applies the default policy (if configured).
     """
 
+    name: str = Field(default="BranchingPolicy")
     cond_to_policy_map: OrderedDict[Condition, ControlPolicy] = Field(default_factory=OrderedDict, exclude=True)
     default_policy: Optional[ControlPolicy] = Field(default=None)
 

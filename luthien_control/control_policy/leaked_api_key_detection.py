@@ -32,6 +32,7 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
         r"github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}",  # GitHub PAT pattern
     ]
 
+    name: str = Field(default_factory=lambda: "LeakedApiKeyDetectionPolicy")
     patterns: List[str] = Field(default_factory=lambda: LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS)
     compiled_patterns: List[re.Pattern] = Field(default_factory=list, exclude=True)
 
@@ -50,13 +51,6 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
         else:
             raise ValueError("'patterns' must be a list of strings")
 
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "LeakedApiKeyDetectionPolicy":
-        """Custom from_serialized to handle missing name field for backward compatibility."""
-        config_copy = dict(config)
-        if 'name' not in config_copy:
-            config_copy['name'] = cls.__name__
-        return super().from_serialized(config_copy)
 
     @model_validator(mode='after')
     def compile_patterns(self):

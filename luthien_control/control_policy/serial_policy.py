@@ -2,7 +2,7 @@
 
 from typing import Iterable, Optional, Sequence
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -27,12 +27,9 @@ class SerialPolicy(ControlPolicy):
             identification.
     """
 
+    name: str = Field(default="SerialPolicy")
     policies: Sequence[ControlPolicy] = Field(...)
 
-    @field_validator('policies')
-    @classmethod
-    def validate_policies(cls, v):
-        return v
 
     def __init__(self, **data):
         super().__init__(**data)

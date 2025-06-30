@@ -1,6 +1,6 @@
 from typing import Dict
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -18,17 +18,8 @@ class ModelNameReplacementPolicy(ControlPolicy):
     known models must route through specific endpoints.
     """
 
+    name: str = Field(default="ModelNameReplacementPolicy")
     model_mapping: Dict[str, str] = Field(default_factory=dict)
-
-    @field_validator('model_mapping', mode='before')
-    @classmethod
-    def validate_model_mapping(cls, value):
-        """Ensure model_mapping is a dict, defaulting to empty dict for backward compatibility."""
-        if value is None:
-            return {}
-        if not isinstance(value, dict):
-            return {}
-        return value
 
     async def apply(
         self,

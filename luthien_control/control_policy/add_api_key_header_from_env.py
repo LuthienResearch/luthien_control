@@ -42,23 +42,6 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
             raise TypeError(f"API key environment variable name '{value}' is not a string.")
         return value
 
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderFromEnvPolicy":
-        """Custom from_serialized to maintain original error behavior."""
-        if "api_key_env_var_name" not in config:
-            raise KeyError("Configuration for AddApiKeyHeaderFromEnvPolicy is missing 'api_key_env_var_name'.")
-        return super().from_serialized(config)
-
-    def __init__(self, api_key_env_var_name: str, name: Optional[str] = None, **data):
-        """Initializes the policy.
-
-        Args:
-            api_key_env_var_name: The name of the environment variable that holds the API key.
-            name: Optional name for this policy instance.
-        """
-        if not api_key_env_var_name:
-            raise ValueError("api_key_env_var_name cannot be empty.")
-        super().__init__(api_key_env_var_name=api_key_env_var_name, name=name, **data)
 
     async def apply(
         self,

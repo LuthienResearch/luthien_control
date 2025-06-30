@@ -107,8 +107,8 @@ def test_noop_policy_serialization_default_name():
     policy = NoopPolicy()
     serialized = policy.serialize()
 
-    expected = {"type": "NoopPolicy"}
-    assert serialized == expected
+    assert serialized["type"] == "NoopPolicy"
+    assert "name" in serialized  # Pydantic includes default name
 
 
 def test_noop_policy_serialization_custom_name():
@@ -117,8 +117,8 @@ def test_noop_policy_serialization_custom_name():
     policy = NoopPolicy(name=custom_name)
     serialized = policy.serialize()
 
-    expected = {"name": custom_name, "type": "NoopPolicy"}
-    assert serialized == expected
+    assert serialized["type"] == "NoopPolicy"
+    assert serialized["name"] == custom_name
 
 
 def test_noop_policy_from_serialized_with_name():

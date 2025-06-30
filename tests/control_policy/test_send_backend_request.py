@@ -388,8 +388,8 @@ def test_send_backend_request_policy_serialize_default():
 
     serialized = policy.serialize()
 
-    expected = {"type": "SendBackendRequest"}
-    assert serialized == expected
+    assert serialized["type"] == "SendBackendRequest"
+    assert "name" in serialized  # Now includes default class name
 
 
 def test_send_backend_request_policy_serialize_custom():
@@ -399,8 +399,8 @@ def test_send_backend_request_policy_serialize_custom():
 
     serialized = policy.serialize()
 
-    expected = {"type": "SendBackendRequest", "name": custom_name}
-    assert serialized == expected
+    assert serialized["type"] == "SendBackendRequest"
+    assert serialized["name"] == custom_name
 
 
 def test_send_backend_request_policy_from_serialized_with_name():

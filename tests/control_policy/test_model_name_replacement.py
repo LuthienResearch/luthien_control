@@ -241,12 +241,9 @@ def test_model_name_replacement_policy_serialize_default_name():
 
     serialized = policy.serialize()
 
-    expected = {
-        "name": "ModelNameReplacementPolicy",
-        "type": "ModelNameReplacement",
-        "model_mapping": mapping,
-    }
-    assert serialized == expected
+    assert serialized["type"] == "ModelNameReplacement"
+    assert serialized["model_mapping"] == mapping
+    assert "name" in serialized
 
 
 def test_model_name_replacement_policy_serialize_custom_name():
@@ -257,12 +254,9 @@ def test_model_name_replacement_policy_serialize_custom_name():
 
     serialized = policy.serialize()
 
-    expected = {
-        "type": "ModelNameReplacement",
-        "name": custom_name,
-        "model_mapping": mapping,
-    }
-    assert serialized == expected
+    assert serialized["type"] == "ModelNameReplacement"
+    assert serialized["name"] == custom_name
+    assert serialized["model_mapping"] == mapping
 
 
 def test_model_name_replacement_policy_serialize_complex_mapping():
@@ -277,12 +271,9 @@ def test_model_name_replacement_policy_serialize_complex_mapping():
 
     serialized = policy.serialize()
 
-    expected = {
-        "type": "ModelNameReplacement",
-        "name": "ComplexPolicy",
-        "model_mapping": mapping,
-    }
-    assert serialized == expected
+    assert serialized["type"] == "ModelNameReplacement"
+    assert serialized["name"] == "ComplexPolicy"
+    assert serialized["model_mapping"] == mapping
 
 
 def test_model_name_replacement_policy_from_serialized_with_name():

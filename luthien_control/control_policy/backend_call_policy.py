@@ -15,6 +15,7 @@ class BackendCallPolicy(ControlPolicy):
     This policy makes a backend LLM call.
     """
 
+    name: str = Field(default="BackendCallPolicy")
     backend_call_spec: BackendCallSpec = Field(...)
 
     async def apply(

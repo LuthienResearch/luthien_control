@@ -28,10 +28,10 @@ class NotCondition(Condition):
     
     def serialize(self) -> SerializableDict:
         """Override serialize to use 'value' field name for backward compatibility."""
-        data = super().serialize()
-        if 'cond' in data:
-            data['value'] = data.pop('cond')
-        return data
+        return SerializableDict({
+            "type": self.type,
+            "value": self.cond.serialize()
+        })
 
     @field_validator('cond', mode='before')
     @classmethod
@@ -39,7 +39,10 @@ class NotCondition(Condition):
         """Custom validator to deserialize condition from dict."""
         if isinstance(value, dict):
             return Condition.from_serialized(value)
-        return value
+        elif isinstance(value, Condition):
+            return value
+        else:
+            raise TypeError(f"Condition value must be a dictionary, got {type(value).__name__}")
     
     @classmethod
     def from_serialized(cls, serialized: SerializableDict) -> "NotCondition":

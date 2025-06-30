@@ -32,11 +32,14 @@ class SerialPolicy(ControlPolicy):
     @field_validator('policies')
     @classmethod
     def validate_policies(cls, v):
-        if not v:
+        return v
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.policies:
             import logging
             logger = logging.getLogger(__name__)
-            logger.warning("Initializing SerialPolicy with an empty policy list.")
-        return v
+            logger.warning(f"Initializing SerialPolicy '{self.name}' with an empty policy list.")
 
     async def apply(
         self,

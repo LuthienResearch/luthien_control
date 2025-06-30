@@ -18,10 +18,6 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
     to the request. It has no policy-specific configuration beyond its name.
     """
 
-    def __init__(self, name: Optional[str] = None):
-        """Initializes the policy."""
-        super().__init__(name=name)
-
     async def apply(
         self,
         transaction: Transaction,
@@ -56,21 +52,3 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         transaction.request.api_key = api_key
 
         return transaction
-
-    def _get_policy_specific_config(self) -> SerializableDict:
-        """No additional configuration needed beyond type and name."""
-        return {}
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderPolicy":
-        """
-        Constructs the policy from serialized configuration.
-
-        Args:
-            config: Dictionary possibly containing 'name'.
-
-        Returns:
-            An instance of AddApiKeyHeaderPolicy.
-        """
-        instance_name = cast(Optional[str], config.get("name"))
-        return cls(name=instance_name)

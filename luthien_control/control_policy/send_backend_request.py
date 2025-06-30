@@ -25,8 +25,6 @@ class SendBackendRequestPolicy(ControlPolicy):
         logger (logging.Logger): The logger instance for this policy.
     """
 
-    def __init__(self, name: Optional[str] = None):
-        super().__init__(name=name)
 
     async def apply(
         self,
@@ -112,22 +110,3 @@ class SendBackendRequestPolicy(ControlPolicy):
             raise
 
         return transaction
-
-    def _get_policy_specific_config(self) -> SerializableDict:
-        """No additional configuration needed beyond type and name."""
-        return {}
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "SendBackendRequestPolicy":
-        """
-        Constructs the policy from serialized configuration.
-
-        Args:
-            config: A dictionary that may optionally contain a 'name' key
-                    to set a custom name for the policy instance.
-
-        Returns:
-            An instance of SendBackendRequestPolicy.
-        """
-        resolved_name = str(config.get("name", cls.__name__))
-        return cls(name=resolved_name)

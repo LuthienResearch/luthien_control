@@ -28,10 +28,6 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         name (str): The name of this policy instance.
     """
 
-    def __init__(self, name: Optional[str] = None):
-        """Initializes the policy."""
-        super().__init__(name=name)
-
     async def apply(
         self,
         transaction: Transaction,
@@ -83,19 +79,3 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         )
 
         return transaction
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "ClientApiKeyAuthPolicy":
-        """
-        Constructs the policy from serialized data.
-
-        Args:
-            config: The serialized configuration dictionary. May optionally
-                    contain a 'name' key to set a custom name for the policy instance.
-
-        Returns:
-            An instance of ClientApiKeyAuthPolicy.
-        """
-        instance = cls()
-        instance.name = str(config.get("name"))
-        return instance

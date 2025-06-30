@@ -9,6 +9,7 @@ when the policy is instantiated.
 import os
 from typing import Optional
 
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -29,7 +30,9 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
     based on deployment environment.
     """
 
-    def __init__(self, api_key_env_var_name: str, name: Optional[str] = None):
+    api_key_env_var_name: str = Field(...)
+
+    def __init__(self, api_key_env_var_name: str, name: Optional[str] = None, **data):
         """Initializes the policy.
 
         Args:
@@ -38,8 +41,7 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         """
         if not api_key_env_var_name:
             raise ValueError("api_key_env_var_name cannot be empty.")
-        super().__init__(name=name, api_key_env_var_name=api_key_env_var_name)
-        self.api_key_env_var_name = api_key_env_var_name
+        super().__init__(api_key_env_var_name=api_key_env_var_name, name=name, **data)
 
     async def apply(
         self,
@@ -82,39 +84,3 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         transaction.request.api_key = api_key
 
         return transaction
-
-    def _get_policy_specific_config(self) -> SerializableDict:
-        """Return policy-specific configuration for serialization.
-
-        This policy needs to store the environment variable name in addition
-        to the standard type and name fields.
-        """
-        return {"api_key_env_var_name": self.api_key_env_var_name}
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderFromEnvPolicy":
-        """
-        Constructs the policy from serialized configuration.
-
-        Args:
-            config: Dictionary expecting 'api_key_env_var_name' and optionally 'name'.
-
-        Returns:
-            An instance of AddApiKeyHeaderFromEnvPolicy.
-
-        Raises:
-            TypeError if 'name' is not a string.
-            KeyError if 'api_key_env_var_name' is not in config.
-        """
-        instance_name = str(config.get("name"))
-        api_key_env_var_name = config.get("api_key_env_var_name")
-
-        if api_key_env_var_name is None:
-            raise KeyError("Configuration for AddApiKeyHeaderFromEnvPolicy is missing 'api_key_env_var_name'.")
-        if not isinstance(api_key_env_var_name, str):
-            raise TypeError(f"API key environment variable name '{api_key_env_var_name}' is not a string.")
-
-        return cls(
-            api_key_env_var_name=api_key_env_var_name,
-            name=instance_name,
-        )

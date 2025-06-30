@@ -3,6 +3,7 @@ import logging
 from collections import OrderedDict
 from typing import Optional
 
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.conditions.condition import Condition
@@ -22,15 +23,8 @@ class BranchingPolicy(ControlPolicy):
     matching condition. If no conditions match, it applies the default policy (if configured).
     """
 
-    def __init__(
-        self,
-        cond_to_policy_map: OrderedDict[Condition, ControlPolicy],
-        default_policy: Optional[ControlPolicy] = None,
-        name: Optional[str] = None,
-    ):
-        super().__init__(name=name, cond_to_policy_map=cond_to_policy_map, default_policy=default_policy)
-        self.cond_to_policy_map = cond_to_policy_map
-        self.default_policy = default_policy
+    cond_to_policy_map: OrderedDict[Condition, ControlPolicy] = Field(...)
+    default_policy: Optional[ControlPolicy] = Field(default=None)
 
     async def apply(
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
@@ -53,20 +47,18 @@ class BranchingPolicy(ControlPolicy):
             return await self.default_policy.apply(transaction, container, session)
         return transaction
 
-    def _get_policy_specific_config(self) -> SerializableDict:
-        """Return policy-specific configuration for serialization.
-
-        This policy needs to store the environment variable name in addition
-        to the standard type and name fields.
-        """
-        return SerializableDict(
-            {
-                "cond_to_policy_map": {
-                    json.dumps(cond.serialize()): policy.serialize() for cond, policy in self.cond_to_policy_map.items()
-                },
-                "default_policy": self.default_policy.serialize() if self.default_policy else None,
-            }
-        )
+    def serialize(self) -> SerializableDict:
+        """Override serialize to handle complex condition-to-policy mapping."""
+        data = super().serialize()
+        data["cond_to_policy_map"] = {
+            json.dumps(cond.serialize()): policy.serialize() 
+            for cond, policy in self.cond_to_policy_map.items()
+        }
+        if self.default_policy:
+            data["default_policy"] = self.default_policy.serialize()
+        else:
+            data["default_policy"] = None
+        return data
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "BranchingPolicy":

@@ -85,7 +85,9 @@ class ControlPolicy(BaseModel, abc.ABC):
 
     def serialize(self) -> SerializableDict:
         """Serialize using Pydantic model_dump through SerializableDict validation."""
-        return safe_model_dump(self)
+        data = self.model_dump(mode='python', by_alias=True, exclude_none=True)
+        from luthien_control.control_policy.serialization import SerializableDictAdapter
+        return SerializableDictAdapter.validate_python(data)
 
     # construct from serialization
     @classmethod
@@ -111,7 +113,18 @@ class ControlPolicy(BaseModel, abc.ABC):
         # Import inside the method to break circular dependency
         from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
 
-        policy_type_name_val = config.get("type")
+        config_copy = dict(config)
+        
+        policy_type_name_val = config_copy.get("type")
+        
+        if not isinstance(policy_type_name_val, str) and cls != ControlPolicy:
+            try:
+                inferred_type = cls.get_policy_type_name()
+                config_copy["type"] = inferred_type
+                policy_type_name_val = inferred_type
+            except ValueError:
+                pass
+        
         if not isinstance(policy_type_name_val, str):
             raise ValueError(
                 f"Policy configuration must include a 'type' field as a string. "
@@ -124,7 +137,7 @@ class ControlPolicy(BaseModel, abc.ABC):
                 f"Unknown policy type '{policy_type_name_val}'. Ensure it is registered in POLICY_NAME_TO_CLASS."
             )
 
-        return cast(PolicyT, safe_model_validate(target_policy_class, config))
+        return cast(PolicyT, safe_model_validate(target_policy_class, config_copy))
 
     class Config:
         arbitrary_types_allowed = True

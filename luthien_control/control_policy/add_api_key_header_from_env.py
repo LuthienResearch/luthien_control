@@ -9,7 +9,7 @@ when the policy is instantiated.
 import os
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -31,6 +31,23 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
     """
 
     api_key_env_var_name: str = Field(...)
+
+    @field_validator('api_key_env_var_name', mode='before')
+    @classmethod
+    def validate_api_key_env_var_name(cls, value):
+        """Validate that api_key_env_var_name is a string, maintaining original strict behavior."""
+        if value is None:
+            raise ValueError("api_key_env_var_name cannot be None")
+        if not isinstance(value, str):
+            raise TypeError(f"API key environment variable name '{value}' is not a string.")
+        return value
+
+    @classmethod
+    def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderFromEnvPolicy":
+        """Custom from_serialized to maintain original error behavior."""
+        if "api_key_env_var_name" not in config:
+            raise KeyError("Configuration for AddApiKeyHeaderFromEnvPolicy is missing 'api_key_env_var_name'.")
+        return super().from_serialized(config)
 
     def __init__(self, api_key_env_var_name: str, name: Optional[str] = None, **data):
         """Initializes the policy.

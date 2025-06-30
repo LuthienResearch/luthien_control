@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from luthien_control.control_policy.conditions.util import get_transaction_value
 from luthien_control.control_policy.serialization import SerializableDict, safe_model_dump, safe_model_validate
@@ -88,6 +88,16 @@ class TransactionPath(ValueResolver):
 
     type: Literal["transaction_path"] = Field(default="transaction_path")
     path: str = Field(...)
+
+    @field_validator('path', mode='before')
+    @classmethod
+    def validate_path(cls, value):
+        """Validate that path is a string, maintaining original strict behavior."""
+        if value is None:
+            raise ValueError("path cannot be None")
+        if not isinstance(value, str):
+            raise TypeError("TransactionPath path must be a string")
+        return value
 
     def __init__(self, path: str | None = None, **data):
         """

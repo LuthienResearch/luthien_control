@@ -245,7 +245,7 @@ def test_not_condition_serialization_deserialization(
     serialized_data = original_condition.serialize()
 
     assert serialized_data["type"] == NotCondition.type
-    assert serialized_data["value"] == inner_condition.serialize()
+    assert serialized_data["cond"] == inner_condition.serialize()
 
     from_serializedd_condition = get_condition_from_serialized(serialized_data)
     assert isinstance(from_serializedd_condition, NotCondition)
@@ -255,10 +255,10 @@ def test_not_condition_serialization_deserialization(
     assert from_serializedd_condition.serialize() == serialized_data
 
 
-def test_not_condition_from_serialized_invalid_value():
-    """Test NotCondition.from_serialized with invalid 'value' field."""
-    # Test with non-dict value
-    invalid_serialized = {"type": "not", "value": "not_a_dict"}
+def test_not_condition_from_serialized_invalid_cond():
+    """Test NotCondition.from_serialized with invalid 'cond' field."""
+    # Test with non-dict cond
+    invalid_serialized = {"type": "not", "cond": "not_a_dict"}
     with pytest.raises(TypeError) as exc_info:
         NotCondition.from_serialized(invalid_serialized)  # type: ignore
     assert "must be a dictionary" in str(exc_info.value)

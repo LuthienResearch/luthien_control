@@ -394,7 +394,7 @@ def test_client_api_key_auth_policy_serialize_default():
 
     serialized = policy.serialize()
 
-    expected = {"type": "ClientApiKeyAuth"}
+    expected = {"name": "ClientApiKeyAuthPolicy", "type": "ClientApiKeyAuth"}
     assert serialized == expected
 
 
@@ -424,7 +424,7 @@ def test_client_api_key_auth_policy_from_serialized_without_name():
 
     policy = ClientApiKeyAuthPolicy.from_serialized(config)
 
-    assert policy.name == "None"  # str(config.get("name")) when name is None
+    assert policy.name == "ClientApiKeyAuthPolicy"  # Uses default class name
 
 
 def test_client_api_key_auth_policy_from_serialized_empty_name():
@@ -437,21 +437,20 @@ def test_client_api_key_auth_policy_from_serialized_empty_name():
 
 
 def test_client_api_key_auth_policy_from_serialized_non_string_name():
-    """Test deserialization with non-string name (should convert to string)."""
+    """Test deserialization with non-string name raises ValidationError."""
     config = cast(SerializableDict, {"name": 12345})
 
-    policy = ClientApiKeyAuthPolicy.from_serialized(config)
-
-    assert policy.name == "12345"  # Should be converted to string
+    with pytest.raises(Exception):  # Pydantic will raise ValidationError for invalid types
+        ClientApiKeyAuthPolicy.from_serialized(config)
 
 
 def test_client_api_key_auth_policy_from_serialized_null_name():
-    """Test deserialization with null name."""
+    """Test deserialization with null name uses default."""
     config = cast(SerializableDict, {"name": None})
 
     policy = ClientApiKeyAuthPolicy.from_serialized(config)
 
-    assert policy.name == "None"  # str(None) = "None"
+    assert policy.name == "ClientApiKeyAuthPolicy"  # Uses default class name
 
 
 def test_client_api_key_auth_policy_round_trip_serialization():
@@ -473,10 +472,10 @@ def test_client_api_key_auth_policy_round_trip_serialization():
 @pytest.mark.parametrize(
     "name,expected_name",
     [
-        (None, None),  # Default name
+        (None, "ClientApiKeyAuthPolicy"),  # Default name from class
         ("CustomPolicy", "CustomPolicy"),  # Custom name
         ("Policy123", "Policy123"),  # Alphanumeric name
-        ("", ""),  # Empty string should use default
+        ("", ""),  # Empty string
         (
             "Very-Long-Policy-Name-With-Special-Characters!@#$%",
             "Very-Long-Policy-Name-With-Special-Characters!@#$%",

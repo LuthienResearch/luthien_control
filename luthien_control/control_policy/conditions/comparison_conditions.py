@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Any, ClassVar, Literal, Union
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_serializer, field_validator
 
 from luthien_control.control_policy.conditions.comparators import (
     COMPARATOR_TO_NAME,
@@ -40,6 +40,10 @@ class ComparisonCondition(Condition, ABC):
     right_resolver: ValueResolver = Field(..., alias="right")
     comparator_name: str = Field(..., alias="comparator")
 
+    @field_serializer('left_resolver', 'right_resolver')
+    def serialize_value_resolver(self, value: ValueResolver) -> dict:
+        """Custom serializer for ValueResolver fields."""
+        return value.serialize()
 
     @field_validator('left_resolver', 'right_resolver', mode='before')
     @classmethod

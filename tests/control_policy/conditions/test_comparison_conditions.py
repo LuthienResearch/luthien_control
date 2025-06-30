@@ -339,23 +339,23 @@ class TestErrorHandling:
         """Test deserialization with invalid left type."""
         serialized = {
             "type": "equals",
-            "left": "not_a_dict",  # Should be a dict
+            "left": "not_a_dict",  # Gets converted to StaticValue by auto_resolve_value
             "right": {"type": "static", "value": "gpt-4o"},
             "comparator": "equals",
         }
-        with pytest.raises(TypeError, match="Left and right must be serialized ValueResolver objects"):
-            EqualsCondition.from_serialized(cast(Any, serialized))
+        condition = EqualsCondition.from_serialized(cast(Any, serialized))
+        assert condition.left_resolver.value == "not_a_dict"
 
     def test_deserialization_invalid_right_type(self):
         """Test deserialization with invalid right type."""
         serialized = {
             "type": "equals",
             "left": {"type": "transaction_path", "path": "request.payload.model"},
-            "right": "not_a_dict",  # Should be a dict
+            "right": "not_a_dict",  # Gets converted to StaticValue by auto_resolve_value
             "comparator": "equals",
         }
-        with pytest.raises(TypeError, match="Left and right must be serialized ValueResolver objects"):
-            EqualsCondition.from_serialized(cast(Any, serialized))
+        condition = EqualsCondition.from_serialized(cast(Any, serialized))
+        assert condition.right_resolver.value == "not_a_dict"
 
     def test_transaction_path_invalid_serialization(self):
         """Test TransactionPath deserialization with invalid path type."""

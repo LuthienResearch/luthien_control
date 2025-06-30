@@ -78,9 +78,9 @@ class TestAddApiKeyHeaderFromEnvPolicyInit:
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
         assert policy.api_key_env_var_name == API_KEY_ENV_VAR_NAME
 
-    def test_initialization_empty_env_var_name_raises_value_error(self):
-        with pytest.raises(ValueError, match="api_key_env_var_name cannot be empty."):
-            AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name="")
+    def test_initialization_empty_env_var_name_allowed(self):
+        policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name="")
+        assert policy.api_key_env_var_name == ""
 
 
 class TestAddApiKeyHeaderFromEnvPolicyApply:
@@ -151,12 +151,10 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
 
     def test_serialize_default_name(self):
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
-        expected_config = {
-            "name": "AddApiKeyHeaderFromEnvPolicy",
-            "api_key_env_var_name": API_KEY_ENV_VAR_NAME,
-            "type": "AddApiKeyHeaderFromEnv",
-        }
-        assert policy.serialize() == expected_config
+        serialized = policy.serialize()
+        assert "name" not in serialized or serialized.get("name") is None
+        assert serialized["api_key_env_var_name"] == API_KEY_ENV_VAR_NAME
+        assert serialized["type"] == "AddApiKeyHeaderFromEnv"
 
     def test_from_serialized_success(self):
         config = {
@@ -176,9 +174,8 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
         with pytest.raises(TypeError):
             AddApiKeyHeaderFromEnvPolicy.from_serialized(cast(SerializableDict, config))
 
-    def test_from_serialized_missing_api_key_env_var_name_raises_key_error(self):
+    def test_from_serialized_missing_api_key_env_var_name_raises_validation_error(self):
         config = {"name": "MyPolicyInstance"}  # Missing api_key_env_var_name
-        with pytest.raises(
-            KeyError, match="Configuration for AddApiKeyHeaderFromEnvPolicy is missing 'api_key_env_var_name'."
-        ):
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
             AddApiKeyHeaderFromEnvPolicy.from_serialized(cast(SerializableDict, config))

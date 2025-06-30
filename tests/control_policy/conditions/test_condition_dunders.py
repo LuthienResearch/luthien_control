@@ -553,7 +553,7 @@ class TestConditionBaseClass:
         # Create a mock condition class
         mock_condition_class = Mock()
         mock_condition = Mock()
-        mock_condition_class.from_serialized.return_value = mock_condition
+        mock_condition_class.model_validate.return_value = mock_condition
 
         # Set up the registry to return our mock class
         mock_registry.get.return_value = mock_condition_class
@@ -567,7 +567,7 @@ class TestConditionBaseClass:
         # Verify the result
         assert result == mock_condition
         mock_registry.get.assert_called_once_with("mock_condition")
-        mock_condition_class.from_serialized.assert_called_once_with(serialized)
+        mock_condition_class.model_validate.assert_called_once_with(serialized, from_attributes=True)
 
     def test_repr(self) -> None:
         """Test repr - disabled due to API change."""

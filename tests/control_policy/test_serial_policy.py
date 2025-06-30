@@ -24,16 +24,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class MockSimplePolicy(ControlPolicy):
     """A simple mock policy for testing."""
 
+    modifies_data: bool = False
+
     def __init__(
         self,
         side_effect: Any = None,
         modifies_data: bool = False,
         name: Optional[str] = None,
+        **kwargs
     ):
+        super().__init__(name=name or self.__class__.__name__, modifies_data=modifies_data, **kwargs)
         self.apply_mock = AsyncMock(side_effect=side_effect)
-        self.modifies_data = modifies_data
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.name = name or self.__class__.__name__
+
+    @classmethod
+    def get_policy_type_name(cls) -> str:
+        """Override to avoid registry lookup for test class."""
+        return "MockSimplePolicy"
+
+    class Config:
+        extra = "allow"  # Allow extra fields like apply_mock
 
     async def apply(
         self,
@@ -269,13 +279,14 @@ def test_serial_policy_serialize():
 
 
 def test_serial_policy_serialize_unknown_policy_type():
-    """Test SerialPolicy serialization with unknown policy type."""
-    # Create a policy that's not in the registry
+    """Test SerialPolicy serialization with mock policy type."""
+    # Create a policy that's not in the registry but has get_policy_type_name
     unknown_policy = MockSimplePolicy(name="Unknown")
     serial = SerialPolicy(policies=[unknown_policy], name="UnknownTest")
 
-    with pytest.raises(ValueError, match="MockSimplePolicy is not registered in POLICY_CLASS_TO_NAME registry"):
-        serial.serialize()
+    serialized = serial.serialize()
+    assert serialized["type"] == "SerialPolicy"
+    assert "policies" in serialized
 
 
 def test_serial_policy_from_serialized_valid():

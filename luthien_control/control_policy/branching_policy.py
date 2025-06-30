@@ -67,7 +67,7 @@ class BranchingPolicy(ControlPolicy):
         """Override serialize to handle complex condition-to-policy mapping."""
         data = super().serialize()
         data["cond_to_policy_map"] = {
-            json.dumps(cond.serialize()): policy.serialize() 
+            json.dumps(cond.serialize()): policy.serialize()
             for cond, policy in self.cond_to_policy_map.items()
         }
         if self.default_policy:
@@ -80,13 +80,14 @@ class BranchingPolicy(ControlPolicy):
     def from_serialized(cls, config: SerializableDict) -> "BranchingPolicy":
         """Custom from_serialized to handle JSON-serialized condition keys."""
         config_copy = dict(config)
-        
+
         cond_to_policy_map = OrderedDict()
         serialized_cond_map = config_copy.pop("cond_to_policy_map", None)
         if serialized_cond_map is not None:
             if not isinstance(serialized_cond_map, dict):
                 raise TypeError(
-                    f"Expected 'cond_to_policy_map' to be a dict in BranchingPolicy config, got {type(serialized_cond_map)}"
+                    f"Expected 'cond_to_policy_map' to be a dict in BranchingPolicy config, "
+                    f"got {type(serialized_cond_map)}"
                 )
 
             for cond_json_str, policy_config in serialized_cond_map.items():
@@ -125,8 +126,8 @@ class BranchingPolicy(ControlPolicy):
             default_policy = ControlPolicy.from_serialized(default_policy_serializable)
 
         instance = super().from_serialized(config_copy)
-        
+
         instance.cond_to_policy_map = cond_to_policy_map
         instance.default_policy = default_policy
-        
+
         return instance

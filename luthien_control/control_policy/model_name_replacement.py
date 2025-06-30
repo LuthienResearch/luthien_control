@@ -1,11 +1,10 @@
-from typing import Dict, Optional, cast
+from typing import Dict
 
 from pydantic import Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import NoRequestError
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 

@@ -1,4 +1,4 @@
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 from pydantic import Field, field_serializer, field_validator
 
@@ -18,14 +18,14 @@ class NotCondition(Condition):
         """
         if value is not None:
             data['cond'] = value
-        
+
         super().__init__(**data)
 
     @field_serializer('cond', when_used='json')
     def serialize_cond(self, value: Condition) -> dict:
         """Custom serializer for cond field."""
         return value.serialize()
-    
+
     def serialize(self) -> SerializableDict:
         """Override serialize to use 'value' field name for backward compatibility."""
         return SerializableDict({
@@ -43,7 +43,7 @@ class NotCondition(Condition):
             return value
         else:
             raise TypeError(f"Condition value must be a dictionary, got {type(value).__name__}")
-    
+
     @classmethod
     def from_serialized(cls, serialized: SerializableDict) -> "NotCondition":
         """Custom from_serialized to handle 'value' field name for backward compatibility."""

@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from pydantic import field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +33,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
     def validate_name(cls, value):
         """Convert name to string for backward compatibility with tests."""
         return str(value)
-    
+
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "ClientApiKeyAuthPolicy":
         """Custom from_serialized to handle missing name field for backward compatibility."""

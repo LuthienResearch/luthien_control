@@ -1,9 +1,8 @@
-from typing import ClassVar, List, Literal
+from typing import ClassVar, List
 
 from pydantic import Field, field_serializer, field_validator
 
 from luthien_control.control_policy.conditions.condition import Condition
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction import Transaction
 
 
@@ -18,7 +17,7 @@ class AllCondition(Condition):
         """
         if conditions is not None:
             data['conditions'] = conditions
-        
+
         super().__init__(**data)
 
     @field_serializer('conditions')

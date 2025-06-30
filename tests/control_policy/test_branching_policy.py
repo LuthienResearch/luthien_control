@@ -2,11 +2,10 @@
 
 import json
 from collections import OrderedDict
-from typing import Optional, cast
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from pydantic import ValidationError
 from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
@@ -23,6 +22,7 @@ from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
 from psygnal.containers import EventedDict, EventedList
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Test Fixtures and Helper Classes ---
@@ -32,7 +32,7 @@ class MockSimplePolicy(ControlPolicy):
     """Simple test policy that sets a marker in the transaction data."""
 
     marker: str
-    
+
     @classmethod
     def get_policy_type_name(cls) -> str:
         """Override to avoid registry lookup for test class."""
@@ -257,7 +257,11 @@ def test_branching_policy_initialization_name(name: str | None, expected_name: s
     policy = NoopPolicy()
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, policy)]))
 
-    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map, name=name) if name else BranchingPolicy(cond_to_policy_map=policy_map)
+    branching_policy = (
+        BranchingPolicy(cond_to_policy_map=policy_map, name=name) 
+        if name 
+        else BranchingPolicy(cond_to_policy_map=policy_map)
+    )
 
     assert branching_policy.name == expected_name
 
@@ -269,7 +273,9 @@ def test_branching_policy_serialize_with_default_policy_and_name():
     default_policy = NoopPolicy(name="DefaultPolicy")
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, policy)]))
 
-    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map, default_policy=default_policy, name="TestBranching")
+    branching_policy = BranchingPolicy(
+        cond_to_policy_map=policy_map, default_policy=default_policy, name="TestBranching"
+    )
     serialized = branching_policy.serialize()
 
     assert serialized["type"] == "BranchingPolicy"

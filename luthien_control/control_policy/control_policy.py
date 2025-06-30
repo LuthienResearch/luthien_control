@@ -7,7 +7,7 @@ from typing import Any, Optional, Type, TypeVar, cast
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from luthien_control.control_policy.serialization import SerializableDict, safe_model_dump, safe_model_validate
+from luthien_control.control_policy.serialization import SerializableDict, safe_model_validate
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 
@@ -114,9 +114,9 @@ class ControlPolicy(BaseModel, abc.ABC):
         from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
 
         config_copy = dict(config)
-        
+
         policy_type_name_val = config_copy.get("type")
-        
+
         if not isinstance(policy_type_name_val, str) and cls != ControlPolicy:
             try:
                 inferred_type = cls.get_policy_type_name()
@@ -124,7 +124,7 @@ class ControlPolicy(BaseModel, abc.ABC):
                 policy_type_name_val = inferred_type
             except ValueError:
                 pass
-        
+
         if not isinstance(policy_type_name_val, str):
             raise ValueError(
                 f"Policy configuration must include a 'type' field as a string. "

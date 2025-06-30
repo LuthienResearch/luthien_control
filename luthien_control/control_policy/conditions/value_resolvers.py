@@ -66,7 +66,7 @@ class StaticValue(ValueResolver):
             data['value'] = value
         elif 'value' not in data and value is None:
             data['value'] = value
-        
+
         super().__init__(**data)
 
     def resolve(self, transaction: Transaction) -> Any:
@@ -106,7 +106,7 @@ class TransactionPath(ValueResolver):
         """
         if path is not None:
             data['path'] = path
-        
+
         super().__init__(**data)
 
     def resolve(self, transaction: Transaction) -> Any:

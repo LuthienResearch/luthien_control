@@ -1,15 +1,19 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
 
 from luthien_control.control_policy.conditions.util import get_transaction_value
-from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.control_policy.serialization import SerializableDict, safe_model_dump, safe_model_validate
 from luthien_control.core.transaction import Transaction
 
 
-class ValueResolver(ABC):
+class ValueResolver(BaseModel, ABC):
     """
     Abstract base class for resolving values from transactions.
     """
+
+    type: str = Field(...)
 
     @abstractmethod
     def resolve(self, transaction: Transaction) -> Any:
@@ -24,18 +28,11 @@ class ValueResolver(ABC):
         """
         pass
 
-    @abstractmethod
     def serialize(self) -> SerializableDict:
-        """
-        Serialize the value resolver to a dictionary.
-
-        Returns:
-            A serializable dictionary representation
-        """
-        pass
+        """Serialize using Pydantic model_dump through SerializableDict validation."""
+        return safe_model_dump(self)
 
     @classmethod
-    @abstractmethod
     def from_serialized(cls, serialized: SerializableDict) -> "ValueResolver":
         """
         Create a value resolver from a serialized dictionary.
@@ -46,7 +43,10 @@ class ValueResolver(ABC):
         Returns:
             A ValueResolver instance
         """
-        pass
+        return safe_model_validate(cls, serialized)
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class StaticValue(ValueResolver):
@@ -54,28 +54,24 @@ class StaticValue(ValueResolver):
     A static value that doesn't depend on the transaction.
     """
 
-    def __init__(self, value: Any):
+    type: Literal["static"] = Field(default="static")
+    value: Any = Field(...)
+
+    def __init__(self, value: Any = None, **data):
         """
         Args:
             value: The static value to return
         """
-        self.value = value
+        if 'value' not in data and value is not None:
+            data['value'] = value
+        elif 'value' not in data and value is None:
+            data['value'] = value
+        
+        super().__init__(**data)
 
     def resolve(self, transaction: Transaction) -> Any:
         """Return the static value."""
         return self.value
-
-    def serialize(self) -> SerializableDict:
-        """Serialize the static value."""
-        return {
-            "type": "static",
-            "value": self.value,
-        }
-
-    @classmethod
-    def from_serialized(cls, serialized: SerializableDict) -> "StaticValue":
-        """Create a StaticValue from serialized data."""
-        return cls(value=serialized["value"])
 
     def __repr__(self) -> str:
         return f"StaticValue(value={self.value!r})"
@@ -90,12 +86,18 @@ class TransactionPath(ValueResolver):
     A value resolver that extracts a value from a transaction using a path.
     """
 
-    def __init__(self, path: str):
+    type: Literal["transaction_path"] = Field(default="transaction_path")
+    path: str = Field(...)
+
+    def __init__(self, path: str | None = None, **data):
         """
         Args:
             path: The path to the value in the transaction (e.g., "request.payload.model")
         """
-        self.path = path
+        if path is not None:
+            data['path'] = path
+        
+        super().__init__(**data)
 
     def resolve(self, transaction: Transaction) -> Any:
         """Resolve the value from the transaction using the path."""
@@ -103,21 +105,6 @@ class TransactionPath(ValueResolver):
             return get_transaction_value(transaction, self.path)
         except (AttributeError, ValueError):
             return None
-
-    def serialize(self) -> SerializableDict:
-        """Serialize the transaction path."""
-        return {
-            "type": "transaction_path",
-            "path": self.path,
-        }
-
-    @classmethod
-    def from_serialized(cls, serialized: SerializableDict) -> "TransactionPath":
-        """Create a TransactionPath from serialized data."""
-        path = serialized.get("path")
-        if not isinstance(path, str):
-            raise TypeError(f"TransactionPath path must be a string, got {type(path).__name__}")
-        return cls(path=path)
 
     def __repr__(self) -> str:
         return f"TransactionPath(path={self.path!r})"
@@ -153,7 +140,7 @@ def create_value_resolver(serialized: SerializableDict) -> ValueResolver:
         raise ValueError(f"Unknown value resolver type: {resolver_type}")
 
     resolver_class = VALUE_RESOLVER_REGISTRY[resolver_type]
-    return resolver_class.from_serialized(serialized)
+    return safe_model_validate(resolver_class, serialized)
 
 
 def auto_resolve_value(value: Any) -> ValueResolver:
@@ -169,7 +156,7 @@ def auto_resolve_value(value: Any) -> ValueResolver:
     if isinstance(value, ValueResolver):
         return value
     else:
-        return StaticValue(value)
+        return StaticValue(value=value)
 
 
 def path(transaction_path: str) -> TransactionPath:
@@ -185,4 +172,4 @@ def path(transaction_path: str) -> TransactionPath:
     Example:
         path("request.payload.model")
     """
-    return TransactionPath(transaction_path)
+    return TransactionPath(path=transaction_path)

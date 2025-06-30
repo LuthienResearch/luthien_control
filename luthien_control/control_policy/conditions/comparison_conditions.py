@@ -1,5 +1,7 @@
 from abc import ABC
-from typing import Any, ClassVar, Union
+from typing import Any, ClassVar, Literal, Union
+
+from pydantic import Field, field_serializer, field_validator
 
 from luthien_control.control_policy.conditions.comparators import (
     COMPARATOR_TO_NAME,
@@ -15,6 +17,7 @@ from luthien_control.control_policy.conditions.comparators import (
 )
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.conditions.value_resolvers import (
+    StaticValue,
     ValueResolver,
     auto_resolve_value,
     create_value_resolver,
@@ -31,10 +34,31 @@ class ComparisonCondition(Condition, ABC):
     This approach eliminates the need for is_dynamic_* flags by using explicit types.
     """
 
-    type: ClassVar[str]
     comparator: ClassVar[Comparator]
+    
+    left_resolver: ValueResolver = Field(..., alias="left")
+    right_resolver: ValueResolver = Field(..., alias="right")
+    comparator_name: str = Field(..., alias="comparator")
 
-    def __init__(self, left: Union[Any, ValueResolver], right: Union[Any, ValueResolver]):
+    @field_serializer('left_resolver', 'right_resolver')
+    def serialize_value_resolver(self, value: ValueResolver) -> dict:
+        """Custom serializer for ValueResolver fields."""
+        return value.serialize()
+
+    @field_validator('left_resolver', 'right_resolver', mode='before')
+    @classmethod
+    def validate_value_resolver(cls, value):
+        """Custom validator to deserialize ValueResolver from dict."""
+        if isinstance(value, dict):
+            return create_value_resolver(value)
+        elif isinstance(value, ValueResolver):
+            if isinstance(value, StaticValue) and isinstance(value.value, dict) and 'type' in value.value:
+                return create_value_resolver(value.value)
+            return value
+        else:
+            return auto_resolve_value(value)
+
+    def __init__(self, left: Union[Any, ValueResolver] = None, right: Union[Any, ValueResolver] = None, **data):
         """
         Args:
             left: Either a static value or a ValueResolver (e.g., path("request.payload.model"))
@@ -53,8 +77,20 @@ class ComparisonCondition(Condition, ABC):
             # Static vs static
             EqualsCondition("gpt-4o", "gpt-4o")
         """
-        self.left_resolver = auto_resolve_value(left)
-        self.right_resolver = auto_resolve_value(right)
+        if left is not None and right is not None and 'left' not in data and 'right' not in data:
+            left_resolver = auto_resolve_value(left)
+            right_resolver = auto_resolve_value(right)
+            comparator_name = COMPARATOR_TO_NAME[type(self).comparator]
+            data.update({
+                'left': left_resolver,
+                'right': right_resolver,
+                'comparator': comparator_name
+            })
+        
+        if 'comparator' not in data:
+            data['comparator'] = COMPARATOR_TO_NAME[type(self).comparator]
+        
+        super().__init__(**data)
 
     def evaluate(self, transaction: Transaction) -> bool:
         """Evaluate the condition against the transaction."""
@@ -64,15 +100,6 @@ class ComparisonCondition(Condition, ABC):
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.left_resolver!r}, {self.right_resolver!r})"
-
-    def serialize(self) -> SerializableDict:
-        """Serialize the condition to a dictionary."""
-        return {
-            "type": type(self).type,
-            "left": self.left_resolver.serialize(),
-            "right": self.right_resolver.serialize(),
-            "comparator": COMPARATOR_TO_NAME[type(self).comparator],
-        }
 
     @classmethod
     def from_serialized(cls, serialized: SerializableDict) -> "ComparisonCondition":
@@ -86,11 +113,7 @@ class ComparisonCondition(Condition, ABC):
         left_resolver = create_value_resolver(left_data)
         right_resolver = create_value_resolver(right_data)
 
-        # Create instance using the resolved values directly
-        instance = cls.__new__(cls)
-        instance.left_resolver = left_resolver
-        instance.right_resolver = right_resolver
-        return instance
+        return cls(left=left_resolver, right=right_resolver)
 
     @classmethod
     def from_legacy_format(cls, key: str, value: Any) -> "ComparisonCondition":
@@ -104,7 +127,7 @@ class ComparisonCondition(Condition, ABC):
         Returns:
             A ComparisonCondition instance
         """
-        return cls(path(key), value)
+        return cls(left=path(key), right=value)
 
 
 class EqualsCondition(ComparisonCondition):
@@ -122,7 +145,7 @@ class EqualsCondition(ComparisonCondition):
         EqualsCondition("gpt-4o", path("request.payload.model"))
     """
 
-    type = "equals"
+    type: Literal["equals"] = Field(default="equals")
     comparator = equals
 
 
@@ -131,7 +154,7 @@ class NotEqualsCondition(ComparisonCondition):
     Condition to check if two values are NOT equal.
     """
 
-    type = "not_equals"
+    type: Literal["not_equals"] = Field(default="not_equals")
     comparator = not_equals
 
 
@@ -140,7 +163,7 @@ class ContainsCondition(ComparisonCondition):
     Condition to check if the left value contains the right value.
     """
 
-    type = "contains"
+    type: Literal["contains"] = Field(default="contains")
     comparator = contains
 
 
@@ -149,7 +172,7 @@ class LessThanCondition(ComparisonCondition):
     Condition to check if the left value is less than the right value.
     """
 
-    type = "less_than"
+    type: Literal["less_than"] = Field(default="less_than")
     comparator = less_than
 
 
@@ -158,7 +181,7 @@ class LessThanOrEqualCondition(ComparisonCondition):
     Condition to check if the left value is less than or equal to the right value.
     """
 
-    type = "less_than_or_equal"
+    type: Literal["less_than_or_equal"] = Field(default="less_than_or_equal")
     comparator = less_than_or_equal
 
 
@@ -167,7 +190,7 @@ class GreaterThanCondition(ComparisonCondition):
     Condition to check if the left value is greater than the right value.
     """
 
-    type = "greater_than"
+    type: Literal["greater_than"] = Field(default="greater_than")
     comparator = greater_than
 
 
@@ -176,7 +199,7 @@ class GreaterThanOrEqualCondition(ComparisonCondition):
     Condition to check if the left value is greater than or equal to the right value.
     """
 
-    type = "greater_than_or_equal"
+    type: Literal["greater_than_or_equal"] = Field(default="greater_than_or_equal")
     comparator = greater_than_or_equal
 
 
@@ -185,5 +208,5 @@ class RegexMatchCondition(ComparisonCondition):
     Condition to check if the left value matches a regex pattern.
     """
 
-    type = "regex_match"
+    type: Literal["regex_match"] = Field(default="regex_match")
     comparator = regex_match

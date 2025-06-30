@@ -12,7 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class MinimalConcretePolicy(ControlPolicy):
     """A minimal concrete implementation for testing purposes."""
 
-    name = "minimal_concrete"
+    @classmethod
+    def get_policy_type_name(cls) -> str:
+        """Override to avoid registry lookup for test class."""
+        return "MinimalConcretePolicy"
 
     async def apply(
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
@@ -21,28 +24,6 @@ class MinimalConcretePolicy(ControlPolicy):
         # Use _ prefix to indicate intentionally unused parameters
         _ = container, session, transaction
         return transaction
-
-    def get_policy_config(self) -> SerializableDict:
-        # Minimal implementation for testing instantiation
-        return {"name": self.name}
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict, **kwargs: Any) -> "MinimalConcretePolicy":
-        # Minimal implementation for testing instantiation
-        _ = kwargs  # Mark as intentionally unused
-        instance = cls()
-        name_val = config.get("name", cls.name)
-        if not isinstance(name_val, str):
-            # Fallback or raise error if name is not a string, as per your project's error handling
-            # For this example, let's assume it should default or raise if type is wrong.
-            # This specific handling might need adjustment based on stricter type requirements.
-            if name_val is not None:
-                # Attempt to cast or handle non-str cases appropriately if they are valid
-                # For now, let's assume if it's not None, it *should* have been a string.
-                # A more robust solution might involve raising a TypeError or using a default.
-                pass  # Or raise TypeError(f"Expected name to be a string, got {type(name_val)}")
-        instance.name = cast(str, name_val) if name_val is not None else cls.name
-        return instance
 
 
 def test_cannot_instantiate_abc_directly():
@@ -55,9 +36,8 @@ def test_subclass_must_implement_abstract_methods():
     """Verify that a subclass missing abstract methods cannot be instantiated."""
 
     class IncompletePolicy(ControlPolicy):
-        name = "incomplete"
-
-        # Missing apply, serialize, from_serialized
+        # Missing apply method
+        pass
 
     with pytest.raises(TypeError, match="Can't instantiate abstract class IncompletePolicy"):
         IncompletePolicy()  # type: ignore
@@ -98,7 +78,7 @@ def test_from_serialized_valid(mock_registry):
     # Create a mock policy class
     mock_policy_class = Mock()
     mock_policy = Mock()
-    mock_policy_class.from_serialized.return_value = mock_policy
+    mock_policy_class.model_validate.return_value = mock_policy
 
     # Set up the registry to return our mock class
     mock_registry.get.return_value = mock_policy_class
@@ -112,4 +92,4 @@ def test_from_serialized_valid(mock_registry):
     # Verify the result
     assert result == mock_policy
     mock_registry.get.assert_called_once_with("mock_policy")
-    mock_policy_class.from_serialized.assert_called_once_with(serialized)
+    mock_policy_class.model_validate.assert_called_once()

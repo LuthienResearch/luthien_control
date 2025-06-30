@@ -1,5 +1,4 @@
 import abc
-from typing import ClassVar
 
 from pydantic import BaseModel
 

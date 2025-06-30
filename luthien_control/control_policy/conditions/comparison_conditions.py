@@ -35,7 +35,7 @@ class ComparisonCondition(Condition, ABC):
     """
 
     comparator: ClassVar[Comparator]
-    
+
     left_resolver: ValueResolver = Field(..., alias="left")
     right_resolver: ValueResolver = Field(..., alias="right")
     comparator_name: str = Field(..., alias="comparator")
@@ -86,10 +86,10 @@ class ComparisonCondition(Condition, ABC):
                 'right': right_resolver,
                 'comparator': comparator_name
             })
-        
+
         if 'comparator' not in data:
             data['comparator'] = COMPARATOR_TO_NAME[type(self).comparator]
-        
+
         super().__init__(**data)
 
     def evaluate(self, transaction: Transaction) -> bool:

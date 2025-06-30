@@ -6,7 +6,7 @@ sensitive API keys from being sent to language models.
 """
 
 import re
-from typing import ClassVar, List, Optional, Pattern, cast
+from typing import ClassVar, List
 
 from pydantic import Field, field_validator, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession

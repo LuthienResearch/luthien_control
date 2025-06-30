@@ -2,11 +2,11 @@ from typing import Literal
 from unittest.mock import Mock, patch
 
 import pytest
-from pydantic import Field
 from luthien_control.control_policy.conditions import EqualsCondition, path
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.transaction import Transaction
+from pydantic import Field
 
 
 class MockCondition(Condition):

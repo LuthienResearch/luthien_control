@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import openai
 from pydantic import field_validator
@@ -31,7 +30,7 @@ class SendBackendRequestPolicy(ControlPolicy):
     def validate_name(cls, value):
         """Convert name to string for backward compatibility with tests."""
         return str(value) if value is not None else None
-    
+
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "SendBackendRequestPolicy":
         """Custom from_serialized to handle missing name field for backward compatibility."""

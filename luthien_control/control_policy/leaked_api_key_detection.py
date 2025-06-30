@@ -8,7 +8,7 @@ sensitive API keys from being sent to language models.
 import re
 from typing import ClassVar, List, Optional, Pattern, cast
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -35,18 +35,34 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
     patterns: List[str] = Field(default_factory=lambda: LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS)
     compiled_patterns: List[re.Pattern] = Field(default_factory=list, exclude=True)
 
-    def __init__(self, patterns: Optional[List[str]] = None, name: Optional[str] = None, **data):
-        """Initializes the policy.
+    @field_validator('patterns', mode='before')
+    @classmethod
+    def validate_patterns(cls, value):
+        """Handle patterns validation and fallback to defaults for empty lists."""
+        if value is None:
+            return cls.DEFAULT_PATTERNS
+        if isinstance(value, list):
+            if not value:
+                return cls.DEFAULT_PATTERNS
+            if not all(isinstance(pattern, str) for pattern in value):
+                raise ValueError("'patterns' must be a list of strings")
+            return value
+        else:
+            raise ValueError("'patterns' must be a list of strings")
 
-        Args:
-            patterns: Optional list of regex patterns to detect API keys.
-                     If not provided, uses DEFAULT_PATTERNS.
-            name: Optional name for this policy instance.
-        """
-        if patterns is None:
-            patterns = self.DEFAULT_PATTERNS
-        super().__init__(patterns=patterns, name=name, **data)
+    @classmethod
+    def from_serialized(cls, config: SerializableDict) -> "LeakedApiKeyDetectionPolicy":
+        """Custom from_serialized to handle missing name field for backward compatibility."""
+        config_copy = dict(config)
+        if 'name' not in config_copy:
+            config_copy['name'] = cls.__name__
+        return super().from_serialized(config_copy)
+
+    @model_validator(mode='after')
+    def compile_patterns(self):
+        """Compile regex patterns after validation."""
         self.compiled_patterns = [re.compile(pattern) for pattern in self.patterns]
+        return self
 
     async def apply(
         self,

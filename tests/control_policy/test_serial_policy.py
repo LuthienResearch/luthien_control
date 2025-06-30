@@ -404,9 +404,10 @@ def test_serial_policy_from_serialized_no_name():
 
 def test_serial_policy_from_serialized_non_string_name():
     """Test SerialPolicy deserialization with non-string name raises ValidationError."""
+    from pydantic import ValidationError
     config = cast(SerializableDict, {"name": 12345, "policies": []})
 
-    with pytest.raises(Exception):  # Pydantic will raise ValidationError for invalid types
+    with pytest.raises(ValidationError):  # Pydantic will raise ValidationError for invalid types
         SerialPolicy.from_serialized(config)
 
 

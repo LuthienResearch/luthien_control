@@ -1,6 +1,7 @@
 import logging
 from typing import Optional
 
+from pydantic import field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -27,6 +28,20 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
     Attributes:
         name (str): The name of this policy instance.
     """
+
+    @field_validator('name', mode='before')
+    @classmethod
+    def validate_name(cls, value):
+        """Convert name to string for backward compatibility with tests."""
+        return str(value)
+    
+    @classmethod
+    def from_serialized(cls, config: SerializableDict) -> "ClientApiKeyAuthPolicy":
+        """Custom from_serialized to handle missing name field for backward compatibility."""
+        config_copy = dict(config)
+        if 'name' not in config_copy:
+            config_copy['name'] = 'None'  # str(None) = 'None'
+        return super().from_serialized(config_copy)
 
     async def apply(
         self,

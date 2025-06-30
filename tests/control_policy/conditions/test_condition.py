@@ -1,6 +1,8 @@
+from typing import Literal
 from unittest.mock import Mock, patch
 
 import pytest
+from pydantic import Field
 from luthien_control.control_policy.conditions import EqualsCondition, path
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.serialization import SerializableDict
@@ -10,16 +12,11 @@ from luthien_control.core.transaction import Transaction
 class MockCondition(Condition):
     """A concrete implementation of Condition for testing abstract methods."""
 
-    type = "mock"
-
-    def __init__(self, value: bool = True):
-        self.value = value
+    type: Literal["mock"] = Field(default="mock")
+    value: bool = Field(default=True)
 
     def evaluate(self, transaction: Transaction) -> bool:
         return self.value
-
-    def serialize(self) -> SerializableDict:
-        return {"type": self.type, "value": self.value}
 
 
 class TestConditionBaseClass:
@@ -45,13 +42,14 @@ class TestConditionBaseClass:
         with pytest.raises(ValueError, match="Unknown condition type"):
             Condition.from_serialized({"type": "unknown_condition_type"})
 
+    @patch("luthien_control.control_policy.conditions.condition.safe_model_validate")
     @patch("luthien_control.control_policy.conditions.registry.NAME_TO_CONDITION_CLASS")
-    def test_from_serialized_valid(self, mock_registry):
+    def test_from_serialized_valid(self, mock_registry, mock_safe_model_validate):
         """Test Condition.from_serialized with valid type."""
-        # Create a mock condition class
+        # Create a mock condition class and instance
         mock_condition_class = Mock()
         mock_condition = Mock()
-        mock_condition_class.from_serialized.return_value = mock_condition
+        mock_safe_model_validate.return_value = mock_condition
 
         # Set up the registry to return our mock class
         mock_registry.get.return_value = mock_condition_class
@@ -65,7 +63,7 @@ class TestConditionBaseClass:
         # Verify the result
         assert result == mock_condition
         mock_registry.get.assert_called_once_with("mock_condition")
-        mock_condition_class.from_serialized.assert_called_once_with(serialized)
+        mock_safe_model_validate.assert_called_once_with(mock_condition_class, serialized)
 
     def test_from_serialized_no_class_found(self):
         """Test Condition.from_serialized when no class is found in registry."""
@@ -106,7 +104,7 @@ class TestConditionBaseClass:
 
     def test_repr_base_implementation(self):
         """Test the base __repr__ implementation."""
-        mock_condition = MockCondition(True)
+        mock_condition = MockCondition(value=True)
         repr_str = repr(mock_condition)
         assert "MockCondition" in repr_str
         assert "mock" in repr_str

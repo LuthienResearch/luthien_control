@@ -20,10 +20,10 @@ from luthien_control.core.transaction import Transaction
 
 def test_get_condition_class_valid() -> None:
     """Tests get_condition_class with valid condition names."""
-    assert get_condition_class(EqualsCondition.type) is EqualsCondition
-    assert get_condition_class(AllCondition.type) is AllCondition
-    assert get_condition_class(AnyCondition.type) is AnyCondition
-    assert get_condition_class(NotCondition.type) is NotCondition
+    assert get_condition_class("equals") is EqualsCondition
+    assert get_condition_class("all") is AllCondition
+    assert get_condition_class("any") is AnyCondition
+    assert get_condition_class("not") is NotCondition
 
 
 def test_get_condition_class_invalid() -> None:
@@ -34,20 +34,20 @@ def test_get_condition_class_invalid() -> None:
 
 def test_get_condition_class_from_serialized() -> None:
     """Tests get_condition_class_from_serialized."""
-    serialized_equals: SerializableDict = {"type": EqualsCondition.type, "key": "foo", "value": "bar"}
+    serialized_equals: SerializableDict = {"type": "equals", "key": "foo", "value": "bar"}
     assert get_condition_class_from_serialized(serialized_equals) is EqualsCondition
 
-    serialized_all: SerializableDict = {"type": AllCondition.type, "conditions": []}
+    serialized_all: SerializableDict = {"type": "all", "conditions": []}
     assert get_condition_class_from_serialized(serialized_all) is AllCondition
 
 
 @pytest.mark.parametrize(
     "condition_type_str, condition_class",
     [
-        (EqualsCondition.type, EqualsCondition),
-        (NotCondition.type, NotCondition),
-        (AllCondition.type, AllCondition),
-        (AnyCondition.type, AnyCondition),
+        ("equals", EqualsCondition),
+        ("not", NotCondition),
+        ("all", AllCondition),
+        ("any", AnyCondition),
     ],
 )
 def test_get_condition_from_serialized_simple_cases(condition_type_str: str, condition_class: type[Condition]) -> None:

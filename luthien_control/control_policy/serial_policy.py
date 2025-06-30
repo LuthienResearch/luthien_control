@@ -154,18 +154,7 @@ class SerialPolicy(ControlPolicy):
                     f"within SerialPolicy: {e}"
                 ) from e
 
-        name_val = config.get("name")
-        resolved_name: Optional[str]
-        if name_val is not None:
-            if not isinstance(name_val, str):
-                resolved_name = str(name_val)
-            else:
-                resolved_name = name_val
-        else:
-            # Default name if not in config. Could also use cls.__name__
-            resolved_name = "SerialPolicy"
-
-        return cls(policies=instantiated_policies, name=resolved_name)
+        return cls(policies=instantiated_policies, **{k: v for k, v in config.items() if k != "policies"})
 
 
 # legacy compatibility

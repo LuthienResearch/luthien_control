@@ -448,7 +448,7 @@ def test_send_backend_request_policy_round_trip_serialization():
 @pytest.mark.parametrize(
     "name,expected",
     [
-        (None, None),  # Default name (actually returns None)
+        (None, "SendBackendRequestPolicy"),  # Default name (now returns class name)
         ("CustomPolicy", "CustomPolicy"),  # Custom name
         ("Policy123", "Policy123"),  # Alphanumeric name
         ("", ""),  # Empty string

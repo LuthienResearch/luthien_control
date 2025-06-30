@@ -40,6 +40,14 @@ class NotCondition(Condition):
         if isinstance(value, dict):
             return Condition.from_serialized(value)
         return value
+    
+    @classmethod
+    def from_serialized(cls, serialized: SerializableDict) -> "NotCondition":
+        """Custom from_serialized to handle 'value' field name for backward compatibility."""
+        if 'value' in serialized:
+            serialized = dict(serialized)  # Make a copy
+            serialized['cond'] = serialized.pop('value')
+        return super().from_serialized(serialized)
 
     def evaluate(self, transaction: Transaction) -> bool:
         return not self.cond.evaluate(transaction)

@@ -2,6 +2,7 @@
 
 from typing import Iterable, Optional, Sequence
 
+from pydantic import Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -26,19 +27,16 @@ class SerialPolicy(ControlPolicy):
             identification.
     """
 
-    def __init__(self, policies: Sequence[ControlPolicy], name: Optional[str] = None):
-        """
-        Initializes the SerialPolicy.
+    policies: Sequence[ControlPolicy] = Field(...)
 
-        Args:
-            policies: An ordered sequence of ControlPolicy instances to apply.
-            name: An optional name for logging/identification purposes.
-        """
-        super().__init__(name=name, policies=policies)
-        if not policies:
-            self.logger.warning(f"Initializing SerialPolicy '{name}' with an empty policy list.")
-        self.policies = policies
-        self.name = name or self.__class__.__name__
+    @field_validator('policies')
+    @classmethod
+    def validate_policies(cls, v):
+        if not v:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("Initializing SerialPolicy with an empty policy list.")
+        return v
 
     async def apply(
         self,
@@ -84,12 +82,6 @@ class SerialPolicy(ControlPolicy):
         policy_list_str = ", ".join(policy_reprs)
         return f"<{self.name}(policies=[{policy_list_str}])>"
 
-    def _get_policy_specific_config(self) -> SerializableDict:
-        return SerializableDict(
-            {
-                "policies": [p.serialize() for p in self.policies],
-            }
-        )
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":

@@ -6,8 +6,9 @@ sensitive API keys from being sent to language models.
 """
 
 import re
-from typing import List, Optional, Pattern, cast
+from typing import ClassVar, List, Optional, Pattern, cast
 
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -25,13 +26,16 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
     """
 
     # Common API key patterns
-    DEFAULT_PATTERNS = [
+    DEFAULT_PATTERNS: ClassVar[List[str]] = [
         r"sk-[a-zA-Z0-9]{48}",  # OpenAI API key pattern
         r"xoxb-[a-zA-Z0-9\-]{50,}",  # Slack bot token pattern
         r"github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}",  # GitHub PAT pattern
     ]
 
-    def __init__(self, patterns: Optional[List[str]] = None, name: Optional[str] = None):
+    patterns: List[str] = Field(default_factory=lambda: LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS)
+    compiled_patterns: List[re.Pattern] = Field(default_factory=list, exclude=True)
+
+    def __init__(self, patterns: Optional[List[str]] = None, name: Optional[str] = None, **data):
         """Initializes the policy.
 
         Args:
@@ -39,9 +43,10 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
                      If not provided, uses DEFAULT_PATTERNS.
             name: Optional name for this policy instance.
         """
-        super().__init__(name=name, patterns=patterns)
-        self.patterns = patterns or self.DEFAULT_PATTERNS
-        self.compiled_patterns: List[Pattern] = [re.compile(pattern) for pattern in self.patterns]
+        if patterns is None:
+            patterns = self.DEFAULT_PATTERNS
+        super().__init__(patterns=patterns, name=name, **data)
+        self.compiled_patterns = [re.compile(pattern) for pattern in self.patterns]
 
     async def apply(
         self,
@@ -99,45 +104,3 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
             if pattern.search(text):
                 return True
         return False
-
-    def _get_policy_specific_config(self) -> SerializableDict:
-        """Return policy-specific configuration for serialization.
-
-        This policy needs to store the regex patterns in addition
-        to the standard type and name fields.
-        """
-        return {"patterns": self.patterns}
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "LeakedApiKeyDetectionPolicy":
-        """
-        Constructs the policy from serialized configuration.
-
-        Args:
-            config: Dictionary containing configuration options.
-
-        Returns:
-            An instance of LeakedApiKeyDetectionPolicy.
-
-        Raises:
-            ValueError: If the 'name' or 'patterns' keys are missing or incorrectly typed in the config.
-        """
-        resolved_name = str(config.get("name", cls.__name__))
-
-        resolved_patterns = cast(List[str], config.get("patterns", cls.DEFAULT_PATTERNS))
-
-        if not isinstance(resolved_patterns, list):
-            raise ValueError(
-                f"LeakedApiKeyDetectionPolicy 'patterns' must be a list of strings. "
-                f"Got: {resolved_patterns!r} (type: {type(resolved_patterns).__name__})"
-            )
-        if not all(isinstance(p, str) for p in resolved_patterns):
-            raise ValueError(
-                f"LeakedApiKeyDetectionPolicy 'patterns' must be a list of strings. "
-                f"Got: {resolved_patterns!r} (type: {type(resolved_patterns).__name__})"
-            )
-
-        return cls(
-            name=resolved_name,
-            patterns=resolved_patterns,
-        )

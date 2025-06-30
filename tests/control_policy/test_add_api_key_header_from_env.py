@@ -152,6 +152,7 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
     def test_serialize_default_name(self):
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
         expected_config = {
+            "name": "AddApiKeyHeaderFromEnvPolicy",
             "api_key_env_var_name": API_KEY_ENV_VAR_NAME,
             "type": "AddApiKeyHeaderFromEnv",
         }

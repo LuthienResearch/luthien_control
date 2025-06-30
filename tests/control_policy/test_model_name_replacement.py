@@ -242,6 +242,7 @@ def test_model_name_replacement_policy_serialize_default_name():
     serialized = policy.serialize()
 
     expected = {
+        "name": "ModelNameReplacementPolicy",
         "type": "ModelNameReplacement",
         "model_mapping": mapping,
     }

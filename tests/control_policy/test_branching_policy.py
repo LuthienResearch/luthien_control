@@ -248,7 +248,7 @@ async def test_branching_policy_policy_exception_propagates(
     "name,expected_name",
     [
         ("CustomBranching", "CustomBranching"),
-        (None, None),
+        (None, "BranchingPolicy"),  # Now uses default class name instead of None
     ],
 )
 def test_branching_policy_initialization_name(name: str | None, expected_name: str | None):
@@ -301,7 +301,7 @@ def test_branching_policy_serialize_without_default_policy_and_name():
     serialized = branching_policy.serialize()
 
     assert serialized["type"] == "BranchingPolicy"
-    assert "name" not in serialized
+    assert serialized["name"] == "BranchingPolicy"  # Now includes default class name
     assert serialized["default_policy"] is None
 
     # Check condition mapping
@@ -391,7 +391,7 @@ def test_branching_policy_from_serialized_without_default():
     ):
         branching_policy = BranchingPolicy.from_serialized(config)
 
-    assert branching_policy.name is None
+    assert branching_policy.name == "BranchingPolicy"  # Now uses default class name
     assert len(branching_policy.cond_to_policy_map) == 1
     assert branching_policy.default_policy is None
 
@@ -402,7 +402,7 @@ def test_branching_policy_from_serialized_without_name():
 
     branching_policy = BranchingPolicy.from_serialized(config)
 
-    assert branching_policy.name is None
+    assert branching_policy.name == "BranchingPolicy"  # Now uses default class name
     assert len(branching_policy.cond_to_policy_map) == 0
     assert branching_policy.default_policy is None
 

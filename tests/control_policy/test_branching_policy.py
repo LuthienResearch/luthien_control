@@ -258,8 +258,8 @@ def test_branching_policy_initialization_name(name: str | None, expected_name: s
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, policy)]))
 
     branching_policy = (
-        BranchingPolicy(cond_to_policy_map=policy_map, name=name) 
-        if name 
+        BranchingPolicy(cond_to_policy_map=policy_map, name=name)
+        if name
         else BranchingPolicy(cond_to_policy_map=policy_map)
     )
 

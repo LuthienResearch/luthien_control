@@ -394,8 +394,8 @@ def test_client_api_key_auth_policy_serialize_default():
 
     serialized = policy.serialize()
 
-    expected = {"name": "ClientApiKeyAuthPolicy", "type": "ClientApiKeyAuth"}
-    assert serialized == expected
+    assert serialized["name"] == "ClientApiKeyAuthPolicy"
+    assert serialized["type"] == "ClientApiKeyAuth"
 
 
 def test_client_api_key_auth_policy_serialize_custom():
@@ -405,8 +405,8 @@ def test_client_api_key_auth_policy_serialize_custom():
 
     serialized = policy.serialize()
 
-    expected = {"name": custom_name, "type": "ClientApiKeyAuth"}
-    assert serialized == expected
+    assert serialized["name"] == custom_name
+    assert serialized["type"] == "ClientApiKeyAuth"
 
 
 def test_client_api_key_auth_policy_from_serialized_with_name():

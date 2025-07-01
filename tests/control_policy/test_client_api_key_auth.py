@@ -445,11 +445,11 @@ def test_client_api_key_auth_policy_from_serialized_non_string_name():
 
 
 def test_client_api_key_auth_policy_from_serialized_null_name():
-    """Test deserialization with null name raises ValidationError."""
+    """Test deserialization with null name is accepted."""
     config = cast(SerializableDict, {"name": None})
 
-    with pytest.raises(Exception):  # Pydantic will raise ValidationError for None
-        ClientApiKeyAuthPolicy.from_serialized(config)
+    policy = ClientApiKeyAuthPolicy.from_serialized(config)
+    assert policy.name is None
 
 
 def test_client_api_key_auth_policy_round_trip_serialization():

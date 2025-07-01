@@ -1,4 +1,4 @@
-from typing import ClassVar
+from typing import Literal
 
 from pydantic import Field, field_serializer, field_validator
 
@@ -7,7 +7,7 @@ from luthien_control.core.transaction import Transaction
 
 
 class NotCondition(Condition):
-    type: ClassVar[str] = "not"
+    type: Literal["not"] = "not"
     cond: Condition = Field(...)
 
     @field_serializer("cond")

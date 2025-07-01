@@ -1,3 +1,4 @@
+# pyright: reportCallIssue=false, reportAttributeAccessIssue=false, reportUnhashable=false
 from unittest.mock import Mock, patch
 
 import pytest
@@ -357,24 +358,24 @@ class TestAllConditionDunders:
 
     # Helper to create standard inner conditions for tests
     @pytest.fixture
-    def inner_conds_set1(self) -> list[Condition]:
+    def inner_conds_set1(self):
         return [EqualsCondition(path("req.method"), "POST"), ContainsCondition(path("req.path"), "/submit")]
 
     @pytest.fixture
     def inner_conds_set2(
         self,
-    ) -> list[Condition]:  # Different order, should still be equal if list comparison is order-sensitive
+    ):  # Different order, should still be equal if list comparison is order-sensitive
         return [ContainsCondition(path("req.path"), "/submit"), EqualsCondition(path("req.method"), "POST")]
 
     @pytest.fixture
-    def inner_conds_set3(self) -> list[Condition]:  # Different content
+    def inner_conds_set3(self):  # Different content
         return [
             EqualsCondition(path("req.method"), "GET"),  # Different value
             ContainsCondition(path("req.path"), "/submit"),
         ]
 
     @pytest.fixture
-    def inner_conds_set4(self) -> list[Condition]:  # Different number of conditions
+    def inner_conds_set4(self):  # Different number of conditions
         return [EqualsCondition(path("req.method"), "POST")]
 
     def test_repr(self, inner_conds_set1: list[Condition]) -> None:
@@ -458,15 +459,15 @@ class TestAnyConditionDunders:
 
     # Reuse fixtures from AllCondition tests for brevity if applicable, or define new ones.
     @pytest.fixture
-    def inner_conds_set1(self) -> list[Condition]:
+    def inner_conds_set1(self):
         return [EqualsCondition(path("user.role"), "admin"), GreaterThanCondition(path("user.level"), 5)]
 
     @pytest.fixture
-    def inner_conds_set2(self) -> list[Condition]:  # Different order
+    def inner_conds_set2(self):  # Different order
         return [GreaterThanCondition(path("user.level"), 5), EqualsCondition(path("user.role"), "admin")]
 
     @pytest.fixture
-    def inner_conds_set3(self) -> list[Condition]:  # Different content
+    def inner_conds_set3(self):  # Different content
         return [
             EqualsCondition(path("user.role"), "editor"),  # Diff value
             GreaterThanCondition(path("user.level"), 5),

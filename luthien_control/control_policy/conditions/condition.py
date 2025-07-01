@@ -1,4 +1,5 @@
 import abc
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -14,7 +15,7 @@ class Condition(BaseModel, abc.ABC):
     the current transaction.
     """
 
-    type: str
+    type: Any  # Allow any string type including Literal types
 
     @abc.abstractmethod
     def evaluate(self, transaction: Transaction) -> bool:

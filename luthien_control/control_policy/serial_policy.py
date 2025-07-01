@@ -1,6 +1,6 @@
 # Serial Policy that applies a sequence of other policies.
 
-from typing import Iterable, Sequence
+from typing import Iterable, Optional, Sequence
 
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +27,7 @@ class SerialPolicy(ControlPolicy):
             identification.
     """
 
-    name: str = Field(default="SerialPolicy")
+    name: Optional[str] = Field(default="SerialPolicy")
     policies: Sequence[ControlPolicy] = Field(...)
 
     def __init__(self, **data):

@@ -36,7 +36,7 @@ class MockSimplePolicy(ControlPolicy):
         """Override to avoid registry lookup for test class."""
         return "MockSimplePolicy"
 
-    class Config:
+    class Config(ControlPolicy.Config):
         extra = "allow"  # Allow extra fields like apply_mock
 
     async def apply(

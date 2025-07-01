@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +16,7 @@ class NoopPolicy(ControlPolicy):
     its name.
     """
 
-    name: str = Field(default="NoopPolicy")
+    name: Optional[str] = Field(default="NoopPolicy")
 
     async def apply(
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession

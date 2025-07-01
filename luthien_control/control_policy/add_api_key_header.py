@@ -1,6 +1,8 @@
 # Control Policy for adding the API key header to requests.
 
 
+from typing import Optional
+
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +19,7 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
     to the request. It has no policy-specific configuration beyond its name.
     """
 
-    name: str = Field(default="AddApiKeyHeaderPolicy")
+    name: Optional[str] = Field(default="AddApiKeyHeaderPolicy")
 
     async def apply(
         self,

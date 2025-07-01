@@ -1,3 +1,4 @@
+# pyright: reportCallIssue=false, reportAttributeAccessIssue=false, reportUnhashable=false
 from typing import List
 
 import pytest
@@ -127,7 +128,7 @@ def test_all_condition_serialization_deserialization(
     original_condition = AllCondition(conditions=conditions)
     serialized_data = original_condition.serialize()
 
-    assert serialized_data["type"] == AllCondition.type
+    assert serialized_data["type"] == "all"
     # Ensure "conditions" is a list before using len() or indexing
     conditions_list = serialized_data["conditions"]
     assert isinstance(conditions_list, list)
@@ -189,7 +190,7 @@ def test_any_condition_serialization_deserialization(
     original_condition = AnyCondition(conditions=conditions)
     serialized_data = original_condition.serialize()
 
-    assert serialized_data["type"] == AnyCondition.type
+    assert serialized_data["type"] == "any"
     # Ensure "conditions" is a list before using len() or indexing
     conditions_list = serialized_data["conditions"]
     assert isinstance(conditions_list, list)
@@ -240,7 +241,7 @@ def test_not_condition_serialization_deserialization(
     original_condition = NotCondition(cond=inner_condition)
     serialized_data = original_condition.serialize()
 
-    assert serialized_data["type"] == NotCondition.type
+    assert serialized_data["type"] == "not"
     assert "cond" in serialized_data
 
     from_serializedd_condition = get_condition_from_serialized(serialized_data)

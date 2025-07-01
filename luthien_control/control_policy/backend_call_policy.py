@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import openai
 from pydantic import Field
@@ -15,7 +16,7 @@ class BackendCallPolicy(ControlPolicy):
     This policy makes a backend LLM call.
     """
 
-    name: str = Field(default="BackendCallPolicy")
+    name: Optional[str] = Field(default="BackendCallPolicy")
     backend_call_spec: BackendCallSpec = Field(...)
 
     async def apply(

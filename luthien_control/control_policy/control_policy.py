@@ -25,7 +25,7 @@ class ControlPolicy(BaseModel, abc.ABC):
     """
 
     name: Optional[str] = Field(default=None)
-    type: str = Field(...)
+    type: str = Field(default="")
     logger: logging.Logger = Field(default_factory=lambda: logging.getLogger(__name__), exclude=True)
 
     @classmethod

@@ -12,7 +12,7 @@ from luthien_control.core.transaction import Transaction
 class SetBackendPolicy(ControlPolicy):
     """A policy that sets the backend URL for the transaction."""
 
-    name: str = Field(default="SetBackendPolicy")
+    name: Optional[str] = Field(default="SetBackendPolicy")
     backend_url: Optional[str] = Field(default=None)
 
     async def apply(

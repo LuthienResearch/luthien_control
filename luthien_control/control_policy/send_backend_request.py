@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 import openai
 from pydantic import Field
@@ -24,7 +25,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         logger (logging.Logger): The logger instance for this policy.
     """
 
-    name: str = Field(default="SendBackendRequestPolicy")
+    name: Optional[str] = Field(default="SendBackendRequestPolicy")
 
     async def apply(
         self,

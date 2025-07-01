@@ -1,7 +1,7 @@
 import abc
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from luthien_control.control_policy.serialization import SerializableDict, safe_model_dump, safe_model_validate
 from luthien_control.core.transaction import Transaction
@@ -75,5 +75,4 @@ class Condition(BaseModel, abc.ABC):
             return False
         return self.serialize() == other.serialize()
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

@@ -4,7 +4,7 @@ import abc
 import logging
 from typing import Any, Optional, Type, TypeVar, cast
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.serialization import SerializableDict, safe_model_validate
@@ -140,5 +140,4 @@ class ControlPolicy(BaseModel, abc.ABC):
 
         return cast(PolicyT, safe_model_validate(target_policy_class, config_copy))
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

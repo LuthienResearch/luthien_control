@@ -66,7 +66,7 @@ def create_test_response():
     )
 
 
-class TestPolicy(ControlPolicy):
+class MockTestPolicy(ControlPolicy):
     """Test policy that sets a test response."""
 
     def __init__(self, **data):
@@ -81,11 +81,11 @@ class TestPolicy(ControlPolicy):
         return {}
 
     @classmethod
-    def from_serialized(cls, config: SerializableDict, **kwargs) -> "TestPolicy":
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "MockTestPolicy":
         return cls()
 
 
-class TestPolicyNonePayload(ControlPolicy):
+class MockTestPolicyNonePayload(ControlPolicy):
     """Test policy that leaves response payload as None."""
 
     def __init__(self, **data):
@@ -100,11 +100,11 @@ class TestPolicyNonePayload(ControlPolicy):
         return {}
 
     @classmethod
-    def from_serialized(cls, config: SerializableDict, **kwargs) -> "TestPolicyNonePayload":
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "MockTestPolicyNonePayload":
         return cls()
 
 
-class TestPolicyRaisingException(ControlPolicy):
+class MockTestPolicyRaisingException(ControlPolicy):
     """Test policy that raises ControlPolicyError."""
 
     def __init__(self, **data):
@@ -117,11 +117,11 @@ class TestPolicyRaisingException(ControlPolicy):
         return {}
 
     @classmethod
-    def from_serialized(cls, config: SerializableDict, **kwargs) -> "TestPolicyRaisingException":
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "MockTestPolicyRaisingException":
         return cls()
 
 
-class TestPolicyRaisingUnexpectedException(ControlPolicy):
+class MockTestPolicyRaisingUnexpectedException(ControlPolicy):
     """Test policy that raises an unexpected ValueError."""
 
     def __init__(self, **data):
@@ -134,32 +134,32 @@ class TestPolicyRaisingUnexpectedException(ControlPolicy):
         return {}
 
     @classmethod
-    def from_serialized(cls, config: SerializableDict, **kwargs) -> "TestPolicyRaisingUnexpectedException":
+    def from_serialized(cls, config: SerializableDict, **kwargs) -> "MockTestPolicyRaisingUnexpectedException":
         return cls()
 
 
 @pytest.fixture
-def mock_policy() -> TestPolicy:
+def mock_policy() -> MockTestPolicy:
     """Provides a single mock ControlPolicy instance that sets a test response."""
-    return TestPolicy()
+    return MockTestPolicy()
 
 
 @pytest.fixture
-def mock_policy_none_payload() -> TestPolicyNonePayload:
+def mock_policy_none_payload() -> MockTestPolicyNonePayload:
     """Provides a mock ControlPolicy that leaves transaction.response.payload as None."""
-    return TestPolicyNonePayload()
+    return MockTestPolicyNonePayload()
 
 
 @pytest.fixture
-def mock_policy_raising_exception() -> TestPolicyRaisingException:
+def mock_policy_raising_exception() -> MockTestPolicyRaisingException:
     """Provides a single mock ControlPolicy that raises ControlPolicyError."""
-    return TestPolicyRaisingException()
+    return MockTestPolicyRaisingException()
 
 
 @pytest.fixture
-def mock_policy_raising_unexpected_exception() -> TestPolicyRaisingUnexpectedException:
+def mock_policy_raising_unexpected_exception() -> MockTestPolicyRaisingUnexpectedException:
     """Provides a single mock ControlPolicy that raises an unexpected exception."""
-    return TestPolicyRaisingUnexpectedException()
+    return MockTestPolicyRaisingUnexpectedException()
 
 
 @pytest.fixture
@@ -295,7 +295,7 @@ async def test_run_policy_flow_unexpected_exception(
     mock_logger: MagicMock,
     mock_uuid4: MagicMock,
     mock_request: MagicMock,
-    mock_policy_raising_unexpected_exception: TestPolicyRaisingUnexpectedException,
+    mock_policy_raising_unexpected_exception: MockTestPolicyRaisingUnexpectedException,
     mock_container: MagicMock,
     mock_session: AsyncMock,
 ):

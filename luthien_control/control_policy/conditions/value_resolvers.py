@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from luthien_control.control_policy.conditions.util import get_transaction_value
 from luthien_control.control_policy.serialization import SerializableDict, safe_model_dump, safe_model_validate
@@ -45,8 +45,7 @@ class ValueResolver(BaseModel, ABC):
         """
         return safe_model_validate(cls, serialized)
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class StaticValue(ValueResolver):

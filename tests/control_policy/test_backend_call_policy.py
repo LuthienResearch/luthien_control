@@ -110,6 +110,8 @@ def create_openai_exception(exception_class, message: str = "Test error"):
         return exception_class(request=mock_request)
     elif exception_class == openai.APIConnectionError:
         return exception_class(message=message, request=mock_request)
+    elif exception_class == openai.APIError:
+        return exception_class(message=message, request=mock_request, body=None)
     else:
         return exception_class(message)
 
@@ -300,6 +302,46 @@ async def test_backend_call_policy_openai_api_connection_error(base_transaction,
 
     # Verify that the connection error is propagated
     with pytest.raises(openai.APIConnectionError):
+        await policy.apply(base_transaction, container, session)
+
+
+@pytest.mark.asyncio
+async def test_backend_call_policy_openai_api_error(base_transaction, mock_container_and_client):
+    """Test BackendCallPolicy handles generic OpenAI API errors."""
+    setup_api_key_env()
+
+    spec = create_backend_call_spec()
+    policy = BackendCallPolicy(backend_call_spec=spec, name="test_policy")
+    container, mock_openai_client = mock_container_and_client
+
+    # Configure client to raise generic API error
+    mock_openai_client.chat.completions.create.side_effect = create_openai_exception(
+        openai.APIError, "API error occurred"
+    )
+
+    session = AsyncMock()
+
+    # Verify that the API error is propagated
+    with pytest.raises(openai.APIError):
+        await policy.apply(base_transaction, container, session)
+
+
+@pytest.mark.asyncio
+async def test_backend_call_policy_unexpected_exception(base_transaction, mock_container_and_client):
+    """Test BackendCallPolicy handles unexpected exceptions."""
+    setup_api_key_env()
+
+    spec = create_backend_call_spec()
+    policy = BackendCallPolicy(backend_call_spec=spec, name="test_policy")
+    container, mock_openai_client = mock_container_and_client
+
+    # Configure client to raise unexpected error
+    mock_openai_client.chat.completions.create.side_effect = RuntimeError("Unexpected error")
+
+    session = AsyncMock()
+
+    # Verify that the unexpected error is propagated
+    with pytest.raises(RuntimeError):
         await policy.apply(base_transaction, container, session)
 
 

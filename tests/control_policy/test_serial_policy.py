@@ -16,6 +16,7 @@ from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
 from psygnal.containers import EventedDict, EventedList
+from pydantic import ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Test Fixtures and Helper Classes ---
@@ -36,8 +37,7 @@ class MockSimplePolicy(ControlPolicy):
         """Override to avoid registry lookup for test class."""
         return "MockSimplePolicy"
 
-    class Config(ControlPolicy.Config):
-        extra = "allow"  # Allow extra fields like apply_mock
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")  # Allow extra fields like apply_mock
 
     async def apply(
         self,

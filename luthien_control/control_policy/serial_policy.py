@@ -1,7 +1,8 @@
 # Serial Policy that applies a sequence of other policies.
 
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Sequence
 
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -26,19 +27,16 @@ class SerialPolicy(ControlPolicy):
             identification.
     """
 
-    def __init__(self, policies: Sequence[ControlPolicy], name: Optional[str] = None):
-        """
-        Initializes the SerialPolicy.
+    name: str = Field(default="SerialPolicy")
+    policies: Sequence[ControlPolicy] = Field(...)
 
-        Args:
-            policies: An ordered sequence of ControlPolicy instances to apply.
-            name: An optional name for logging/identification purposes.
-        """
-        super().__init__(name=name, policies=policies)
-        if not policies:
-            self.logger.warning(f"Initializing SerialPolicy '{name}' with an empty policy list.")
-        self.policies = policies
-        self.name = name or self.__class__.__name__
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.policies:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Initializing SerialPolicy '{self.name}' with an empty policy list.")
 
     async def apply(
         self,
@@ -84,12 +82,6 @@ class SerialPolicy(ControlPolicy):
         policy_list_str = ", ".join(policy_reprs)
         return f"<{self.name}(policies=[{policy_list_str}])>"
 
-    def _get_policy_specific_config(self) -> SerializableDict:
-        return SerializableDict(
-            {
-                "policies": [p.serialize() for p in self.policies],
-            }
-        )
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":
@@ -162,18 +154,7 @@ class SerialPolicy(ControlPolicy):
                     f"within SerialPolicy: {e}"
                 ) from e
 
-        name_val = config.get("name")
-        resolved_name: Optional[str]
-        if name_val is not None:
-            if not isinstance(name_val, str):
-                resolved_name = str(name_val)
-            else:
-                resolved_name = name_val
-        else:
-            # Default name if not in config. Could also use cls.__name__
-            resolved_name = "SerialPolicy"
-
-        return cls(policies=instantiated_policies, name=resolved_name)
+        return cls(policies=instantiated_policies, **{k: v for k, v in config.items() if k != "policies"})
 
 
 # legacy compatibility

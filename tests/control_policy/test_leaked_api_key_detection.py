@@ -461,11 +461,9 @@ def test_leaked_api_key_detection_policy_serialize_default():
 
     serialized = policy.serialize()
 
-    expected = {
-        "patterns": LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS,
-        "type": "LeakedApiKeyDetection",
-    }
-    assert serialized == expected
+    assert serialized["type"] == "LeakedApiKeyDetection"
+    assert "patterns" in serialized
+    assert serialized["patterns"] == LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS
 
 
 def test_leaked_api_key_detection_policy_serialize_custom():
@@ -477,12 +475,9 @@ def test_leaked_api_key_detection_policy_serialize_custom():
 
     serialized = policy.serialize()
 
-    expected = {
-        "name": custom_name,
-        "patterns": custom_patterns,
-        "type": "LeakedApiKeyDetection",
-    }
-    assert serialized == expected
+    assert serialized["type"] == "LeakedApiKeyDetection"
+    assert serialized["name"] == custom_name
+    assert serialized["patterns"] == custom_patterns
 
 
 def test_leaked_api_key_detection_policy_from_serialized_full_config():
@@ -593,6 +588,7 @@ def test_leaked_api_key_detection_policy_parametrized_initialization(
         policy = LeakedApiKeyDetectionPolicy(patterns=patterns, name=name)
         expected_patterns = patterns
 
-    assert policy.name == name
+    expected_name = name if name is not None else "LeakedApiKeyDetectionPolicy"
+    assert policy.name == expected_name
     assert policy.patterns == expected_patterns
     assert len(policy.compiled_patterns) == len(expected_patterns)

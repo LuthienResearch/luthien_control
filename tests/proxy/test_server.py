@@ -19,6 +19,7 @@ from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 from luthien_control.main import app  # Import your main FastAPI app
 from luthien_control.settings import Settings
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 # --- Pytest Fixtures ---
@@ -320,9 +321,10 @@ class PassThroughPolicy(ControlPolicy):
 
 # Define a second minimal policy that just sets the response
 class MockSendBackendRequestPolicy(ControlPolicy):
-    def __init__(self, mock_response: OpenAIChatCompletionsResponse):
-        self.mock_response = mock_response
-        self.name = self.__class__.__name__
+    mock_response: OpenAIChatCompletionsResponse = Field(...)
+
+    def __init__(self, mock_response: OpenAIChatCompletionsResponse, **data):
+        super().__init__(mock_response=mock_response, type="mock_send_backend_request", **data)
 
     async def apply(
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession

@@ -1,12 +1,11 @@
 import logging
-from typing import Optional
 
 import openai
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.api.openai_chat_completions import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.control_policy import ControlPolicy
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 
@@ -25,8 +24,9 @@ class SendBackendRequestPolicy(ControlPolicy):
         logger (logging.Logger): The logger instance for this policy.
     """
 
-    def __init__(self, name: Optional[str] = None):
-        super().__init__(name=name)
+    name: str = Field(default="SendBackendRequestPolicy")
+
+
 
     async def apply(
         self,
@@ -112,22 +112,3 @@ class SendBackendRequestPolicy(ControlPolicy):
             raise
 
         return transaction
-
-    def _get_policy_specific_config(self) -> SerializableDict:
-        """No additional configuration needed beyond type and name."""
-        return {}
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "SendBackendRequestPolicy":
-        """
-        Constructs the policy from serialized configuration.
-
-        Args:
-            config: A dictionary that may optionally contain a 'name' key
-                    to set a custom name for the policy instance.
-
-        Returns:
-            An instance of SendBackendRequestPolicy.
-        """
-        resolved_name = str(config.get("name", cls.__name__))
-        return cls(name=resolved_name)

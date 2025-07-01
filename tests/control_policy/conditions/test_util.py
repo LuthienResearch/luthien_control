@@ -20,10 +20,10 @@ from luthien_control.core.transaction import Transaction
 
 def test_get_condition_class_valid() -> None:
     """Tests get_condition_class with valid condition names."""
-    assert get_condition_class(EqualsCondition.type) is EqualsCondition
-    assert get_condition_class(AllCondition.type) is AllCondition
-    assert get_condition_class(AnyCondition.type) is AnyCondition
-    assert get_condition_class(NotCondition.type) is NotCondition
+    assert get_condition_class("equals") is EqualsCondition
+    assert get_condition_class("all") is AllCondition
+    assert get_condition_class("any") is AnyCondition
+    assert get_condition_class("not") is NotCondition
 
 
 def test_get_condition_class_invalid() -> None:
@@ -34,20 +34,20 @@ def test_get_condition_class_invalid() -> None:
 
 def test_get_condition_class_from_serialized() -> None:
     """Tests get_condition_class_from_serialized."""
-    serialized_equals: SerializableDict = {"type": EqualsCondition.type, "key": "foo", "value": "bar"}
+    serialized_equals: SerializableDict = {"type": "equals", "key": "foo", "value": "bar"}
     assert get_condition_class_from_serialized(serialized_equals) is EqualsCondition
 
-    serialized_all: SerializableDict = {"type": AllCondition.type, "conditions": []}
+    serialized_all: SerializableDict = {"type": "all", "conditions": []}
     assert get_condition_class_from_serialized(serialized_all) is AllCondition
 
 
 @pytest.mark.parametrize(
     "condition_type_str, condition_class",
     [
-        (EqualsCondition.type, EqualsCondition),
-        (NotCondition.type, NotCondition),
-        (AllCondition.type, AllCondition),
-        (AnyCondition.type, AnyCondition),
+        ("equals", EqualsCondition),
+        ("not", NotCondition),
+        ("all", AllCondition),
+        ("any", AnyCondition),
     ],
 )
 def test_get_condition_from_serialized_simple_cases(condition_type_str: str, condition_class: type[Condition]) -> None:
@@ -59,7 +59,7 @@ def test_get_condition_from_serialized_simple_cases(condition_type_str: str, con
     if condition_class == EqualsCondition:
         original_condition = EqualsCondition(path("test.key"), "test_value")
     elif condition_class == NotCondition:
-        original_condition = NotCondition(EqualsCondition(path("inner.key"), 1))
+        original_condition = NotCondition(cond=EqualsCondition(path("inner.key"), 1))
     elif condition_class == AllCondition:
         original_condition = AllCondition(conditions=[EqualsCondition(path("all.key1"), True)])
     elif condition_class == AnyCondition:
@@ -80,7 +80,7 @@ def test_get_condition_from_serialized_nested() -> None:
     """Tests get_condition_from_serialized with nested conditions."""
     eq_cond1 = EqualsCondition(path("data.x"), 10)
     eq_cond2 = EqualsCondition(path("request.method"), "POST")
-    not_cond = NotCondition(value=eq_cond1)
+    not_cond = NotCondition(cond=eq_cond1)
     all_cond = AllCondition(conditions=[not_cond, eq_cond2])
     any_cond = AnyCondition(conditions=[all_cond, eq_cond1])
 

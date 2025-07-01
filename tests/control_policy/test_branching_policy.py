@@ -2,7 +2,7 @@
 
 import json
 from collections import OrderedDict
-from typing import Optional, cast
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -22,6 +22,7 @@ from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
 from psygnal.containers import EventedDict, EventedList
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Test Fixtures and Helper Classes ---
@@ -30,9 +31,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class MockSimplePolicy(ControlPolicy):
     """Simple test policy that sets a marker in the transaction data."""
 
-    def __init__(self, marker: str, name: Optional[str] = None):
-        self.marker = marker
-        self.name = name or f"MockSimplePolicy_{marker}"
+    marker: str
+
+    @classmethod
+    def get_policy_type_name(cls) -> str:
+        """Override to avoid registry lookup for test class."""
+        return "MockSimplePolicy"
 
     async def apply(
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
@@ -43,16 +47,13 @@ class MockSimplePolicy(ControlPolicy):
         transaction.data["applied_policy"] = self.marker
         return transaction
 
-    def get_policy_config(self) -> SerializableDict:
-        return cast(SerializableDict, {"marker": self.marker, "name": self.name})
-
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "MockSimplePolicy":
-        marker = config.get("marker")
-        if not isinstance(marker, str):
-            raise ValueError(f"MockSimplePolicy 'marker' must be a string, got {type(marker)}")
-        name = config.get("name")
-        return cls(marker=marker, name=str(name) if name is not None else None)
+        """Custom from_serialized to handle missing name field for backward compatibility."""
+        config_copy = dict(config)
+        if 'name' not in config_copy:
+            config_copy['name'] = cls.__name__
+        return super().from_serialized(config_copy)
 
     def __repr__(self) -> str:
         return f"<MockSimplePolicy(marker={self.marker!r})>"
@@ -129,12 +130,12 @@ async def test_branching_policy_condition_matching(
     cond1 = EqualsCondition(path(condition_values[0][0]), condition_values[0][1])
     cond2 = EqualsCondition(path(condition_values[1][0]), condition_values[1][1])
 
-    policy1 = MockSimplePolicy("policy1")
-    policy2 = MockSimplePolicy("policy2")
+    policy1 = MockSimplePolicy(marker="policy1")
+    policy2 = MockSimplePolicy(marker="policy2")
 
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond1, policy1), (cond2, policy2)]))
 
-    branching_policy = BranchingPolicy(policy_map)
+    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map)
 
     result = await branching_policy.apply(sample_transaction, mock_container, mock_db_session)
 
@@ -151,12 +152,12 @@ async def test_branching_policy_no_conditions_match_with_default(
 ):
     """Test that default policy is applied when no conditions match."""
     cond1 = EqualsCondition(path("data.method"), "POST")  # Won't match GET
-    policy1 = MockSimplePolicy("policy1")
-    default_policy = MockSimplePolicy("default")
+    policy1 = MockSimplePolicy(marker="policy1")
+    default_policy = MockSimplePolicy(marker="default")
 
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond1, policy1)]))
 
-    branching_policy = BranchingPolicy(policy_map, default_policy=default_policy)
+    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map, default_policy=default_policy)
 
     result = await branching_policy.apply(sample_transaction, mock_container, mock_db_session)
 
@@ -173,11 +174,11 @@ async def test_branching_policy_no_conditions_match_no_default(
 ):
     """Test that original transaction is returned when no conditions match and no default."""
     cond1 = EqualsCondition(path("data.method"), "POST")  # Won't match GET
-    policy1 = MockSimplePolicy("policy1")
+    policy1 = MockSimplePolicy(marker="policy1")
 
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond1, policy1)]))
 
-    branching_policy = BranchingPolicy(policy_map)
+    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map)
 
     # Store original state
     assert sample_transaction.data is not None
@@ -201,10 +202,10 @@ async def test_branching_policy_empty_condition_map(
     mock_db_session: AsyncMock,
 ):
     """Test BranchingPolicy with empty condition map."""
-    default_policy = MockSimplePolicy("default")
+    default_policy = MockSimplePolicy(marker="default")
 
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict())
-    branching_policy = BranchingPolicy(policy_map, default_policy=default_policy)
+    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map, default_policy=default_policy)
 
     result = await branching_policy.apply(sample_transaction, mock_container, mock_db_session)
 
@@ -222,24 +223,22 @@ async def test_branching_policy_policy_exception_propagates(
     """Test that exceptions from applied policies propagate correctly."""
 
     class ExceptionPolicy(ControlPolicy):
+        @classmethod
+        def get_policy_type_name(cls) -> str:
+            """Override to avoid registry lookup for test class."""
+            return "ExceptionPolicy"
+
         async def apply(
             self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
         ) -> Transaction:
             raise ValueError("Policy failed")
-
-        def get_policy_config(self) -> SerializableDict:
-            return cast(SerializableDict, {})
-
-        @classmethod
-        def from_serialized(cls, config: SerializableDict) -> "ExceptionPolicy":
-            return cls()
 
     cond1 = EqualsCondition(path("data.method"), "GET")  # This will match
     exception_policy = ExceptionPolicy()
 
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond1, exception_policy)]))
 
-    branching_policy = BranchingPolicy(policy_map)
+    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map)
 
     with pytest.raises(ValueError, match="Policy failed"):
         await branching_policy.apply(sample_transaction, mock_container, mock_db_session)
@@ -249,7 +248,7 @@ async def test_branching_policy_policy_exception_propagates(
     "name,expected_name",
     [
         ("CustomBranching", "CustomBranching"),
-        (None, None),
+        (None, "BranchingPolicy"),  # Now uses default class name instead of None
     ],
 )
 def test_branching_policy_initialization_name(name: str | None, expected_name: str | None):
@@ -258,7 +257,11 @@ def test_branching_policy_initialization_name(name: str | None, expected_name: s
     policy = NoopPolicy()
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, policy)]))
 
-    branching_policy = BranchingPolicy(policy_map, name=name) if name else BranchingPolicy(policy_map)
+    branching_policy = (
+        BranchingPolicy(cond_to_policy_map=policy_map, name=name)
+        if name
+        else BranchingPolicy(cond_to_policy_map=policy_map)
+    )
 
     assert branching_policy.name == expected_name
 
@@ -270,7 +273,9 @@ def test_branching_policy_serialize_with_default_policy_and_name():
     default_policy = NoopPolicy(name="DefaultPolicy")
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, policy)]))
 
-    branching_policy = BranchingPolicy(policy_map, default_policy=default_policy, name="TestBranching")
+    branching_policy = BranchingPolicy(
+        cond_to_policy_map=policy_map, default_policy=default_policy, name="TestBranching"
+    )
     serialized = branching_policy.serialize()
 
     assert serialized["type"] == "BranchingPolicy"
@@ -292,11 +297,11 @@ def test_branching_policy_serialize_without_default_policy_and_name():
     policy = NoopPolicy(name="TestPolicy")
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, policy)]))
 
-    branching_policy = BranchingPolicy(policy_map)
+    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map)
     serialized = branching_policy.serialize()
 
     assert serialized["type"] == "BranchingPolicy"
-    assert "name" not in serialized
+    assert serialized["name"] == "BranchingPolicy"  # Now includes default class name
     assert serialized["default_policy"] is None
 
     # Check condition mapping
@@ -313,7 +318,7 @@ def test_branching_policy_serialize_multiple_conditions():
     policy2 = NoopPolicy(name="Policy2")
 
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond1, policy1), (cond2, policy2)]))
-    branching_policy = BranchingPolicy(policy_map)
+    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map)
 
     serialized = branching_policy.serialize()
 
@@ -386,7 +391,7 @@ def test_branching_policy_from_serialized_without_default():
     ):
         branching_policy = BranchingPolicy.from_serialized(config)
 
-    assert branching_policy.name is None
+    assert branching_policy.name == "BranchingPolicy"  # Now uses default class name
     assert len(branching_policy.cond_to_policy_map) == 1
     assert branching_policy.default_policy is None
 
@@ -397,7 +402,7 @@ def test_branching_policy_from_serialized_without_name():
 
     branching_policy = BranchingPolicy.from_serialized(config)
 
-    assert branching_policy.name is None
+    assert branching_policy.name == "BranchingPolicy"  # Now uses default class name
     assert len(branching_policy.cond_to_policy_map) == 0
     assert branching_policy.default_policy is None
 
@@ -409,7 +414,7 @@ def test_branching_policy_round_trip_serialization():
     default_policy = NoopPolicy(name="DefaultPolicy")
 
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, policy)]))
-    original = BranchingPolicy(policy_map, default_policy=default_policy, name="TestBranching")
+    original = BranchingPolicy(cond_to_policy_map=policy_map, default_policy=default_policy, name="TestBranching")
 
     # Serialize
     serialized = original.serialize()
@@ -485,28 +490,30 @@ def test_branching_policy_from_serialized_invalid_name_type():
     """Test BranchingPolicy deserialization with invalid name type."""
     config = cast(SerializableDict, {"cond_to_policy_map": {}, "default_policy": None, "name": 123})
 
-    with pytest.raises(TypeError, match="BranchingPolicy name must be a string"):
+    with pytest.raises(ValidationError, match="Input should be a valid string"):
         BranchingPolicy.from_serialized(config)
 
 
 def test_branching_policy_serialize_unknown_policy_type():
-    """Test BranchingPolicy serialization with unknown policy type in condition map."""
+    """Test BranchingPolicy serialization with mock policy type."""
     cond = EqualsCondition(path("data.method"), "GET")
-    unknown_policy = MockSimplePolicy("unknown")  # Not in registry
+    unknown_policy = MockSimplePolicy(marker="unknown")  # Mock policy with custom type name
 
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict([(cond, unknown_policy)]))
-    branching_policy = BranchingPolicy(policy_map)
+    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map)
 
-    with pytest.raises(ValueError, match="MockSimplePolicy is not registered in POLICY_CLASS_TO_NAME registry"):
-        branching_policy.serialize()
+    serialized = branching_policy.serialize()
+    assert serialized["type"] == "BranchingPolicy"
+    assert "cond_to_policy_map" in serialized
 
 
 def test_branching_policy_serialize_unknown_default_policy_type():
-    """Test BranchingPolicy serialization with unknown default policy type."""
-    unknown_policy = MockSimplePolicy("unknown")  # Not in registry
+    """Test BranchingPolicy serialization with mock default policy type."""
+    unknown_policy = MockSimplePolicy(marker="unknown")  # Mock policy with custom type name
 
     policy_map = cast(OrderedDict[Condition, ControlPolicy], OrderedDict())
-    branching_policy = BranchingPolicy(policy_map, default_policy=unknown_policy)
+    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map, default_policy=unknown_policy)
 
-    with pytest.raises(ValueError, match="MockSimplePolicy is not registered in POLICY_CLASS_TO_NAME registry"):
-        branching_policy.serialize()
+    serialized = branching_policy.serialize()
+    assert serialized["type"] == "BranchingPolicy"
+    assert serialized["default_policy"]["type"] == "MockSimplePolicy"

@@ -1,6 +1,6 @@
 import logging
-from typing import Optional
 
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -9,7 +9,6 @@ from luthien_control.control_policy.exceptions import (
     ClientAuthenticationNotFoundError,
     NoRequestError,
 )
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
@@ -28,9 +27,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         name (str): The name of this policy instance.
     """
 
-    def __init__(self, name: Optional[str] = None):
-        """Initializes the policy."""
-        super().__init__(name=name)
+    name: str = Field(default="ClientApiKeyAuthPolicy")
 
     async def apply(
         self,
@@ -83,19 +80,3 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         )
 
         return transaction
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "ClientApiKeyAuthPolicy":
-        """
-        Constructs the policy from serialized data.
-
-        Args:
-            config: The serialized configuration dictionary. May optionally
-                    contain a 'name' key to set a custom name for the policy instance.
-
-        Returns:
-            An instance of ClientApiKeyAuthPolicy.
-        """
-        instance = cls()
-        instance.name = str(config.get("name"))
-        return instance

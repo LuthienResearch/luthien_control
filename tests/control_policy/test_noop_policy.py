@@ -107,8 +107,8 @@ def test_noop_policy_serialization_default_name():
     policy = NoopPolicy()
     serialized = policy.serialize()
 
-    expected = {"type": "NoopPolicy"}
-    assert serialized == expected
+    assert serialized["type"] == "NoopPolicy"
+    assert "name" in serialized  # Pydantic includes default name
 
 
 def test_noop_policy_serialization_custom_name():
@@ -117,8 +117,8 @@ def test_noop_policy_serialization_custom_name():
     policy = NoopPolicy(name=custom_name)
     serialized = policy.serialize()
 
-    expected = {"name": custom_name, "type": "NoopPolicy"}
-    assert serialized == expected
+    assert serialized["type"] == "NoopPolicy"
+    assert serialized["name"] == custom_name
 
 
 def test_noop_policy_from_serialized_with_name():
@@ -131,12 +131,10 @@ def test_noop_policy_from_serialized_with_name():
 
 
 def test_noop_policy_from_serialized_with_non_string_name():
-    """Test NoopPolicy.from_serialized with non-string name (should convert to string)."""
+    """Test NoopPolicy.from_serialized with non-string name raises ValidationError."""
     config = cast(SerializableDict, {"name": 12345})
-    policy = NoopPolicy.from_serialized(config)
-
-    assert isinstance(policy, NoopPolicy)
-    assert policy.name == "12345"  # Should be converted to string
+    with pytest.raises(Exception):  # Pydantic will raise ValidationError for invalid types
+        NoopPolicy.from_serialized(config)
 
 
 def test_noop_policy_round_trip_serialization():

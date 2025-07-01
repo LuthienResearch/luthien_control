@@ -1,10 +1,10 @@
-from typing import Dict, Optional, cast
+from typing import Dict
 
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import NoRequestError
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 
@@ -18,15 +18,8 @@ class ModelNameReplacementPolicy(ControlPolicy):
     known models must route through specific endpoints.
     """
 
-    def __init__(self, model_mapping: Dict[str, str], name: Optional[str] = None):
-        """Initializes the policy with a mapping of fake to real model names.
-
-        Args:
-            model_mapping: Dictionary mapping fake model names to real model names.
-            name: Optional name for this policy instance.
-        """
-        super().__init__(name=name, model_mapping=model_mapping)
-        self.model_mapping = model_mapping
+    name: str = Field(default="ModelNameReplacementPolicy")
+    model_mapping: Dict[str, str] = Field(default_factory=dict)
 
     async def apply(
         self,
@@ -60,18 +53,3 @@ class ModelNameReplacementPolicy(ControlPolicy):
                 transaction.request.payload.model = new_model
 
         return transaction
-
-    def _get_policy_specific_config(self) -> SerializableDict:
-        """Return policy-specific configuration for serialization.
-
-        This policy needs to store the model mapping dictionary in addition
-        to the standard type and name fields.
-        """
-        return {"model_mapping": self.model_mapping}
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "ModelNameReplacementPolicy":
-        """Constructs the policy from serialized configuration."""
-        instance_name = cast(str, config.get("name"))
-        model_mapping = cast(Dict[str, str], config.get("model_mapping", {}))
-        return cls(model_mapping=model_mapping, name=instance_name)

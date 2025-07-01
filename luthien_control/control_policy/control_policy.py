@@ -4,9 +4,10 @@ import abc
 import logging
 from typing import Any, Optional, Type, TypeVar, cast
 
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.control_policy.serialization import SerializableDict, safe_model_validate
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 
@@ -14,7 +15,7 @@ from luthien_control.core.transaction import Transaction
 PolicyT = TypeVar("PolicyT", bound="ControlPolicy")
 
 
-class ControlPolicy(abc.ABC):
+class ControlPolicy(BaseModel, abc.ABC):
     """Abstract Base Class defining the interface for a processing step.
 
     Attributes:
@@ -23,7 +24,9 @@ class ControlPolicy(abc.ABC):
             It's used for logging and identification purposes.
     """
 
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None)
+    type: str = Field(...)
+    logger: logging.Logger = Field(default_factory=lambda: logging.getLogger(__name__), exclude=True)
 
     @classmethod
     def get_policy_type_name(cls) -> str:
@@ -43,17 +46,18 @@ class ControlPolicy(abc.ABC):
             raise ValueError(f"{cls.__name__} is not registered in POLICY_CLASS_TO_NAME registry")
         return policy_type
 
-    def __init__(self, name: Optional[str] = None, **kwargs: Any) -> None:
+    def __init__(self, **data: Any) -> None:
         """Initializes the ControlPolicy.
 
         This is an abstract base class, and this constructor typically handles
         common initialization or can be overridden by subclasses.
 
         Args:
-            **kwargs: Arbitrary keyword arguments that subclasses might use.
+            **data: Arbitrary keyword arguments that subclasses might use.
         """
-        self.name = name
-        self.logger = logging.getLogger(__name__)
+        if 'type' not in data:
+            data['type'] = self.get_policy_type_name()
+        super().__init__(**data)
 
     @abc.abstractmethod
     async def apply(
@@ -80,42 +84,10 @@ class ControlPolicy(abc.ABC):
         raise NotImplementedError
 
     def serialize(self) -> SerializableDict:
-        """
-        Serialize the policy to a dictionary for persistence and reconstruction.
-
-        This method implements a template pattern for serialization with 'type' and 'name' fields.
-        Policies should override _get_policy_specific_config() to add their fields
-
-        Returns:
-            A serializable dictionary containing the complete policy configuration.
-        """
-        # Start with the type field (always required for deserialization)
-        result = SerializableDict({"type": self.get_policy_type_name()})
-        # Only include name if it's not None and different from the class name
-        if self.name is not None and self.name != self.__class__.__name__:
-            result["name"] = self.name
-        result.update(self._get_policy_specific_config())
-
-        return result
-
-    def _get_policy_specific_config(self) -> SerializableDict:
-        """
-        Get the policy-specific configuration fields for serialization.
-
-        This method is called by serialize() to get any additional fields
-        that should be included in the serialized form beyond 'type' and 'name'.
-
-        Override this method in subclasses to add policy-specific fields.
-        For example:
-        - AddApiKeyHeaderFromEnvPolicy returns {"api_key_env_var_name": self.api_key_env_var_name}
-        - LeakedApiKeyDetectionPolicy returns {"patterns": self.patterns}
-        - NoopPolicy returns {} (no additional fields needed)
-
-        Returns:
-            A dictionary containing policy-specific configuration fields.
-            Default implementation returns an empty dict.
-        """
-        return {}
+        """Serialize using Pydantic model_dump through SerializableDict validation."""
+        data = self.model_dump(mode='python', by_alias=True, exclude_none=True)
+        from luthien_control.control_policy.serialization import SerializableDictAdapter
+        return SerializableDictAdapter.validate_python(data)
 
     # construct from serialization
     @classmethod
@@ -141,7 +113,18 @@ class ControlPolicy(abc.ABC):
         # Import inside the method to break circular dependency
         from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
 
-        policy_type_name_val = config.get("type")
+        config_copy = dict(config)
+
+        policy_type_name_val = config_copy.get("type")
+
+        if not isinstance(policy_type_name_val, str) and cls != ControlPolicy:
+            try:
+                inferred_type = cls.get_policy_type_name()
+                config_copy["type"] = inferred_type
+                policy_type_name_val = inferred_type
+            except ValueError:
+                pass
+
         if not isinstance(policy_type_name_val, str):
             raise ValueError(
                 f"Policy configuration must include a 'type' field as a string. "
@@ -154,4 +137,7 @@ class ControlPolicy(abc.ABC):
                 f"Unknown policy type '{policy_type_name_val}'. Ensure it is registered in POLICY_NAME_TO_CLASS."
             )
 
-        return cast(PolicyT, target_policy_class.from_serialized(config))
+        return cast(PolicyT, safe_model_validate(target_policy_class, config_copy))
+
+    class Config:
+        arbitrary_types_allowed = True

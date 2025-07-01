@@ -1,10 +1,10 @@
 import os
 
 import openai
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 from luthien_control.utils.backend_call_spec import BackendCallSpec
@@ -15,9 +15,8 @@ class BackendCallPolicy(ControlPolicy):
     This policy makes a backend LLM call.
     """
 
-    def __init__(self, backend_call_spec: BackendCallSpec, name: str):
-        super().__init__(name=name)
-        self.backend_call_spec = backend_call_spec
+    name: str = Field(default="BackendCallPolicy")
+    backend_call_spec: BackendCallSpec = Field(...)
 
     async def apply(
         self,
@@ -61,13 +60,3 @@ class BackendCallPolicy(ControlPolicy):
             self.logger.exception(f"Unexpected error during backend request: {e} ({self.name})")
             raise
         return transaction
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "BackendCallPolicy":
-        return cls(
-            backend_call_spec=BackendCallSpec.model_validate(config["backend_call_spec"]),
-            name=str(config["name"]),
-        )
-
-    def _get_policy_specific_config(self) -> SerializableDict:
-        return SerializableDict({"backend_call_spec": self.backend_call_spec.model_dump()})

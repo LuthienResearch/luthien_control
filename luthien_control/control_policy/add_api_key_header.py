@@ -1,12 +1,11 @@
 # Control Policy for adding the API key header to requests.
 
-from typing import Optional, cast
 
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 
@@ -18,9 +17,7 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
     to the request. It has no policy-specific configuration beyond its name.
     """
 
-    def __init__(self, name: Optional[str] = None):
-        """Initializes the policy."""
-        super().__init__(name=name)
+    name: str = Field(default="AddApiKeyHeaderPolicy")
 
     async def apply(
         self,
@@ -56,21 +53,3 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         transaction.request.api_key = api_key
 
         return transaction
-
-    def _get_policy_specific_config(self) -> SerializableDict:
-        """No additional configuration needed beyond type and name."""
-        return {}
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "AddApiKeyHeaderPolicy":
-        """
-        Constructs the policy from serialized configuration.
-
-        Args:
-            config: Dictionary possibly containing 'name'.
-
-        Returns:
-            An instance of AddApiKeyHeaderPolicy.
-        """
-        instance_name = cast(Optional[str], config.get("name"))
-        return cls(name=instance_name)

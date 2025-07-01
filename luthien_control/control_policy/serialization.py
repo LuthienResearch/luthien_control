@@ -3,11 +3,27 @@
 from dataclasses import dataclass
 from typing import Any, List, TypeAlias, Union
 
+from pydantic import BaseModel, TypeAdapter
+
 # Define the base types that can be serialized
 SerializablePrimitive = Union[str, float, int, bool]
 
 # Define the recursive type for dictionaries
 SerializableDict: TypeAlias = dict[str, Union[SerializablePrimitive, List[Any], dict[str, Any], None]]
+
+SerializableDictAdapter = TypeAdapter(SerializableDict)
+
+
+def safe_model_dump(model: BaseModel) -> SerializableDict:
+    """Safely dump a Pydantic model through SerializableDict validation."""
+    data = model.model_dump(mode='python', by_alias=True)
+    return SerializableDictAdapter.validate_python(data)
+
+
+def safe_model_validate(model_class: type[BaseModel], data: SerializableDict) -> BaseModel:
+    """Safely validate data through SerializableDict before creating model."""
+    validated_data = SerializableDictAdapter.validate_python(data)
+    return model_class.model_validate(validated_data, from_attributes=True)
 
 
 # Define the type for serialized policies

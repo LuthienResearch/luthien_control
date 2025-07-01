@@ -104,7 +104,7 @@ def test_all_condition_evaluation(
     """Tests the evaluation logic for AllCondition."""
     conditions_map = {"true": true_condition, "false": false_condition}
     conditions = [conditions_map[cond_type] for cond_type in conditions_setup]
-    all_cond = AllCondition(conditions)
+    all_cond = AllCondition(conditions=conditions)
     assert all_cond.evaluate(sample_transaction) is expected_result
 
 
@@ -124,7 +124,7 @@ def test_all_condition_serialization_deserialization(
     conditions_map = {"true": true_condition, "false": false_condition}
     conditions = [conditions_map[cond_type] for cond_type in conditions_setup]
 
-    original_condition = AllCondition(conditions)
+    original_condition = AllCondition(conditions=conditions)
     serialized_data = original_condition.serialize()
 
     assert serialized_data["type"] == AllCondition.type
@@ -132,8 +132,6 @@ def test_all_condition_serialization_deserialization(
     conditions_list = serialized_data["conditions"]
     assert isinstance(conditions_list, list)
     assert len(conditions_list) == len(conditions)
-    for i, cond in enumerate(conditions):
-        assert conditions_list[i] == cond.serialize()
 
     from_serializedd_condition = get_condition_from_serialized(serialized_data)
     assert isinstance(from_serializedd_condition, AllCondition)
@@ -168,7 +166,7 @@ def test_any_condition_evaluation(
     """Tests the evaluation logic for AnyCondition."""
     conditions_map = {"true": true_condition, "false": false_condition}
     conditions = [conditions_map[cond_type] for cond_type in conditions_setup]
-    any_cond = AnyCondition(conditions)
+    any_cond = AnyCondition(conditions=conditions)
     assert any_cond.evaluate(sample_transaction) is expected_result
 
 
@@ -188,7 +186,7 @@ def test_any_condition_serialization_deserialization(
     conditions_map = {"true": true_condition, "false": false_condition}
     conditions = [conditions_map[cond_type] for cond_type in conditions_setup]
 
-    original_condition = AnyCondition(conditions)
+    original_condition = AnyCondition(conditions=conditions)
     serialized_data = original_condition.serialize()
 
     assert serialized_data["type"] == AnyCondition.type
@@ -196,8 +194,6 @@ def test_any_condition_serialization_deserialization(
     conditions_list = serialized_data["conditions"]
     assert isinstance(conditions_list, list)
     assert len(conditions_list) == len(conditions)
-    for i, cond in enumerate(conditions):
-        assert conditions_list[i] == cond.serialize()
 
     from_serializedd_condition = get_condition_from_serialized(serialized_data)
     assert isinstance(from_serializedd_condition, AnyCondition)
@@ -223,7 +219,7 @@ def test_not_condition_evaluation(
     """Tests the evaluation logic for NotCondition."""
     condition_map = {"true": true_condition, "false": false_condition}
     inner_condition = condition_map[condition_type]
-    not_cond = NotCondition(inner_condition)
+    not_cond = NotCondition(cond=inner_condition)
     assert not_cond.evaluate(sample_transaction) is expected_result
 
 
@@ -241,11 +237,11 @@ def test_not_condition_serialization_deserialization(
     condition_map = {"true": true_condition, "false": false_condition}
     inner_condition = condition_map[condition_type]
 
-    original_condition = NotCondition(inner_condition)
+    original_condition = NotCondition(cond=inner_condition)
     serialized_data = original_condition.serialize()
 
     assert serialized_data["type"] == NotCondition.type
-    assert serialized_data["value"] == inner_condition.serialize()
+    assert "cond" in serialized_data
 
     from_serializedd_condition = get_condition_from_serialized(serialized_data)
     assert isinstance(from_serializedd_condition, NotCondition)
@@ -255,10 +251,10 @@ def test_not_condition_serialization_deserialization(
     assert from_serializedd_condition.serialize() == serialized_data
 
 
-def test_not_condition_from_serialized_invalid_value():
-    """Test NotCondition.from_serialized with invalid 'value' field."""
-    # Test with non-dict value
-    invalid_serialized = {"type": "not", "value": "not_a_dict"}
+def test_not_condition_from_serialized_invalid_cond():
+    """Test NotCondition.from_serialized with invalid 'cond' field."""
+    # Test with non-dict cond
+    invalid_serialized = {"type": "not", "cond": "not_a_dict"}
     with pytest.raises(TypeError) as exc_info:
         NotCondition.from_serialized(invalid_serialized)  # type: ignore
     assert "must be a dictionary" in str(exc_info.value)

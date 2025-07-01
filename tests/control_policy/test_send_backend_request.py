@@ -388,8 +388,8 @@ def test_send_backend_request_policy_serialize_default():
 
     serialized = policy.serialize()
 
-    expected = {"type": "SendBackendRequest"}
-    assert serialized == expected
+    assert serialized["type"] == "SendBackendRequest"
+    assert "name" in serialized  # Now includes default class name
 
 
 def test_send_backend_request_policy_serialize_custom():
@@ -399,8 +399,8 @@ def test_send_backend_request_policy_serialize_custom():
 
     serialized = policy.serialize()
 
-    expected = {"type": "SendBackendRequest", "name": custom_name}
-    assert serialized == expected
+    assert serialized["type"] == "SendBackendRequest"
+    assert serialized["name"] == custom_name
 
 
 def test_send_backend_request_policy_from_serialized_with_name():
@@ -422,12 +422,11 @@ def test_send_backend_request_policy_from_serialized_without_name():
 
 
 def test_send_backend_request_policy_from_serialized_non_string_name():
-    """Test deserialization with non-string name (should convert to string)."""
+    """Test deserialization with non-string name raises ValidationError."""
     config = cast(SerializableDict, {"name": 12345})
 
-    policy = SendBackendRequestPolicy.from_serialized(config)
-
-    assert policy.name == "12345"  # Should be converted to string
+    with pytest.raises(Exception):  # Pydantic will raise ValidationError for invalid types
+        SendBackendRequestPolicy.from_serialized(config)
 
 
 def test_send_backend_request_policy_round_trip_serialization():
@@ -449,7 +448,7 @@ def test_send_backend_request_policy_round_trip_serialization():
 @pytest.mark.parametrize(
     "name,expected",
     [
-        (None, None),  # Default name (actually returns None)
+        (None, "SendBackendRequestPolicy"),  # Default name (now returns class name)
         ("CustomPolicy", "CustomPolicy"),  # Custom name
         ("Policy123", "Policy123"),  # Alphanumeric name
         ("", ""),  # Empty string

@@ -91,3 +91,69 @@ def test_from_serialized_valid(mock_registry):
     assert result == mock_policy
     mock_registry.get.assert_called_once_with("mock_policy")
     mock_policy_class.model_validate.assert_called_once()
+
+
+def test_get_policy_type_name_not_registered():
+    """Test get_policy_type_name when policy class is not registered."""
+
+    class UnregisteredPolicy(ControlPolicy):
+        async def apply(self, transaction, container, session):
+            return transaction
+
+    with patch("luthien_control.control_policy.registry.POLICY_CLASS_TO_NAME", {}):
+        with pytest.raises(ValueError, match="UnregisteredPolicy is not registered"):
+            UnregisteredPolicy.get_policy_type_name()
+
+
+def test_get_policy_type_name_registered():
+    """Test get_policy_type_name when policy class is registered."""
+
+    class RegisteredPolicy(ControlPolicy):
+        async def apply(self, transaction, container, session):
+            return transaction
+
+    with patch("luthien_control.control_policy.registry.POLICY_CLASS_TO_NAME", {RegisteredPolicy: "RegisteredPolicy"}):
+        assert RegisteredPolicy.get_policy_type_name() == "RegisteredPolicy"
+
+
+def test_from_serialized_type_inference_failure():
+    """Test from_serialized when type inference fails for a concrete class."""
+
+    class UnregisteredConcretePolicy(ControlPolicy):
+        async def apply(self, transaction, container, session):
+            return transaction
+
+    # Mock the registry to not have this class
+    with patch("luthien_control.control_policy.registry.POLICY_CLASS_TO_NAME", {}):
+        with patch("luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS", {}):
+            # When called on the concrete class without type, it tries to infer but fails
+            with pytest.raises(ValueError, match="must include a 'type' field"):
+                UnregisteredConcretePolicy.from_serialized({})
+
+
+def test_control_policy_serialize():
+    """Test ControlPolicy serialize method."""
+    policy = MinimalConcretePolicy(name="test_policy")
+    serialized = policy.serialize()
+
+    assert isinstance(serialized, dict)
+    assert serialized.get("type") == "MinimalConcretePolicy"
+    assert serialized.get("name") == "test_policy"
+
+
+def test_from_serialized_type_inference_success():
+    """Test from_serialized when type inference succeeds for a concrete class."""
+
+    # Register the MinimalConcretePolicy in both registries for this test
+    with patch(
+        "luthien_control.control_policy.registry.POLICY_CLASS_TO_NAME", {MinimalConcretePolicy: "MinimalConcretePolicy"}
+    ):
+        with patch(
+            "luthien_control.control_policy.registry.POLICY_NAME_TO_CLASS",
+            {"MinimalConcretePolicy": MinimalConcretePolicy},
+        ):
+            # When called on the concrete class without type, it should infer the type
+            policy = MinimalConcretePolicy.from_serialized({"name": "inferred_test"})
+            assert isinstance(policy, MinimalConcretePolicy)
+            assert policy.name == "inferred_test"
+            assert policy.type == "MinimalConcretePolicy"

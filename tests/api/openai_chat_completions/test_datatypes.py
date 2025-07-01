@@ -133,6 +133,28 @@ def test_response_format_instantiation():
         ResponseFormat(type="invalid_format")
 
 
+def test_response_format_json_schema_validation():
+    """Test json_schema validation in ResponseFormat."""
+    from psygnal.containers import EventedDict as EDict
+    from pydantic import ValidationError
+
+    # Test with valid json_schema
+    valid_schema = EDict({"name": str, "age": int})
+    instance = ResponseFormat(type="json_schema", json_schema=valid_schema)
+    assert instance.json_schema == valid_schema
+
+    # Test with None json_schema (covers line 151-152)
+    instance_none = ResponseFormat(type="json_schema", json_schema=None)
+    assert instance_none.json_schema is None
+
+    # Test with invalid json_schema - non-type value
+    # Pydantic validates this before the custom validator, so we catch ValidationError
+    invalid_schema_value = EDict()
+    invalid_schema_value["name"] = "not a type"  # Non-type value
+    with pytest.raises(ValidationError, match="Input should be a type"):
+        ResponseFormat(type="json_schema", json_schema=invalid_schema_value)
+
+
 def test_function_definition_instantiation():
     """Test that FunctionDefinition can be instantiated."""
     instance = FunctionDefinition(name="my_func", description="A test function.")

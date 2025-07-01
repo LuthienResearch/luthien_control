@@ -371,3 +371,45 @@ class TestErrorHandling:
         assert "EqualsCondition" in repr_str
         assert "TransactionPath" in repr_str
         assert "StaticValue" in repr_str
+
+
+class TestMissingCoverage:
+    """Tests for missing coverage lines."""
+
+    def test_value_resolver_from_dict(self, sample_transaction_clean: Transaction):
+        """Test creating value resolver from dict in validator (line 52)."""
+        # Test the validator directly to hit line 52
+        from luthien_control.control_policy.conditions.comparison_conditions import ComparisonCondition
+
+        # Call the validator directly with a dict
+        resolver_dict = {"type": "transaction_path", "path": "request.payload.model"}
+        resolver = ComparisonCondition.validate_value_resolver(resolver_dict)
+        assert isinstance(resolver, TransactionPath)
+        assert resolver.path == "request.payload.model"
+
+    def test_value_resolver_auto_resolve_else(self, sample_transaction_clean: Transaction):
+        """Test auto_resolve_value in else branch (line 58)."""
+        from luthien_control.control_policy.conditions.comparison_conditions import ComparisonCondition
+
+        # Call the validator directly with a non-dict, non-ValueResolver value
+        resolver = ComparisonCondition.validate_value_resolver("static_string")
+        assert isinstance(resolver, StaticValue)
+        assert resolver.value == "static_string"
+
+    def test_comparator_not_in_data(self, sample_transaction_clean: Transaction):
+        """Test when comparator is not in data during init (line 86)."""
+        # To hit line 86, we need:
+        # 1. "comparator" not in data
+        # 2. Either left or right is None, or "left"/"right" already in data
+        # This prevents line 79-83 from executing
+
+        # Case 1: Use model_validate with data dict that has left/right but no comparator
+        # This should trigger line 86
+        data = {
+            "left": {"type": "static", "value": "test"},
+            "right": {"type": "static", "value": "test"},
+            # No "comparator" key
+        }
+        condition = EqualsCondition.model_validate(data)
+        assert condition.comparator_name == "equals"
+        assert condition.evaluate(sample_transaction_clean) is True

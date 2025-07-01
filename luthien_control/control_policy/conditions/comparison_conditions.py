@@ -39,19 +39,19 @@ class ComparisonCondition(Condition, ABC):
     right_resolver: ValueResolver = Field(..., alias="right")
     comparator_name: str = Field(..., alias="comparator")
 
-    @field_serializer('left_resolver', 'right_resolver')
+    @field_serializer("left_resolver", "right_resolver")
     def serialize_value_resolver(self, value: ValueResolver) -> dict:
         """Custom serializer for ValueResolver fields."""
         return value.serialize()
 
-    @field_validator('left_resolver', 'right_resolver', mode='before')
+    @field_validator("left_resolver", "right_resolver", mode="before")
     @classmethod
     def validate_value_resolver(cls, value):
         """Custom validator to deserialize ValueResolver from dict."""
         if isinstance(value, dict):
             return create_value_resolver(value)
         elif isinstance(value, ValueResolver):
-            if isinstance(value, StaticValue) and isinstance(value.value, dict) and 'type' in value.value:
+            if isinstance(value, StaticValue) and isinstance(value.value, dict) and "type" in value.value:
                 return create_value_resolver(value.value)
             return value
         else:
@@ -76,18 +76,14 @@ class ComparisonCondition(Condition, ABC):
             # Static vs static
             EqualsCondition("gpt-4o", "gpt-4o")
         """
-        if left is not None and right is not None and 'left' not in data and 'right' not in data:
+        if left is not None and right is not None and "left" not in data and "right" not in data:
             left_resolver = auto_resolve_value(left)
             right_resolver = auto_resolve_value(right)
             comparator_name = COMPARATOR_TO_NAME[type(self).comparator]
-            data.update({
-                'left': left_resolver,
-                'right': right_resolver,
-                'comparator': comparator_name
-            })
+            data.update({"left": left_resolver, "right": right_resolver, "comparator": comparator_name})
 
-        if 'comparator' not in data:
-            data['comparator'] = COMPARATOR_TO_NAME[type(self).comparator]
+        if "comparator" not in data:
+            data["comparator"] = COMPARATOR_TO_NAME[type(self).comparator]
 
         super().__init__(**data)
 
@@ -99,7 +95,6 @@ class ComparisonCondition(Condition, ABC):
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.left_resolver!r}, {self.right_resolver!r})"
-
 
     @classmethod
     def from_legacy_format(cls, key: str, value: Any) -> "ComparisonCondition":

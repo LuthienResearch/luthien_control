@@ -30,11 +30,11 @@ class SerialPolicy(ControlPolicy):
     name: str = Field(default="SerialPolicy")
     policies: Sequence[ControlPolicy] = Field(...)
 
-
     def __init__(self, **data):
         super().__init__(**data)
         if not self.policies:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(f"Initializing SerialPolicy '{self.name}' with an empty policy list.")
 
@@ -81,7 +81,6 @@ class SerialPolicy(ControlPolicy):
         policy_reprs = [f"{p.name} <{p.__class__.__name__}>" for p in self.policies]
         policy_list_str = ", ".join(policy_reprs)
         return f"<{self.name}(policies=[{policy_list_str}])>"
-
 
     @classmethod
     def from_serialized(cls, config: SerializableDict) -> "SerialPolicy":

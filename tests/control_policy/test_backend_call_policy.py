@@ -29,7 +29,7 @@ def mock_openai_response():
         created=1677652288,
         model="gpt-4o",
         choices=[],
-        usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+        usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
     )
 
 
@@ -66,7 +66,7 @@ async def apply_policy_and_verify_basics(
     container: MagicMock,
     mock_openai_client: AsyncMock,
     expected_api_key: str,
-    expected_endpoint: str = "https://api.example.com/v1"
+    expected_endpoint: str = "https://api.example.com/v1",
 ) -> Transaction:
     """Apply policy and verify basic API call setup."""
     session = AsyncMock()
@@ -83,8 +83,7 @@ async def apply_policy_and_verify_basics(
 
 
 def create_backend_call_spec(
-    request_args: Optional[Dict[str, Any]] = None,
-    api_key_env_var: str = "TEST_API_KEY"
+    request_args: Optional[Dict[str, Any]] = None, api_key_env_var: str = "TEST_API_KEY"
 ) -> BackendCallSpec:
     """Create a BackendCallSpec with common defaults."""
     return BackendCallSpec(
@@ -119,11 +118,13 @@ async def test_backend_call_policy_basic(base_transaction, mock_container_and_cl
     """Test basic functionality of BackendCallPolicy."""
     setup_api_key_env()
 
-    spec = create_backend_call_spec({
-        "temperature": 0.7,
-        "max_tokens": 1000,
-        "top_p": 0.9,
-    })
+    spec = create_backend_call_spec(
+        {
+            "temperature": 0.7,
+            "max_tokens": 1000,
+            "top_p": 0.9,
+        }
+    )
     policy = BackendCallPolicy(backend_call_spec=spec, name="test_policy")
     container, mock_openai_client = mock_container_and_client
 
@@ -175,7 +176,7 @@ async def test_backend_call_policy_complex_nested_objects(mock_container_and_cli
     )
     transaction = Transaction(
         request=Request(payload=payload, api_endpoint="https://default.com/v1", api_key="default-key"),
-        response=Response()
+        response=Response(),
     )
 
     # Complex nested request args
@@ -194,23 +195,23 @@ async def test_backend_call_policy_complex_nested_objects(mock_container_and_cli
             },
         },
         "tool_choice": {"type": "function", "function": {"name": "get_weather"}},
-        "tools": [{
-            "type": "function",
-            "function": {
-                "name": "get_weather",
-                "description": "Get the current weather",
-                "parameters": {"type": "object", "properties": {"location": {"type": "string"}}},
-            },
-        }],
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Get the current weather",
+                    "parameters": {"type": "object", "properties": {"location": {"type": "string"}}},
+                },
+            }
+        ],
     }
 
     spec = create_backend_call_spec(complex_args)
     policy = BackendCallPolicy(backend_call_spec=spec, name="test_policy")
     container, mock_openai_client = mock_container_and_client
 
-    result = await apply_policy_and_verify_basics(
-        policy, transaction, container, mock_openai_client, "test-key-123"
-    )
+    result = await apply_policy_and_verify_basics(policy, transaction, container, mock_openai_client, "test-key-123")
 
     # Verify deeply nested structures
     payload = result.request.payload
@@ -242,7 +243,11 @@ async def test_backend_call_policy_no_api_key(base_transaction, mock_container_a
     container, mock_openai_client = mock_container_and_client
 
     result = await apply_policy_and_verify_basics(
-        policy, base_transaction, container, mock_openai_client, "default-key"  # Falls back to transaction key
+        policy,
+        base_transaction,
+        container,
+        mock_openai_client,
+        "default-key",  # Falls back to transaction key
     )
 
     # API key should remain unchanged if env var is not set
@@ -260,9 +265,7 @@ async def test_backend_call_policy_openai_api_timeout(base_transaction, mock_con
     container, mock_openai_client = mock_container_and_client
 
     # Configure client to raise timeout error
-    mock_openai_client.chat.completions.create.side_effect = create_openai_exception(
-        openai.APITimeoutError
-    )
+    mock_openai_client.chat.completions.create.side_effect = create_openai_exception(openai.APITimeoutError)
 
     session = AsyncMock()
 

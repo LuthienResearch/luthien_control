@@ -55,8 +55,8 @@ class ControlPolicy(BaseModel, abc.ABC):
         Args:
             **data: Arbitrary keyword arguments that subclasses might use.
         """
-        if 'type' not in data:
-            data['type'] = self.get_policy_type_name()
+        if "type" not in data:
+            data["type"] = self.get_policy_type_name()
         super().__init__(**data)
 
     @abc.abstractmethod
@@ -85,8 +85,9 @@ class ControlPolicy(BaseModel, abc.ABC):
 
     def serialize(self) -> SerializableDict:
         """Serialize using Pydantic model_dump through SerializableDict validation."""
-        data = self.model_dump(mode='python', by_alias=True, exclude_none=True)
+        data = self.model_dump(mode="python", by_alias=True, exclude_none=True)
         from luthien_control.control_policy.serialization import SerializableDictAdapter
+
         return SerializableDictAdapter.validate_python(data)
 
     # construct from serialization

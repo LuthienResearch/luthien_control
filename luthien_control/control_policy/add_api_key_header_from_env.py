@@ -30,7 +30,7 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
 
     api_key_env_var_name: str = Field(...)
 
-    @field_validator('api_key_env_var_name', mode='before')
+    @field_validator("api_key_env_var_name", mode="before")
     @classmethod
     def validate_api_key_env_var_name(cls, value):
         """Validate that api_key_env_var_name is a string, maintaining original strict behavior."""
@@ -39,7 +39,6 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         if not isinstance(value, str):
             raise TypeError(f"API key environment variable name '{value}' is not a string.")
         return value
-
 
     async def apply(
         self,

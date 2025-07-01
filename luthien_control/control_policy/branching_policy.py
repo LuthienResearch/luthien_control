@@ -27,7 +27,7 @@ class BranchingPolicy(ControlPolicy):
     cond_to_policy_map: OrderedDict[Condition, ControlPolicy] = Field(default_factory=OrderedDict, exclude=True)
     default_policy: Optional[ControlPolicy] = Field(default=None)
 
-    @field_validator('cond_to_policy_map', mode='before')
+    @field_validator("cond_to_policy_map", mode="before")
     @classmethod
     def validate_cond_to_policy_map(cls, value):
         """Validate and convert condition-to-policy mapping."""
@@ -37,7 +37,7 @@ class BranchingPolicy(ControlPolicy):
             return OrderedDict(value)
         raise ValueError("cond_to_policy_map must be a dict or OrderedDict")
 
-    @field_validator('default_policy', mode='before')
+    @field_validator("default_policy", mode="before")
     @classmethod
     def validate_default_policy(cls, value):
         """Validate default policy field."""
@@ -68,8 +68,7 @@ class BranchingPolicy(ControlPolicy):
         """Override serialize to handle complex condition-to-policy mapping."""
         data = super().serialize()
         data["cond_to_policy_map"] = {
-            json.dumps(cond.serialize()): policy.serialize()
-            for cond, policy in self.cond_to_policy_map.items()
+            json.dumps(cond.serialize()): policy.serialize() for cond, policy in self.cond_to_policy_map.items()
         }
         if self.default_policy:
             data["default_policy"] = self.default_policy.serialize()

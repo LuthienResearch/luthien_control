@@ -10,12 +10,12 @@ class AllCondition(Condition):
     type: ClassVar[str] = "all"
     conditions: List[Condition] = Field(...)
 
-    @field_serializer('conditions')
+    @field_serializer("conditions")
     def serialize_conditions(self, value: List[Condition]) -> List[dict]:
         """Custom serializer for conditions field."""
         return [condition.serialize() for condition in value]
 
-    @field_validator('conditions', mode='before')
+    @field_validator("conditions", mode="before")
     @classmethod
     def validate_conditions(cls, value):
         """Custom validator to deserialize conditions from dicts."""

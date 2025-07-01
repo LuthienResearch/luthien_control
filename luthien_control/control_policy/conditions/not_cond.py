@@ -10,12 +10,12 @@ class NotCondition(Condition):
     type: ClassVar[str] = "not"
     cond: Condition = Field(...)
 
-    @field_serializer('cond')
+    @field_serializer("cond")
     def serialize_cond(self, value: Condition) -> dict:
         """Custom serializer for cond field."""
         return value.serialize()
 
-    @field_validator('cond', mode='before')
+    @field_validator("cond", mode="before")
     @classmethod
     def validate_cond(cls, value):
         """Custom validator to deserialize condition from dict."""

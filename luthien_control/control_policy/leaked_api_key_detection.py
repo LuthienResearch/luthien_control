@@ -35,7 +35,7 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
     patterns: List[str] = Field(default_factory=lambda: LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS)
     compiled_patterns: List[re.Pattern] = Field(default_factory=list, exclude=True)
 
-    @field_validator('patterns', mode='before')
+    @field_validator("patterns", mode="before")
     @classmethod
     def validate_patterns(cls, value):
         """Handle patterns validation and fallback to defaults for empty lists."""
@@ -50,8 +50,7 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
         else:
             raise ValueError("'patterns' must be a list of strings")
 
-
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def compile_patterns(self):
         """Compile regex patterns after validation."""
         self.compiled_patterns = [re.compile(pattern) for pattern in self.patterns]

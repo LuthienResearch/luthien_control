@@ -26,8 +26,6 @@ class SendBackendRequestPolicy(ControlPolicy):
 
     name: str = Field(default="SendBackendRequestPolicy")
 
-
-
     async def apply(
         self,
         transaction: Transaction,

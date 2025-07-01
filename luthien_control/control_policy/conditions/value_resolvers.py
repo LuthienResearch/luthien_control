@@ -57,7 +57,6 @@ class StaticValue(ValueResolver):
     type: Literal["static"] = Field(default="static")
     value: Any = Field(...)
 
-
     def resolve(self, transaction: Transaction) -> Any:
         """Return the static value."""
         return self.value
@@ -78,8 +77,7 @@ class TransactionPath(ValueResolver):
     type: Literal["transaction_path"] = Field(default="transaction_path")
     path: str = Field(...)
 
-
-    @field_validator('path', mode='before')
+    @field_validator("path", mode="before")
     @classmethod
     def validate_path(cls, value):
         """Validate that path is a string, maintaining original strict behavior."""

@@ -111,9 +111,7 @@ class TestPolicyRaisingException(ControlPolicy):
         super().__init__(type="test_policy_exception", name="MockPolicy", **data)
 
     async def apply(self, transaction, container, session):
-        raise ControlPolicyError(
-            "Policy Failed!", policy_name="MockPolicy", status_code=418, detail="Test Detail"
-        )
+        raise ControlPolicyError("Policy Failed!", policy_name="MockPolicy", status_code=418, detail="Test Detail")
 
     def serialize(self) -> SerializableDict:
         return {}

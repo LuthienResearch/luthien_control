@@ -16,7 +16,7 @@ SerializableDictAdapter = TypeAdapter(SerializableDict)
 
 def safe_model_dump(model: BaseModel) -> SerializableDict:
     """Safely dump a Pydantic model through SerializableDict validation."""
-    data = model.model_dump(mode='python', by_alias=True)
+    data = model.model_dump(mode="python", by_alias=True)
     return SerializableDictAdapter.validate_python(data)
 
 

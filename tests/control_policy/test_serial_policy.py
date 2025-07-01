@@ -26,13 +26,7 @@ class MockSimplePolicy(ControlPolicy):
 
     modifies_data: bool = False
 
-    def __init__(
-        self,
-        side_effect: Any = None,
-        modifies_data: bool = False,
-        name: Optional[str] = None,
-        **kwargs
-    ):
+    def __init__(self, side_effect: Any = None, modifies_data: bool = False, name: Optional[str] = None, **kwargs):
         super().__init__(name=name or self.__class__.__name__, modifies_data=modifies_data, **kwargs)
         self.apply_mock = AsyncMock(side_effect=side_effect)
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -405,6 +399,7 @@ def test_serial_policy_from_serialized_no_name():
 def test_serial_policy_from_serialized_non_string_name():
     """Test SerialPolicy deserialization with non-string name raises ValidationError."""
     from pydantic import ValidationError
+
     config = cast(SerializableDict, {"name": 12345, "policies": []})
 
     with pytest.raises(ValidationError):  # Pydantic will raise ValidationError for invalid types

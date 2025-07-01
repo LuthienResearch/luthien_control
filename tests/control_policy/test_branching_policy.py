@@ -51,8 +51,8 @@ class MockSimplePolicy(ControlPolicy):
     def from_serialized(cls, config: SerializableDict) -> "MockSimplePolicy":
         """Custom from_serialized to handle missing name field for backward compatibility."""
         config_copy = dict(config)
-        if 'name' not in config_copy:
-            config_copy['name'] = cls.__name__
+        if "name" not in config_copy:
+            config_copy["name"] = cls.__name__
         return super().from_serialized(config_copy)
 
     def __repr__(self) -> str:

@@ -1,8 +1,9 @@
 """Tests for BranchingPolicy."""
+# pyright: reportCallIssue=false
 
 import json
 from collections import OrderedDict
-from typing import cast
+from typing import Any, Dict, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -516,4 +517,5 @@ def test_branching_policy_serialize_unknown_default_policy_type():
 
     serialized = branching_policy.serialize()
     assert serialized["type"] == "BranchingPolicy"
-    assert serialized["default_policy"]["type"] == "MockSimplePolicy"
+    default_policy = cast(Dict[str, Any], serialized["default_policy"])
+    assert default_policy["type"] == "MockSimplePolicy"

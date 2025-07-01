@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +18,7 @@ class ModelNameReplacementPolicy(ControlPolicy):
     known models must route through specific endpoints.
     """
 
-    name: str = Field(default="ModelNameReplacementPolicy")
+    name: Optional[str] = Field(default="ModelNameReplacementPolicy")
     model_mapping: Dict[str, str] = Field(default_factory=dict)
 
     async def apply(

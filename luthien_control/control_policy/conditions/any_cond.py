@@ -1,4 +1,4 @@
-from typing import ClassVar, List
+from typing import List, Literal
 
 from pydantic import Field, field_serializer, field_validator
 
@@ -7,7 +7,7 @@ from luthien_control.core.transaction import Transaction
 
 
 class AnyCondition(Condition):
-    type: ClassVar[str] = "any"
+    type: Literal["any"] = "any"
     conditions: List[Condition] = Field(...)
 
     @field_serializer("conditions")

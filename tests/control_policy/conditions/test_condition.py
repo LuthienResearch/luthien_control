@@ -1,3 +1,4 @@
+# pyright: reportCallIssue=false, reportAttributeAccessIssue=false, reportUnhashable=false
 from typing import Literal
 from unittest.mock import Mock, patch
 

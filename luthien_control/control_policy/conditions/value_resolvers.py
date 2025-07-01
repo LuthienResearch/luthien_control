@@ -13,7 +13,7 @@ class ValueResolver(BaseModel, ABC):
     Abstract base class for resolving values from transactions.
     """
 
-    type: str = Field(...)
+    type: Any = Field(default="")  # Allow any string type including Literal types
 
     @abstractmethod
     def resolve(self, transaction: Transaction) -> Any:

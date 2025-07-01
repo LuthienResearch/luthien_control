@@ -1,7 +1,7 @@
 # Serialization type definitions.
 
 from dataclasses import dataclass
-from typing import Any, List, TypeAlias, Union
+from typing import Any, List, TypeAlias, TypeVar, Union
 
 from pydantic import BaseModel, TypeAdapter
 
@@ -20,7 +20,10 @@ def safe_model_dump(model: BaseModel) -> SerializableDict:
     return SerializableDictAdapter.validate_python(data)
 
 
-def safe_model_validate(model_class: type[BaseModel], data: SerializableDict) -> BaseModel:
+T = TypeVar("T", bound=BaseModel)
+
+
+def safe_model_validate(model_class: type[T], data: SerializableDict) -> T:
     """Safely validate data through SerializableDict before creating model."""
     validated_data = SerializableDictAdapter.validate_python(data)
     return model_class.model_validate(validated_data, from_attributes=True)

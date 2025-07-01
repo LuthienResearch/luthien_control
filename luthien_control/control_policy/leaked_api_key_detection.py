@@ -6,7 +6,7 @@ sensitive API keys from being sent to language models.
 """
 
 import re
-from typing import ClassVar, List
+from typing import ClassVar, List, Optional
 
 from pydantic import Field, field_validator, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +31,7 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
         r"github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}",  # GitHub PAT pattern
     ]
 
-    name: str = Field(default_factory=lambda: "LeakedApiKeyDetectionPolicy")
+    name: Optional[str] = Field(default_factory=lambda: "LeakedApiKeyDetectionPolicy")
     patterns: List[str] = Field(default_factory=lambda: LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS)
     compiled_patterns: List[re.Pattern] = Field(default_factory=list, exclude=True)
 

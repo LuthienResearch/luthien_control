@@ -1,3 +1,4 @@
+# pyright: reportCallIssue=false, reportAttributeAccessIssue=false
 from typing import Any, cast
 
 import pytest

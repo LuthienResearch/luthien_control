@@ -1,3 +1,6 @@
+# pyright: reportCallIssue=false, reportAttributeAccessIssue=false, reportUnhashable=false
+from typing import List, cast
+
 import pytest
 from luthien_control.control_policy.conditions import EqualsCondition, path
 from luthien_control.control_policy.conditions.all_cond import AllCondition
@@ -61,9 +64,9 @@ def test_get_condition_from_serialized_simple_cases(condition_type_str: str, con
     elif condition_class == NotCondition:
         original_condition = NotCondition(cond=EqualsCondition(path("inner.key"), 1))
     elif condition_class == AllCondition:
-        original_condition = AllCondition(conditions=[EqualsCondition(path("all.key1"), True)])
+        original_condition = AllCondition(conditions=cast(List[Condition], [EqualsCondition(path("all.key1"), True)]))
     elif condition_class == AnyCondition:
-        original_condition = AnyCondition(conditions=[EqualsCondition(path("any.key1"), False)])
+        original_condition = AnyCondition(conditions=cast(List[Condition], [EqualsCondition(path("any.key1"), False)]))
     else:
         pytest.fail(f"Unhandled condition class in test setup: {condition_class}")
 

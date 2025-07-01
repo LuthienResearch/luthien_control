@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -8,6 +8,7 @@ import pytest
 from luthien_control.api.openai_chat_completions.datatypes import (
     Message,
     ResponseFormat,
+    Usage,
 )
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
@@ -28,8 +29,8 @@ def mock_openai_response():
         object="chat.completion",
         created=1677652288,
         model="gpt-4o",
-        choices=[],
-        usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+        choices=EventedList([]),
+        usage=Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
     )
 
 
@@ -214,18 +215,25 @@ async def test_backend_call_policy_complex_nested_objects(mock_container_and_cli
     result = await apply_policy_and_verify_basics(policy, transaction, container, mock_openai_client, "test-key-123")
 
     # Verify deeply nested structures
-    payload = result.request.payload
+    payload = cast(OpenAIChatCompletionsRequest, result.request.payload)
+    assert payload.response_format is not None
     assert payload.response_format.type == "json_object"
 
+    assert payload.web_search_options is not None
     web_search = payload.web_search_options
     assert web_search.search_context_size == "large"
+    assert web_search.user_location is not None
     assert web_search.user_location.type == "approximate"
+    assert web_search.user_location.approximate is not None
     assert web_search.user_location.approximate.city == "San Francisco"
     assert web_search.user_location.approximate.country == "USA"
 
+    assert payload.tool_choice is not None
     assert payload.tool_choice.type == "function"
+    assert payload.tool_choice.function is not None
     assert payload.tool_choice.function.name == "get_weather"
 
+    assert payload.tools is not None
     assert len(payload.tools) == 1
     assert payload.tools[0].function.name == "get_weather"
     assert payload.tools[0].function.description == "Get the current weather"
@@ -306,9 +314,11 @@ def test_backend_call_policy_serialization():
     assert set(serialized.keys()) == expected_keys
     assert serialized["type"] == "BackendCallPolicy"
     assert serialized["name"] == "test_policy"
-    assert serialized["backend_call_spec"]["model"] == "gpt-4o"
-    assert serialized["backend_call_spec"]["api_endpoint"] == "https://api.example.com/v1"
-    assert serialized["backend_call_spec"]["request_args"]["temperature"] == 0.8
+    backend_call_spec = cast(Dict[str, Any], serialized["backend_call_spec"])
+    assert backend_call_spec["model"] == "gpt-4o"
+    assert backend_call_spec["api_endpoint"] == "https://api.example.com/v1"
+    request_args = cast(Dict[str, Any], backend_call_spec["request_args"])
+    assert request_args["temperature"] == 0.8
 
     # Test deserialization
     deserialized_policy = BackendCallPolicy.from_serialized(serialized)

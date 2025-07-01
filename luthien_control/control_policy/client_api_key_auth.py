@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +28,7 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         name (str): The name of this policy instance.
     """
 
-    name: str = Field(default="ClientApiKeyAuthPolicy")
+    name: Optional[str] = Field(default="ClientApiKeyAuthPolicy")
 
     async def apply(
         self,

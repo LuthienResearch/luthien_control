@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from luthien_control.control_policy.conditions.util import get_transaction_value
 from luthien_control.control_policy.serialization import SerializableDict, safe_model_dump, safe_model_validate

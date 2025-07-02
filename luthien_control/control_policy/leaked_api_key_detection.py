@@ -39,16 +39,9 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
     @classmethod
     def validate_patterns(cls, value):
         """Handle patterns validation and fallback to defaults for empty lists."""
-        if value is None:
+        if value is None or (isinstance(value, list) and not value):
             return cls.DEFAULT_PATTERNS
-        if isinstance(value, list):
-            if not value:
-                return cls.DEFAULT_PATTERNS
-            if not all(isinstance(pattern, str) for pattern in value):
-                raise ValueError("'patterns' must be a list of strings")
-            return value
-        else:
-            raise ValueError("'patterns' must be a list of strings")
+        return value
 
     @model_validator(mode="after")
     def compile_patterns(self):

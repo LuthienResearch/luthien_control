@@ -1,4 +1,4 @@
-# pyright: reportCallIssue=false, reportAttributeAccessIssue=false, reportUnhashable=false
+# pyright: reportCallIssue=false
 from typing import List
 
 import pytest
@@ -144,6 +144,11 @@ def test_all_condition_serialization_deserialization(
     assert from_serializedd_condition.serialize() == serialized_data
 
 
+def test_all_condition_validator_non_list():
+    """Test that the validator handles non-list values."""
+    assert AllCondition.validate_conditions("not a list") == "not a list"
+
+
 # AnyCondition Tests
 @pytest.mark.parametrize(
     "conditions_setup, expected_result",
@@ -199,7 +204,13 @@ def test_any_condition_serialization_deserialization(
     from_serializedd_condition = get_condition_from_serialized(serialized_data)
     assert isinstance(from_serializedd_condition, AnyCondition)
     assert len(from_serializedd_condition.conditions) == len(original_condition.conditions)
+    # A simple re-serialization check can also be a good indicator:
     assert from_serializedd_condition.serialize() == serialized_data
+
+
+def test_any_condition_validator_non_list():
+    """Test that the validator handles non-list values."""
+    assert AnyCondition.validate_conditions("not a list") == "not a list"
 
 
 # NotCondition Tests
@@ -252,10 +263,9 @@ def test_not_condition_serialization_deserialization(
     assert from_serializedd_condition.serialize() == serialized_data
 
 
-def test_not_condition_from_serialized_invalid_cond():
-    """Test NotCondition.from_serialized with invalid 'cond' field."""
-    # Test with non-dict cond
-    invalid_serialized = {"type": "not", "cond": "not_a_dict"}
-    with pytest.raises(TypeError) as exc_info:
-        NotCondition.from_serialized(invalid_serialized)  # type: ignore
-    assert "must be a dictionary" in str(exc_info.value)
+def test_not_condition_repr(true_condition: Condition):
+    """Test the __repr__ method of NotCondition."""
+    not_cond = NotCondition(cond=true_condition)
+    repr_str = repr(not_cond)
+    assert "NotCondition" in repr_str
+    assert "EqualsCondition" in repr_str

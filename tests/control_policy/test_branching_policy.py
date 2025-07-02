@@ -1,6 +1,6 @@
 """Tests for BranchingPolicy."""
-# pyright: reportCallIssue=false
 
+# pyright: reportCallIssue=false, reportArgumentType=false, reportUnhashable=false
 import json
 from collections import OrderedDict
 from typing import Any, Dict, cast
@@ -493,6 +493,39 @@ def test_branching_policy_from_serialized_invalid_name_type():
 
     with pytest.raises(ValidationError, match="Input should be a valid string"):
         BranchingPolicy.from_serialized(config)
+
+
+def test_branching_policy_initialization_with_dict():
+    """Test BranchingPolicy initialization with a regular dict for cond_to_policy_map."""
+    cond = EqualsCondition(path("data.test"), "value")
+    policy = NoopPolicy()
+    policy_map = {cond: policy}
+
+    branching_policy = BranchingPolicy(cond_to_policy_map=policy_map)
+    assert isinstance(branching_policy.cond_to_policy_map, OrderedDict)
+    assert len(branching_policy.cond_to_policy_map) == 1
+
+
+def test_branching_policy_initialization_invalid_map_type():
+    """Test BranchingPolicy initialization with invalid cond_to_policy_map type."""
+    with pytest.raises(ValidationError) as excinfo:
+        BranchingPolicy(cond_to_policy_map=[])
+    assert "cond_to_policy_map must be a dict or OrderedDict" in str(excinfo.value)
+
+
+def test_branching_policy_from_serialized_missing_cond_map():
+    """Test deserialization when cond_to_policy_map is missing."""
+    config = {
+        "name": "TestBranching",
+        "default_policy": {"name": "DefaultPolicy", "type": "NoopPolicy"},
+    }
+    with patch.dict(POLICY_NAME_TO_CLASS, {"NoopPolicy": NoopPolicy}):
+        policy = BranchingPolicy.from_serialized(config)
+
+    assert policy.name == "TestBranching"
+    assert len(policy.cond_to_policy_map) == 0
+    assert policy.default_policy is not None
+    assert policy.default_policy.name == "DefaultPolicy"
 
 
 def test_branching_policy_serialize_unknown_policy_type():

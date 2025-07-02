@@ -25,6 +25,7 @@ from luthien_control.api.openai_chat_completions.datatypes import (
     UserLocation,
     WebSearchOptions,
 )
+from pydantic import ValidationError
 
 
 def test_url_citation_instantiation():
@@ -103,12 +104,12 @@ def test_image_url_instantiation():
 
     # Test explicit valid values
     for detail_value in ["auto", "low", "high"]:
-        instance = ImageUrl(url="http://example.com/img.png", detail=detail_value)
+        instance = ImageUrl(url="http://example.com/img.png", detail=detail_value)  # type: ignore
         assert instance.detail == detail_value
 
     # Test invalid value
-    with pytest.raises(ValueError, match="detail must be 'auto', 'low', or 'high'"):
-        ImageUrl(url="http://example.com/img.png", detail="invalid")
+    with pytest.raises(ValidationError):
+        ImageUrl(url="http://example.com/img.png", detail="invalid")  # type: ignore
 
 
 def test_content_part_text_instantiation():
@@ -125,34 +126,30 @@ def test_content_part_image_instantiation():
     assert isinstance(instance, ContentPartImage)
 
 
-def test_response_format_instantiation():
-    """Test that ResponseFormat can be instantiated."""
-    instance = ResponseFormat(type="json_object")
-    assert isinstance(instance, ResponseFormat)
-    with pytest.raises(ValueError):
-        ResponseFormat(type="invalid_format")
-
-
 def test_response_format_json_schema_validation():
     """Test json_schema validation in ResponseFormat."""
     from psygnal.containers import EventedDict as EDict
-    from pydantic import ValidationError
 
     # Test with valid json_schema
     valid_schema = EDict({"name": str, "age": int})
     instance = ResponseFormat(type="json_schema", json_schema=valid_schema)
     assert instance.json_schema == valid_schema
 
-    # Test with None json_schema (covers line 151-152)
+    # Test with None json_schema
     instance_none = ResponseFormat(type="json_schema", json_schema=None)
     assert instance_none.json_schema is None
 
+    # Test with invalid type for validation
+    with pytest.raises(ValidationError):
+        ResponseFormat(type="invalid_format", json_schema=None)  # type: ignore
+
+    # Test with invalid json_schema - non-string key
+    with pytest.raises(ValidationError):
+        ResponseFormat(type="json_schema", json_schema=EDict({123: int}))
+
     # Test with invalid json_schema - non-type value
-    # Pydantic validates this before the custom validator, so we catch ValidationError
-    invalid_schema_value = EDict()
-    invalid_schema_value["name"] = "not a type"  # Non-type value
-    with pytest.raises(ValidationError, match="Input should be a type"):
-        ResponseFormat(type="json_schema", json_schema=invalid_schema_value)
+    with pytest.raises(ValidationError):
+        ResponseFormat(type="json_schema", json_schema=EDict({"name": "not_a_type"}))
 
 
 def test_function_definition_instantiation():

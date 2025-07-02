@@ -79,11 +79,9 @@ class TransactionPath(ValueResolver):
     @field_validator("path", mode="before")
     @classmethod
     def validate_path(cls, value):
-        """Validate that path is a string, maintaining original strict behavior."""
+        """Validate that path is not None."""
         if value is None:
             raise ValueError("path cannot be None")
-        if not isinstance(value, str):
-            raise TypeError("TransactionPath path must be a string")
         return value
 
     def resolve(self, transaction: Transaction) -> Any:

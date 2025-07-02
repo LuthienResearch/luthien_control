@@ -339,17 +339,12 @@ def test_model_name_replacement_policy_round_trip_serialization():
 @pytest.mark.parametrize(
     "mapping,name",
     [
-        ({}, None),
         ({"fake": "real"}, "TestPolicy"),
         ({"a": "b", "c": "d"}, "MultiMapping"),
-        ({"gemini-2.5-pro-preview-05-06": "gpt-4o"}, None),
     ],
 )
 def test_model_name_replacement_policy_parametrized_serialization(mapping: Dict[str, str], name: str):
     """Test ModelNameReplacementPolicy serialization with various configurations."""
-    if name is None:
-        pytest.skip("Pydantic now requires string names, None not supported")
-
     policy = ModelNameReplacementPolicy(model_mapping=mapping, name=name)
 
     serialized = policy.serialize()

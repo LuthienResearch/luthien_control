@@ -118,7 +118,7 @@ class ControlPolicy(BaseModel, abc.ABC):
 
         policy_type_name_val = config_copy.get("type")
 
-        if not isinstance(policy_type_name_val, str) and cls != ControlPolicy:
+        if not policy_type_name_val and cls != ControlPolicy:
             try:
                 inferred_type = cls.get_policy_type_name()
                 config_copy["type"] = inferred_type
@@ -126,11 +126,12 @@ class ControlPolicy(BaseModel, abc.ABC):
             except ValueError:
                 pass
 
+        if not policy_type_name_val:
+            raise ValueError("Policy configuration must include a 'type' field")
+
+        # Ensure we have a string for dictionary lookup
         if not isinstance(policy_type_name_val, str):
-            raise ValueError(
-                f"Policy configuration must include a 'type' field as a string. "
-                f"Got: {policy_type_name_val!r} (type: {type(policy_type_name_val).__name__})"
-            )
+            raise ValueError(f"Policy 'type' must be a string, got {type(policy_type_name_val).__name__}")
 
         target_policy_class = POLICY_NAME_TO_CLASS.get(policy_type_name_val)
         if not target_policy_class:

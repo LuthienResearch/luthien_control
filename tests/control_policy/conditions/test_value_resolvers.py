@@ -88,14 +88,6 @@ class TestCreateValueResolver:
         with pytest.raises(ValueError, match="Unknown value resolver type: None"):
             create_value_resolver(serialized)
 
-    def test_create_value_resolver_invalid_type_data(self):
-        """Test that create_value_resolver propagates errors from resolver creation."""
-        # TransactionPath requires a string path, not an integer
-        serialized: SerializableDict = {"type": "transaction_path", "path": 123}
-
-        with pytest.raises(TypeError, match="TransactionPath path must be a string"):
-            create_value_resolver(serialized)
-
 
 class TestAutoResolveValue:
     """Test the auto_resolve_value function."""

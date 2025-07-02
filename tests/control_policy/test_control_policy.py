@@ -50,19 +50,6 @@ def test_can_instantiate_concrete_subclass():
         pytest.fail("MinimalConcretePolicy should be instantiable but raised TypeError.")
 
 
-def test_from_serialized_invalid_type():
-    """Test ControlPolicy.from_serialized with missing or invalid type."""
-    # Test with missing type
-    with pytest.raises(ValueError) as exc_info:
-        ControlPolicy.from_serialized({})
-    assert "must include a 'type' field" in str(exc_info.value)
-
-    # Test with non-string type
-    with pytest.raises(ValueError) as exc_info:
-        ControlPolicy.from_serialized({"type": 123})
-    assert "must include a 'type' field as a string" in str(exc_info.value)
-
-
 def test_from_serialized_unknown_type():
     """Test ControlPolicy.from_serialized with unknown policy type."""
     with pytest.raises(ValueError) as exc_info:

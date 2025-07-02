@@ -166,12 +166,12 @@ class TestAddApiKeyHeaderFromEnvPolicySerialization:
         assert policy.name == "MyPolicyInstance"
         assert policy.api_key_env_var_name == API_KEY_ENV_VAR_NAME
 
-    def test_from_serialized_success_api_key_env_var_name_is_int(self):
-        # Test if api_key_env_var_name is converted to string if provided as non-string
-        config = {
-            "api_key_env_var_name": 12345  # Using an int
-        }
-        with pytest.raises(TypeError):
+    def test_from_serialized_with_invalid_type_raises_error(self):
+        """Test that from_serialized raises ValidationError for wrong type."""
+        config = {"api_key_env_var_name": 12345}  # Using an int
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
             AddApiKeyHeaderFromEnvPolicy.from_serialized(cast(SerializableDict, config))
 
     def test_from_serialized_missing_api_key_env_var_name_raises_validation_error(self):

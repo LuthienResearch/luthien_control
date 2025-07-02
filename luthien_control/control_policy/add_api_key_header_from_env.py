@@ -8,7 +8,7 @@ when the policy is instantiated.
 
 import os
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -29,16 +29,6 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
     """
 
     api_key_env_var_name: str = Field(...)
-
-    @field_validator("api_key_env_var_name", mode="before")
-    @classmethod
-    def validate_api_key_env_var_name(cls, value):
-        """Validate that api_key_env_var_name is a string, maintaining original strict behavior."""
-        if value is None:
-            raise ValueError("api_key_env_var_name cannot be None")
-        if not isinstance(value, str):
-            raise TypeError(f"API key environment variable name '{value}' is not a string.")
-        return value
 
     async def apply(
         self,

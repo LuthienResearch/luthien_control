@@ -1,5 +1,50 @@
+# pyright: reportCallIssue=false
+
+"""
+Comparison conditions for control policies.
+
+This module implements comparison-based conditions (equals, contains, greater than, etc.)
+using a clean ValueResolver pattern for flexible value resolution.
+
+## Pyright Type Checker Suppression
+
+The `# pyright: reportCallIssue=false` comment at the top of this file suppresses type
+checker warnings for positional argument usage in comparison condition constructors.
+
+### Why This Is Necessary
+
+All comparison conditions inherit from Pydantic's BaseModel, which enforces keyword-only
+constructors. However, we provide a more natural API with positional arguments:
+
+```python
+# Natural, concise syntax (what we want)
+EqualsCondition(path("request.payload.model"), "gpt-4o")
+
+# Verbose but type-safe (what Pydantic expects)
+EqualsCondition(left=path("request.payload.model"), right="gpt-4o")
+```
+
+Our custom `__init__` methods handle both patterns correctly at runtime, but static
+analysis tools like pyright cannot see through the Pydantic inheritance to understand
+this flexibility.
+
+### Safety Considerations
+
+This suppression is safe because:
+1. We only suppress `reportCallIssue` (constructor signature mismatches)
+2. Our overload definitions provide proper type hints
+3. Runtime behavior is thoroughly tested
+4. Other type checking (return types, field access, etc.) remains active
+
+### For Users of This Module
+
+When using these comparison conditions in your code, you may encounter pyright warnings.
+See the `ComparisonCondition` class documentation for guidance on suppressing these
+warnings appropriately in your own files.
+"""
+
 from abc import ABC
-from typing import Any, ClassVar, Literal, Union
+from typing import Any, ClassVar, Literal, Union, overload
 
 from pydantic import Field, field_serializer, field_validator
 
@@ -31,20 +76,97 @@ class ComparisonCondition(Condition, ABC):
     Clean comparison condition that uses ValueResolver objects for flexible value resolution.
 
     This approach eliminates the need for is_dynamic_* flags by using explicit types.
+
+    ## Constructor Usage
+
+    This class supports both positional and keyword argument patterns:
+
+    ### Positional Arguments (Recommended for brevity)
+    ```python
+    EqualsCondition(path("request.payload.model"), "gpt-4o")
+    EqualsCondition(path("left_path"), path("right_path"))  # Dynamic comparison
+    EqualsCondition("static_left", "static_right")          # Static comparison
+    ```
+
+    ### Keyword Arguments (Explicit, type-safe)
+    ```python
+    EqualsCondition(left=path("request.payload.model"), right="gpt-4o")
+    EqualsCondition(left=path("left_path"), right=path("right_path"))
+    ```
+
+    ## Pyright Type Checker Warning
+
+    **Important**: When using positional arguments, pyright may show this error:
+    ```
+    Expected 0 positional arguments (reportCallIssue)
+    ```
+
+    This is a known issue due to the underlying Pydantic BaseModel inheritance. The code
+    works correctly at runtime, but pyright's static analysis doesn't recognize our
+    custom `__init__` override.
+
+    ### How to Suppress the Warning
+
+    Add this comment to suppress the specific error on individual calls:
+    ```python
+    condition = EqualsCondition(path("test"), "value")  # pyright: ignore[reportCallIssue]
+    ```
+
+    Or add this at the top of your file to suppress all such errors in that file:
+    ```python
+    # pyright: reportCallIssue=false
+    ```
+
+    ### When to Use Each Approach
+
+    - **Use positional**: For concise, readable condition creation in tests and simple cases
+    - **Use keywords**: When you need full type safety or when working in strict typing environments
+    - **Suppress warnings**: When you prefer the positional syntax and understand the trade-off
     """
 
     comparator: ClassVar[Comparator]
 
-    left_resolver: ValueResolver = Field(..., alias="left")
-    right_resolver: ValueResolver = Field(..., alias="right")
-    comparator_name: str = Field(..., alias="comparator")
+    left: ValueResolver
+    right: ValueResolver
+    comparator_name: str = Field(alias="comparator")
 
-    @field_serializer("left_resolver", "right_resolver")
+    @overload
+    def __init__(self, left: Union[Any, ValueResolver], right: Union[Any, ValueResolver]) -> None: ...
+
+    @overload
+    def __init__(self, *, left: ValueResolver, right: ValueResolver, comparator: str, **kwargs: Any) -> None: ...
+
+    def __init__(
+        self,
+        left: Union[Any, ValueResolver, None] = None,
+        right: Union[Any, ValueResolver, None] = None,
+        *,
+        # Pydantic keyword-only arguments
+        comparator: Union[str, None] = None,
+        **kwargs,
+    ):
+        """Initialize with both positional and keyword argument support."""
+        # Handle positional arguments
+        if left is not None and right is not None:
+            kwargs["left"] = auto_resolve_value(left)
+            kwargs["right"] = auto_resolve_value(right)
+            if comparator is None:
+                kwargs["comparator"] = COMPARATOR_TO_NAME[type(self).comparator]
+            else:
+                kwargs["comparator"] = comparator
+        elif "left" in kwargs and "right" in kwargs:
+            # Already have keyword arguments, just ensure comparator is set
+            if "comparator" not in kwargs:
+                kwargs["comparator"] = COMPARATOR_TO_NAME[type(self).comparator]
+
+        super().__init__(**kwargs)
+
+    @field_serializer("left", "right")
     def serialize_value_resolver(self, value: ValueResolver) -> dict:
         """Custom serializer for ValueResolver fields."""
         return value.serialize()
 
-    @field_validator("left_resolver", "right_resolver", mode="before")
+    @field_validator("left", "right", mode="before")
     @classmethod
     def validate_value_resolver(cls, value):
         """Custom validator to deserialize ValueResolver from dict."""
@@ -57,44 +179,14 @@ class ComparisonCondition(Condition, ABC):
         else:
             return auto_resolve_value(value)
 
-    def __init__(self, left: Union[Any, ValueResolver] = None, right: Union[Any, ValueResolver] = None, **data):
-        """
-        Args:
-            left: Either a static value or a ValueResolver (e.g., path("request.payload.model"))
-            right: Either a static value or a ValueResolver (e.g., path("data.preferred_model"))
-
-        Examples:
-            # Traditional: transaction path vs static value
-            EqualsCondition(path("request.payload.model"), "gpt-4o")
-
-            # Dynamic: transaction path vs transaction path
-            EqualsCondition(path("request.payload.model"), path("data.preferred_model"))
-
-            # Static vs transaction path
-            EqualsCondition("gpt-4o", path("request.payload.model"))
-
-            # Static vs static
-            EqualsCondition("gpt-4o", "gpt-4o")
-        """
-        if left is not None and right is not None and "left" not in data and "right" not in data:
-            left_resolver = auto_resolve_value(left)
-            right_resolver = auto_resolve_value(right)
-            comparator_name = COMPARATOR_TO_NAME[type(self).comparator]
-            data.update({"left": left_resolver, "right": right_resolver, "comparator": comparator_name})
-
-        if "comparator" not in data:
-            data["comparator"] = COMPARATOR_TO_NAME[type(self).comparator]
-
-        super().__init__(**data)
-
     def evaluate(self, transaction: Transaction) -> bool:
         """Evaluate the condition against the transaction."""
-        left_value = self.left_resolver.resolve(transaction)
-        right_value = self.right_resolver.resolve(transaction)
+        left_value = self.left.resolve(transaction)
+        right_value = self.right.resolve(transaction)
         return type(self).comparator.evaluate(left_value, right_value)
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.left_resolver!r}, {self.right_resolver!r})"
+        return f"{type(self).__name__}({self.left!r}, {self.right!r})"
 
     @classmethod
     def from_legacy_format(cls, key: str, value: Any) -> "ComparisonCondition":
@@ -108,7 +200,7 @@ class ComparisonCondition(Condition, ABC):
         Returns:
             A ComparisonCondition instance
         """
-        return cls(left=path(key), right=value)
+        return cls(path(key), value)
 
 
 class EqualsCondition(ComparisonCondition):

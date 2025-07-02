@@ -1,8 +1,8 @@
-from typing import Any, Optional, Type, Union
+from typing import Any, Literal, Optional, Type, Union
 
 from psygnal.containers import EventedDict as EDict
 from psygnal.containers import EventedList as EList
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from luthien_control.utils.deep_evented_model import DeepEventedModel
 
@@ -107,14 +107,7 @@ class ImageUrl(DeepEventedModel):
     """The image URL details."""
 
     url: str
-    detail: str = "auto"
-
-    @field_validator("detail")
-    def detail_must_be_valid(cls, v: str) -> str:
-        """Validate that detail is one of 'auto', 'low', or 'high'."""
-        if v not in ("auto", "low", "high"):
-            raise ValueError("detail must be 'auto', 'low', or 'high'")
-        return v
+    detail: Literal["auto", "low", "high"] = "auto"
 
 
 class ContentPartText(DeepEventedModel):
@@ -137,25 +130,8 @@ class ResponseFormat(DeepEventedModel):
     See https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses
     """
 
-    type: str = Field(default="text")
+    type: Literal["text", "json_object", "json_schema"] = Field(default="text")
     json_schema: Optional[EDict[str, Type]] = Field(default=None)
-
-    @field_validator("type")
-    def type_must_be_valid(cls, v: str) -> str:
-        if v not in ("text", "json_object", "json_schema"):
-            raise ValueError("type must be 'text', 'json_object', or 'json_schema'")
-        return v
-
-    @field_validator("json_schema")
-    def json_schema_must_be_valid(cls, v: Optional[EDict[str, Type]]) -> Optional[EDict[str, Type]]:
-        if v is None:
-            return v
-        for key, value in v.items():
-            if not isinstance(key, str):
-                raise ValueError(f"json_schema keys must be strings, got {key} of type {type(key)}")
-            if not isinstance(value, type):
-                raise ValueError(f"json_schema values must be types, got {value} of type {type(value)}")
-        return v
 
 
 class FunctionDefinition(DeepEventedModel):

@@ -21,10 +21,7 @@ class NotCondition(Condition):
         """Custom validator to deserialize condition from dict."""
         if isinstance(value, dict):
             return Condition.from_serialized(value)
-        elif isinstance(value, Condition):
-            return value
-        else:
-            raise TypeError(f"Condition value must be a dictionary, got {type(value).__name__}")
+        return value
 
     def evaluate(self, transaction: Transaction) -> bool:
         return not self.cond.evaluate(transaction)

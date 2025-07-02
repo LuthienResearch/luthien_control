@@ -3,7 +3,8 @@
 import uuid
 from unittest.mock import Mock
 
-from luthien_control.core.tracked_context import TrackedContext
+import httpx
+from luthien_control.core.tracked_context import TrackedContext, _update_headers
 
 
 class TestTrackedContext:
@@ -111,7 +112,7 @@ class TestTrackedContext:
 
         # Update only some fields
         context.update_request(
-            method="POST", headers={"Content-Type": "application/json"}, preserve_existing_headers=False
+            method="POST", headers={"Content-Type": "application/json"}, preserve_existing_headers=True
         )
 
         # Check that method and headers were updated, but url and content remain
@@ -120,7 +121,7 @@ class TestTrackedContext:
         assert req.method == "POST"
         assert str(req.url) == "https://api.test.com/v1"
         assert req.headers["Content-Type"] == "application/json"
-        assert req.headers.get("Authorization") is None  # Headers replaced, not merged
+        assert req.headers.get("Authorization") is not None
         assert req.content == b"initial"
 
     def test_update_request_from_scratch(self):
@@ -194,3 +195,24 @@ class TestTrackedContext:
         assert context.response is not None
         assert context.request.method == "POST"
         assert context.response.status_code == 200
+
+
+def test_update_headers_utility():
+    """Test the _update_headers utility function directly."""
+    # Test with preserve_existing_headers=True
+    request = httpx.Request("GET", "https://example.com", headers={"X-Initial": "true"})
+    _update_headers(request, {"X-Updated": "true"}, preserve_existing_headers=True)
+    assert request.headers["X-Initial"] == "true"
+    assert request.headers["X-Updated"] == "true"
+
+    # Test with preserve_existing_headers=False
+    request = httpx.Request("GET", "https://example.com", headers={"X-Initial": "true"})
+    _update_headers(request, {"X-Updated": "true"}, preserve_existing_headers=False)
+    assert request.headers.get("X-Initial") is None
+    assert request.headers["X-Updated"] == "true"
+
+    # Test with httpx.Response
+    response = httpx.Response(200, headers={"X-Initial": "true"})
+    _update_headers(response, {"X-Updated": "true"}, preserve_existing_headers=True)
+    assert response.headers["X-Initial"] == "true"
+    assert response.headers["X-Updated"] == "true"

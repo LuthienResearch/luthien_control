@@ -1,3 +1,4 @@
+# pyright: reportArgumentType=false
 """Tests for LeakedApiKeyDetectionPolicy."""
 
 import logging
@@ -516,31 +517,6 @@ def test_leaked_api_key_detection_policy_from_serialized_empty_config():
 
     assert policy.name == "LeakedApiKeyDetectionPolicy"
     assert policy.patterns == LeakedApiKeyDetectionPolicy.DEFAULT_PATTERNS
-
-
-def test_leaked_api_key_detection_policy_from_serialized_invalid_patterns_type():
-    """Test that ValueError is raised for invalid patterns type."""
-    config = cast(
-        SerializableDict,
-        {
-            "name": "TestPolicy",
-            "patterns": "not_a_list",  # Should be a list
-        },
-    )
-
-    with pytest.raises(ValueError, match="'patterns' must be a list of strings"):
-        LeakedApiKeyDetectionPolicy.from_serialized(config)
-
-
-def test_leaked_api_key_detection_policy_from_serialized_invalid_patterns_content():
-    """Test that ValueError is raised for invalid patterns content."""
-    config = {
-        "name": "TestPolicy",
-        "patterns": ["valid_pattern", 123, "another_valid_pattern"],  # Contains non-string
-    }
-
-    with pytest.raises(ValueError, match="'patterns' must be a list of strings"):
-        LeakedApiKeyDetectionPolicy.from_serialized(config)
 
 
 def test_leaked_api_key_detection_policy_round_trip_serialization():

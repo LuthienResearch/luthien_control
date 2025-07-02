@@ -24,13 +24,10 @@ class AllCondition(Condition):
             for item in value:
                 if isinstance(item, dict):
                     result.append(Condition.from_serialized(item))
-                else:
+                elif isinstance(item, Condition):
                     result.append(item)
             return result
         return value
 
     def evaluate(self, transaction: Transaction) -> bool:
         return all(condition.evaluate(transaction) for condition in self.conditions)
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}(conditions={self.conditions!r})"

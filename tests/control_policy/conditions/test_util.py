@@ -1,7 +1,8 @@
-# pyright: reportCallIssue=false, reportAttributeAccessIssue=false, reportUnhashable=false
+# pyright: reportCallIssue=false
 from typing import List, cast
 
 import pytest
+from luthien_control.api.openai_chat_completions.datatypes import Message
 from luthien_control.control_policy.conditions import EqualsCondition, path
 from luthien_control.control_policy.conditions.all_cond import AllCondition
 from luthien_control.control_policy.conditions.any_cond import AnyCondition
@@ -167,7 +168,6 @@ def test_get_conditions_from_serialized_reraises_key_error() -> None:
 
 def _create_minimal_transaction() -> Transaction:
     """Create a minimal transaction for testing."""
-    from luthien_control.api.openai_chat_completions.datatypes import Message
     from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
     from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
     from luthien_control.core.request import Request

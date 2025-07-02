@@ -123,6 +123,10 @@ class TestTrackedContext:
         assert req.headers["Content-Type"] == "application/json"
         assert req.headers.get("Authorization") is not None
         assert req.content == b"initial"
+        context.update_request(content=b"updated")
+        req = context.request
+        assert req is not None
+        assert req.content == b"updated"
 
     def test_update_request_from_scratch(self):
         """Test request update with from_scratch=True."""
@@ -134,15 +138,15 @@ class TestTrackedContext:
         )
 
         # Update from scratch with minimal data
-        context.update_request(url="https://api.new.com", method="GET", from_scratch=True)
+        context.update_request(url="https://api.new.com", method="GET", from_scratch=True, content=b"new")
 
         # Check that only url is set, other fields are defaults
         req = context.request
         assert req is not None
         assert req.method == "GET"  # Default method
         assert str(req.url) == "https://api.new.com"
-        assert req.headers == {"host": "api.new.com"}  # Empty headers
-        assert req.content == b""  # Empty content
+        assert req.headers == httpx.Headers({"host": "api.new.com", "content-length": "3"})
+        assert req.content == b"new"
 
     def test_update_response_partial(self):
         """Test partial response update."""

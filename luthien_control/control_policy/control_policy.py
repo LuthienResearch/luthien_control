@@ -129,11 +129,7 @@ class ControlPolicy(BaseModel, abc.ABC):
         if not policy_type_name_val:
             raise ValueError("Policy configuration must include a 'type' field")
 
-        # Ensure we have a string for dictionary lookup
-        if not isinstance(policy_type_name_val, str):
-            raise ValueError(f"Policy 'type' must be a string, got {type(policy_type_name_val).__name__}")
-
-        target_policy_class = POLICY_NAME_TO_CLASS.get(policy_type_name_val)
+        target_policy_class = POLICY_NAME_TO_CLASS.get(str(policy_type_name_val))
         if not target_policy_class:
             raise ValueError(
                 f"Unknown policy type '{policy_type_name_val}'. Ensure it is registered in POLICY_NAME_TO_CLASS."

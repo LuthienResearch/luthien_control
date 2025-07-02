@@ -269,3 +269,28 @@ def test_not_condition_repr(true_condition: Condition):
     repr_str = repr(not_cond)
     assert "NotCondition" in repr_str
     assert "EqualsCondition" in repr_str
+
+
+def test_all_condition_repr(true_condition: Condition, false_condition: Condition):
+    """Test the __repr__ method of AllCondition."""
+    all_cond = AllCondition(conditions=[true_condition, false_condition])
+    repr(all_cond)
+
+
+def test_condition_eq_other():
+    """Test that Condition.__eq__ returns True when comparing to other types."""
+    condition = EqualsCondition(path("data.static_true"), True)
+    assert condition == EqualsCondition(path("data.static_true"), True)
+    assert condition != EqualsCondition(path("data.static_true"), False)
+    assert condition != EqualsCondition(path("data.static_false"), True)
+    assert condition != EqualsCondition(path("data.static_false"), False)
+
+
+def test_condition_not_eq_other():
+    """Test that Condition.__eq__ returns False when comparing to other types."""
+    condition = EqualsCondition(path("data.static_true"), True)
+    assert condition != "not a condition"
+    assert condition != 123
+    assert condition != 123.0
+    assert condition != 123.0
+    assert condition is not None

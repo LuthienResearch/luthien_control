@@ -243,6 +243,11 @@ class TestCleanEqualsCondition:
         condition = EqualsCondition.from_legacy_format(key="request.payload.model", value="gpt-4o")
         assert condition.evaluate(sample_transaction_clean) is True
 
+    def test_kwargs(self, sample_transaction_clean: Transaction):
+        """Test kwargs."""
+        condition = EqualsCondition(left=path("request.payload.model"), right="gpt-4o")
+        assert condition.evaluate(sample_transaction_clean) is True
+
 
 class TestOtherCleanConditions:
     def test_not_equals_condition(self, sample_transaction_clean: Transaction):
@@ -336,3 +341,34 @@ class TestErrorHandling:
         serialized = condition.serialize()
         deserialized = EqualsCondition.from_serialized(serialized)
         assert condition.evaluate(sample_transaction_clean) == deserialized.evaluate(sample_transaction_clean)
+
+
+class TestValidatorCodePaths:
+    def test_validator_with_direct_dict_to_field(self, sample_transaction_clean: Transaction):
+        """Test that line 170 can be reached by passing a dict directly to the field validator."""
+        # Test the dict path by directly creating condition with dict in field
+        # Use model_validate to trigger the field validators
+        data = {
+            "type": "equals",
+            "left": {"type": "transaction_path", "path": "request.payload.model"},  # This should trigger line 170
+            "right": {"type": "static", "value": "gpt-4o"},  # This should also trigger line 170
+            "comparator": "equals",
+        }
+        condition = EqualsCondition.model_validate(data)
+        assert condition.evaluate(sample_transaction_clean) is True
+
+    def test_validator_with_nested_static_value_dict(self, sample_transaction_clean: Transaction):
+        """Test that line 176 can be reached with a StaticValue containing a dict with 'type' key."""
+        # Create a StaticValue where the value itself is a dict with a 'type' key
+        nested_resolver_dict = {"type": "static", "value": "gpt-4o"}
+
+        # Create the data structure that would trigger the second path
+        # Use model_validate with a StaticValue that has a dict value with "type"
+        data = {
+            "type": "equals",
+            "left": {"type": "transaction_path", "path": "request.payload.model"},
+            "right": StaticValue(value=nested_resolver_dict),  # This should trigger line 176
+            "comparator": "equals",
+        }
+        condition = EqualsCondition.model_validate(data)
+        assert condition.evaluate(sample_transaction_clean) is True

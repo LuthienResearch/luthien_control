@@ -10,9 +10,10 @@ from luthien_control.control_policy.conditions.comparison_conditions import (
     NotEqualsCondition,
     RegexMatchCondition,
 )
+from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.conditions.not_cond import NotCondition
 
-NAME_TO_CONDITION_CLASS = {
+NAME_TO_CONDITION_CLASS: dict[str, type[Condition]] = {
     "not": NotCondition,
     "any": AnyCondition,
     "all": AllCondition,

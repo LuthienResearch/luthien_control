@@ -47,25 +47,14 @@ class Condition(BaseModel, abc.ABC):
         # Moved import inside the method to break circular dependency
         from luthien_control.control_policy.conditions.registry import NAME_TO_CONDITION_CLASS
 
-        condition_type_name_val = serialized.get("type")
-        if not isinstance(condition_type_name_val, str):
-            # If 'type' is missing (None) or not a string, it's an invalid configuration.
-            raise ValueError(
-                f"Condition configuration must include a 'type' field as a string. "
-                f"Got: {condition_type_name_val!r} (type: {type(condition_type_name_val).__name__})"
-            )
+        condition_type_name_val = str(serialized.get("type"))
 
-        target_condition_class = NAME_TO_CONDITION_CLASS.get(condition_type_name_val)
-        if not target_condition_class:
-            raise ValueError(
-                f"Unknown condition type '{condition_type_name_val}'. "
-                f"Ensure it is registered in NAME_TO_CONDITION_CLASS."
-            )
+        target_condition_class = NAME_TO_CONDITION_CLASS[condition_type_name_val]
 
         return safe_model_validate(target_condition_class, serialized)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.serialize()})"
+        return f"{self.serialize()})"
 
     def __hash__(self) -> int:
         return hash(str(self))

@@ -154,10 +154,6 @@ class ComparisonCondition(Condition, ABC):
                 kwargs["comparator"] = COMPARATOR_TO_NAME[type(self).comparator]
             else:
                 kwargs["comparator"] = comparator
-        elif "left" in kwargs and "right" in kwargs:
-            # Already have keyword arguments, just ensure comparator is set
-            if "comparator" not in kwargs:
-                kwargs["comparator"] = COMPARATOR_TO_NAME[type(self).comparator]
 
         super().__init__(**kwargs)
 
@@ -168,14 +164,10 @@ class ComparisonCondition(Condition, ABC):
 
     @field_validator("left", "right", mode="before")
     @classmethod
-    def validate_value_resolver(cls, value):
+    def validate_value_resolver(cls, value: StaticValue | ValueResolver):
         """Custom validator to deserialize ValueResolver from dict."""
-        if isinstance(value, dict):
-            return create_value_resolver(value)
-        elif isinstance(value, ValueResolver):
-            if isinstance(value, StaticValue) and isinstance(value.value, dict) and "type" in value.value:
-                return create_value_resolver(value.value)
-            return value
+        if isinstance(value, StaticValue) and isinstance(value.value, dict) and "type" in value.value:
+            return create_value_resolver(value.value)
         else:
             return auto_resolve_value(value)
 

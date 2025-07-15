@@ -24,9 +24,11 @@ class DebugLoggingMiddleware(BaseHTTPMiddleware):
         if request.method in ["POST", "PUT", "PATCH"]:
             try:
                 request_body = await request.body()
+
                 # Reconstruct request for downstream processing
                 async def receive():
                     return {"type": "http.request", "body": request_body}
+
                 request._receive = receive
 
                 # Try to parse JSON for logging
@@ -39,7 +41,7 @@ class DebugLoggingMiddleware(BaseHTTPMiddleware):
                             "headers": dict(request.headers),
                             "body": parsed_body,
                             "query_params": dict(request.query_params),
-                        }
+                        },
                     )
                 except json.JSONDecodeError:
                     logger.debug(
@@ -49,7 +51,7 @@ class DebugLoggingMiddleware(BaseHTTPMiddleware):
                             "headers": dict(request.headers),
                             "body_length": len(request_body) if request_body else 0,
                             "query_params": dict(request.query_params),
-                        }
+                        },
                     )
             except Exception as e:
                 logger.error(f"[{request_id}] Error reading request body: {e}")
@@ -60,7 +62,7 @@ class DebugLoggingMiddleware(BaseHTTPMiddleware):
                     "path": request.url.path,
                     "headers": dict(request.headers),
                     "query_params": dict(request.query_params),
-                }
+                },
             )
 
         # Process request
@@ -77,7 +79,7 @@ class DebugLoggingMiddleware(BaseHTTPMiddleware):
                 "path": request.url.path,
                 "status_code": response.status_code,
                 "duration_seconds": duration,
-            }
+            },
         )
 
         # Add debug headers
@@ -91,11 +93,7 @@ def log_transaction_state(transaction_id: str, stage: str, details: Dict[str, An
     """Log transaction state at various stages of processing."""
     logger.debug(
         f"[{transaction_id}] Transaction state at {stage}",
-        extra={
-            "stage": stage,
-            "timestamp": datetime.utcnow().isoformat(),
-            **details
-        }
+        extra={"stage": stage, "timestamp": datetime.utcnow().isoformat(), **details},
     )
 
 
@@ -143,9 +141,6 @@ def create_debug_response(
     }
 
     if include_debug_info and details:
-        response["debug"] = str({
-            "timestamp": datetime.utcnow().isoformat(),
-            **details
-        })
+        response["debug"] = str({"timestamp": datetime.utcnow().isoformat(), **details})
 
     return response

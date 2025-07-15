@@ -64,7 +64,7 @@ async def run_policy_flow(
             "has_api_key": bool(api_key),
             "body_length": len(body) if body else 0,
             "headers_count": len(request.headers),
-        }
+        },
     )
 
     # 2. Apply the main policy
@@ -80,7 +80,7 @@ async def run_policy_flow(
             main_policy.name or "unknown",
             "completed",
             duration=time.time() - policy_start_time if policy_start_time else None,
-            details={"has_response": transaction.response.payload is not None}
+            details={"has_response": transaction.response.payload is not None},
         )
 
         logger.info(f"[{transaction.transaction_id}] Policy execution complete. Building final response.")
@@ -108,7 +108,7 @@ async def run_policy_flow(
             details={
                 "error_type": e.__class__.__name__,
                 "policy_name": getattr(e, "policy_name", "unknown"),
-            }
+            },
         )
 
         logger.warning(f"[{transaction.transaction_id}] Control policy error halted execution: {e}")
@@ -130,14 +130,14 @@ async def run_policy_flow(
         policy_duration = time.time() - policy_start_time if policy_start_time else None
         log_policy_execution(
             str(transaction.transaction_id),
-            main_policy.name,
+            main_policy.name or "unknown",
             "error",
             duration=policy_duration,
             error=str(e),
             details={
                 "error_type": e.__class__.__name__,
                 "unexpected": True,
-            }
+            },
         )
 
         # Handle unexpected errors during initialization or policy execution

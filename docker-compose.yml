@@ -7,7 +7,7 @@ services:
       # Consider using a .env file for more sensitive scenarios.
       POSTGRES_USER: ${DB_USER:-luthien_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-luthien_pass}
-      POSTGRES_DB: ${DB_NAME:-luthien_dev_db}
+      POSTGRES_DB: ${DB_NAME:-luthien_sqlmodel}
     ports:
       # Map host port 5432 to container port 5432
       - "${DB_PORT:-5432}:5432"
@@ -16,12 +16,47 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       # Optional: Check if the database is ready
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-luthien_user} -d ${DB_NAME:-luthien_dev_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-luthien_user} -d ${DB_NAME:-luthien_sqlmodel}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - luthien_network
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Database configuration
+      DB_USER: ${DB_USER:-luthien_user}
+      DB_PASSWORD: ${DB_PASSWORD:-luthien_pass}
+      DB_NAME: ${DB_NAME:-luthien_sqlmodel}
+      DB_HOST: db
+      DB_PORT: 5432
+      # OpenAI API configuration
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      BACKEND_URL: ${BACKEND_URL:-https://api.openai.com/v1}
+      # Logging configuration
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOKI_URL: ${LOKI_URL:-http://loki:3100}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - luthien_network
+      - luthien_monitoring
+    volumes:
+      - ./luthien_control:/app/luthien_control
+      - ./tests:/app/tests
 
 volumes:
   # Define the named volume for data persistence
-  postgres_data: 
+  postgres_data:
+
+networks:
+  luthien_network:
+    driver: bridge
+  luthien_monitoring:
+    driver: bridge 

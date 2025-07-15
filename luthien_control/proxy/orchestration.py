@@ -1,4 +1,5 @@
 import logging
+import time
 import uuid
 
 import fastapi
@@ -16,6 +17,7 @@ from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
+from luthien_control.proxy.debugging import log_policy_execution, log_transaction_state
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +53,35 @@ async def run_policy_flow(
     url = request.path_params["full_path"]
     api_key = request.headers.get("authorization", "").replace("Bearer ", "")
     transaction = _initialize_transaction(body, url, api_key)
-    # transaction.changed.connect(lambda *args, **kwargs: logger.info(f"Transaction changed: {args} {kwargs}"))
+
+    # Log initial transaction state
+    log_transaction_state(
+        str(transaction.transaction_id),
+        "initialization",
+        {
+            "url": url,
+            "method": request.method,
+            "has_api_key": bool(api_key),
+            "body_length": len(body) if body else 0,
+            "headers_count": len(request.headers),
+        }
+    )
 
     # 2. Apply the main policy
+    policy_start_time = None
     try:
         logger.info(f"[{transaction.transaction_id}] Applying main policy: {main_policy.name}")
+        policy_start_time = time.time()
         transaction = await main_policy.apply(transaction=transaction, container=dependencies, session=session)
+
+        # Log successful policy execution
+        log_policy_execution(
+            str(transaction.transaction_id),
+            main_policy.name or "unknown",
+            "completed",
+            duration=time.time() - policy_start_time if policy_start_time else None,
+            details={"has_response": transaction.response.payload is not None}
+        )
 
         logger.info(f"[{transaction.transaction_id}] Policy execution complete. Building final response.")
         if transaction.response.payload is not None:
@@ -72,10 +97,24 @@ async def run_policy_flow(
             )
 
     except ControlPolicyError as e:
+        # Log policy error
+        policy_duration = time.time() - policy_start_time if policy_start_time else None
+        log_policy_execution(
+            str(transaction.transaction_id),
+            main_policy.name or "unknown",
+            "error",
+            duration=policy_duration,
+            error=str(e),
+            details={
+                "error_type": e.__class__.__name__,
+                "policy_name": getattr(e, "policy_name", "unknown"),
+            }
+        )
+
         logger.warning(f"[{transaction.transaction_id}] Control policy error halted execution: {e}")
         # Directly build a JSONResponse for policy errors
         policy_name_for_error = getattr(e, "policy_name", "unknown")
-        status_code = getattr(e, "status_code", status.HTTP_400_BAD_REQUEST)  # Use 400 if not specified
+        status_code = getattr(e, "status_code", None) or status.HTTP_400_BAD_REQUEST  # Use 400 if None or not specified
         error_detail = getattr(e, "detail", str(e))  # Use str(e) if no detail attribute
 
         final_response = JSONResponse(
@@ -87,6 +126,20 @@ async def run_policy_flow(
         )
 
     except Exception as e:
+        # Log unexpected error
+        policy_duration = time.time() - policy_start_time if policy_start_time else None
+        log_policy_execution(
+            str(transaction.transaction_id),
+            main_policy.name,
+            "error",
+            duration=policy_duration,
+            error=str(e),
+            details={
+                "error_type": e.__class__.__name__,
+                "unexpected": True,
+            }
+        )
+
         # Handle unexpected errors during initialization or policy execution
         logger.exception(f"[{transaction.transaction_id}] Unhandled exception during policy flow: {e}")
         # Try to build an error response using the builder

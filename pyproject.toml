@@ -1,29 +1,27 @@
-[project]
+[tool.poetry]
 name = "luthien-control"
 version = "0.2.5"
 description = "Autonomously monitor, investigate, modify, block, and act on traffic going to and from any OpenAI-API-compatible endpoint"
-authors = [
-    {name = "Jai Dhyani",email = "jai@luthienresearch.org"}
-]
+authors = ["Jai Dhyani <jai@luthienresearch.org>"]
 readme = "README.md"
-requires-python = ">=3.11,<4.0"
-dependencies = [
-    "fastapi (>=0.115.12,<0.116.0)",
-    "uvicorn[standard] (>=0.34.0,<0.35.0)",
-    "asyncpg (>=0.30.0,<0.31.0)",
-    "httpx (>=0.28.1,<0.29.0)",
-    "psycopg2-binary (>=2.9.10,<3.0.0)",
-    "pre-commit (>=4.2.0,<5.0.0)",
-    "brotli (>=1.1.0,<2.0.0)",
-    "sqlalchemy[asyncio] (>=2.0.40,<3.0.0)",
-    "alembic (>=1.15.2,<2.0.0)",
-    "sqlmodel (>=0.0.24,<0.0.25)",
-    "pdoc (>=15.0.3,<16.0.0)",
-    "mkdocs-material (>=9.6.12,<10.0.0)",
-    "psygnal (>=0.13.0,<0.14.0)",
-    "openai (>=1.0.0,<2.0.0)",
-    "python-logging-loki (>=0.3.1,<0.4.0)",
-]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+fastapi = ">=0.115.12,<0.116.0"
+uvicorn = {extras = ["standard"], version = ">=0.34.0,<0.35.0"}
+asyncpg = ">=0.30.0,<0.31.0"
+httpx = ">=0.28.1,<0.29.0"
+psycopg2-binary = ">=2.9.10,<3.0.0"
+pre-commit = ">=4.2.0,<5.0.0"
+brotli = ">=1.1.0,<2.0.0"
+sqlalchemy = {extras = ["asyncio"], version = ">=2.0.40,<3.0.0"}
+alembic = ">=1.15.2,<2.0.0"
+sqlmodel = ">=0.0.24,<0.0.25"
+pdoc = ">=15.0.3,<16.0.0"
+mkdocs-material = ">=9.6.12,<10.0.0"
+psygnal = ">=0.13.0,<0.14.0"
+openai = ">=1.0.0,<2.0.0"
+python-logging-loki = ">=0.3.1,<0.4.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.3.5,<9.0.0"

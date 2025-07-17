@@ -1,6 +1,6 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "./Dockerfile"
+dockerfilePath = "/railway/loki/Dockerfile"
 
 [deploy]
 startCommand = "loki -config.file=/etc/loki/config.yaml"

@@ -51,5 +51,4 @@ RUN poetry install --no-interaction --no-ansi --without dev
 EXPOSE 8000
 
 # Command to run the application
-# Use shell form without exec form brackets to allow environment variable expansion
-CMD /bin/sh -c "exec python -m uvicorn luthien_control.main:app --host 0.0.0.0 --port ${PORT:-8000}" 
+CMD ["python", "-m", "uvicorn", "luthien_control.main:app", "--host", "0.0.0.0", "--port", "8000"] 

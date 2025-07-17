@@ -51,4 +51,5 @@ RUN poetry install --no-interaction --no-ansi --without dev
 EXPOSE 8000
 
 # Command to run the application
-CMD ["python", "-m", "uvicorn", "luthien_control.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+# Use the PORT env var from Railway, defaulting to 8000 if not set
+CMD python -m uvicorn luthien_control.main:app --host 0.0.0.0 --port ${PORT:-8000} 

@@ -22,6 +22,7 @@ dependencies = [
     "mkdocs-material (>=9.6.12,<10.0.0)",
     "psygnal (>=0.13.0,<0.14.0)",
     "openai (>=1.0.0,<2.0.0)",
+    "python-logging-loki (>=0.3.1,<0.4.0)",
 ]
 
 [tool.poetry.group.dev.dependencies]

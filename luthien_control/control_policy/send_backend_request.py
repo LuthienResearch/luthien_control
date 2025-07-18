@@ -27,7 +27,9 @@ class SendBackendRequestPolicy(ControlPolicy):
 
     name: Optional[str] = Field(default="SendBackendRequestPolicy")
 
-    def _create_debug_info(self, backend_url: str, request_payload: Any, error: Exception) -> Dict[str, Any]:
+    def _create_debug_info(
+        self, backend_url: str, request_payload: Any, error: Exception, api_key: str = ""
+    ) -> Dict[str, Any]:
         """Create debug information for backend request failures."""
         debug_info = {
             "backend_url": backend_url,
@@ -40,18 +42,31 @@ class SendBackendRequestPolicy(ControlPolicy):
         # Add OpenAI-specific error details if available
         if hasattr(error, "response") and getattr(error, "response", None) is not None:
             response = getattr(error, "response")
+            status_code = getattr(response, "status_code", None)
             debug_info["backend_response"] = {
-                "status_code": getattr(response, "status_code", None),
+                "status_code": status_code,
                 "headers": dict(getattr(response, "headers", {})),
             }
             # Try to get response body if available
             if hasattr(response, "text"):
                 debug_info["backend_response"]["body"] = getattr(response, "text", "")
 
+            # For 404 errors, include identifying characters from the API key
+            if status_code == 404 and api_key:
+                debug_info["api_key_identifier"] = self._get_api_key_identifier(api_key)
+
         if hasattr(error, "body") and getattr(error, "body", None) is not None:
             debug_info["backend_error_body"] = getattr(error, "body")
 
         return debug_info
+
+    def _get_api_key_identifier(self, api_key: str) -> str:
+        """Get identifying characters from API key for debugging (first 8 and last 4 chars)."""
+        if not api_key:
+            return "empty"
+        if len(api_key) <= 12:
+            return f"{api_key[:4]}...{api_key[-2:]}"
+        return f"{api_key[:8]}...{api_key[-4:]}"
 
     async def apply(
         self,
@@ -127,25 +142,25 @@ class SendBackendRequestPolicy(ControlPolicy):
         except openai.APITimeoutError as e:
             self.logger.error(f"Timeout error during backend request: {e} ({self.name})")
             # Store debug information for potential dev mode access
-            debug_info = self._create_debug_info(backend_url, request_payload, e)
+            debug_info = self._create_debug_info(backend_url, request_payload, e, api_key)
             e.debug_info = debug_info  # type: ignore
             raise
         except openai.APIConnectionError as e:
             self.logger.error(f"Connection error during backend request: {e} ({self.name})")
             # Store debug information for potential dev mode access
-            debug_info = self._create_debug_info(backend_url, request_payload, e)
+            debug_info = self._create_debug_info(backend_url, request_payload, e, api_key)
             e.debug_info = debug_info  # type: ignore
             raise
         except openai.APIError as e:
             self.logger.error(f"OpenAI API error during backend request: {e} ({self.name})")
             # Store debug information for potential dev mode access
-            debug_info = self._create_debug_info(backend_url, request_payload, e)
+            debug_info = self._create_debug_info(backend_url, request_payload, e, api_key)
             e.debug_info = debug_info  # type: ignore
             raise
         except Exception as e:
             self.logger.exception(f"Unexpected error during backend request: {e} ({self.name})")
             # Store debug information for potential dev mode access
-            debug_info = self._create_debug_info(backend_url, request_payload, e)
+            debug_info = self._create_debug_info(backend_url, request_payload, e, api_key)
             e.debug_info = debug_info  # type: ignore
             raise
 

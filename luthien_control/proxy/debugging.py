@@ -3,7 +3,7 @@
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Dict, Optional
 
 from fastapi import Request, Response
@@ -93,7 +93,7 @@ def log_transaction_state(transaction_id: str, stage: str, details: Dict[str, An
     """Log transaction state at various stages of processing."""
     logger.debug(
         f"[{transaction_id}] Transaction state at {stage}",
-        extra={"stage": stage, "timestamp": datetime.utcnow().isoformat(), **details},
+        extra={"stage": stage, "timestamp": datetime.now(UTC).isoformat(), **details},
     )
 
 
@@ -141,6 +141,6 @@ def create_debug_response(
     }
 
     if include_debug_info and details:
-        response["debug"] = str({"timestamp": datetime.utcnow().isoformat(), **details})
+        response["debug"] = str({"timestamp": datetime.now(UTC).isoformat(), **details})
 
     return response

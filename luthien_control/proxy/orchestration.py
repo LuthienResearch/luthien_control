@@ -70,7 +70,15 @@ async def run_policy_flow(
     # 2. Apply the main policy
     policy_start_time = None
     try:
-        logger.info(f"[{transaction.transaction_id}] Applying main policy: {main_policy.name}")
+        logger.info(
+            "Applying control policy",
+            extra={
+                "transaction_id": str(transaction.transaction_id),
+                "policy_name": main_policy.name,
+                "url": url,
+                "method": request.method,
+            },
+        )
         policy_start_time = time.time()
         transaction = await main_policy.apply(transaction=transaction, container=dependencies, session=session)
 
@@ -83,7 +91,14 @@ async def run_policy_flow(
             details={"has_response": transaction.response.payload is not None},
         )
 
-        logger.info(f"[{transaction.transaction_id}] Policy execution complete. Building final response.")
+        logger.info(
+            "Policy execution complete",
+            extra={
+                "transaction_id": str(transaction.transaction_id),
+                "policy_name": main_policy.name,
+                "duration_seconds": time.time() - policy_start_time if policy_start_time else None,
+            },
+        )
         if transaction.response.payload is not None:
             final_response = openai_chat_completions_response_to_fastapi_response(transaction.response.payload)
         else:
@@ -111,7 +126,15 @@ async def run_policy_flow(
             },
         )
 
-        logger.warning(f"[{transaction.transaction_id}] Control policy error halted execution: {e}")
+        logger.warning(
+            f"Control policy error - transaction {transaction.transaction_id}",
+            extra={
+                "transaction_id": str(transaction.transaction_id),
+                "error": str(e),
+                "error_type": e.__class__.__name__,
+                "policy_name": getattr(e, "policy_name", "unknown"),
+            },
+        )
         # Directly build a JSONResponse for policy errors
         policy_name_for_error = getattr(e, "policy_name", "unknown")
         status_code = getattr(e, "status_code", None) or status.HTTP_400_BAD_REQUEST  # Use 400 if None or not specified
@@ -141,7 +164,14 @@ async def run_policy_flow(
         )
 
         # Handle unexpected errors during initialization or policy execution
-        logger.exception(f"[{transaction.transaction_id}] Unhandled exception during policy flow: {e}")
+        logger.exception(
+            f"Unhandled exception during policy flow - transaction {transaction.transaction_id}",
+            extra={
+                "transaction_id": str(transaction.transaction_id),
+                "error": str(e),
+                "error_type": e.__class__.__name__,
+            },
+        )
         # Try to build an error response using the builder
         policy_name_for_error = getattr(main_policy, "name", main_policy.__class__.__name__)
         final_response = JSONResponse(

@@ -9,6 +9,7 @@ from luthien_control.core.logging import setup_logging
 from luthien_control.custom_openapi_schema import create_custom_openapi
 from luthien_control.db.database_async import close_db_engine
 from luthien_control.logs.router import router as logs_router
+from luthien_control.proxy.debugging import DebugLoggingMiddleware
 from luthien_control.proxy.server import router as proxy_router
 from luthien_control.settings import Settings
 
@@ -87,6 +88,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(DebugLoggingMiddleware)
 
 
 @app.get("/health", tags=["General"], status_code=200)

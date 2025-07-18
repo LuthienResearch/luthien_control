@@ -1,6 +1,10 @@
 import asyncio
 import logging
 import sys
+from pathlib import Path
+
+# Add the project root to the path so we can import luthien_control modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
 from luthien_control.db.control_policy_crud import list_policies

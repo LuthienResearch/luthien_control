@@ -63,7 +63,24 @@ async def _handle_api_request(
     Common handler for API proxy requests.
     Orchestrates the policy flow for both GET and POST requests.
     """
-    logger.info(f"Authenticated {request.method} request received for {request.url.path}")
+    # Log detailed proxy request information
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+    auth_header = request.headers.get("authorization", "")
+    has_auth = bool(auth_header)
+
+    logger.info(
+        "Proxy request received",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "client_ip": client_ip,
+            "user_agent": user_agent,
+            "has_auth": has_auth,
+            "query_params": dict(request.query_params),
+            "headers_count": len(request.headers),
+        },
+    )
 
     # Orchestrate the policy flow
     response = await run_policy_flow(
@@ -73,7 +90,16 @@ async def _handle_api_request(
         session=session,
     )
 
-    logger.info(f"Returning response for {request.method} {request.url.path}")
+    # Log response details
+    logger.info(
+        "Proxy response sent",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "client_ip": client_ip,
+        },
+    )
     return response
 
 

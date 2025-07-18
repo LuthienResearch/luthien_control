@@ -14,11 +14,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Use poetry run to run commands in the development environment
 
 ## Quality Validation Before Committing
-Always run these commands before committing code:
-1. `poetry run ruff check --fix .` - Check linting
+Run these commands after implementing significant changes to comply with codebase standards.
+1. `poetry run ruff check . --fix --unsafe-fixes` - Check linting, apply fixes
 2. `poetry run ruff format .` - Format code
-3. `poetry run pyright` - Check types
-4. `poetry run pytest --cov=luthien_control` - Run tests with coverage
+3. `poetry run pyright` - Check types. Fix any errors.
+4. `poetry run pytest --cov=luthien_control` - Run tests with coverage. All new and altered code should be covered.
+
+RUNQC: If the user requests RUNQC, run the above quality validation steps
 
 ## Code Style
 - Mandatory TDD workflow (skeleton → tests → implementation)

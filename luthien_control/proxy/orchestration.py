@@ -17,7 +17,8 @@ from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
-from luthien_control.proxy.debugging import log_policy_execution, log_transaction_state
+from luthien_control.proxy.debugging import create_debug_response, log_policy_execution, log_transaction_state
+from luthien_control.settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -140,12 +141,30 @@ async def run_policy_flow(
         status_code = getattr(e, "status_code", None) or status.HTTP_400_BAD_REQUEST  # Use 400 if None or not specified
         error_detail = getattr(e, "detail", str(e))  # Use str(e) if no detail attribute
 
+        # Check if we're in dev mode and if the exception has debug info
+        settings = Settings()
+        debug_details = None
+
+        if settings.dev_mode():
+            # Check if the ControlPolicyError itself has debug info
+            if hasattr(e, "debug_info"):
+                debug_details = e.debug_info  # type: ignore
+            # Check if the underlying exception (__cause__) has debug info
+            elif hasattr(e, "__cause__") and hasattr(e.__cause__, "debug_info"):
+                debug_details = e.__cause__.debug_info  # type: ignore
+
+        # Use create_debug_response to generate the response
+        response_content = create_debug_response(
+            status_code=status_code,
+            message=f"Policy error in '{policy_name_for_error}': {error_detail}",
+            transaction_id=str(transaction.transaction_id),
+            details=debug_details,
+            include_debug_info=settings.dev_mode(),
+        )
+
         final_response = JSONResponse(
             status_code=status_code,
-            content={
-                "detail": f"Policy error in '{policy_name_for_error}': {error_detail}",
-                "transaction_id": str(transaction.transaction_id),
-            },
+            content=response_content,
         )
 
     except Exception as e:
@@ -174,13 +193,29 @@ async def run_policy_flow(
         )
         # Try to build an error response using the builder
         policy_name_for_error = getattr(main_policy, "name", main_policy.__class__.__name__)
+
+        # Check if we're in dev mode and if the exception has debug info
+        settings = Settings()
+        debug_details = None
+
+        if settings.dev_mode() and hasattr(e, "debug_info"):
+            debug_details = e.debug_info  # type: ignore
+
+        # Use create_debug_response to generate the response
+        response_content = create_debug_response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message="Internal Server Error",
+            transaction_id=str(transaction.transaction_id),
+            details=debug_details,
+            include_debug_info=settings.dev_mode(),
+        )
+
+        # Add policy name to the response
+        response_content["policy_name"] = policy_name_for_error
+
         final_response = JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={
-                "detail": "Internal Server Error",
-                "transaction_id": str(transaction.transaction_id),
-                "policy_name": policy_name_for_error,
-            },
+            content=response_content,
         )
 
     return final_response

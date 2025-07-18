@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import openai
 from pydantic import Field
@@ -26,6 +26,32 @@ class SendBackendRequestPolicy(ControlPolicy):
     """
 
     name: Optional[str] = Field(default="SendBackendRequestPolicy")
+
+    def _create_debug_info(self, backend_url: str, request_payload: Any, error: Exception) -> Dict[str, Any]:
+        """Create debug information for backend request failures."""
+        debug_info = {
+            "backend_url": backend_url,
+            "request_model": getattr(request_payload, "model", "unknown"),
+            "request_messages_count": len(getattr(request_payload, "messages", [])),
+            "error_type": error.__class__.__name__,
+            "error_message": str(error),
+        }
+
+        # Add OpenAI-specific error details if available
+        if hasattr(error, "response") and getattr(error, "response", None) is not None:
+            response = getattr(error, "response")
+            debug_info["backend_response"] = {
+                "status_code": getattr(response, "status_code", None),
+                "headers": dict(getattr(response, "headers", {})),
+            }
+            # Try to get response body if available
+            if hasattr(response, "text"):
+                debug_info["backend_response"]["body"] = getattr(response, "text", "")
+
+        if hasattr(error, "body") and getattr(error, "body", None) is not None:
+            debug_info["backend_error_body"] = getattr(error, "body")
+
+        return debug_info
 
     async def apply(
         self,
@@ -100,15 +126,27 @@ class SendBackendRequestPolicy(ControlPolicy):
 
         except openai.APITimeoutError as e:
             self.logger.error(f"Timeout error during backend request: {e} ({self.name})")
+            # Store debug information for potential dev mode access
+            debug_info = self._create_debug_info(backend_url, request_payload, e)
+            e.debug_info = debug_info  # type: ignore
             raise
         except openai.APIConnectionError as e:
             self.logger.error(f"Connection error during backend request: {e} ({self.name})")
+            # Store debug information for potential dev mode access
+            debug_info = self._create_debug_info(backend_url, request_payload, e)
+            e.debug_info = debug_info  # type: ignore
             raise
         except openai.APIError as e:
             self.logger.error(f"OpenAI API error during backend request: {e} ({self.name})")
+            # Store debug information for potential dev mode access
+            debug_info = self._create_debug_info(backend_url, request_payload, e)
+            e.debug_info = debug_info  # type: ignore
             raise
         except Exception as e:
             self.logger.exception(f"Unexpected error during backend request: {e} ({self.name})")
+            # Store debug information for potential dev mode access
+            debug_info = self._create_debug_info(backend_url, request_payload, e)
+            e.debug_info = debug_info  # type: ignore
             raise
 
         return transaction

@@ -49,5 +49,14 @@ class DependencyContainer:
 
         Returns:
             An configured OpenAI AsyncClient instance.
+
+        Raises:
+            ValueError: If the base_url is missing or doesn't have a valid protocol.
         """
+        if not base_url:
+            raise ValueError("Base URL cannot be empty")
+
+        if not base_url.startswith(("http://", "https://")):
+            raise ValueError(f"Base URL must start with 'http://' or 'https://': {base_url}")
+
         return openai.AsyncOpenAI(api_key=api_key, base_url=base_url)

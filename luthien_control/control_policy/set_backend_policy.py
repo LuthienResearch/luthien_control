@@ -1,4 +1,5 @@
 from typing import Optional
+from urllib.parse import urljoin
 
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +20,9 @@ class SetBackendPolicy(ControlPolicy):
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
     ) -> Transaction:
         if self.backend_url is not None:
-            transaction.request.api_endpoint = self.backend_url
+            # Combine the base URL with the original path to create the full endpoint URL
+            original_path = transaction.request.api_endpoint
+            transaction.request.api_endpoint = urljoin(self.backend_url, original_path)
         return transaction
 
     def _get_policy_specific_config(self) -> SerializableDict:

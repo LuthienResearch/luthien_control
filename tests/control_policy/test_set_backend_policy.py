@@ -38,19 +38,20 @@ class TestSetBackendPolicy:
     @pytest.mark.asyncio
     async def test_apply_with_backend_url(self):
         """Test apply method when backend_url is set."""
-        policy = SetBackendPolicy(backend_url="https://api.example.com")
+        policy = SetBackendPolicy(backend_url="https://api.example.com/v1/")
 
         # Create mock objects
         transaction = Mock(spec=Transaction)
         transaction.request = Mock()
+        transaction.request.api_endpoint = "chat/completions"  # Initial path
         container = Mock(spec=DependencyContainer)
         session = Mock(spec=AsyncSession)
 
         # Apply the policy
         result = await policy.apply(transaction, container, session)
 
-        # Verify the backend URL was set
-        assert transaction.request.api_endpoint == "https://api.example.com"
+        # Verify the backend URL was combined with the original path
+        assert transaction.request.api_endpoint == "https://api.example.com/v1/chat/completions"
         assert result is transaction
 
     @pytest.mark.asyncio
@@ -61,7 +62,7 @@ class TestSetBackendPolicy:
         # Create mock objects
         transaction = Mock(spec=Transaction)
         transaction.request = Mock()
-        transaction.request.api_endpoint = "original_endpoint"
+        transaction.request.api_endpoint = "chat/completions"  # Initial path
         container = Mock(spec=DependencyContainer)
         session = Mock(spec=AsyncSession)
 
@@ -69,8 +70,36 @@ class TestSetBackendPolicy:
         result = await policy.apply(transaction, container, session)
 
         # Verify the backend URL was not modified
-        assert transaction.request.api_endpoint == "original_endpoint"
+        assert transaction.request.api_endpoint == "chat/completions"
         assert result is transaction
+
+    @pytest.mark.asyncio
+    async def test_apply_url_joining_scenarios(self):
+        """Test URL joining with different base URL and path combinations."""
+        test_cases = [
+            # (base_url, original_path, expected_result)
+            ("https://api.example.com/v1/", "chat/completions", "https://api.example.com/v1/chat/completions"),
+            ("https://api.example.com/v1", "chat/completions", "https://api.example.com/chat/completions"),
+            ("https://api.example.com/", "chat/completions", "https://api.example.com/chat/completions"),
+            ("https://api.example.com", "chat/completions", "https://api.example.com/chat/completions"),
+        ]
+
+        for base_url, original_path, expected_result in test_cases:
+            policy = SetBackendPolicy(backend_url=base_url)
+
+            # Create mock objects
+            transaction = Mock(spec=Transaction)
+            transaction.request = Mock()
+            transaction.request.api_endpoint = original_path
+            container = Mock(spec=DependencyContainer)
+            session = Mock(spec=AsyncSession)
+
+            # Apply the policy
+            result = await policy.apply(transaction, container, session)
+
+            # Verify the URL was joined correctly
+            assert transaction.request.api_endpoint == expected_result, f"Failed for {base_url} + {original_path}"
+            assert result is transaction
 
     def test_get_policy_specific_config(self):
         """Test _get_policy_specific_config method."""

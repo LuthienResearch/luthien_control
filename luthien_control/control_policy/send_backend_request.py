@@ -65,6 +65,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         if not api_key:
             raise ValueError("OpenAI API key is not configured")
 
+        self.logger.info(f"Creating OpenAI client with backend URL: '{backend_url}' ({self.name})")
         openai_client = container.create_openai_client(backend_url, api_key)
 
         # Get the structured request payload

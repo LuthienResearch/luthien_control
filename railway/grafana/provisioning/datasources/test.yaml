@@ -1,0 +1,9 @@
+apiVersion: 1
+
+datasources:
+  - name: Test-Datasource
+    type: prometheus
+    access: proxy
+    url: http://test.example.com:9090
+    isDefault: false
+    editable: true

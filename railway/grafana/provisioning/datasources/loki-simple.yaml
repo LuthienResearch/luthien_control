@@ -1,12 +1,12 @@
 apiVersion: 1
 
 datasources:
-  - name: Loki
+  - name: Loki-Simple
     type: loki
     access: proxy
-    url: ${LOKI_INTERNAL_URL}
+    url: https://luthiencontrol-loki.up.railway.app
     basicAuth: false
-    isDefault: true
+    isDefault: false
     version: 1
     editable: true
     jsonData:

@@ -25,4 +25,6 @@ class OpenAIChatCompletionsResponse(DeepEventedModel):
 
 
 def openai_chat_completions_response_to_fastapi_response(response: OpenAIChatCompletionsResponse) -> fastapi.Response:
-    return fastapi.Response(content=response.model_dump_json(), status_code=200)
+    return fastapi.Response(
+        content=response.model_dump_json(), status_code=200, headers={"Content-Type": "application/json"}
+    )

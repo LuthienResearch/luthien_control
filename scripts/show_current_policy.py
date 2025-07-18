@@ -31,41 +31,38 @@ async def show_current_policy():
     """Show the currently active policy based on environment settings."""
     load_dotenv()
     settings = Settings()
-    
+
     policy_name = settings.get_top_level_policy_name()
     logger.info(f"Looking for policy with name: '{policy_name}'")
-    
+
     try:
         engine = await create_db_engine()
         if not engine:
             logger.error("Failed to create database engine.")
             return
-        
+
         async with get_db_session() as session:
             # Get the active policy with the specified name
-            stmt = select(ControlPolicy).where(
-                ControlPolicy.name == policy_name,
-                ControlPolicy.is_active == True
-            )
+            stmt = select(ControlPolicy).where(ControlPolicy.name == policy_name, ControlPolicy.is_active is True)
             result = await session.execute(stmt)
             policy = result.scalar_one_or_none()
-            
+
             if not policy:
                 logger.error(f"No active policy found with name '{policy_name}'")
                 return
-            
-            logger.info("\n" + "="*60)
+
+            logger.info("\n" + "=" * 60)
             logger.info(f"CURRENT ACTIVE POLICY: {policy.name}")
-            logger.info("="*60)
+            logger.info("=" * 60)
             logger.info(f"ID: {policy.id}")
             logger.info(f"Type: {policy.type}")
             logger.info(f"Description: {policy.description}")
             logger.info(f"Created: {policy.created_at}")
             logger.info(f"Updated: {policy.updated_at}")
             logger.info("\nFull Configuration:")
-            logger.info("-"*40)
+            logger.info("-" * 40)
             print(json.dumps(policy.config, indent=2))
-            
+
     except Exception as e:
         logger.exception(f"Error loading policy: {e}")
     finally:

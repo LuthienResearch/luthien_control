@@ -1,5 +1,4 @@
 from typing import Optional
-from urllib.parse import urljoin
 
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,9 +19,9 @@ class SetBackendPolicy(ControlPolicy):
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
     ) -> Transaction:
         if self.backend_url is not None:
-            # Combine the base URL with the original path to create the full endpoint URL
-            original_path = transaction.request.api_endpoint
-            transaction.request.api_endpoint = urljoin(self.backend_url, original_path)
+            # Set the base URL only - the OpenAI client will append the specific endpoint path
+            # The original api_endpoint (e.g., "chat/completions") will be used by the OpenAI client
+            transaction.request.api_endpoint = self.backend_url
         return transaction
 
     def _get_policy_specific_config(self) -> SerializableDict:

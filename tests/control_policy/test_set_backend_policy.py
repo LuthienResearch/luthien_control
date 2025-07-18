@@ -50,8 +50,8 @@ class TestSetBackendPolicy:
         # Apply the policy
         result = await policy.apply(transaction, container, session)
 
-        # Verify the backend URL was combined with the original path
-        assert transaction.request.api_endpoint == "https://api.example.com/v1/chat/completions"
+        # Verify the backend URL was set (without combining with the original path)
+        assert transaction.request.api_endpoint == "https://api.example.com/v1/"
         assert result is transaction
 
     @pytest.mark.asyncio
@@ -78,10 +78,10 @@ class TestSetBackendPolicy:
         """Test URL joining with different base URL and path combinations."""
         test_cases = [
             # (base_url, original_path, expected_result)
-            ("https://api.example.com/v1/", "chat/completions", "https://api.example.com/v1/chat/completions"),
-            ("https://api.example.com/v1", "chat/completions", "https://api.example.com/chat/completions"),
-            ("https://api.example.com/", "chat/completions", "https://api.example.com/chat/completions"),
-            ("https://api.example.com", "chat/completions", "https://api.example.com/chat/completions"),
+            ("https://api.example.com/v1/", "chat/completions", "https://api.example.com/v1/"),
+            ("https://api.example.com/v1", "chat/completions", "https://api.example.com/v1"),
+            ("https://api.example.com/", "chat/completions", "https://api.example.com/"),
+            ("https://api.example.com", "chat/completions", "https://api.example.com"),
         ]
 
         for base_url, original_path, expected_result in test_cases:

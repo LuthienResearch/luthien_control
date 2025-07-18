@@ -11,13 +11,13 @@ from unittest.mock import Mock
 import pytest
 from luthien_control.api.openai_chat_completions.datatypes import Message
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
-from psygnal.containers import EventedList
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
 from luthien_control.control_policy.set_backend_policy import SetBackendPolicy
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
+from psygnal.containers import EventedList
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

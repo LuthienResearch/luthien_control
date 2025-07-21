@@ -224,6 +224,7 @@ def mock_db_session() -> AsyncMock:
 def mock_admin_auth_service() -> AsyncMock:
     """Provides a mock admin auth service."""
     from luthien_control.admin.auth import AdminAuthService
+
     service = AsyncMock(spec=AdminAuthService)
     # Mock the ensure_default_admin method to be a no-op
     service.ensure_default_admin = AsyncMock(return_value=None)

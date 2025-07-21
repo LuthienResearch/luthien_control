@@ -221,6 +221,16 @@ def mock_db_session() -> AsyncMock:
 
 
 @pytest.fixture
+def mock_admin_auth_service() -> AsyncMock:
+    """Provides a mock admin auth service."""
+    from luthien_control.admin.auth import AdminAuthService
+    service = AsyncMock(spec=AdminAuthService)
+    # Mock the ensure_default_admin method to be a no-op
+    service.ensure_default_admin = AsyncMock(return_value=None)
+    return service
+
+
+@pytest.fixture
 def mock_db_session_factory(mock_db_session: AsyncMock) -> MagicMock:
     """Provides a mock database session factory context manager."""
     # Use a synchronous context manager mock that yields the async session mock
@@ -274,6 +284,13 @@ def mock_transaction_context() -> MagicMock:
 
 
 # --- Fixtures for Overriding Dependencies ---
+
+
+@pytest.fixture(autouse=True)
+def mock_admin_service_for_startup(mock_admin_auth_service: AsyncMock, monkeypatch):
+    """Mock the admin auth service during app startup to prevent database calls."""
+    # Patch the admin_auth_service used in main.py during app startup
+    monkeypatch.setattr("luthien_control.main.admin_auth_service", mock_admin_auth_service)
 
 
 @pytest.fixture()

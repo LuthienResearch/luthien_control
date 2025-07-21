@@ -11,13 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.admin.auth import admin_auth_service
 from luthien_control.admin.dependencies import csrf_protection, get_current_admin
+from luthien_control.core.dependencies import get_db_session
 from luthien_control.db.control_policy_crud import (
     get_policy_by_name,
     list_policies,
     save_policy_to_db,
-    update_policy,
 )
-from luthien_control.core.dependencies import get_db_session
 from luthien_control.db.sqlmodel_models import ControlPolicy
 from luthien_control.models.admin_user import AdminUser
 
@@ -137,7 +136,7 @@ async def admin_home(
     # Get some basic stats for the dashboard
     policies = await list_policies(db, active_only=False)
     active_policies = [p for p in policies if p.is_active]
-    
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -256,7 +255,7 @@ async def update_policy_handler(
         if description is not None:
             policy.description = description
         policy.is_active = is_active
-        
+
         db.add(policy)
         await db.commit()
         await db.refresh(policy)

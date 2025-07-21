@@ -5,12 +5,11 @@ from fastapi import FastAPI
 
 from luthien_control.admin.auth import admin_auth_service
 from luthien_control.admin.router import router as admin_router
-from luthien_control.core.dependencies import initialize_app_dependencies
+from luthien_control.core.dependencies import get_db_session, initialize_app_dependencies
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.logging import setup_logging
 from luthien_control.custom_openapi_schema import create_custom_openapi
 from luthien_control.db.database_async import close_db_engine
-from luthien_control.core.dependencies import get_db_session
 from luthien_control.logs.router import router as logs_router
 from luthien_control.proxy.debugging import DebugLoggingMiddleware
 from luthien_control.proxy.server import router as proxy_router

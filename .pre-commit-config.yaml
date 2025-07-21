@@ -9,7 +9,7 @@ repos:
     -   id: check-yaml
     -   id: check-added-large-files
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.5 # Use the latest stable version matching your ruff install if possible
+    rev: v0.11.2 # Match the ruff version in pyproject.toml
     hooks:
     -   id: ruff
         args: [--fix] # Apply autofixes

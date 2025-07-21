@@ -288,10 +288,15 @@ def mock_transaction_context() -> MagicMock:
 
 
 @pytest.fixture(autouse=True)
-def mock_admin_service_for_startup(mock_admin_auth_service: AsyncMock, monkeypatch):
-    """Mock the admin auth service during app startup to prevent database calls."""
-    # Patch the admin_auth_service used in main.py during app startup
-    monkeypatch.setattr("luthien_control.main.admin_auth_service", mock_admin_auth_service)
+def mock_admin_service_for_startup(monkeypatch):
+    """Mock the admin auth service's ensure_default_admin method during app startup to prevent database calls."""
+    # Create a simple async no-op function
+    async def mock_ensure_default_admin(db):
+        """Mock ensure_default_admin to be a no-op."""
+        pass
+    
+    # Patch only the ensure_default_admin method
+    monkeypatch.setattr("luthien_control.admin.auth.admin_auth_service.ensure_default_admin", mock_ensure_default_admin)
 
 
 @pytest.fixture()

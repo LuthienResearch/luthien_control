@@ -3,11 +3,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from luthien_control.admin.auth import admin_auth_service
+from luthien_control.admin.router import router as admin_router
 from luthien_control.core.dependencies import initialize_app_dependencies
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.logging import setup_logging
 from luthien_control.custom_openapi_schema import create_custom_openapi
 from luthien_control.db.database_async import close_db_engine
+from luthien_control.core.dependencies import get_db_session
 from luthien_control.logs.router import router as logs_router
 from luthien_control.proxy.debugging import DebugLoggingMiddleware
 from luthien_control.proxy.server import router as proxy_router
@@ -49,6 +52,11 @@ async def lifespan(app: FastAPI):
         initialized_dependencies = await initialize_app_dependencies(app_settings)
         app.state.dependencies = initialized_dependencies
         logger.info("Core application dependencies initialized and stored in app state.")
+
+        # Ensure default admin user exists
+        async for db in get_db_session(initialized_dependencies):
+            await admin_auth_service.ensure_default_admin(db)
+            break
 
     except Exception as init_exc:
         # _initialize_app_dependencies is responsible for cleaning up resources it
@@ -107,6 +115,7 @@ async def health_check():
 
 app.include_router(proxy_router)
 app.include_router(logs_router)
+app.include_router(admin_router)
 
 
 # --- Root Endpoint --- #

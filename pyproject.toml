@@ -22,6 +22,9 @@ mkdocs-material = ">=9.6.12,<10.0.0"
 psygnal = ">=0.13.0,<0.14.0"
 openai = ">=1.0.0,<2.0.0"
 python-logging-loki = ">=0.3.1,<0.4.0"
+bcrypt = ">=4.2.0,<5.0.0"
+python-multipart = ">=0.0.17,<1.0.0"
+jinja2 = ">=3.1.4,<4.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.3.5,<9.0.0"

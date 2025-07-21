@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Control Policies - Luthien Control Admin{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-file-alt"></i> Control Policies</h2>
+            <a href="/admin/policies/new" class="btn btn-primary">
+                <i class="fas fa-plus"></i> New Policy
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Description</th>
+                                <th>Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for policy in policies %}
+                            <tr>
+                                <td>
+                                    <strong>{{ policy.name }}</strong>
+                                </td>
+                                <td>
+                                    <code>{{ policy.type }}</code>
+                                </td>
+                                <td>
+                                    {% if policy.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ policy.description or "-" }}
+                                </td>
+                                <td>
+                                    {{ policy.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                                </td>
+                                <td>
+                                    <a href="/admin/policies/{{ policy.name }}/edit" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    
+                    {% if not policies %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No policies found.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}New Policy - Luthien Control Admin{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css" rel="stylesheet">
+<style>
+    .CodeMirror {
+        height: 400px;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-plus"></i> Create New Policy</h2>
+            <a href="/admin/policies" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Policies
+            </a>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/admin/policies/new">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Policy Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       value="{{ form_data.name if form_data else '' }}" required>
+                                <div class="form-text">Unique identifier for the policy</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="type" class="form-label">Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="type" name="type" required>
+                                    <option value="">Select a policy type...</option>
+                                    <option value="SimpleProxy" {% if form_data and form_data.type == 'SimpleProxy' %}selected{% endif %}>SimpleProxy</option>
+                                    <option value="ClientApiKeyAuthPolicy" {% if form_data and form_data.type == 'ClientApiKeyAuthPolicy' %}selected{% endif %}>ClientApiKeyAuthPolicy</option>
+                                    <option value="ProviderRotationPolicy" {% if form_data and form_data.type == 'ProviderRotationPolicy' %}selected{% endif %}>ProviderRotationPolicy</option>
+                                    <option value="RateLimitPolicy" {% if form_data and form_data.type == 'RateLimitPolicy' %}selected{% endif %}>RateLimitPolicy</option>
+                                </select>
+                                <div class="form-text">Policy implementation class</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2">{{ form_data.description if form_data else '' }}</textarea>
+                        <div class="form-text">Optional description of the policy's purpose</div>
+                    </div>
+                    
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                               value="true" {% if form_data and form_data.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">
+                            Active
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Configuration (JSON) <span class="text-danger">*</span></h5>
+                </div>
+                <div class="card-body">
+                    <textarea id="config" name="config" style="display: none;">{{ form_data.config if form_data else '{}' }}</textarea>
+                    <div id="config-editor"></div>
+                    
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="formatJSON()">
+                            <i class="fas fa-code"></i> Format JSON
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="validateJSON()">
+                            <i class="fas fa-check"></i> Validate JSON
+                        </button>
+                        <button type="button" class="btn btn-sm btn-info" onclick="showTemplate()">
+                            <i class="fas fa-file-code"></i> Show Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Create Policy
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='/admin/policies'">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Policy Template Modal -->
+<div class="modal fade" id="templateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Policy Configuration Templates</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="accordion" id="templateAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#template1">
+                                SimpleProxy
+                            </button>
+                        </h2>
+                        <div id="template1" class="accordion-collapse collapse show" data-bs-parent="#templateAccordion">
+                            <div class="accordion-body">
+                                <pre><code>{
+  "backend_url": "https://api.openai.com"
+}</code></pre>
+                                <button class="btn btn-sm btn-primary" onclick="useTemplate('SimpleProxy')">Use Template</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#template2">
+                                ClientApiKeyAuthPolicy
+                            </button>
+                        </h2>
+                        <div id="template2" class="accordion-collapse collapse" data-bs-parent="#templateAccordion">
+                            <div class="accordion-body">
+                                <pre><code>{
+  "require_auth": true,
+  "allowed_keys": []
+}</code></pre>
+                                <button class="btn btn-sm btn-primary" onclick="useTemplate('ClientApiKeyAuthPolicy')">Use Template</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#template3">
+                                ProviderRotationPolicy
+                            </button>
+                        </h2>
+                        <div id="template3" class="accordion-collapse collapse" data-bs-parent="#templateAccordion">
+                            <div class="accordion-body">
+                                <pre><code>{
+  "providers": [
+    {
+      "name": "provider1",
+      "url": "https://api.provider1.com",
+      "api_key": "sk-..."
+    },
+    {
+      "name": "provider2", 
+      "url": "https://api.provider2.com",
+      "api_key": "sk-..."
+    }
+  ],
+  "strategy": "round_robin"
+}</code></pre>
+                                <button class="btn btn-sm btn-primary" onclick="useTemplate('ProviderRotationPolicy')">Use Template</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#template4">
+                                RateLimitPolicy
+                            </button>
+                        </h2>
+                        <div id="template4" class="accordion-collapse collapse" data-bs-parent="#templateAccordion">
+                            <div class="accordion-body">
+                                <pre><code>{
+  "requests_per_minute": 60,
+  "requests_per_hour": 1000,
+  "burst_size": 10
+}</code></pre>
+                                <button class="btn btn-sm btn-primary" onclick="useTemplate('RateLimitPolicy')">Use Template</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+
+<script>
+    const templates = {
+        'SimpleProxy': {
+            "backend_url": "https://api.openai.com"
+        },
+        'ClientApiKeyAuthPolicy': {
+            "require_auth": true,
+            "allowed_keys": []
+        },
+        'ProviderRotationPolicy': {
+            "providers": [
+                {
+                    "name": "provider1",
+                    "url": "https://api.provider1.com",
+                    "api_key": "sk-..."
+                },
+                {
+                    "name": "provider2",
+                    "url": "https://api.provider2.com", 
+                    "api_key": "sk-..."
+                }
+            ],
+            "strategy": "round_robin"
+        },
+        'RateLimitPolicy': {
+            "requests_per_minute": 60,
+            "requests_per_hour": 1000,
+            "burst_size": 10
+        }
+    };
+    
+    const initialValue = document.getElementById('config').value || '{}';
+    
+    const editor = CodeMirror(document.getElementById('config-editor'), {
+        value: initialValue,
+        mode: 'application/json',
+        theme: 'monokai',
+        lineNumbers: true,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        indentUnit: 2,
+        tabSize: 2,
+    });
+
+    editor.on('change', function() {
+        document.getElementById('config').value = editor.getValue();
+    });
+
+    function formatJSON() {
+        try {
+            const json = JSON.parse(editor.getValue());
+            editor.setValue(JSON.stringify(json, null, 2));
+        } catch (e) {
+            alert('Invalid JSON: ' + e.message);
+        }
+    }
+
+    function validateJSON() {
+        try {
+            JSON.parse(editor.getValue());
+            alert('JSON is valid!');
+        } catch (e) {
+            alert('Invalid JSON: ' + e.message);
+        }
+    }
+
+    function showTemplate() {
+        const modal = new bootstrap.Modal(document.getElementById('templateModal'));
+        modal.show();
+    }
+
+    function useTemplate(type) {
+        const template = templates[type];
+        if (template) {
+            editor.setValue(JSON.stringify(template, null, 2));
+            document.getElementById('type').value = type;
+            bootstrap.Modal.getInstance(document.getElementById('templateModal')).hide();
+        }
+    }
+</script>
+{% endblock %}

@@ -6,16 +6,16 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
-def test_read_root(client: TestClient):
+def test_read_root(client_with_admin_mock: TestClient):
     """Test the root endpoint '/'."""
-    response = client.get("/")
+    response = client_with_admin_mock.get("/")
     assert response.status_code == 200
     assert response.json() == {"message": "Luthien Control Proxy is running."}
 
 
-def test_health_check(client: TestClient):
+def test_health_check(client_with_admin_mock: TestClient):
     """Test the health check endpoint '/health'."""
-    response = client.get("/health")
+    response = client_with_admin_mock.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
@@ -33,6 +33,10 @@ def test_lifespan_success_path(mocker, mock_container: MagicMock):
     )
 
     mock_close_db_engine = mocker.patch("luthien_control.main.close_db_engine")
+
+    # Mock admin service to prevent database calls
+    mock_admin_service = mocker.patch("luthien_control.main.admin_auth_service")
+    mock_admin_service.ensure_default_admin = AsyncMock()
 
     # Import app here to ensure mocks are in place.
     from luthien_control.main import app

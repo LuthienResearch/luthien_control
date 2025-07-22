@@ -197,6 +197,18 @@ def client():
         yield test_client
 
 
+@pytest.fixture()
+def client_with_admin_mock(mock_admin_service_for_startup):
+    """Pytest fixture for the FastAPI TestClient with admin service mocked.
+    Use this fixture for tests that need to avoid database calls during startup.
+    """
+    from fastapi.testclient import TestClient
+
+    # The mock_admin_service_for_startup fixture will be active during this client's lifespan
+    with TestClient(app) as test_client:
+        yield test_client
+
+
 @pytest.fixture
 def mock_settings() -> MagicMock:
     """Provides a mock Settings instance."""
@@ -287,7 +299,7 @@ def mock_transaction_context() -> MagicMock:
 # --- Fixtures for Overriding Dependencies ---
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture()
 def mock_admin_service_for_startup():
     """Mock the admin auth service's ensure_default_admin method during app startup to prevent database calls."""
 
@@ -296,7 +308,7 @@ def mock_admin_service_for_startup():
         """Mock ensure_default_admin to be a no-op."""
         pass
 
-    # Apply patch for the entire test session
+    # Apply patch for this test
     with patch("luthien_control.admin.auth.AdminAuthService.ensure_default_admin", mock_ensure_default_admin):
         yield
 

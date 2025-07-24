@@ -4,6 +4,7 @@ from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
     ClientAuthenticationNotFoundError,
     ControlPolicyError,
+    LeakedApiKeyError,
     NoRequestError,
     PolicyLoadError,
 )
@@ -99,6 +100,31 @@ def test_client_authentication_not_found_error():
 
     assert issubclass(ClientAuthenticationNotFoundError, ControlPolicyError)
     # Note: ControlPolicyError.__init__ is called with detail as the only arg
+    assert str(exc_info.value) == detail
+    assert exc_info.value.detail == detail
+    assert exc_info.value.status_code == status_code
+
+
+def test_leaked_api_key_error():
+    """Test raising LeakedApiKeyError."""
+    detail = "Leaked API key detected in request"
+    status_code = 403  # Default should be used if not provided
+    with pytest.raises(LeakedApiKeyError) as exc_info:
+        raise LeakedApiKeyError(detail=detail)
+
+    assert issubclass(LeakedApiKeyError, ControlPolicyError)
+    assert str(exc_info.value) == detail
+    assert exc_info.value.detail == detail
+    assert exc_info.value.status_code == status_code
+
+
+def test_leaked_api_key_error_custom_status():
+    """Test raising LeakedApiKeyError with custom status code."""
+    detail = "Leaked API key detected"
+    status_code = 400
+    with pytest.raises(LeakedApiKeyError) as exc_info:
+        raise LeakedApiKeyError(detail=detail, status_code=status_code)
+
     assert str(exc_info.value) == detail
     assert exc_info.value.detail == detail
     assert exc_info.value.status_code == status_code

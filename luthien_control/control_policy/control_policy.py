@@ -1,19 +1,21 @@
 # Interfaces for the request processing framework.
 
 import abc
+import logging
 from typing import Any, Optional, Type, TypeVar, cast
 
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.control_policy.serialization import SerializableDict, safe_model_validate
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.transaction import Transaction
 
 # Type variable for the policy classes
 PolicyT = TypeVar("PolicyT", bound="ControlPolicy")
 
 
-class ControlPolicy(abc.ABC):
+class ControlPolicy(BaseModel, abc.ABC):
     """Abstract Base Class defining the interface for a processing step.
 
     Attributes:
@@ -22,48 +24,71 @@ class ControlPolicy(abc.ABC):
             It's used for logging and identification purposes.
     """
 
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None)
+    type: str = Field(default="")
+    logger: logging.Logger = Field(default_factory=lambda: logging.getLogger(__name__), exclude=True)
 
-    def __init__(self, **kwargs: Any) -> None:
+    @classmethod
+    def get_policy_type_name(cls) -> str:
+        """Get the canonical policy type name for serialization.
+
+        By default, this looks up the class in the registry to get its registered name.
+        Subclasses can override this if they need custom behavior.
+
+        Returns:
+            The policy type name used in serialization.
+        """
+        # Import here to avoid circular imports
+        from luthien_control.control_policy.registry import POLICY_CLASS_TO_NAME
+
+        policy_type = POLICY_CLASS_TO_NAME.get(cls)
+        if policy_type is None:
+            raise ValueError(f"{cls.__name__} is not registered in POLICY_CLASS_TO_NAME registry")
+        return policy_type
+
+    def __init__(self, **data: Any) -> None:
         """Initializes the ControlPolicy.
 
         This is an abstract base class, and this constructor typically handles
         common initialization or can be overridden by subclasses.
 
         Args:
-            **kwargs: Arbitrary keyword arguments that subclasses might use.
+            **data: Arbitrary keyword arguments that subclasses might use.
         """
-        pass
+        if "type" not in data:
+            data["type"] = self.get_policy_type_name()
+        super().__init__(**data)
 
     @abc.abstractmethod
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
+        self,
+        transaction: "Transaction",
+        container: "DependencyContainer",
+        session: "AsyncSession",
+    ) -> "Transaction":
         """
-        Apply the policy to the transaction context using provided dependencies.
+        Apply the policy to the transaction using provided dependencies.
 
         Args:
-            context: The current transaction context.
+            transaction: The current transaction.
             container: The dependency injection container.
-            session: The database session for the current request.
+            session: The database session for the current request. We include this separately because
+                it's request-scoped rather than application-scoped.
 
         Returns:
-            The potentially modified transaction context.
+            The potentially modified transaction.
 
         Raises:
             Exception: Processors may raise exceptions to halt the processing flow.
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
     def serialize(self) -> SerializableDict:
-        """
-        Serialize the policy's instance-specific configuration needed for reloading.
+        """Serialize using Pydantic model_dump through SerializableDict validation."""
+        data = self.model_dump(mode="python", by_alias=True, exclude_none=True)
+        from luthien_control.control_policy.serialization import SerializableDictAdapter
 
-        Returns:
-            A serializable dictionary containing configuration parameters.
-        """
-        raise NotImplementedError
+        return SerializableDictAdapter.validate_python(data)
 
     # construct from serialization
     @classmethod
@@ -86,20 +111,30 @@ class ControlPolicy(abc.ABC):
         Raises:
             ValueError: If the 'type' key is missing in config or the type is not registered.
         """
-        # Mimport inside the method to break circular dependency
+        # Import inside the method to break circular dependency
         from luthien_control.control_policy.registry import POLICY_NAME_TO_CLASS
 
-        policy_type_name_val = config.get("type")
-        if not isinstance(policy_type_name_val, str):
-            raise ValueError(
-                f"Policy configuration must include a 'type' field as a string. "
-                f"Got: {policy_type_name_val!r} (type: {type(policy_type_name_val).__name__})"
-            )
+        config_copy = dict(config)
 
-        target_policy_class = POLICY_NAME_TO_CLASS.get(policy_type_name_val)
+        policy_type_name_val = config_copy.get("type")
+
+        if not policy_type_name_val and cls != ControlPolicy:
+            try:
+                inferred_type = cls.get_policy_type_name()
+                config_copy["type"] = inferred_type
+                policy_type_name_val = inferred_type
+            except ValueError:
+                pass
+
+        if not policy_type_name_val:
+            raise ValueError("Policy configuration must include a 'type' field")
+
+        target_policy_class = POLICY_NAME_TO_CLASS.get(str(policy_type_name_val))
         if not target_policy_class:
             raise ValueError(
                 f"Unknown policy type '{policy_type_name_val}'. Ensure it is registered in POLICY_NAME_TO_CLASS."
             )
 
-        return cast(PolicyT, target_policy_class.from_serialized(config))
+        return cast(PolicyT, safe_model_validate(target_policy_class, config_copy))
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)

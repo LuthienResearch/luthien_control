@@ -1,0 +1,51 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Exception Handling Rules
+
+**NEVER proceed on catch-all exceptions.** When catching exceptions, follow these guidelines:
+
+### ✅ Allowed: Specific Exception Handling
+```python
+try:
+    risky_operation()
+except ValueError as e:
+    # Handle specific exception and continue
+    logger.warning(f"Invalid value: {e}")
+    return default_value
+except KeyError as e:
+    # Handle specific exception and continue
+    logger.error(f"Missing key: {e}")
+    return None
+```
+
+### ✅ Allowed: Catch-All with Re-raise
+```python
+try:
+    risky_operation()
+except Exception as e:
+    # Log for debugging but always re-raise
+    logger.error(f"Unexpected error in operation: {e}")
+    raise  # Always re-raise catch-all exceptions
+```
+
+### ❌ Prohibited: Catch-All with Continue
+```python
+try:
+    risky_operation()
+except Exception as e:
+    # NEVER do this - catch-all and continue
+    logger.error(f"Error: {e}")
+    return None  # This silently swallows all errors
+```
+
+### ❌ Prohibited: Silent Catch-All
+```python
+try:
+    risky_operation()
+except:
+    # NEVER do this - silent catch-all
+    pass
+```

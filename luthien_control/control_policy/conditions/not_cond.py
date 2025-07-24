@@ -1,36 +1,30 @@
+from typing import Literal
+
+from pydantic import Field, field_serializer, field_validator
+
 from luthien_control.control_policy.conditions.condition import Condition
-from luthien_control.control_policy.serialization import SerializableDict
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.transaction import Transaction
 
 
 class NotCondition(Condition):
-    type = "not"
+    type: Literal["not"] = "not"
+    cond: Condition = Field(...)
 
-    def __init__(self, value: Condition):
-        self.cond = value
+    @field_serializer("cond")
+    def serialize_cond(self, value: Condition) -> dict:
+        """Custom serializer for cond field."""
+        return value.serialize()
 
-    def evaluate(self, context: TransactionContext) -> bool:
-        return not self.cond.evaluate(context)
+    @field_validator("cond", mode="before")
+    @classmethod
+    def validate_cond(cls, value):
+        """Custom validator to deserialize condition from dict."""
+        if isinstance(value, dict):
+            return Condition.from_serialized(value)
+        return value
+
+    def evaluate(self, transaction: Transaction) -> bool:
+        return not self.cond.evaluate(transaction)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(value={self.cond!r})"
-
-    def serialize(self) -> SerializableDict:
-        return {
-            "type": self.type,
-            "value": self.cond.serialize(),
-        }
-
-    @classmethod
-    def from_serialized(cls, serialized: SerializableDict) -> "NotCondition":
-        from luthien_control.control_policy.conditions.util import get_condition_from_serialized
-
-        nested_condition_config = serialized.get("value")
-        if not isinstance(nested_condition_config, dict):
-            raise TypeError(
-                f"Configuration for NotCondition's nested condition ('value') must be a dictionary. "
-                f"Got: {nested_condition_config!r} (type: {type(nested_condition_config).__name__})"
-            )
-
-        cond = get_condition_from_serialized(nested_condition_config)
-        return cls(cond)

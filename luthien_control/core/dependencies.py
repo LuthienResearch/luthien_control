@@ -1,25 +1,17 @@
 import logging
-from typing import TYPE_CHECKING, AsyncGenerator
+from typing import AsyncGenerator
 
 import httpx
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Import Settings and the policy loader
 from luthien_control.control_policy.control_policy import ControlPolicy
-
-# Import SQLModel database session providers
 from luthien_control.control_policy.loader import load_policy_from_file
 from luthien_control.core.dependency_container import DependencyContainer
-
-# Import Response Builder
 from luthien_control.db.control_policy_crud import PolicyLoadError, load_policy_from_db
 from luthien_control.db.database_async import create_db_engine
 from luthien_control.db.database_async import get_db_session as db_get_session
 from luthien_control.settings import Settings
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -155,8 +147,8 @@ async def initialize_app_dependencies(app_settings: Settings) -> DependencyConta
 
     except Exception as db_exc:
         logger.critical(f"Failed to initialize database for DependencyContainer due to exception: {db_exc}")
-        await http_client.aclose()  # Clean up client
-        logger.info("HTTP Client closed due to DB initialization failure.")
+        await http_client.aclose()  # Clean up HTTP client
+        logger.info("HTTP client closed due to DB initialization failure.")
         # No need to call close_db_engine here, as db_engine might not be valid or fully initialized.
         # The caller (lifespan) will handle global engine cleanup if needed.
         raise RuntimeError(f"Failed to initialize database for DependencyContainer: {db_exc}") from db_exc
@@ -174,7 +166,7 @@ async def initialize_app_dependencies(app_settings: Settings) -> DependencyConta
         logger.critical(f"Failed to create Dependency Container instance: {container_exc}", exc_info=True)
         # Clean up resources created within this helper function
         await http_client.aclose()
-        logger.info("HTTP Client closed due to Dependency Container instantiation failure.")
+        logger.info("HTTP client closed due to Dependency Container instantiation failure.")
         # If db_engine was successfully created, it's now managed by the global close_db_engine,
         # which will be called by the lifespan's shutdown phase.
         # We don't call close_db_engine(db_engine_instance_if_any) here because the global one handles it.

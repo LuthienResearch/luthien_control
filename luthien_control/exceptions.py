@@ -1,4 +1,10 @@
-class LuthienDBException(Exception):
+class LuthienException(Exception):
+    """Base exception for all Luthien errors."""
+
+    pass
+
+
+class LuthienDBException(LuthienException):
     """Base exception for all Luthien DB related errors."""
 
     pass

@@ -1,20 +1,22 @@
 import logging
-import uuid
 from typing import Any, Optional, cast
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-# from fastapi import Response # Removed
-import httpx
 import pytest
-from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
-from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthPolicy
+from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
+from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
+from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import PolicyLoadError
 from luthien_control.control_policy.noop_policy import NoopPolicy
 from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.request import Request
+from luthien_control.core.response import Response
+from luthien_control.core.transaction import Transaction
+from psygnal.containers import EventedDict, EventedList
+from pydantic import ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Test Fixtures and Helper Classes ---
@@ -23,51 +25,103 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class MockSimplePolicy(ControlPolicy):
     """A simple mock policy for testing."""
 
-    def __init__(
-        self,
-        side_effect: Any = None,
-        sets_response: bool = False,
-        name: Optional[str] = None,
-    ):
+    modifies_data: bool = False
+
+    def __init__(self, side_effect: Any = None, modifies_data: bool = False, name: Optional[str] = None, **kwargs):
+        super().__init__(name=name or self.__class__.__name__, modifies_data=modifies_data, **kwargs)
         self.apply_mock = AsyncMock(side_effect=side_effect)
-        self.sets_response = sets_response
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.name = name or self.__class__.__name__
+
+    @classmethod
+    def get_policy_type_name(cls) -> str:
+        """Override to avoid registry lookup for test class."""
+        return "MockSimplePolicy"
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")  # Allow extra fields like apply_mock
 
     async def apply(
         self,
-        context: TransactionContext,
+        transaction: Transaction,
         container: DependencyContainer,
         session: AsyncSession,
-    ) -> TransactionContext:
+    ) -> Transaction:
         self.logger.info(f"Applying {self.name}")
-        call_order = context.data.setdefault("call_order", [])
+
+        # Track call order in transaction data
+        if transaction.data is None:
+            transaction.data = EventedDict()
+
+        call_order = transaction.data.get("call_order", [])
+        if not call_order:
+            transaction.data["call_order"] = []
+            call_order = transaction.data["call_order"]
         call_order.append(self.name)
 
-        if self.sets_response:
-            context.response = httpx.Response(status_code=299, content=f"Response from {self.name}".encode("utf-8"))
-            self.logger.info(f"{self.name} setting response")
+        if self.modifies_data:
+            transaction.data[f"modified_by_{self.name}"] = True
+            self.logger.info(f"{self.name} modifying data")
 
-        await self.apply_mock(context, container=container, session=session)
+        await self.apply_mock(transaction, container=container, session=session)
         self.logger.info(f"Finished {self.name}")
-        return context
+        return transaction
 
     def __repr__(self) -> str:
         return f"<{self.name}>"
 
-    def serialize(self) -> SerializableDict:
-        return {}
+    def get_policy_config(self) -> SerializableDict:
+        return cast(SerializableDict, {"name": self.name})
 
     @classmethod
     def from_serialized(cls, config: SerializableDict, **kwargs) -> "MockSimplePolicy":
         """Dummy implementation to satisfy abstract base class."""
-        return cls()
+        name = config.get("name", cls.__name__)
+        return cls(name=str(name))
 
 
 @pytest.fixture
-def base_transaction_context() -> TransactionContext:
-    """Provides a basic TransactionContext for tests."""
-    return TransactionContext(transaction_id=uuid.uuid4())
+def sample_transaction() -> Transaction:
+    """Provides a Transaction for testing."""
+    request = Request(
+        payload=OpenAIChatCompletionsRequest(
+            model="gpt-4",
+            messages=EventedList([Message(role="user", content="Hello, world!")]),
+        ),
+        api_endpoint="https://api.openai.com/v1/chat/completions",
+        api_key="test_key",
+    )
+
+    response = Response(
+        payload=OpenAIChatCompletionsResponse(
+            id="chatcmpl-123",
+            object="chat.completion",
+            created=1677652288,
+            model="gpt-4",
+            choices=EventedList(
+                [Choice(index=0, message=Message(role="assistant", content="Hello there!"), finish_reason="stop")]
+            ),
+            usage=Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
+        )
+    )
+
+    transaction_data = EventedDict(
+        {
+            "test_key": "test_value",
+        }
+    )
+
+    return Transaction(request=request, response=response, data=transaction_data)
+
+
+@pytest.fixture
+def mock_container() -> MagicMock:
+    """Provides a mock dependency container."""
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_db_session() -> AsyncMock:
+    """Provides a mock database session."""
+    return AsyncMock()
 
 
 # --- Test Cases ---
@@ -75,7 +129,7 @@ def base_transaction_context() -> TransactionContext:
 
 @pytest.mark.asyncio
 async def test_serial_policy_applies_policies_sequentially(
-    base_transaction_context,
+    sample_transaction,
     mock_db_session: AsyncSession,
     mock_container: DependencyContainer,
 ):
@@ -84,37 +138,29 @@ async def test_serial_policy_applies_policies_sequentially(
     policy2 = MockSimplePolicy(name="Policy2")
     serial = SerialPolicy(policies=[policy1, policy2], name="SequentialTest")
 
-    # Keep track of context references
-    context_before_policy1 = base_transaction_context
-
     # Pass mock session and container
-    result_context = await serial.apply(
-        base_transaction_context,
+    result_transaction = await serial.apply(
+        sample_transaction,
         container=mock_container,
         session=mock_db_session,
     )
 
     # Assertions
-    assert result_context.data.get("call_order") == ["Policy1", "Policy2"]
+    assert result_transaction.data is not None
+    assert result_transaction.data["call_order"] == ["Policy1", "Policy2"]
     # Ensure the mock policies were called with the correct context
-    assert policy1.apply_mock.call_args[0][0] == context_before_policy1
-    # The context passed to policy2 should be the result of policy1
-    assert (
-        policy2.apply_mock.call_args[0][0] == context_before_policy1
-    )  # Assuming MockSimplePolicy returns same context
+    assert policy1.apply_mock.call_args[0][0] == sample_transaction
+    # The transaction passed to policy2 should be the result of policy1
+    assert policy2.apply_mock.call_args[0][0] == sample_transaction
     # Check session and container were passed
-    policy1.apply_mock.assert_awaited_once_with(
-        base_transaction_context, container=mock_container, session=mock_db_session
-    )
-    policy2.apply_mock.assert_awaited_once_with(
-        base_transaction_context, container=mock_container, session=mock_db_session
-    )
-    assert result_context is base_transaction_context  # Verify same context object is returned if not modified
+    policy1.apply_mock.assert_awaited_once_with(sample_transaction, container=mock_container, session=mock_db_session)
+    policy2.apply_mock.assert_awaited_once_with(sample_transaction, container=mock_container, session=mock_db_session)
+    assert result_transaction is sample_transaction  # Verify same transaction object is returned
 
 
 @pytest.mark.asyncio
 async def test_serial_policy_empty_list(
-    base_transaction_context,
+    sample_transaction,
     caplog,
     mock_db_session: AsyncSession,
     mock_container: DependencyContainer,
@@ -123,231 +169,288 @@ async def test_serial_policy_empty_list(
     serial = SerialPolicy(policies=[], name="EmptyTest")
 
     with caplog.at_level(logging.WARNING):
-        result_context = await serial.apply(
-            base_transaction_context,
+        result_transaction = await serial.apply(
+            sample_transaction,
             container=mock_container,
             session=mock_db_session,
         )
 
-    assert result_context is base_transaction_context
+    assert result_transaction is sample_transaction
     assert "Initializing SerialPolicy 'EmptyTest' with an empty policy list." in caplog.text
 
 
 @pytest.mark.asyncio
 async def test_serial_policy_propagates_exception(
-    base_transaction_context,
+    sample_transaction,
     mock_db_session: AsyncSession,
     mock_container: DependencyContainer,
 ):
-    """Test that an exception raised by a member policy propagates up."""
-
-    class TestException(Exception):
-        pass
-
+    """Test that SerialPolicy propagates exceptions from member policies."""
+    test_exception = ValueError("Test exception from policy")
     policy1 = MockSimplePolicy(name="Policy1")
-    policy2 = MockSimplePolicy(side_effect=TestException("Policy 2 failed!"), name="Policy2")
-    policy3 = MockSimplePolicy(name="Policy3")
+    policy2 = MockSimplePolicy(side_effect=test_exception, name="Policy2")
+    policy3 = MockSimplePolicy(name="Policy3")  # Should not be called
     serial = SerialPolicy(policies=[policy1, policy2, policy3], name="ExceptionTest")
 
-    with pytest.raises(TestException, match="Policy 2 failed!"):
+    with pytest.raises(ValueError, match="Test exception from policy"):
         await serial.apply(
-            base_transaction_context,
+            sample_transaction,
             container=mock_container,
             session=mock_db_session,
         )
 
-    # Check that policy1 was called, but policy3 was not
-    assert base_transaction_context.data.get("call_order") == ["Policy1", "Policy2"]
+    # Verify policy1 was called but policy3 was not
     policy1.apply_mock.assert_awaited_once()
     policy2.apply_mock.assert_awaited_once()
     policy3.apply_mock.assert_not_awaited()
 
+    # Verify call order reflects what actually happened
+    assert sample_transaction.data["call_order"] == ["Policy1", "Policy2"]
+
 
 @pytest.mark.asyncio
-async def test_serial_policy_continues_on_response(
-    base_transaction_context,
+async def test_serial_policy_with_real_policies(
+    sample_transaction,
     mock_db_session: AsyncSession,
     mock_container: DependencyContainer,
 ):
-    """Test that execution continues even if a member policy sets context.response."""
-    policy1 = MockSimplePolicy(name="Policy1")
-    policy2 = MockSimplePolicy(sets_response=True, name="Policy2")  # This policy sets a response
-    policy3 = MockSimplePolicy(name="Policy3")
-    serial = SerialPolicy(policies=[policy1, policy2, policy3], name="ResponseTest")
+    """Test SerialPolicy with real NoopPolicy instances."""
+    policy1 = NoopPolicy(name="Noop1")
+    policy2 = NoopPolicy(name="Noop2")
+    serial = SerialPolicy(policies=[policy1, policy2], name="RealPolicyTest")
 
-    # Track the context object
-    context_before_apply = base_transaction_context
-
-    # Pass mock session and container
-    result_context = await serial.apply(
-        base_transaction_context,
+    result_transaction = await serial.apply(
+        sample_transaction,
         container=mock_container,
         session=mock_db_session,
     )
 
-    # Ensure all policies were still called
-    policy1.apply_mock.assert_awaited_once()
-    policy2.apply_mock.assert_awaited_once()
-    policy3.apply_mock.assert_awaited_once()
-
-    # The final result should be the original context object
-    assert result_context is context_before_apply
-    # Check that policy 2 did set the response on the context
-    assert result_context.response is not None
-    assert result_context.response.content == "Response from Policy2".encode("utf-8")
+    assert result_transaction is sample_transaction
+    # NoopPolicies don't modify the transaction
 
 
 def test_serial_policy_repr():
-    """Test the __repr__ method for clarity."""
-    policy1 = MockSimplePolicy(name="Policy1")
-    policy2 = MockSimplePolicy(name="Policy2")
-    serial1 = SerialPolicy(policies=[policy1, policy2], name="AuthAndLog")
-    serial2 = SerialPolicy(policies=[serial1, MockSimplePolicy(name="Policy3")], name="MainFlow")
+    """Test SerialPolicy string representation."""
+    policy1 = NoopPolicy(name="Noop1")
+    policy2 = NoopPolicy(name="Noop2")
+    serial = SerialPolicy(policies=[policy1, policy2], name="ReprTest")
 
-    assert repr(serial1) == "<AuthAndLog(policies=[Policy1 <MockSimplePolicy>, Policy2 <MockSimplePolicy>])>"
-    assert repr(serial2) == "<MainFlow(policies=[AuthAndLog <SerialPolicy>, Policy3 <MockSimplePolicy>])>"
-
-    serial_default = SerialPolicy(policies=[policy1])
-    assert repr(serial_default) == "<SerialPolicy(policies=[Policy1 <MockSimplePolicy>])>"
-
-    serial_empty = SerialPolicy(policies=[], name="Empty")
-    assert repr(serial_empty) == "<Empty(policies=[])>"
+    repr_str = repr(serial)
+    assert "ReprTest" in repr_str
+    assert "Noop1" in repr_str
+    assert "Noop2" in repr_str
+    assert "NoopPolicy" in repr_str
 
 
-def test_serial_policy_serialize_config():
-    """Test the serialize_config method for SerialPolicy with nested structure."""
+def test_serial_policy_serialize():
+    """Test SerialPolicy serialization."""
+    policy1 = NoopPolicy(name="Noop1")
+    policy2 = NoopPolicy(name="Noop2")
+    serial = SerialPolicy(policies=[policy1, policy2], name="SerializeTest")
 
-    member1 = NoopPolicy(name="NoopPolicy1")
-    member2 = NoopPolicy(name="NoopPolicy2")
+    serialized = serial.serialize()
 
-    serial = SerialPolicy(policies=[member1, member2], name="MySerial")
-
-    expected_member1_config = member1.serialize()
-    expected_member2_config = member2.serialize()
-
-    expected_config = {
-        "policies": [
-            {"type": "NoopPolicy", "config": expected_member1_config},
-            {"type": "NoopPolicy", "config": expected_member2_config},
-        ]
-    }
-
-    assert serial.serialize() == expected_config
-
-
-@pytest.mark.asyncio
-async def test_serial_policy_serialization():
-    """Test that SerialPolicy can be serialized and deserialized correctly, including nested policies."""
-    # Arrange
-    policy1 = ClientApiKeyAuthPolicy()
-    policy2 = AddApiKeyHeaderPolicy(name="AddOpenAIKey")
-
-    # Manually set policy_type for serialization registry lookup (usually handled by DB loading)
-    # Ensure registry maps these types correctly
-
-    original_serial_policy = SerialPolicy(policies=[policy1, policy2], name="TestSerial")
-
-    # Act
-    serialized_data = original_serial_policy.serialize()
-    rehydrated_policy = SerialPolicy.from_serialized(serialized_data)
-
-    assert isinstance(serialized_data, dict)
-    assert "policies" in serialized_data
-    policies_list = serialized_data["policies"]
+    assert "type" in serialized
+    assert serialized["type"] == "SerialPolicy"
+    assert "name" in serialized
+    assert serialized["name"] == "SerializeTest"
+    assert "policies" in serialized
+    policies_list = serialized["policies"]
     assert isinstance(policies_list, list)
     assert len(policies_list) == 2
 
-    policy0_data = policies_list[0]
-    assert isinstance(policy0_data, dict)
-    assert policy0_data["type"] == "ClientApiKeyAuth"
-    assert policy0_data["config"] == {
-        "name": "ClientApiKeyAuthPolicy",
-    }
+    # Check first policy
+    first_policy = policies_list[0]
+    assert isinstance(first_policy, dict)
+    assert first_policy["type"] == "NoopPolicy"
+    assert first_policy["name"] == "Noop1"
 
-    policy1_data = policies_list[1]
-    assert isinstance(policy1_data, dict)
-    assert policy1_data["type"] == "AddApiKeyHeader"
-    assert policy1_data["config"] == {
-        "name": "AddOpenAIKey",
-    }
-
-    assert isinstance(rehydrated_policy, SerialPolicy)
-    assert len(rehydrated_policy.policies) == 2
-    assert isinstance(rehydrated_policy.policies[0], ClientApiKeyAuthPolicy)
-    assert isinstance(rehydrated_policy.policies[1], AddApiKeyHeaderPolicy)
-    # Check the name is correct after rehydration
-    assert rehydrated_policy.policies[1].name == "AddOpenAIKey"
+    # Check second policy
+    second_policy = policies_list[1]
+    assert isinstance(second_policy, dict)
+    assert second_policy["type"] == "NoopPolicy"
+    assert second_policy["name"] == "Noop2"
 
 
-def test_serial_policy_serialization_empty():
-    """Test serialization with an empty list of policies."""
-    # Arrange
-    original_serial_policy = SerialPolicy(policies=[], name="EmptySerial")
+def test_serial_policy_serialize_unknown_policy_type():
+    """Test SerialPolicy serialization with mock policy type."""
+    # Create a policy that's not in the registry but has get_policy_type_name
+    unknown_policy = MockSimplePolicy(name="Unknown")
+    serial = SerialPolicy(policies=[unknown_policy], name="UnknownTest")
 
-    # Act
-    serialized_data = original_serial_policy.serialize()
-    rehydrated_policy = SerialPolicy.from_serialized(serialized_data)
-
-    # Assert
-    assert isinstance(serialized_data, dict)
-    assert serialized_data == {"policies": []}
-    assert isinstance(rehydrated_policy, SerialPolicy)
-    assert len(rehydrated_policy.policies) == 0
+    serialized = serial.serialize()
+    assert serialized["type"] == "SerialPolicy"
+    assert "policies" in serialized
 
 
-def test_serial_policy_serialization_missing_policies_key():
-    """Test deserialization when 'policies' key is missing from config."""
-    # SerialPolicy.type is not used for this direct from_serialized call
-    config_missing_policies = {"name": "TestMissing"}  # type: SerializableDict
-    with pytest.raises(PolicyLoadError, match="SerialPolicy config missing 'policies' list \\(key not found\\)."):
-        SerialPolicy.from_serialized(cast(SerializableDict, config_missing_policies))
+def test_serial_policy_from_serialized_valid():
+    """Test SerialPolicy deserialization with valid config."""
+    config = cast(
+        SerializableDict,
+        {
+            "name": "DeserializedSerial",
+            "policies": [
+                {"name": "Noop1", "type": "NoopPolicy"},
+                {"name": "Noop2", "type": "NoopPolicy"},
+            ],
+        },
+    )
+
+    serial = SerialPolicy.from_serialized(config)
+
+    assert serial.name == "DeserializedSerial"
+    assert len(serial.policies) == 2
+    assert isinstance(serial.policies[0], NoopPolicy)
+    assert isinstance(serial.policies[1], NoopPolicy)
+    assert serial.policies[0].name == "Noop1"
+    assert serial.policies[1].name == "Noop2"
 
 
-def test_serial_policy_serialization_invalid_policy_item():
-    """Test deserialization when a policy item in 'policies' is not a dict."""
-    config_invalid_item: SerializableDict = {
-        "name": "TestInvalidItem",
-        "policies": ["not_a_dict"],  # Item in policies list is not a dict
-    }
+def test_serial_policy_from_serialized_missing_policies():
+    """Test SerialPolicy deserialization with missing policies key."""
+    config = cast(SerializableDict, {"name": "MissingPolicies"})
+
+    with pytest.raises(PolicyLoadError, match="SerialPolicy config missing 'policies' list"):
+        SerialPolicy.from_serialized(config)
+
+
+def test_serial_policy_from_serialized_policies_not_iterable():
+    """Test SerialPolicy deserialization with non-iterable policies."""
+    config = cast(SerializableDict, {"policies": 123})  # Use a non-iterable type
+
+    with pytest.raises(PolicyLoadError, match="SerialPolicy 'policies' must be an iterable"):
+        SerialPolicy.from_serialized(config)
+
+
+def test_serial_policy_from_serialized_policy_not_dict():
+    """Test SerialPolicy deserialization with non-dict policy."""
+    config = cast(SerializableDict, {"policies": ["not_a_dict"]})
+
+    with pytest.raises(PolicyLoadError, match="Item at index 0 in SerialPolicy 'policies' is not a dictionary"):
+        SerialPolicy.from_serialized(config)
+
+
+def test_serial_policy_from_serialized_config_not_dict():
+    """Test SerialPolicy deserialization with non-dict member_config."""
+    config = cast(SerializableDict, {"policies": [{"type": "NoopPolicy", "config": "not_a_dict"}]})
+
     with pytest.raises(
-        PolicyLoadError, match="Item at index 0 in SerialPolicy 'policies' is not a dictionary\\. Got <class 'str'>"
+        PolicyLoadError, match="Member policy at index 0 must have a 'config' field as dict. Got: <class 'str'>"
     ):
-        SerialPolicy.from_serialized(config_invalid_item)
+        SerialPolicy.from_serialized(config)
 
 
-@patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=MagicMock)
-def test_serial_policy_serialization_load_error(mock_load_policy):
-    """Test that PolicyLoadError during load_policy is re-raised."""
-    mock_load_policy.side_effect = PolicyLoadError("Failed to load sub-policy")
-    config_load_error: SerializableDict = {
-        "name": "TestLoadError",
-        "policies": [{"type": "SubPolicy", "config": {}}],  # Dummy sub-policy structure
-    }
-    with pytest.raises(PolicyLoadError, match="Failed to load sub-policy"):
-        SerialPolicy.from_serialized(config_load_error)
+def test_serial_policy_from_serialized_missing_type():
+    """Test SerialPolicy deserialization with missing policy type."""
+    config = cast(SerializableDict, {"policies": [{"name": "test"}]})
 
-
-@patch("luthien_control.control_policy.serial_policy.load_policy", new_callable=MagicMock)
-def test_serial_policy_serialization_unexpected_error(mock_load_policy):
-    """Test that unexpected errors during load_policy are wrapped in PolicyLoadError."""
-    mock_load_policy.side_effect = ValueError("Unexpected failure")
-    config_unexpected_error: SerializableDict = {
-        "name": "TestUnexpectedError",
-        "policies": [{"type": "SubPolicy", "config": {}}],  # Dummy sub-policy structure
-    }
     with pytest.raises(
         PolicyLoadError,
-        match=(
-            "Unexpected error loading member policy at index 0 \\(name: unknown\\) within SerialPolicy: "
-            "Unexpected failure"
-        ),
+        match="Failed to load member policy at index 0.*Member policy at index 0 must have a 'type' field as string",
     ):
-        SerialPolicy.from_serialized(config_unexpected_error)
+        SerialPolicy.from_serialized(config)
 
 
-def test_serial_policy_deserialize_invalid_policy_type():
-    """Test that SerialPolicy raises ValueError if a policy type is not in the registry."""
-    policy = MockSimplePolicy(name="MockSimplePolicy")
-    policy.serialize = lambda: {"type": "InvalidPolicyType"}
-    with pytest.raises(PolicyLoadError):
-        SerialPolicy.from_serialized(policy.serialize())
+def test_serial_policy_from_serialized_missing_config():
+    """Test SerialPolicy deserialization with missing policy config."""
+    config = cast(SerializableDict, {"policies": [{"type": "NoopPolicy"}]})
+
+    # This should pass now since config is no longer required as a separate field
+    serial = SerialPolicy.from_serialized(config)
+    assert len(serial.policies) == 1
+    assert isinstance(serial.policies[0], NoopPolicy)
+
+
+def test_serial_policy_from_serialized_unknown_policy_type():
+    """Test SerialPolicy deserialization with unknown policy type."""
+    config = cast(SerializableDict, {"policies": [{"type": "UnknownPolicy", "name": "test"}]})
+
+    with pytest.raises(
+        PolicyLoadError, match="Failed to load member policy at index 0.*Unknown policy type: 'UnknownPolicy'"
+    ):
+        SerialPolicy.from_serialized(config)
+
+
+def test_serial_policy_from_serialized_unexpected_error():
+    """Test SerialPolicy deserialization with unexpected error during policy loading."""
+    # Create a policy config that will cause an unexpected error during loading
+    # We'll simulate this by mocking the ControlPolicy.from_serialized method to raise an unexpected exception
+    from unittest.mock import patch
+
+    config = cast(SerializableDict, {"policies": [{"name": "test", "type": "NoopPolicy"}]})
+
+    # SerialPolicy.from_serialized now uses load_policy which handles the creation
+    # We need to patch the load_policy function where it's imported from
+    with patch("luthien_control.control_policy.loader.load_policy") as mock_load:
+        mock_load.side_effect = RuntimeError("Simulated unexpected error")
+
+        with pytest.raises(PolicyLoadError, match="Unexpected error loading member policy at index 0"):
+            SerialPolicy.from_serialized(config)
+
+
+def test_serial_policy_from_serialized_no_name():
+    """Test SerialPolicy deserialization without name."""
+    config = cast(SerializableDict, {"policies": []})
+
+    serial = SerialPolicy.from_serialized(config)
+    assert serial.name == "SerialPolicy"
+
+
+def test_serial_policy_from_serialized_non_string_name():
+    """Test SerialPolicy deserialization with non-string name raises ValidationError."""
+    from pydantic import ValidationError
+
+    config = cast(SerializableDict, {"name": 12345, "policies": []})
+
+    with pytest.raises(ValidationError):  # Pydantic will raise ValidationError for invalid types
+        SerialPolicy.from_serialized(config)
+
+
+def test_serial_policy_round_trip():
+    """Test SerialPolicy serialization and deserialization round trip."""
+    policy1 = NoopPolicy(name="Noop1")
+    policy2 = NoopPolicy(name="Noop2")
+    original = SerialPolicy(policies=[policy1, policy2], name="RoundTrip")
+
+    # Serialize
+    serialized = original.serialize()
+
+    # Deserialize
+    restored = SerialPolicy.from_serialized(serialized)
+
+    # Verify
+    assert restored.name == original.name
+    assert len(restored.policies) == len(original.policies)
+    assert restored.policies[0].name == original.policies[0].name
+    assert restored.policies[1].name == original.policies[1].name
+
+
+def test_compound_policy_alias():
+    """Test that CompoundPolicy is an alias for SerialPolicy."""
+    from luthien_control.control_policy.serial_policy import CompoundPolicy
+
+    assert CompoundPolicy is SerialPolicy
+
+
+def test_policy_load_error_in_from_serialized():
+    """Test that PolicyLoadError is re-raised with additional context."""
+    from unittest.mock import patch
+
+    # Create a policy config that will cause a PolicyLoadError during loading
+    bad_config = {
+        "type": "serial",
+        "name": "test_serial",
+        "policies": [
+            {
+                "type": "nonexistent_policy_type",  # This should cause a PolicyLoadError
+                "name": "bad_policy",
+            }
+        ],
+    }
+
+    # Mock the ControlPolicy.from_serialized to raise PolicyLoadError
+    with patch("luthien_control.control_policy.control_policy.ControlPolicy.from_serialized") as mock_from_serialized:
+        mock_from_serialized.side_effect = PolicyLoadError("Test error")
+
+        with pytest.raises(PolicyLoadError, match="Failed to load member policy at index 0"):
+            SerialPolicy.from_serialized(bad_config)

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0] - 2025-07-24
+ - Improved error handling
+ - Tighten up typing
+ - Increased test coverage
+ - Fixed Postgresql issues with tz-aware datetimes (NaiveDatetime)
+ - Logging UX
+ - Event hooks on context tracking
+ - DeepEventedModel for eventing on all state changes
+ - OpenAI Chat Completions API request/response objects
+ - New Transaction system w/ Evented data objects for tracking changes
+ - Better comparison system
+ - Loki/Grafana support
+ - Simplifications and cleanup
+ - Admin UI
+
 ## [0.2.5] - 2025-05-28
  - 98% test coverage
  - nits

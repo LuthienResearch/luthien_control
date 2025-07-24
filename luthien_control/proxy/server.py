@@ -53,6 +53,59 @@ default_payload: dict[str, Any] = Body(
 default_token: Optional[str] = Security(http_bearer_auth)
 
 
+async def _handle_api_request(
+    request: Request,
+    main_policy: ControlPolicy,
+    dependencies: DependencyContainer,
+    session: AsyncSession,
+) -> Response:
+    """
+    Common handler for API proxy requests.
+    Orchestrates the policy flow for both GET and POST requests.
+    """
+    # Log detailed proxy request information
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+    auth_header = request.headers.get("authorization", "")
+    has_auth = bool(auth_header)
+
+    logger.info(
+        "Proxy request received",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "client_ip": client_ip,
+            "user_agent": user_agent,
+            "has_auth": has_auth,
+            "query_params": dict(request.query_params),
+            "headers_count": len(request.headers),
+        },
+    )
+
+    # Orchestrate the policy flow
+    response = await run_policy_flow(
+        request=request,
+        main_policy=main_policy,
+        dependencies=dependencies,
+        session=session,
+    )
+
+    # Log response details
+    logger.info(
+        "Proxy response sent",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "client_ip": client_ip,
+        },
+    )
+    return response
+
+
+# note that /api/{path} GET and POST are the ~same endpoint
+
+
 @router.post(
     "/api/{full_path:path}",
 )
@@ -83,18 +136,7 @@ async def api_proxy_endpoint(
     authentication (e.g., ClientApiKeyAuthPolicy). If the policy does not require
     authentication, the token field can be left blank.
     """
-    logger.info(f"Authenticated request received for /api/{full_path}")
-
-    # Orchestrate the policy flow
-    response = await run_policy_flow(
-        request=request,
-        main_policy=main_policy,
-        dependencies=dependencies,
-        session=session,
-    )
-
-    logger.info(f"Returning response for {request.url.path}")
-    return response
+    return await _handle_api_request(request, main_policy, dependencies, session)
 
 
 @router.get(
@@ -123,18 +165,7 @@ async def api_proxy_get_endpoint(
     authentication (e.g., ClientApiKeyAuthPolicy). If the policy does not require
     authentication, the token field can be left blank.
     """
-    logger.info(f"Authenticated GET request received for /api/{full_path}")
-
-    # Orchestrate the policy flow
-    response = await run_policy_flow(
-        request=request,
-        main_policy=main_policy,
-        dependencies=dependencies,
-        session=session,
-    )
-
-    logger.info(f"Returning response for GET {request.url.path}")
-    return response
+    return await _handle_api_request(request, main_policy, dependencies, session)
 
 
 @router.options("/api/{full_path:path}")

@@ -5,7 +5,7 @@ import httpx
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.serial_policy import SerialPolicy
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.transaction import Transaction
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,11 +24,14 @@ class MockSimplePolicy(ControlPolicy):
         self.mock_init(settings=settings, http_client=http_client, timeout=timeout)
 
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
-        context.data["simple_applied"] = True
-        context.data["simple_timeout"] = self.timeout
-        return context
+        self,
+        transaction: Transaction,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> Transaction:
+        transaction.data["simple_applied"] = True
+        transaction.data["simple_timeout"] = self.timeout
+        return transaction
 
     def serialize(self) -> Dict[str, Any]:
         # In tests, we often manually set these, don\'t include them if None
@@ -46,13 +49,16 @@ class MockNestedPolicy(ControlPolicy):
         self.mock_init(nested_policy=nested_policy, description=description)
 
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
-        context.data["nested_applied"] = True
-        context.data["nested_description"] = self.description
+        self,
+        transaction: Transaction,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> Transaction:
+        transaction.data["nested_applied"] = True
+        transaction.data["nested_description"] = self.description
         # Simulate applying inner policy using the updated attribute name
-        context = await self.nested_policy.apply(context, container, session)
-        return context
+        transaction = await self.nested_policy.apply(transaction, container, session)
+        return transaction
 
     def serialize(self) -> Dict[str, Any]:
         # In tests, we often manually set these, don\'t include them if None
@@ -72,16 +78,19 @@ class MockListPolicy(ControlPolicy):
         self.name: Optional[str] = None
 
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
-        context.data["list_applied"] = True
-        context.data["list_mode"] = self.mode
-        context.data["list_policy_count"] = len(self.policies)
+        self,
+        transaction: Transaction,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> Transaction:
+        transaction.data["list_applied"] = True
+        transaction.data["list_mode"] = self.mode
+        transaction.data["list_policy_count"] = len(self.policies)
         # Simulate applying inner policies (simplified)
         for i, policy in enumerate(self.policies):
             if isinstance(policy, ControlPolicy):  # Skip non-policy items
-                context.data[f"list_member_{i}_name"] = getattr(policy, "name", "unknown")
-        return context
+                transaction.data[f"list_member_{i}_name"] = getattr(policy, "name", "unknown")
+        return transaction
 
     def serialize(self) -> Dict[str, Any]:
         # Filter out non-policy items for serialization
@@ -101,10 +110,13 @@ class MockNoArgsPolicy(ControlPolicy):
         self.mock_init()
 
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
-        context.data["no_args_applied"] = True
-        return context
+        self,
+        transaction: Transaction,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> Transaction:
+        transaction.data["no_args_applied"] = True
+        return transaction
 
     def serialize(self) -> Dict[str, Any]:
         config = {}
@@ -118,11 +130,14 @@ class MockMissingArgPolicy(ControlPolicy):
         self.name: Optional[str] = None
 
     async def apply(
-        self, context: "TransactionContext", container: "DependencyContainer", session: "AsyncSession"
-    ) -> "TransactionContext":
-        context.data["missing_arg_applied"] = True
-        context.data["missing_arg_mandatory"] = self.mandatory
-        return context
+        self,
+        transaction: Transaction,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> Transaction:
+        transaction.data["missing_arg_applied"] = True
+        transaction.data["missing_arg_mandatory"] = self.mandatory
+        return transaction
 
     def serialize(self) -> Dict[str, Any]:
         config = {"mandatory": self.mandatory}

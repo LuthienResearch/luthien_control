@@ -2,17 +2,14 @@
 
 import json
 import logging
-from typing import TYPE_CHECKING
+
+from .control_policy import ControlPolicy
 
 # Import the load error exception
 from .exceptions import PolicyLoadError
 
 # Import serialization types
 from .serialization import SerializedPolicy
-
-if TYPE_CHECKING:
-    # Use forward reference for ControlPolicy to avoid circular import at runtime
-    from .control_policy import ControlPolicy
 
 
 def load_policy(serialized_policy: SerializedPolicy) -> "ControlPolicy":

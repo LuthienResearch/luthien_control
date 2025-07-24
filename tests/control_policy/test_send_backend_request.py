@@ -1,366 +1,488 @@
-"""Unit tests for ControlPolicy SendBackendRequestPolicy."""
+"""Tests for SendBackendRequestPolicy."""
 
-import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+import logging
+from typing import cast
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
+import openai
 import pytest
+from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
+from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
+from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.send_backend_request import SendBackendRequestPolicy
-from luthien_control.core.transaction_context import TransactionContext
-from luthien_control.settings import Settings
+from luthien_control.control_policy.serialization import SerializableDict
+from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.request import Request
+from luthien_control.core.response import Response
+from luthien_control.core.transaction import Transaction
+from psygnal.containers import EventedDict, EventedList
+from sqlalchemy.ext.asyncio import AsyncSession
 
-# Mark all tests in this module as async tests
-pytestmark = pytest.mark.asyncio
+# --- Helper Functions ---
+
+
+def create_chat_request(
+    model: str = "gpt-4",
+    messages: list[Message] | None = None,
+    temperature: float = 0.7,
+    max_tokens: int = 100,
+    api_endpoint: str = "https://api.openai.com/v1/chat/completions",
+    api_key: str = "test_key",
+) -> Request:
+    """Create a chat completions request with sensible defaults."""
+    if messages is None:
+        messages = [
+            Message(role="system", content="You are a helpful assistant."),
+            Message(role="user", content="Hello, world!"),
+        ]
+
+    return Request(
+        payload=OpenAIChatCompletionsRequest(
+            model=model,
+            messages=EventedList(messages),
+            temperature=temperature,
+            max_tokens=max_tokens,
+        ),
+        api_endpoint=api_endpoint,
+        api_key=api_key,
+    )
+
+
+def create_chat_response(
+    id: str = "chatcmpl-123",
+    model: str = "gpt-4",
+    content: str = "Hello there!",
+    prompt_tokens: int = 10,
+    completion_tokens: int = 5,
+) -> Response:
+    """Create a chat completions response with sensible defaults."""
+    return Response(
+        payload=OpenAIChatCompletionsResponse(
+            id=id,
+            object="chat.completion",
+            created=1677652288,
+            model=model,
+            choices=EventedList(
+                [Choice(index=0, message=Message(role="assistant", content=content), finish_reason="stop")]
+            ),
+            usage=Usage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
+            ),
+        )
+    )
+
+
+def create_mock_openai_response(
+    id: str = "chatcmpl-backend-123",
+    content: str = "Hello! How can I help you today?",
+) -> dict:
+    """Create a mock OpenAI API response dict."""
+    return {
+        "id": id,
+        "object": "chat.completion",
+        "created": 1677652388,
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 15, "completion_tokens": 10, "total_tokens": 25},
+    }
+
+
+# --- Test Fixtures ---
 
 
 @pytest.fixture
-def mock_settings() -> MagicMock:
-    """Provides a mock Settings object."""
-    settings = MagicMock(spec=Settings)
+def sample_transaction() -> Transaction:
+    """Provides a Transaction with OpenAI chat completions request for testing."""
+    request = create_chat_request()
+    response = create_chat_response()
+    transaction_data = EventedDict({"test_key": "test_value"})
+    return Transaction(request=request, response=response, data=transaction_data)
+
+
+@pytest.fixture
+def mock_openai_client() -> AsyncMock:
+    """Provides a mock OpenAI client with default successful response."""
+    client = AsyncMock()
+    mock_response = MagicMock()
+    mock_response.model_dump.return_value = create_mock_openai_response()
+    client.chat.completions.create.return_value = mock_response
+    return client
+
+
+@pytest.fixture
+def test_container(mock_openai_client: AsyncMock) -> MagicMock:
+    """Provides a test dependency container with minimal mocking."""
+    container = MagicMock(spec=DependencyContainer)
+
+    # Create settings with real values instead of mocked methods
+    settings = MagicMock()
     settings.get_backend_url.return_value = "https://api.test-backend.com/v1"
     settings.get_openai_api_key.return_value = "test-backend-api-key"
-    return settings
+
+    container.settings = settings
+    container.create_openai_client.return_value = mock_openai_client
+    return container
 
 
-@pytest.fixture
-def mock_http_client() -> AsyncMock:
-    """Provides a mock httpx.AsyncClient."""
-    return AsyncMock(spec=httpx.AsyncClient)
+# --- Test Cases ---
 
 
-@pytest.fixture
-def policy(mock_http_client: AsyncMock, mock_settings: MagicMock) -> SendBackendRequestPolicy:
-    """Provides an instance of the policy with a mock client."""
-    # Dependencies are now resolved via the container in apply()
-    return SendBackendRequestPolicy(
-        name="test-policy",
+def test_send_backend_request_policy_initialization_default():
+    """Test SendBackendRequestPolicy initialization with no args."""
+    _ = SendBackendRequestPolicy()
+
+
+def test_send_backend_request_policy_initialization_custom():
+    """Test SendBackendRequestPolicy initialization with custom name."""
+    custom_name = "CustomBackendPolicy"
+    policy = SendBackendRequestPolicy(name=custom_name)
+
+    assert policy.name == custom_name
+
+
+@pytest.mark.asyncio
+async def test_send_backend_request_policy_no_backend_url(test_container: MagicMock):
+    """Test that ValueError is raised when backend URL is not configured."""
+    policy = SendBackendRequestPolicy()
+    transaction = Transaction(
+        request=create_chat_request(api_endpoint=""),
+        response=create_chat_response(),
+        data=EventedDict(),
+    )
+    db_session = AsyncMock(spec=AsyncSession)
+
+    with pytest.raises(ValueError, match="Backend URL is not configured"):
+        await policy.apply(transaction, test_container, db_session)
+
+
+@pytest.mark.asyncio
+async def test_send_backend_request_policy_no_api_key(test_container: MagicMock):
+    """Test that ValueError is raised when API key is not configured."""
+    policy = SendBackendRequestPolicy()
+    transaction = Transaction(
+        request=create_chat_request(api_key=""),
+        response=create_chat_response(),
+        data=EventedDict(),
+    )
+    db_session = AsyncMock(spec=AsyncSession)
+
+    with pytest.raises(ValueError, match="OpenAI API key is not configured"):
+        await policy.apply(transaction, test_container, db_session)
+
+
+@pytest.mark.asyncio
+async def test_send_backend_request_policy_successful_request(
+    sample_transaction: Transaction,
+    test_container: MagicMock,
+    mock_openai_client: AsyncMock,
+):
+    """Test successful backend request and response handling."""
+    policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
+
+    result = await policy.apply(sample_transaction, test_container, db_session)
+
+    assert result is sample_transaction
+
+    # Verify OpenAI client was created with correct parameters from transaction.request
+    test_container.create_openai_client.assert_called_once_with(
+        "https://api.openai.com/v1/chat/completions", "test_key"
     )
 
+    # Verify chat completion was called
+    mock_openai_client.chat.completions.create.assert_called_once()
+    call_kwargs = mock_openai_client.chat.completions.create.call_args.kwargs
 
-@pytest.fixture
-def base_context() -> TransactionContext:
-    """Provides a basic TransactionContext with a simple request."""
-    context = TransactionContext(transaction_id=uuid.uuid4())
-    mock_request = MagicMock(spec=httpx.Request)
-    mock_request.method = "POST"
-    mock_request.url = httpx.URL("http://proxy.test/some/path")
-    mock_request.headers = httpx.Headers(
-        [
-            (b"host", b"proxy.test"),
-            (b"content-type", b"application/json"),
-            (b"accept", b"*/*"),
-            (b"x-client-header", b"client-value"),
-            (b"content-length", b"18"),  # Excluded header
-            (b"authorization", b"Bearer client-token"),  # Excluded header
-        ]
+    # Check that the request payload was properly converted and filtered
+    assert call_kwargs["model"] == "gpt-4"
+    assert len(call_kwargs["messages"]) == 2
+    assert call_kwargs["temperature"] == 0.7
+    assert call_kwargs["max_tokens"] == 100
+    # None values should be filtered out
+    assert "stream" not in call_kwargs  # This would be None and should be filtered
+
+    # Verify response was stored in transaction
+    assert sample_transaction.response.payload is not None
+    assert sample_transaction.response.payload.id == "chatcmpl-backend-123"
+    assert sample_transaction.response.payload.model == "gpt-4"
+    assert len(sample_transaction.response.payload.choices) == 1
+    assert sample_transaction.response.payload.choices[0].message.content == "Hello! How can I help you today?"
+    assert sample_transaction.response.payload.usage.total_tokens == 25
+
+
+@pytest.mark.asyncio
+async def test_send_backend_request_policy_logging(
+    sample_transaction: Transaction,
+    test_container: MagicMock,
+    caplog,
+):
+    """Test that requests and responses are logged correctly."""
+    policy = SendBackendRequestPolicy(name="TestPolicy")
+    db_session = AsyncMock(spec=AsyncSession)
+
+    with caplog.at_level(logging.INFO):
+        await policy.apply(sample_transaction, test_container, db_session)
+
+    # Check request logging
+    assert "Sending chat completions request to backend with model 'gpt-4' and 2 messages. (TestPolicy)" in caplog.text
+
+    # Check response logging
+    assert "Received backend response with 1 choices and usage:" in caplog.text
+    assert "(TestPolicy)" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_send_backend_request_policy_api_timeout_error(
+    sample_transaction: Transaction,
+    test_container: MagicMock,
+    mock_openai_client: AsyncMock,
+    caplog,
+):
+    """Test handling of OpenAI API timeout errors."""
+    policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
+
+    # Configure client to raise timeout error
+    mock_request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    timeout_error = openai.APITimeoutError(request=mock_request)
+    mock_openai_client.chat.completions.create.side_effect = timeout_error
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(openai.APITimeoutError):
+            await policy.apply(sample_transaction, test_container, db_session)
+
+    assert "Timeout error during backend request" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_send_backend_request_policy_api_connection_error(
+    sample_transaction: Transaction,
+    test_container: MagicMock,
+    mock_openai_client: AsyncMock,
+    caplog,
+):
+    """Test handling of OpenAI API connection errors."""
+    policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
+
+    # Configure client to raise connection error
+    mock_request = httpx.Request("POST", "https://api.test-backend.com/v1/chat/completions")
+    connection_error = openai.APIConnectionError(message="Connection failed", request=mock_request)
+    mock_openai_client.chat.completions.create.side_effect = connection_error
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(openai.APIConnectionError, match="Connection failed"):
+            await policy.apply(sample_transaction, test_container, db_session)
+
+    assert "Connection error during backend request" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_send_backend_request_policy_api_error(
+    sample_transaction: Transaction,
+    test_container: MagicMock,
+    mock_openai_client: AsyncMock,
+    caplog,
+):
+    """Test handling of general OpenAI API errors."""
+    policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
+
+    # Configure client to raise API error
+    mock_request = httpx.Request("POST", "https://api.test-backend.com/v1/chat/completions")
+    api_error = openai.APIError("Invalid request", request=mock_request, body=None)
+    mock_openai_client.chat.completions.create.side_effect = api_error
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(openai.APIError, match="Invalid request"):
+            await policy.apply(sample_transaction, test_container, db_session)
+
+    assert "OpenAI API error during backend request" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_send_backend_request_policy_unexpected_error(
+    sample_transaction: Transaction,
+    test_container: MagicMock,
+    mock_openai_client: AsyncMock,
+    caplog,
+):
+    """Test handling of unexpected errors during backend request."""
+    policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
+
+    # Configure client to raise unexpected error
+    unexpected_error = RuntimeError("Something went wrong")
+    mock_openai_client.chat.completions.create.side_effect = unexpected_error
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(RuntimeError, match="Something went wrong"):
+            await policy.apply(sample_transaction, test_container, db_session)
+
+    assert "Unexpected error during backend request" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_send_backend_request_policy_filters_none_values(
+    sample_transaction: Transaction,
+    test_container: MagicMock,
+    mock_openai_client: AsyncMock,
+):
+    """Test that None values are filtered from request payload."""
+    policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
+
+    # Add some None values to the request payload
+    sample_transaction.request.payload.stream = None
+    sample_transaction.request.payload.stop = None
+
+    await policy.apply(sample_transaction, test_container, db_session)
+
+    call_kwargs = mock_openai_client.chat.completions.create.call_args.kwargs
+
+    # None values should be filtered out
+    assert "stream" not in call_kwargs
+    assert "stop" not in call_kwargs
+    # Non-None values should be present
+    assert "model" in call_kwargs
+    assert "messages" in call_kwargs
+
+
+@pytest.mark.asyncio
+async def test_send_backend_request_policy_different_model(
+    test_container: MagicMock,
+    mock_openai_client: AsyncMock,
+):
+    """Test with a different model in the request."""
+    # Create transaction with different model
+    transaction = Transaction(
+        request=create_chat_request(
+            model="gpt-3.5-turbo",
+            messages=[Message(role="user", content="Test message")],
+        ),
+        response=create_chat_response(model="gpt-3.5-turbo", prompt_tokens=5, completion_tokens=3),
+        data=EventedDict(),
     )
-    mock_request.read = AsyncMock(return_value=b'{"input": "test"}')
-    mock_request.stream = None  # Simulate a request body that can be read
+    db_session = AsyncMock(spec=AsyncSession)
 
-    context.request = mock_request
-    return context
+    policy = SendBackendRequestPolicy()
+    await policy.apply(transaction, test_container, db_session)
 
-
-async def test_apply_success(
-    policy: SendBackendRequestPolicy,
-    base_context: TransactionContext,
-    mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Test successful request sending and response handling."""
-    # Mock the response from the backend
-    mock_backend_response = MagicMock(spec=httpx.Response)
-    mock_backend_response.status_code = 200
-    # Simulate response body being read by httpx upon receiving response
-    mock_backend_response.content = b'{"response": "success"}'
-    # Configure the mock client to return this response
-    mock_http_client.send.return_value = mock_backend_response
-
-    # Patch Settings within the test scope
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        updated_context = await policy.apply(base_context, container=mock_container, session=mock_db_session)
-
-    # Assert
-    assert updated_context is base_context
-    # Verify the http client was called
-    mock_http_client.send.assert_awaited_once()
-    # Get the request object passed to send
-    sent_request = mock_http_client.send.await_args.args[0]
-
-    # Assertions on the request sent to the backend
-    assert sent_request.method == "POST"
-    assert str(sent_request.url) == "https://api.test-backend.com/v1/some/path"
-    # Check specific headers
-    sent_headers = sent_request.headers
-    assert sent_headers.get("host") == "api.test-backend.com"
-    assert sent_headers.get("authorization") == "Bearer test-backend-api-key"
-    assert sent_headers.get("accept-encoding") == "identity"
-    assert sent_headers.get("content-type") == "application/json"  # Preserved
-    assert sent_headers.get("accept") == "*/*"  # Preserved
-    assert sent_headers.get("x-client-header") == "client-value"  # Preserved
-    # Check excluded headers
-    assert sent_headers.get("authorization") != "Bearer client-token"  # Original auth replaced
-
-    # Assert that the backend response is stored in the context
-    assert updated_context.response is mock_backend_response
-    # Verify the mocked response content was accessed (implicitly by httpx/policy)
-    assert mock_backend_response.content is not None  # Ensures the attribute was set/accessed
+    call_kwargs = mock_openai_client.chat.completions.create.call_args.kwargs
+    assert call_kwargs["model"] == "gpt-3.5-turbo"
+    assert len(call_kwargs["messages"]) == 1
 
 
-async def test_apply_builds_correct_url_no_base_slash(
-    policy: SendBackendRequestPolicy,
-    base_context: TransactionContext,
-    mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Verify URL construction with no trailing slash on the base backend URL."""
+def test_send_backend_request_policy_serialize_default():
+    """Test serialization with default name."""
+    policy = SendBackendRequestPolicy()
 
-    original_client_url = httpx.URL("http://proxy.test/specific/endpoint")
-    assert base_context.request is not None
-    base_context.request.url = original_client_url
-    mock_settings.get_backend_url.return_value = "http://backend.internal:8080/api"  # No trailing slash
-    expected_url = "http://backend.internal:8080/api/specific/endpoint"
-
-    # Patch Settings and Act
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context, container=mock_container, session=mock_db_session)
-
-    # Assert
-    mock_http_client.send.assert_awaited_once()
-    sent_request = mock_http_client.send.await_args.args[0]
-    assert str(sent_request.url) == expected_url
-
-
-async def test_apply_builds_correct_url_with_base_slash(
-    policy: SendBackendRequestPolicy,
-    base_context: TransactionContext,
-    mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Verify URL construction with a trailing slash on the base backend URL."""
-
-    original_client_url = httpx.URL("http://proxy.test/specific/endpoint")
-    assert base_context.request is not None
-    base_context.request.url = original_client_url
-    mock_settings.get_backend_url.return_value = "http://backend.internal:8080/api/"  # Trailing slash
-    expected_url = "http://backend.internal:8080/api/specific/endpoint"
-
-    # Patch Settings and Act
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context, container=mock_container, session=mock_db_session)
-
-    # Assert
-    mock_http_client.send.assert_awaited_once()
-    sent_request = mock_http_client.send.await_args.args[0]
-    assert str(sent_request.url) == expected_url
-
-
-async def test_apply_builds_correct_url_root_client_path(
-    policy: SendBackendRequestPolicy,
-    base_context: TransactionContext,
-    mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Verify URL construction when the client request path is '/'."""
-
-    root_client_url = httpx.URL("http://proxy.test/")  # Root path
-    assert base_context.request is not None
-    base_context.request.url = root_client_url
-    mock_settings.get_backend_url.return_value = "http://backend.internal:8080/api"
-    expected_url = "http://backend.internal:8080/api/"  # Should join correctly
-
-    # Patch Settings and Act
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context, container=mock_container, session=mock_db_session)
-
-    # Assert
-    mock_http_client.send.assert_awaited_once()
-    sent_request = mock_http_client.send.await_args.args[0]
-    assert str(sent_request.url) == expected_url
-
-
-async def test_apply_prepares_correct_headers(
-    policy: SendBackendRequestPolicy,
-    base_context: TransactionContext,
-    mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Verify headers sent to the backend are prepared correctly."""
-
-    # Use specific settings for this test
-    mock_settings.get_backend_url.return_value = "https://secure-backend.org"
-    mock_settings.get_openai_api_key.return_value = "backend-key-for-header-test"
-
-    assert base_context.request is not None
-    # Capture original headers BEFORE applying the policy
-    original_headers = base_context.request.headers.copy()
-
-    # Patch Settings and Act
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        await policy.apply(base_context, container=mock_container, session=mock_db_session)
-
-    # Assert
-    mock_http_client.send.assert_awaited_once()
-    sent_request = mock_http_client.send.await_args.args[0]
-    sent_headers = sent_request.headers
-
-    # Check Host header based on mock_settings
-    assert sent_headers.get("host") == "secure-backend.org"
-    # Check Authorization header based on mock_settings
-    assert sent_headers.get("authorization") == "Bearer backend-key-for-header-test"
-    # Check forced Accept-Encoding
-    assert sent_headers.get("accept-encoding") == "identity"
-    # Check content-length is set correctly
-    assert sent_headers.get("content-length") == "18"
-    # Check preserved headers from base_context fixture
-    assert sent_headers.get("content-type") == "application/json"
-    assert sent_headers.get("accept") == "*/*"
-    assert sent_headers.get("x-client-header") == "client-value"
-    # Check excluded headers from base_context fixture
-    assert "connection" not in sent_headers  # Another hop-by-hop header
-    # Ensure original client Host and Authorization were replaced/excluded
-    # Use the captured original_headers here
-    assert sent_headers.get("host") != original_headers.get("host")
-    assert sent_headers.get("authorization") != original_headers.get("authorization")
-
-
-async def test_apply_handles_httpx_request_error(
-    policy: SendBackendRequestPolicy,
-    base_context: TransactionContext,
-    mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Test handling of httpx.RequestError during backend communication."""
-    # Arrange
-    error_message = "Connection refused"
-    # Ensure the request object passed to the exception has a URL for logging
-    request_for_error = base_context.request
-    if request_for_error:
-        request_for_error.url = httpx.URL("https://api.test-backend.com/v1/some/path")
-    mock_http_client.send.side_effect = httpx.RequestError(error_message, request=request_for_error)
-
-    # Patch Settings and Act/Assert
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        with pytest.raises(httpx.RequestError, match=error_message) as exc_info:
-            await policy.apply(base_context, container=mock_container, session=mock_db_session)
-
-    # Optional: Assert that the raised exception is the same instance
-    assert exc_info.value is mock_http_client.send.side_effect
-    # Verify send was called
-    mock_http_client.send.assert_awaited_once()
-    # Verify no response was stored
-    assert base_context.response is None
-
-
-async def test_apply_handles_httpx_timeout_error(
-    policy: SendBackendRequestPolicy,
-    base_context: TransactionContext,
-    mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Test handling of httpx.TimeoutException during backend communication."""
-    # Arrange
-    error_message = "Read timeout"
-    # Ensure the request object passed to the exception has a URL for logging
-    request_for_error = base_context.request
-    if request_for_error:
-        request_for_error.url = httpx.URL("https://api.test-backend.com/v1/some/path")
-    mock_http_client.send.side_effect = httpx.TimeoutException(error_message, request=request_for_error)
-
-    # Patch Settings and Act/Assert
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        with pytest.raises(httpx.TimeoutException, match=error_message) as exc_info:
-            await policy.apply(base_context, container=mock_container, session=mock_db_session)
-
-    # Optional: Assert that the raised exception is the same instance
-    assert exc_info.value is mock_http_client.send.side_effect
-    # Verify send was called
-    mock_http_client.send.assert_awaited_once()
-    # Verify no response was stored
-    assert base_context.response is None
-
-
-async def test_apply_raises_if_context_request_is_none(
-    policy: SendBackendRequestPolicy,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Test that apply raises ValueError if context.request is None."""
-    context_no_request = TransactionContext(transaction_id=uuid.uuid4())
-    context_no_request.request = None
-    with pytest.raises(ValueError, match="context.request is None"):
-        await policy.apply(context_no_request, container=mock_container, session=mock_db_session)
-
-
-async def test_apply_handles_invalid_backend_url(
-    policy: SendBackendRequestPolicy,
-    base_context: TransactionContext,
-    mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Test that apply raises ValueError if BACKEND_URL is invalid for host parsing."""
-    mock_settings.get_backend_url.return_value = "invalid-url"  # Invalid URL
-
-    with patch("luthien_control.control_policy.send_backend_request.Settings", return_value=mock_settings):
-        with pytest.raises(ValueError, match="Could not determine backend Host from BACKEND_URL"):
-            await policy.apply(base_context, container=mock_container, session=mock_db_session)
-
-    mock_http_client.send.assert_not_called()
-
-
-async def test_apply_with_no_backend_url(
-    policy: SendBackendRequestPolicy,
-    base_context: TransactionContext,
-    mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Test that apply raises ValueError if BACKEND_URL is not set."""
-    mock_settings.get_backend_url.return_value = None
-    with pytest.raises(ValueError, match="BACKEND_URL is not configured."):
-        await policy.apply(base_context, container=mock_container, session=mock_db_session)
-
-    mock_http_client.send.assert_not_called()
-
-
-async def test_apply_http_client_weird_exception(
-    policy: SendBackendRequestPolicy,
-    base_context: TransactionContext,
-    mock_http_client: AsyncMock,
-    mock_settings: MagicMock,
-    mock_container: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """Test exception handling for unexpected exceptions from the http client."""
-    mock_http_client.send.side_effect = Exception("Unexpected error")
-    with pytest.raises(Exception, match="Unexpected error"):
-        await policy.apply(base_context, container=mock_container, session=mock_db_session)
-
-    mock_http_client.send.assert_awaited_once()
-    assert base_context.response is None
-
-
-async def test_backend_request_policy_serialize_from_serialized():
-    """Test serialization and deserialization of the policy."""
-    policy = SendBackendRequestPolicy(name="test-policy")
     serialized = policy.serialize()
-    assert serialized == {"name": "test-policy"}
-    deserialized_policy = SendBackendRequestPolicy.from_serialized(serialized)
-    assert deserialized_policy.name == "test-policy"
+
+    assert serialized["type"] == "SendBackendRequest"
+    assert "name" in serialized  # Now includes default class name
+
+
+def test_send_backend_request_policy_serialize_custom():
+    """Test serialization with custom name."""
+    custom_name = "CustomBackendPolicy"
+    policy = SendBackendRequestPolicy(name=custom_name)
+
+    serialized = policy.serialize()
+
+    assert serialized["type"] == "SendBackendRequest"
+    assert serialized["name"] == custom_name
+
+
+def test_send_backend_request_policy_from_serialized_with_name():
+    """Test deserialization with name in config."""
+    config = cast(SerializableDict, {"name": "DeserializedPolicy"})
+
+    policy = SendBackendRequestPolicy.from_serialized(config)
+
+    assert policy.name == "DeserializedPolicy"
+
+
+def test_send_backend_request_policy_from_serialized_without_name():
+    """Test deserialization without name in config."""
+    config = {}
+
+    policy = SendBackendRequestPolicy.from_serialized(config)
+
+    assert policy.name == "SendBackendRequestPolicy"
+
+
+def test_send_backend_request_policy_from_serialized_non_string_name():
+    """Test deserialization with non-string name raises ValidationError."""
+    config = cast(SerializableDict, {"name": 12345})
+
+    with pytest.raises(Exception):  # Pydantic will raise ValidationError for invalid types
+        SendBackendRequestPolicy.from_serialized(config)
+
+
+def test_send_backend_request_policy_round_trip_serialization():
+    """Test serialization and deserialization round trip."""
+    original_name = "RoundTripTestPolicy"
+    original_policy = SendBackendRequestPolicy(name=original_name)
+
+    # Serialize
+    serialized = original_policy.serialize()
+
+    # Deserialize
+    restored_policy = SendBackendRequestPolicy.from_serialized(serialized)
+
+    # Verify
+    assert restored_policy.name == original_policy.name
+    assert restored_policy.serialize() == original_policy.serialize()
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        (None, "SendBackendRequestPolicy"),  # Default name (now returns class name)
+        ("CustomPolicy", "CustomPolicy"),  # Custom name
+        ("Policy123", "Policy123"),  # Alphanumeric name
+        ("", ""),  # Empty string
+    ],
+)
+def test_send_backend_request_policy_parametrized_initialization(name: str | None, expected: str):
+    """Test initialization with various name parameters."""
+    policy = SendBackendRequestPolicy() if name is None else SendBackendRequestPolicy(name=name)
+    assert policy.name == expected
+
+
+@pytest.mark.asyncio
+async def test_send_backend_request_policy_container_client_creation(
+    sample_transaction: Transaction,
+):
+    """Test that the policy correctly uses container to create OpenAI client."""
+    policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
+
+    # Create a minimal container with only what we need
+    container = MagicMock(spec=DependencyContainer)
+
+    # Create a test client
+    test_client = AsyncMock()
+    test_response = MagicMock()
+    test_response.model_dump.return_value = create_mock_openai_response(id="test-response", content="Test")
+    test_client.chat.completions.create.return_value = test_response
+
+    container.create_openai_client.return_value = test_client
+
+    await policy.apply(sample_transaction, container, db_session)
+
+    # Verify that create_openai_client was called with the correct parameters from transaction.request
+    container.create_openai_client.assert_called_once_with("https://api.openai.com/v1/chat/completions", "test_key")
+
+    # Verify that the returned client was used
+    test_client.chat.completions.create.assert_called_once()

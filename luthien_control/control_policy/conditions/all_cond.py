@@ -1,31 +1,33 @@
-from typing import List
+from typing import List, Literal
+
+from pydantic import Field, field_serializer, field_validator
 
 from luthien_control.control_policy.conditions.condition import Condition
-from luthien_control.control_policy.serialization import SerializableDict
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.transaction import Transaction
 
 
 class AllCondition(Condition):
-    type = "all"
+    type: Literal["all"] = "all"
+    conditions: List[Condition] = Field(...)
 
-    def __init__(self, conditions: List[Condition]):
-        self.conditions = conditions
+    @field_serializer("conditions")
+    def serialize_conditions(self, value: List[Condition]) -> List[dict]:
+        """Custom serializer for conditions field."""
+        return [condition.serialize() for condition in value]
 
-    def evaluate(self, context: TransactionContext) -> bool:
-        return all(condition.evaluate(context) for condition in self.conditions)
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}(conditions={self.conditions!r})"
-
-    def serialize(self) -> SerializableDict:
-        return {
-            "type": self.type,
-            "conditions": [condition.serialize() for condition in self.conditions],
-        }
-
+    @field_validator("conditions", mode="before")
     @classmethod
-    def from_serialized(cls, serialized: SerializableDict) -> "AllCondition":
-        from luthien_control.control_policy.conditions.util import get_conditions_from_serialized
+    def validate_conditions(cls, value):
+        """Custom validator to deserialize conditions from dicts."""
+        if isinstance(value, list):
+            result = []
+            for item in value:
+                if isinstance(item, dict):
+                    result.append(Condition.from_serialized(item))
+                elif isinstance(item, Condition):
+                    result.append(item)
+            return result
+        return value
 
-        conds = get_conditions_from_serialized(serialized)
-        return cls(conds)
+    def evaluate(self, transaction: Transaction) -> bool:
+        return all(condition.evaluate(transaction) for condition in self.conditions)

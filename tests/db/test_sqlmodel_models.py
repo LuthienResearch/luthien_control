@@ -1,6 +1,11 @@
 from datetime import datetime, timedelta, timezone
 
-from luthien_control.db.sqlmodel_models import ClientApiKey, ControlPolicy, LuthienLog
+from luthien_control.db.naive_datetime import NaiveDatetime
+from luthien_control.db.sqlmodel_models import (
+    ClientApiKey,
+    ControlPolicy,
+    LuthienLog,
+)
 
 
 def test_policy_creation():
@@ -160,22 +165,22 @@ def test_client_api_key_creation_all_fields():
 
 def test_luthien_log_creation_required_fields():
     """Test successful creation of LuthienLog with required fields."""
-    now_utc = datetime.now(timezone.utc)
+    now_utc = NaiveDatetime.now()
     log = LuthienLog(transaction_id="tx-abc-123", datatype="test_event")
 
     assert log.id is None
     assert log.transaction_id == "tx-abc-123"
     assert log.datatype == "test_event"
     assert isinstance(log.datetime, datetime)
-    assert log.datetime.tzinfo == timezone.utc
-    assert abs(log.datetime - now_utc) < timedelta(seconds=1)
+    assert log.datetime.tzinfo is None  # Should be naive datetime
+    assert abs((log.datetime - now_utc).total_seconds()) < 1
     assert log.data is None
     assert log.notes is None
 
 
 def test_luthien_log_creation_all_fields():
     """Test successful creation of LuthienLog with all fields specified."""
-    log_time = datetime(2023, 6, 15, 14, 30, 0, tzinfo=timezone.utc)
+    log_time = NaiveDatetime(2023, 6, 15, 14, 30, 0)
     log_data_content = {"event_details": "something happened"}
     log_notes_content = {"source": "test_suite"}
 
@@ -198,9 +203,76 @@ def test_luthien_log_creation_all_fields():
 
 def test_luthien_log_repr():
     """Test the __repr__ method of LuthienLog."""
-    log_time = datetime(2023, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    log_time = NaiveDatetime(2023, 1, 1, 0, 0, 0)
     log = LuthienLog(id=1, transaction_id="repr-tx", datetime=log_time, datatype="repr_test")
-    expected_repr = (
-        "<LuthienLog(id=1, transaction_id='repr-tx', datetime='2023-01-01 00:00:00+00:00', datatype='repr_test')>"
-    )
+    # No timezone in repr
+    expected_repr = "<LuthienLog(id=1, transaction_id='repr-tx', datetime='2023-01-01 00:00:00', datatype='repr_test')>"
     assert repr(log) == expected_repr
+
+
+def test_luthien_log_with_timezone_aware_datetime():
+    """Test that LuthienLog automatically converts timezone-aware datetimes to naive."""
+    # This test demonstrates how our NaiveDatetime class prevents the original timezone issue
+    timezone_aware_dt = datetime(2023, 6, 15, 14, 30, 0, tzinfo=timezone.utc)
+
+    log = LuthienLog(
+        transaction_id="tx-timezone-test",
+        datatype="timezone_test_event",
+        datetime=timezone_aware_dt,  # Pass timezone-aware datetime  # type: ignore[arg-type]
+    )
+
+    # The datetime should be automatically converted to naive
+    assert log.datetime.tzinfo is None
+    assert log.datetime.year == 2023
+    assert log.datetime.month == 6
+    assert log.datetime.day == 15
+    assert log.datetime.hour == 14  # Should preserve the UTC time
+
+
+def test_luthien_log_datetime_conversion():
+    """Test that datetime objects are properly converted to NaiveDatetime."""
+    regular_datetime = datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    log = LuthienLog(transaction_id="tx-123", datatype="test_type", datetime=regular_datetime)
+
+    # Should be converted to NaiveDatetime
+    assert isinstance(log.datetime, NaiveDatetime)
+    assert log.datetime == NaiveDatetime(regular_datetime)
+
+
+def test_luthien_log_with_naive_datetime_direct():
+    """Test LuthienLog with NaiveDatetime object passed directly."""
+    naive_dt = NaiveDatetime.now()
+
+    log = LuthienLog(transaction_id="tx-456", datatype="test_type", datetime=naive_dt)
+
+    # Should remain NaiveDatetime (not converted again)
+    assert isinstance(log.datetime, NaiveDatetime)
+    assert log.datetime == naive_dt
+
+
+def test_jsonb_or_json_postgresql_dialect():
+    """Test JsonBOrJson type for PostgreSQL dialect."""
+    from unittest.mock import Mock
+
+    from luthien_control.db.sqlmodel_models import JsonBOrJson
+    from sqlalchemy import JSON
+    from sqlalchemy.dialects.postgresql import JSONB
+
+    json_type = JsonBOrJson()
+
+    # Mock PostgreSQL dialect
+    pg_dialect = Mock()
+    pg_dialect.name = "postgresql"
+    pg_dialect.type_descriptor.return_value = JSONB()
+
+    json_type.load_dialect_impl(pg_dialect)
+    pg_dialect.type_descriptor.assert_called_once()
+
+    # Mock SQLite dialect
+    sqlite_dialect = Mock()
+    sqlite_dialect.name = "sqlite"
+    sqlite_dialect.type_descriptor.return_value = JSON()
+
+    json_type.load_dialect_impl(sqlite_dialect)
+    sqlite_dialect.type_descriptor.assert_called_once()

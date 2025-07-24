@@ -54,11 +54,7 @@ def get_tx_value(transaction_context: TransactionContext, path: str) -> Any:
         # If x is bytes, and we still have path segments to process,
         # it implies these segments are keys into the JSON content.
         if isinstance(x, bytes) and vals:  # Check if vals is not empty
-            try:
-                x = json.loads(x)
-            except json.JSONDecodeError as e:
-                # Wrapping the original error for better diagnostics
-                raise ValueError(f"Failed to decode JSON content for path '{path}' at segment '{vals[0]}'") from e
+            x = json.loads(x)
 
         if isinstance(x, dict):
             x = x[vals.pop(0)]

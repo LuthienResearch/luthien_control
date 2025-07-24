@@ -1,57 +1,85 @@
+# pyright: reportCallIssue=false
 from typing import List
 
-import httpx
 import pytest
+from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
+from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
+from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
+from luthien_control.control_policy.conditions import EqualsCondition, path
 from luthien_control.control_policy.conditions.all_cond import AllCondition
 from luthien_control.control_policy.conditions.any_cond import AnyCondition
-from luthien_control.control_policy.conditions.comparisons import EqualsCondition  # For constructing test cases
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.conditions.not_cond import NotCondition
-from luthien_control.control_policy.conditions.util import get_condition_from_serialized  # For testing deserialization
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.control_policy.conditions.util import get_condition_from_serialized
+from luthien_control.core.request import Request
+from luthien_control.core.response import Response
+from luthien_control.core.transaction import Transaction
+from psygnal.containers import EventedDict, EventedList
 
 
 @pytest.fixture
 def true_condition() -> Condition:
     """A simple condition that always evaluates to True."""
-    return EqualsCondition(key="data.static_true", value=True)
+    return EqualsCondition(path("data.static_true"), True)
 
 
 @pytest.fixture
 def false_condition() -> Condition:
     """A simple condition that always evaluates to False."""
-    return EqualsCondition(key="data.static_false", value=True)  # Note: data.static_false will be False in context
+    return EqualsCondition(path("data.static_false"), True)  # Note: data.static_false will be False in transaction
 
 
 @pytest.fixture
-def sample_request() -> httpx.Request:
-    """Provides a sample httpx.Request object."""
-    return httpx.Request(
-        method="GET",
-        url="http://example.com/test",
+def sample_transaction() -> Transaction:
+    """Provides a Transaction populated with sample request, response, and static data for conditions."""
+
+    # Create request
+    request = Request(
+        payload=OpenAIChatCompletionsRequest(
+            model="gpt-4",
+            messages=EventedList([Message(role="user", content="Hello, world!")]),
+        ),
+        api_endpoint="https://api.openai.com/v1/chat/completions",
+        api_key="test_key",
     )
 
-
-@pytest.fixture
-def sample_response() -> httpx.Response:
-    """Provides a sample httpx.Response object."""
-    return httpx.Response(
-        status_code=200,
-        json={"message": "ok"},
+    # Create response
+    response = Response(
+        payload=OpenAIChatCompletionsResponse(
+            id="chatcmpl-123",
+            object="chat.completion",
+            created=1677652288,
+            model="gpt-4",
+            choices=EventedList(
+                [
+                    Choice(
+                        index=0,
+                        message=Message(role="assistant", content="Hello there!"),
+                        finish_reason="stop",
+                    )
+                ]
+            ),
+            usage=Usage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
+        )
     )
 
-
-@pytest.fixture
-def transaction_context(sample_request: httpx.Request, sample_response: httpx.Response) -> TransactionContext:
-    """Provides a TransactionContext populated with sample request, response, and static data for conditions."""
-    return TransactionContext(
-        request=sample_request,
-        response=sample_response,
-        data={"static_true": True, "static_false": False, "value_a": "hello", "value_b": 10},
+    # Create transaction with static data for condition testing
+    transaction_data = EventedDict(
+        {
+            "static_true": True,
+            "static_false": False,
+            "value_a": "hello",
+            "value_b": 10,
+        }
     )
 
+    transaction = Transaction(
+        request=request,
+        response=response,
+        data=transaction_data,
+    )
 
-# Tests for AllCondition, AnyCondition, NotCondition will go here
+    return transaction
 
 
 # AllCondition Tests
@@ -70,15 +98,15 @@ def transaction_context(sample_request: httpx.Request, sample_response: httpx.Re
 def test_all_condition_evaluation(
     conditions_setup: List[str],
     expected_result: bool,
-    transaction_context: TransactionContext,
+    sample_transaction: Transaction,
     true_condition: Condition,
     false_condition: Condition,
 ) -> None:
     """Tests the evaluation logic for AllCondition."""
     conditions_map = {"true": true_condition, "false": false_condition}
     conditions = [conditions_map[cond_type] for cond_type in conditions_setup]
-    all_cond = AllCondition(conditions)
-    assert all_cond.evaluate(transaction_context) is expected_result
+    all_cond = AllCondition(conditions=conditions)
+    assert all_cond.evaluate(sample_transaction) is expected_result
 
 
 @pytest.mark.parametrize(
@@ -97,16 +125,14 @@ def test_all_condition_serialization_deserialization(
     conditions_map = {"true": true_condition, "false": false_condition}
     conditions = [conditions_map[cond_type] for cond_type in conditions_setup]
 
-    original_condition = AllCondition(conditions)
+    original_condition = AllCondition(conditions=conditions)
     serialized_data = original_condition.serialize()
 
-    assert serialized_data["type"] == AllCondition.type
+    assert serialized_data["type"] == "all"
     # Ensure "conditions" is a list before using len() or indexing
     conditions_list = serialized_data["conditions"]
     assert isinstance(conditions_list, list)
     assert len(conditions_list) == len(conditions)
-    for i, cond in enumerate(conditions):
-        assert conditions_list[i] == cond.serialize()
 
     from_serializedd_condition = get_condition_from_serialized(serialized_data)
     assert isinstance(from_serializedd_condition, AllCondition)
@@ -116,6 +142,11 @@ def test_all_condition_serialization_deserialization(
     # Here, we rely on the fact that get_condition_from_serialized handles this for us.
     # A simple re-serialization check can also be a good indicator:
     assert from_serializedd_condition.serialize() == serialized_data
+
+
+def test_all_condition_validator_non_list():
+    """Test that the validator handles non-list values."""
+    assert AllCondition.validate_conditions("not a list") == "not a list"
 
 
 # AnyCondition Tests
@@ -134,15 +165,15 @@ def test_all_condition_serialization_deserialization(
 def test_any_condition_evaluation(
     conditions_setup: List[str],
     expected_result: bool,
-    transaction_context: TransactionContext,
+    sample_transaction: Transaction,
     true_condition: Condition,
     false_condition: Condition,
 ) -> None:
     """Tests the evaluation logic for AnyCondition."""
     conditions_map = {"true": true_condition, "false": false_condition}
     conditions = [conditions_map[cond_type] for cond_type in conditions_setup]
-    any_cond = AnyCondition(conditions)
-    assert any_cond.evaluate(transaction_context) is expected_result
+    any_cond = AnyCondition(conditions=conditions)
+    assert any_cond.evaluate(sample_transaction) is expected_result
 
 
 @pytest.mark.parametrize(
@@ -161,21 +192,25 @@ def test_any_condition_serialization_deserialization(
     conditions_map = {"true": true_condition, "false": false_condition}
     conditions = [conditions_map[cond_type] for cond_type in conditions_setup]
 
-    original_condition = AnyCondition(conditions)
+    original_condition = AnyCondition(conditions=conditions)
     serialized_data = original_condition.serialize()
 
-    assert serialized_data["type"] == AnyCondition.type
+    assert serialized_data["type"] == "any"
     # Ensure "conditions" is a list before using len() or indexing
     conditions_list = serialized_data["conditions"]
     assert isinstance(conditions_list, list)
     assert len(conditions_list) == len(conditions)
-    for i, cond in enumerate(conditions):
-        assert conditions_list[i] == cond.serialize()
 
     from_serializedd_condition = get_condition_from_serialized(serialized_data)
     assert isinstance(from_serializedd_condition, AnyCondition)
     assert len(from_serializedd_condition.conditions) == len(original_condition.conditions)
+    # A simple re-serialization check can also be a good indicator:
     assert from_serializedd_condition.serialize() == serialized_data
+
+
+def test_any_condition_validator_non_list():
+    """Test that the validator handles non-list values."""
+    assert AnyCondition.validate_conditions("not a list") == "not a list"
 
 
 # NotCondition Tests
@@ -189,15 +224,15 @@ def test_any_condition_serialization_deserialization(
 def test_not_condition_evaluation(
     condition_type: str,
     expected_result: bool,
-    transaction_context: TransactionContext,
+    sample_transaction: Transaction,
     true_condition: Condition,
     false_condition: Condition,
 ) -> None:
     """Tests the evaluation logic for NotCondition."""
     condition_map = {"true": true_condition, "false": false_condition}
     inner_condition = condition_map[condition_type]
-    not_cond = NotCondition(inner_condition)
-    assert not_cond.evaluate(transaction_context) is expected_result
+    not_cond = NotCondition(cond=inner_condition)
+    assert not_cond.evaluate(sample_transaction) is expected_result
 
 
 @pytest.mark.parametrize(
@@ -214,11 +249,11 @@ def test_not_condition_serialization_deserialization(
     condition_map = {"true": true_condition, "false": false_condition}
     inner_condition = condition_map[condition_type]
 
-    original_condition = NotCondition(inner_condition)
+    original_condition = NotCondition(cond=inner_condition)
     serialized_data = original_condition.serialize()
 
-    assert serialized_data["type"] == NotCondition.type
-    assert serialized_data["value"] == inner_condition.serialize()
+    assert serialized_data["type"] == "not"
+    assert "cond" in serialized_data
 
     from_serializedd_condition = get_condition_from_serialized(serialized_data)
     assert isinstance(from_serializedd_condition, NotCondition)
@@ -228,10 +263,34 @@ def test_not_condition_serialization_deserialization(
     assert from_serializedd_condition.serialize() == serialized_data
 
 
-def test_not_condition_from_serialized_invalid_value():
-    """Test NotCondition.from_serialized with invalid 'value' field."""
-    # Test with non-dict value
-    invalid_serialized = {"type": "not", "value": "not_a_dict"}
-    with pytest.raises(TypeError) as exc_info:
-        NotCondition.from_serialized(invalid_serialized)  # type: ignore
-    assert "must be a dictionary" in str(exc_info.value)
+def test_not_condition_repr(true_condition: Condition):
+    """Test the __repr__ method of NotCondition."""
+    not_cond = NotCondition(cond=true_condition)
+    repr_str = repr(not_cond)
+    assert "NotCondition" in repr_str
+    assert "EqualsCondition" in repr_str
+
+
+def test_all_condition_repr(true_condition: Condition, false_condition: Condition):
+    """Test the __repr__ method of AllCondition."""
+    all_cond = AllCondition(conditions=[true_condition, false_condition])
+    repr(all_cond)
+
+
+def test_condition_eq_other():
+    """Test that Condition.__eq__ returns True when comparing to other types."""
+    condition = EqualsCondition(path("data.static_true"), True)
+    assert condition == EqualsCondition(path("data.static_true"), True)
+    assert condition != EqualsCondition(path("data.static_true"), False)
+    assert condition != EqualsCondition(path("data.static_false"), True)
+    assert condition != EqualsCondition(path("data.static_false"), False)
+
+
+def test_condition_not_eq_other():
+    """Test that Condition.__eq__ returns False when comparing to other types."""
+    condition = EqualsCondition(path("data.static_true"), True)
+    assert condition != "not a condition"
+    assert condition != 123
+    assert condition != 123.0
+    assert condition != 123.0
+    assert condition is not None

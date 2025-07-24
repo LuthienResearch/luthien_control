@@ -1,7 +1,9 @@
 # Control Policy Exceptions
 
+from luthien_control.exceptions import LuthienException
 
-class ControlPolicyError(Exception):
+
+class ControlPolicyError(LuthienException):
     """Base exception for all control policy errors.
 
     Attributes:
@@ -60,7 +62,15 @@ class PolicyLoadError(ValueError, ControlPolicyError):
 class ApiKeyNotFoundError(ControlPolicyError):
     """Exception raised when the API key is not found in the settings."""
 
-    pass
+    def __init__(self, detail: str, status_code: int = 500):
+        """Initializes the ApiKeyNotFoundError.
+
+        Args:
+            detail (str): A detailed error message explaining the missing API key.
+            status_code (int): The HTTP status code to associate with this error.
+                               Defaults to 500 (Internal Server Error).
+        """
+        super().__init__(detail, status_code=status_code, detail=detail)
 
 
 class NoRequestError(ControlPolicyError):

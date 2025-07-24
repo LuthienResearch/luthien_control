@@ -1,6 +1,5 @@
 from luthien_control.control_policy.conditions.condition import Condition
 from luthien_control.control_policy.conditions.registry import (
-    NAME_TO_CONDITION_CLASS,
     AllCondition,
     AnyCondition,
     ContainsCondition,
@@ -13,13 +12,14 @@ from luthien_control.control_policy.conditions.registry import (
     NotEqualsCondition,
     RegexMatchCondition,
 )
+from luthien_control.control_policy.conditions.value_resolvers import path
 
 __all__ = [
     "Condition",
     "AllCondition",
     "AnyCondition",
-    "EqualsCondition",
     "NotCondition",
+    "EqualsCondition",
     "NotEqualsCondition",
     "ContainsCondition",
     "LessThanCondition",
@@ -27,7 +27,7 @@ __all__ = [
     "GreaterThanCondition",
     "GreaterThanOrEqualCondition",
     "RegexMatchCondition",
-    "NAME_TO_CONDITION_CLASS",
+    "path",
 ]
 
 ALL_CONDITION_CLASSES = [

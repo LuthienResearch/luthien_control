@@ -65,8 +65,14 @@ config.set_main_option("sqlalchemy.url", final_db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
+# Only configure logging if the config file contains logging sections
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    try:
+        fileConfig(config.config_file_name)
+    except KeyError:
+        # Config file doesn't contain logging configuration, skip it
+        # Logging will be handled by the application's logging setup
+        logger.info("Alembic config file doesn't contain logging configuration, using application logging setup")
 
 # add your model's MetaData object here
 # for 'autogenerate' support

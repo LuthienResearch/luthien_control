@@ -15,6 +15,12 @@ from luthien_control.db.control_policy_crud import (
     save_policy_to_db,
     update_policy,
 )
+from luthien_control.db.exceptions import (
+    LuthienDBIntegrityError,
+    LuthienDBOperationError,
+    LuthienDBQueryError,
+    LuthienDBTransactionError,
+)
 from luthien_control.db.sqlmodel_models import ControlPolicy
 from pytest_mock import MockerFixture
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -104,22 +110,22 @@ async def test_update_policy(async_session: AsyncSession):
     # If we want to check the updated (now inactive) policy, we'd need to adjust the query
     # or use a different retrieval method if one exists that gets inactive policies by name.
     # For now, the existing test logic checks that it's NOT found by the default get_policy_by_name.
-    retrieved_policy_after_update = await get_policy_by_name(async_session, "update-policy")
-    assert retrieved_policy_after_update is None
+    with pytest.raises(LuthienDBQueryError, match="Policy with name 'update-policy' not found"):
+        await get_policy_by_name(async_session, "update-policy")
 
 
 async def test_update_policy_not_found(async_session: AsyncSession):
     """Test updating a non-existent policy."""
     # Pass a Policy model instance
     update_payload = ControlPolicy(name="non-existent-policy", type="dummy_type", description="Updated description")
-    updated_policy = await update_policy(async_session, 9999, update_payload)  # Non-existent ID
-    assert updated_policy is None
+    with pytest.raises(LuthienDBQueryError, match="Policy with ID 9999 not found"):
+        await update_policy(async_session, 9999, update_payload)  # Non-existent ID
 
 
 async def test_get_policy_by_name_not_found(async_session: AsyncSession):
     """Test getting a non-existent policy by name."""
-    retrieved_policy = await get_policy_by_name(async_session, "non-existent-policy")
-    assert retrieved_policy is None
+    with pytest.raises(LuthienDBQueryError, match="Policy with name 'non-existent-policy' not found"):
+        await get_policy_by_name(async_session, "non-existent-policy")
 
 
 async def test_create_policy_duplicate_name(async_session: AsyncSession):
@@ -132,8 +138,8 @@ async def test_create_policy_duplicate_name(async_session: AsyncSession):
 
     # 'type' is optional, but name is required.
     policy2 = ControlPolicy(name="duplicate-name", type="another_mock_type")
-    # Expecting IntegrityError because the function now re-raises it
-    with pytest.raises(IntegrityError):
+    # Expecting LuthienDBIntegrityError because the function now wraps IntegrityError
+    with pytest.raises(LuthienDBIntegrityError, match="Could not create policy due to constraint violation"):
         await save_policy_to_db(async_session, policy2)
 
 
@@ -193,14 +199,14 @@ async def test_load_policy_from_db_not_found(mocker: MockerFixture):
 
     mock_get_policy_by_name = mocker.patch(
         "luthien_control.db.control_policy_crud.get_policy_by_name",
-        return_value=None,  # Simulate policy not found
+        side_effect=LuthienDBQueryError(f"Policy with name '{policy_name}' not found"),  # Simulate policy not found
     )
     # Patch load_policy as it might be called if the error isn't raised first
     mock_load_policy = mocker.patch("luthien_control.db.control_policy_crud.load_policy")
 
     with pytest.raises(
-        PolicyLoadError,
-        match=f"Active policy configuration named '{policy_name}' not found in database.",
+        LuthienDBQueryError,
+        match=f"Policy with name '{policy_name}' not found",
     ):
         await load_policy_from_db(policy_name, mock_container)
 
@@ -211,7 +217,7 @@ async def test_load_policy_from_db_not_found(mocker: MockerFixture):
 async def test_load_policy_from_db_loader_raises_policy_load_error(
     mocker: MockerFixture,
 ):
-    """Test re-raising PolicyLoadError from the loader."""
+    """Test wrapping PolicyLoadError from the loader in LuthienDBOperationError."""
     mock_db_session = AsyncMock()
     mock_container = MagicMock()
     mock_container.db_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_db_session)
@@ -231,17 +237,17 @@ async def test_load_policy_from_db_loader_raises_policy_load_error(
         side_effect=original_error,
     )
 
-    with pytest.raises(PolicyLoadError) as exc_info:
+    with pytest.raises(LuthienDBOperationError, match="Failed to instantiate policy") as exc_info:
         await load_policy_from_db(policy_name, mock_container)
 
-    assert exc_info.value is original_error
+    assert exc_info.value.__cause__ is original_error
     mock_load_policy.assert_called_once()
 
 
 async def test_load_policy_from_db_loader_raises_other_exception(
     mocker: MockerFixture,
 ):
-    """Test wrapping other exceptions from loader in PolicyLoadError."""
+    """Test wrapping other exceptions from loader in LuthienDBOperationError."""
     mock_db_session = AsyncMock()
     mock_container = MagicMock()
     mock_container.db_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_db_session)
@@ -262,13 +268,61 @@ async def test_load_policy_from_db_loader_raises_other_exception(
     )
 
     with pytest.raises(
-        PolicyLoadError,
-        match=f"Unexpected error during loading process for '{policy_name}'.",
+        LuthienDBOperationError,
+        match=f"Unexpected error during policy instantiation for '{policy_name}'",
     ) as exc_info:
         await load_policy_from_db(policy_name, mock_container)
 
     assert exc_info.value.__cause__ is original_exception
     mock_load_policy.assert_called_once()
+
+
+async def test_load_policy_from_db_db_query_error(mocker: MockerFixture):
+    """Test load_policy_from_db when get_policy_by_name raises a LuthienDBQueryError."""
+    mock_container = MagicMock()
+    mock_session = AsyncMock()
+    mock_container.db_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_container.db_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+    policy_name = "test_policy_db_query_error"
+    db_error = LuthienDBQueryError("Database query failed")
+
+    mocker.patch(
+        "luthien_control.db.control_policy_crud.get_policy_by_name",
+        side_effect=db_error,
+    )
+
+    with pytest.raises(LuthienDBQueryError, match="Database query failed"):
+        await load_policy_from_db(policy_name, mock_container)
+
+
+async def test_load_policy_from_db_unexpected_exception(mocker: MockerFixture):
+    """Test load_policy_from_db when an unexpected exception occurs outside the loader."""
+    mock_container = MagicMock()
+    mock_session = AsyncMock()
+    mock_container.db_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_container.db_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+    policy_name = "test_policy_unexpected_error"
+    error_message = "Unexpected error"
+
+    mocker.patch(
+        "luthien_control.db.control_policy_crud.get_policy_by_name",
+        side_effect=Exception(error_message),
+    )
+
+    # Mock logger to check if error is logged
+    mock_logger_exception = mocker.patch("luthien_control.db.control_policy_crud.logger.exception")
+
+    # Function should wrap the exception in a LuthienDBOperationError
+    with pytest.raises(
+        LuthienDBOperationError, match=f"Unexpected error during policy loading process for '{policy_name}'"
+    ):
+        await load_policy_from_db(policy_name, mock_container)
+
+    mock_logger_exception.assert_called_once_with(
+        f"Unexpected error during policy loading process for '{policy_name}': {error_message}"
+    )
 
 
 async def test_get_policy_config_by_name_found_active(async_session: AsyncSession):
@@ -298,24 +352,24 @@ async def test_get_policy_config_by_name_found_inactive(async_session: AsyncSess
 
 
 async def test_get_policy_config_by_name_not_found(async_session: AsyncSession):
-    """Test getting a non-existent policy config by name returns None."""
-    retrieved_config = await get_policy_config_by_name(async_session, "non_existent_config_policy")
-    assert retrieved_config is None
+    """Test getting a non-existent policy config by name raises exception."""
+    with pytest.raises(LuthienDBQueryError, match="Policy with name 'non_existent_config_policy' not found"):
+        await get_policy_config_by_name(async_session, "non_existent_config_policy")
 
 
 async def test_get_policy_config_by_name_invalid_session_type():
-    """Test TypeError is raised for invalid session type."""
+    """Test LuthienDBOperationError is raised for invalid session type."""
     # Using a MagicMock that is not an AsyncSession instance
     invalid_session = MagicMock()
     with pytest.raises(
-        TypeError,
-        match="Invalid session object provided to get_policy_config_by_name.",
+        LuthienDBOperationError,
+        match="Unexpected error during policy config lookup",
     ):
         await get_policy_config_by_name(invalid_session, "any_name")
 
 
 async def test_get_policy_config_by_name_db_error(mocker: MockerFixture):
-    """Test generic exception during DB fetch returns None and logs error."""
+    """Test generic exception during DB fetch raises LuthienDBOperationError."""
     mock_session = AsyncMock(spec=AsyncSession)
     policy_name = "db_error_policy"
 
@@ -325,12 +379,31 @@ async def test_get_policy_config_by_name_db_error(mocker: MockerFixture):
     # Mock logger to check if error is logged
     mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
 
-    result = await get_policy_config_by_name(mock_session, policy_name)
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during policy config lookup"):
+        await get_policy_config_by_name(mock_session, policy_name)
 
-    assert result is None
     mock_session.execute.assert_awaited_once()
     mock_logger_error.assert_called_once_with(
-        f"Error fetching policy configuration by name '{policy_name}': Simulated DB error",
+        f"Unexpected error fetching policy configuration by name '{policy_name}': Simulated DB error",
+        exc_info=True,
+    )
+
+
+async def test_get_policy_config_by_name_sqlalchemy_error(mocker: MockerFixture):
+    """Test SQLAlchemyError during get_policy_config_by_name."""
+    mock_session = AsyncMock(spec=AsyncSession)
+    policy_name = "sqlalchemy_error_policy"
+    mock_session.execute = AsyncMock(side_effect=SQLAlchemyError("Simulated SQLAlchemy error"))
+
+    # Mock logger to check if error is logged
+    mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
+
+    with pytest.raises(LuthienDBQueryError, match="Database query failed while fetching policy config"):
+        await get_policy_config_by_name(mock_session, policy_name)
+
+    mock_session.execute.assert_awaited_once()
+    mock_logger_error.assert_called_once_with(
+        f"SQLAlchemy error fetching policy configuration by name '{policy_name}': Simulated SQLAlchemy error",
         exc_info=True,
     )
 
@@ -345,9 +418,9 @@ async def test_save_policy_db_sqlalchemy_error(mocker: MockerFixture):
     mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
     policy = ControlPolicy(name="sqlalchemy-error-policy", type="mock_type")
 
-    result = await save_policy_to_db(mock_session, policy)
+    with pytest.raises(LuthienDBTransactionError, match="Database transaction failed while creating policy"):
+        await save_policy_to_db(mock_session, policy)
 
-    assert result is None
     mock_session.commit.assert_awaited_once()
     mock_session.rollback.assert_awaited_once()
     mock_logger_error.assert_called_once_with("SQLAlchemy error creating policy: Simulated SQLAlchemyError")
@@ -363,9 +436,9 @@ async def test_save_policy_db_generic_exception(mocker: MockerFixture):
     mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
     policy = ControlPolicy(name="generic-error-policy", type="mock_type")
 
-    result = await save_policy_to_db(mock_session, policy)
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during policy creation"):
+        await save_policy_to_db(mock_session, policy)
 
-    assert result is None
     mock_session.commit.assert_awaited_once()
     mock_session.rollback.assert_awaited_once()
     mock_logger_error.assert_called_once_with("Error creating policy: Simulated generic error")
@@ -379,12 +452,30 @@ async def test_get_policy_by_name_db_error(mocker: MockerFixture):
 
     mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
 
-    result = await get_policy_by_name(mock_session, policy_name)
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during policy lookup"):
+        await get_policy_by_name(mock_session, policy_name)
 
-    assert result is None
     mock_session.execute.assert_awaited_once()
     mock_logger_error.assert_called_once_with(
-        f"Error fetching policy by name '{policy_name}': Simulated DB error",
+        f"Unexpected error fetching policy by name '{policy_name}': Simulated DB error",
+        exc_info=True,
+    )
+
+
+async def test_get_policy_by_name_sqlalchemy_error(mocker: MockerFixture):
+    """Test SQLAlchemyError during get_policy_by_name."""
+    mock_session = AsyncMock(spec=AsyncSession)
+    policy_name = "sqlalchemy_error_policy"
+    mock_session.execute = AsyncMock(side_effect=SQLAlchemyError("Simulated SQLAlchemy error"))
+
+    mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
+
+    with pytest.raises(LuthienDBQueryError, match="Database query failed while fetching policy"):
+        await get_policy_by_name(mock_session, policy_name)
+
+    mock_session.execute.assert_awaited_once()
+    mock_logger_error.assert_called_once_with(
+        f"SQLAlchemy error fetching policy by name '{policy_name}': Simulated SQLAlchemy error",
         exc_info=True,
     )
 
@@ -396,11 +487,25 @@ async def test_list_policies_db_error(mocker: MockerFixture):
 
     mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
 
-    result = await list_policies(mock_session)
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during policy listing"):
+        await list_policies(mock_session)
 
-    assert result == []
     mock_session.execute.assert_awaited_once()
-    mock_logger_error.assert_called_once_with("Error listing policies: Simulated DB error")
+    mock_logger_error.assert_called_once_with("Unexpected error listing policies: Simulated DB error")
+
+
+async def test_list_policies_sqlalchemy_error(mocker: MockerFixture):
+    """Test SQLAlchemyError during list_policies."""
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock(side_effect=SQLAlchemyError("Simulated SQLAlchemy error"))
+
+    mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
+
+    with pytest.raises(LuthienDBQueryError, match="Database query failed while listing policies"):
+        await list_policies(mock_session)
+
+    mock_session.execute.assert_awaited_once()
+    mock_logger_error.assert_called_once_with("SQLAlchemy error listing policies: Simulated SQLAlchemy error")
 
 
 async def test_update_policy_integrity_error(mocker: MockerFixture):
@@ -410,13 +515,15 @@ async def test_update_policy_integrity_error(mocker: MockerFixture):
     mock_session.execute = AsyncMock(
         return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=existing_policy_mock))
     )
-    mock_session.commit = AsyncMock(side_effect=IntegrityError("commit failed", params=None, orig=None))  # type: ignore[arg-type]
+    mock_session.commit = AsyncMock(
+        side_effect=IntegrityError("commit failed", params=None, orig=Exception("Database constraint violated"))
+    )
     mock_session.rollback = AsyncMock()
 
     mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
     policy_update = ControlPolicy(name="new-name-violates-constraint")
 
-    with pytest.raises(IntegrityError):
+    with pytest.raises(LuthienDBIntegrityError, match="Could not update policy due to constraint violation"):
         await update_policy(mock_session, 1, policy_update)
 
     mock_session.commit.assert_awaited_once()
@@ -437,9 +544,9 @@ async def test_update_policy_sqlalchemy_error(mocker: MockerFixture):
     mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
     policy_update = ControlPolicy(name="some-name")
 
-    result = await update_policy(mock_session, 1, policy_update)
+    with pytest.raises(LuthienDBTransactionError, match="Database transaction failed while updating policy"):
+        await update_policy(mock_session, 1, policy_update)
 
-    assert result is None
     mock_session.commit.assert_awaited_once()
     mock_session.rollback.assert_awaited_once()
     mock_logger_error.assert_called_once_with("SQLAlchemy error updating policy: Simulated SQLAlchemyError on update")
@@ -458,9 +565,58 @@ async def test_update_policy_generic_exception(mocker: MockerFixture):
     mock_logger_error = mocker.patch("luthien_control.db.control_policy_crud.logger.error")
     policy_update = ControlPolicy(name="some-name")
 
-    result = await update_policy(mock_session, 1, policy_update)
+    with pytest.raises(LuthienDBOperationError, match="Unexpected error during policy update"):
+        await update_policy(mock_session, 1, policy_update)
 
-    assert result is None
     mock_session.commit.assert_awaited_once()
     mock_session.rollback.assert_awaited_once()
     mock_logger_error.assert_called_once_with("Error updating policy: Simulated generic error on update")
+
+
+async def test_load_policy_from_db_luthien_db_query_error_propagation(mocker: MockerFixture):
+    """Test that LuthienDBQueryError from get_policy_by_name is propagated in load_policy_from_db."""
+    mock_container = MagicMock()
+    mock_session = AsyncMock()
+    mock_container.db_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_container.db_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+    policy_name = "test_policy_query_error_propagation"
+    db_error = LuthienDBQueryError("Database query failed during policy lookup")
+
+    mocker.patch(
+        "luthien_control.db.control_policy_crud.get_policy_by_name",
+        side_effect=db_error,
+    )
+
+    # LuthienDBQueryError should be propagated directly (line 215-216)
+    with pytest.raises(LuthienDBQueryError, match="Database query failed during policy lookup"):
+        await load_policy_from_db(policy_name, mock_container)
+
+
+async def test_load_policy_from_db_non_policy_load_error_wrapped(mocker: MockerFixture):
+    """Test that non-PolicyLoadError exceptions are wrapped in LuthienDBOperationError in load_policy_from_db."""
+    mock_container = MagicMock()
+    mock_session = AsyncMock()
+    mock_container.db_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_container.db_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+    policy_name = "test_policy_non_policy_load_error"
+    unexpected_error = RuntimeError("Some unexpected runtime error")
+
+    mocker.patch(
+        "luthien_control.db.control_policy_crud.get_policy_by_name",
+        side_effect=unexpected_error,
+    )
+
+    mock_logger_exception = mocker.patch("luthien_control.db.control_policy_crud.logger.exception")
+
+    error_msg = f"Unexpected error during policy loading process for '{policy_name}'"
+    with pytest.raises(LuthienDBOperationError, match=error_msg) as exc_info:
+        await load_policy_from_db(policy_name, mock_container)
+
+    # Verify the original exception is preserved as the cause
+    assert exc_info.value.__cause__ is unexpected_error
+
+    mock_logger_exception.assert_called_once_with(
+        f"Unexpected error during policy loading process for '{policy_name}': Some unexpected runtime error"
+    )

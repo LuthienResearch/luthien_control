@@ -1,25 +1,25 @@
+from typing import Optional
+
+from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
-from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
+from luthien_control.core.transaction import Transaction
 
 
 class NoopPolicy(ControlPolicy):
-    """A policy that does nothing."""
+    """A policy that does nothing.
 
-    def __init__(self, name: str = "NoopPolicy"):
-        self.name = name
+    This is the simplest possible policy implementation. It passes through
+    the transaction unchanged and has no policy-specific configuration beyond
+    its name.
+    """
+
+    name: Optional[str] = Field(default="NoopPolicy")
 
     async def apply(
-        self, context: TransactionContext, container: DependencyContainer, session: AsyncSession
-    ) -> TransactionContext:
-        return context
-
-    def serialize(self) -> SerializableDict:
-        return SerializableDict(name=self.name)
-
-    @classmethod
-    def from_serialized(cls, config: SerializableDict) -> "NoopPolicy":
-        return cls(name=str(config.get("name", cls.__name__)))
+        self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
+    ) -> Transaction:
+        """Simply returns the transaction unchanged."""
+        return transaction

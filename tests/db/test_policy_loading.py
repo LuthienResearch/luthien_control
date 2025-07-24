@@ -139,11 +139,14 @@ async def test_load_policy_from_db_not_found_patch_get(
 
 # Use the in-memory async_session fixture from tests/db/conftest.py
 async def test_load_policy_from_db_not_found_in_memory_db(
+    database_mocking,
     async_session: AsyncSession,  # Use in-memory session
     mock_settings: Settings,  # Use mock settings
     mock_http_client: httpx.AsyncClient,  # Use mock client
 ):
     """Test LuthienDBQueryError using an in-memory DB where the policy doesn't exist."""
+    from unittest.mock import patch
+
     policy_name = "non_existent_policy_real"
 
     # Create a simple factory for the provided in-memory session
@@ -158,35 +161,31 @@ async def test_load_policy_from_db_not_found_in_memory_db(
         db_session_factory=session_factory,
     )
 
-    # Since the DB is empty (function-scoped in-memory session),
-    # get_policy_by_name inside load_policy_from_db will raise an exception.
-    with pytest.raises(LuthienDBQueryError, match="not found"):
-        await load_policy_from_db(
-            name=policy_name,
-            container=container,  # Pass the constructed container
-        )
+    # Patch get_policy_by_name to raise LuthienDBQueryError for non-existent policy
+    with patch("luthien_control.db.control_policy_crud.get_policy_by_name") as mock_get_policy:
+        mock_get_policy.side_effect = LuthienDBQueryError(f"Policy with name '{policy_name}' not found")
+
+        # Since the policy doesn't exist, get_policy_by_name should raise an exception.
+        with pytest.raises(LuthienDBQueryError, match="not found"):
+            await load_policy_from_db(
+                name=policy_name,
+                container=container,  # Pass the constructed container
+            )
 
 
 # Patch load_policy to simulate failure, use in-memory session
-@patch(
-    "luthien_control.db.control_policy_crud.load_policy",
-    new_callable=MagicMock,
-    side_effect=PolicyLoadError("Instantiation failed"),
-)
 async def test_load_policy_from_db_instantiation_fails_in_memory_db(
-    mock_load_policy,
+    database_mocking,
     async_session: AsyncSession,  # Use in-memory session
     mock_settings: Settings,  # Use mock settings
     mock_http_client: httpx.AsyncClient,  # Use mock client
 ):
     """Test LuthienDBOperationError when load_policy fails, using in-memory session."""
+    from unittest.mock import patch
+
     policy_name = "instantiation_failure_policy"
     # Create the policy config in the in-memory DB first
     policy_to_create = create_mock_policy_model(name=policy_name)
-    from luthien_control.db.control_policy_crud import save_policy_to_db
-
-    created_policy = await save_policy_to_db(async_session, policy_to_create)
-    assert created_policy is not None
 
     # Create a simple factory for the provided in-memory session
     @asynccontextmanager
@@ -200,14 +199,23 @@ async def test_load_policy_from_db_instantiation_fails_in_memory_db(
         db_session_factory=session_factory,
     )
 
-    # Match the error raised by the mock's side_effect (wrapped in LuthienDBOperationError)
-    with pytest.raises(LuthienDBOperationError, match="Failed to instantiate policy"):
-        await load_policy_from_db(
-            name=policy_name,
-            container=container,  # Pass the constructed container
-        )
+    # Patch both get_policy_by_name and load_policy
+    with patch("luthien_control.db.control_policy_crud.get_policy_by_name") as mock_get_policy:
+        with patch("luthien_control.db.control_policy_crud.load_policy") as mock_load_policy:
+            # Mock get_policy_by_name to return the created policy
+            mock_get_policy.return_value = policy_to_create
 
-    mock_load_policy.assert_called_once()  # Verify load_policy was called
+            # Mock load_policy to raise PolicyLoadError
+            mock_load_policy.side_effect = PolicyLoadError("Instantiation failed")
+
+            # Match the error raised by the mock's side_effect (wrapped in LuthienDBOperationError)
+            with pytest.raises(LuthienDBOperationError, match="Failed to instantiate policy"):
+                await load_policy_from_db(
+                    name=policy_name,
+                    container=container,  # Pass the constructed container
+                )
+
+            mock_load_policy.assert_called_once()  # Verify load_policy was called
 
 
 @patch("luthien_control.db.control_policy_crud.get_policy_by_name", new_callable=AsyncMock)

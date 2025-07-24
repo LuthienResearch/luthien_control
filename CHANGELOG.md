@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3]
+## [0.3.0] - 2025-07-24
  - Improved error handling
  - Tighten up typing
  - Increased test coverage

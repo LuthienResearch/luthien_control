@@ -1,6 +1,6 @@
 # Changelog
 
-## [TBD]
+## [0.3]
  - Improved error handling
  - Tighten up typing
  - Increased test coverage
@@ -13,6 +13,7 @@
  - Better comparison system
  - Loki/Grafana support
  - Simplifications and cleanup
+ - Admin UI
 
 ## [0.2.5] - 2025-05-28
  - 98% test coverage

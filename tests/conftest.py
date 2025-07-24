@@ -1,15 +1,11 @@
 import os
 import uuid
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict
-from unittest.mock import AsyncMock, MagicMock
+from typing import Any, Dict
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
-import psycopg2
 import pytest
-import pytest_asyncio
-from alembic import command
-from alembic.config import Config
 from dotenv import load_dotenv
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction_context import TransactionContext
@@ -17,7 +13,6 @@ from luthien_control.core.transaction_context import TransactionContext
 # Import centralized type alias
 from luthien_control.main import app
 from luthien_control.settings import Settings
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- Command Line Option ---
@@ -78,109 +73,7 @@ def override_settings_dependency(request):
     os.environ.update(original_environ)
 
 
-# Use pytest_asyncio.fixture for async fixtures
-@pytest_asyncio.fixture(scope="session")
-async def db_session_fixture():
-    """
-    Session-scoped fixture to create and manage a temporary PostgreSQL database for testing.
-    Reads DB connection info from environment variables loaded by override_settings_dependency.
-    """
-    # Instantiate Settings here. It will use the env vars loaded by the
-    # autouse override_settings_dependency fixture.
-    db_settings = None  # Initialize
-    admin_dsn = ""  # Initialize admin_dsn
-    try:
-        # Settings will now rely on pre-existing environment variables for admin DSN.
-        db_settings = Settings()
-        _ = db_settings.admin_dsn  # Will raise if settings missing
-        print("[db_session_fixture] Settings loaded for DB operations (relies on pre-set admin env vars).")
-    except Exception as e:
-        pytest.fail(
-            f"[db_session_fixture] Failed to load Settings for DB setup: {e}. Ensure .env has required DB_* vars."
-        )
-
-    temp_db_name = f"test_db_{uuid.uuid4().hex}"
-    print(f"\nCreating temporary test database: {temp_db_name}")
-
-    # --- Database Creation (using psycopg2 - sync) ---
-    conn_admin = None
-    try:
-        admin_dsn = db_settings.admin_dsn
-        conn_admin = psycopg2.connect(dsn=admin_dsn)
-        conn_admin.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        with conn_admin.cursor() as cursor:
-            cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (temp_db_name,))
-            if cursor.fetchone():
-                print(f"Warning: Database {temp_db_name} already exists. Attempting to drop and recreate.")
-                cursor.execute(f'DROP DATABASE IF EXISTS "{temp_db_name}" WITH (FORCE)')
-            print(f"Executing CREATE DATABASE {temp_db_name}")
-            cursor.execute(f'CREATE DATABASE "{temp_db_name}"')
-        print(f"Database {temp_db_name} created successfully.")
-    except psycopg2.Error as e:
-        pytest.fail(
-            f"Failed to create temporary database {temp_db_name} using DSN {admin_dsn[: admin_dsn.find('@')]}...: {e}"
-        )
-    finally:
-        if conn_admin:
-            conn_admin.close()
-
-    # --- Schema Application (using Alembic - sync) ---
-    temp_db_dsn = db_settings.get_db_dsn(temp_db_name)
-    try:
-        print(f"Applying Alembic migrations to {temp_db_name}...")
-        alembic_cfg_path = Path(__file__).parent.parent / "alembic.ini"
-        if not alembic_cfg_path.is_file():
-            pytest.fail(f"Alembic config file not found at: {alembic_cfg_path}")
-
-        alembic_cfg = Config(str(alembic_cfg_path))
-        # Tell Alembic to use the temporary database's connection string
-        # The sqlalchemy.url key in alembic.ini is used by default
-        alembic_cfg.set_main_option("sqlalchemy.url", temp_db_dsn.replace("+asyncpg", "+psycopg2"))
-
-        # Ensure the script location is correctly set (relative to alembic.ini)
-        script_location = Path(alembic_cfg.get_main_option("script_location", "."))
-        if not (alembic_cfg_path.parent / script_location).exists():
-            pytest.fail(f"Alembic script location not found: {alembic_cfg_path.parent / script_location}")
-        alembic_cfg.set_main_option("script_location", str(script_location))
-
-        command.upgrade(alembic_cfg, "head")
-        print(f"Alembic migrations applied successfully to {temp_db_name}.")
-
-    except Exception as e:
-        pytest.fail(
-            f"Failed to apply Alembic migrations to {temp_db_name} "
-            f"using DSN {temp_db_dsn[: temp_db_dsn.find('@')]}...: {e}"
-        )
-
-    # --- Yield DSN for Tests ---
-    print(f"Yielding DSN for tests: {temp_db_dsn}")
-    yield temp_db_dsn
-
-    # --- Teardown: Drop Database (using psycopg2 - sync) ---
-    print(f"\nDropping temporary test database: {temp_db_name}...")
-    conn_admin_drop = None
-    try:
-        admin_dsn_drop = db_settings.admin_dsn
-        conn_admin_drop = psycopg2.connect(dsn=admin_dsn_drop)
-        conn_admin_drop.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        with conn_admin_drop.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT pg_terminate_backend(pg_stat_activity.pid)
-                FROM pg_stat_activity
-                WHERE pg_stat_activity.datname = %s
-                  AND pid <> pg_backend_pid();
-            """,
-                (temp_db_name,),
-            )
-            print(f"Terminated any existing connections to {temp_db_name}.")
-            cursor.execute(f'DROP DATABASE "{temp_db_name}"')
-        print(f"Database {temp_db_name} dropped successfully.")
-    except psycopg2.Error as e:
-        print(f"Error dropping test database {temp_db_name}: {e}")
-    finally:
-        if conn_admin_drop:
-            conn_admin_drop.close()
+# NO REAL DATABASE FIXTURES - All databases are mocked
 
 
 @pytest.fixture(scope="session")
@@ -193,6 +86,18 @@ def client():
     from fastapi.testclient import TestClient
 
     # TestClient handles startup/shutdown implicitly when used as context manager
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture()
+def client_with_admin_mock(mock_admin_service_for_startup):
+    """Pytest fixture for the FastAPI TestClient with admin service mocked.
+    Use this fixture for tests that need to avoid database calls during startup.
+    """
+    from fastapi.testclient import TestClient
+
+    # The mock_admin_service_for_startup fixture will be active during this client's lifespan
     with TestClient(app) as test_client:
         yield test_client
 
@@ -218,6 +123,17 @@ def mock_db_session() -> AsyncMock:
     """Provides a mock SQLAlchemy AsyncSession instance."""
     session = AsyncMock(spec=AsyncSession)
     return session
+
+
+@pytest.fixture
+def mock_admin_auth_service() -> AsyncMock:
+    """Provides a mock admin auth service."""
+    from luthien_control.admin.auth import AdminAuthService
+
+    service = AsyncMock(spec=AdminAuthService)
+    # Mock the ensure_default_admin method to be a no-op
+    service.ensure_default_admin = AsyncMock(return_value=None)
+    return service
 
 
 @pytest.fixture
@@ -277,63 +193,111 @@ def mock_transaction_context() -> MagicMock:
 
 
 @pytest.fixture()
-def override_app_dependencies(
-    mock_container: MagicMock,
-    mock_db_session_factory: MagicMock,
-    mock_db_session: AsyncMock,
-):
-    """AUTOUSE: Overrides core dependencies (get_container, get_db_session)
-    in the FastAPI app instance for all tests.
-    Relies on other fixtures (mock_container, mock_db_session_factory, mock_db_session)
-    to provide the mock implementations.
-    SKIPS if the test is marked 'e2e'.
+def mock_admin_service_for_startup():
+    """Mock the admin auth service's ensure_default_admin method during app startup to prevent database calls."""
+
+    # Create a simple async no-op function with proper signature
+    async def mock_ensure_default_admin(self, db):
+        """Mock ensure_default_admin to be a no-op."""
+        pass
+
+    # Apply patch for this test
+    with patch("luthien_control.admin.auth.AdminAuthService.ensure_default_admin", mock_ensure_default_admin):
+        yield
+
+
+@pytest.fixture()
+def admin_client_with_full_mocking():
     """
-    # Avoid overriding for end-to-end tests which use the real app/dependencies
-    # We access the `request` object implicitly available to fixtures
+    Specialized fixture for admin router tests that need complete database mocking.
+    Only use this for tests that absolutely need to avoid all database connections.
+    """
+    from fastapi.testclient import TestClient
+    from luthien_control.core.dependency_container import DependencyContainer
 
-    # Check if the current test item has the 'e2e' marker
-    # This requires access to the 'request' fixture implicitly or explicitly
-    # Since autouse=True, accessing request directly isn't trivial.
-    # A common pattern is to check within the fixture's scope if possible,
-    # but a more robust way might involve accessing the test node.
-    # For now, let's assume a way to check the marker, maybe via node access later if needed.
-    # Simplified check (may need refinement if tests run in parallel or complex setups):
-    # This is a placeholder - checking markers in autouse needs care.
-    # A better way is often *not* making it autouse and applying it selectively,
-    # or having the test explicitly skip the override if needed.
-    # Let's proceed assuming it works for now, but flag for review.
-    # TODO: Verify marker checking in autouse fixture is robust.
-    # if request.node.get_closest_marker("e2e"):
-    #     print("\n[conftest] Skipping override_app_dependencies for e2e test.")
-    #     yield
-    #     return
+    # Mock the entire app initialization to prevent database connections
+    mock_container = MagicMock(spec=DependencyContainer)
 
-    from luthien_control.core import dependencies
+    # Create a proper async context manager for db_session_factory
+    mock_session = AsyncMock()
+    mock_async_cm = AsyncMock()
+    mock_async_cm.__aenter__.return_value = mock_session
+    mock_async_cm.__aexit__.return_value = None
 
-    # Define the mock dependency functions
-    async def override_get_container() -> MagicMock:
-        print(f"[override_app_dependencies] Overriding get_container, returning mock container: {mock_container}")
+    mock_factory = MagicMock(return_value=mock_async_cm)
+    mock_container.db_session_factory = mock_factory
+
+    # Mock http_client
+    mock_http_client = AsyncMock()
+    mock_http_client.aclose = AsyncMock()
+    mock_container.http_client = mock_http_client
+
+    async def mock_initialize_dependencies(settings):
         return mock_container
 
-    async def override_get_db_session() -> AsyncGenerator[AsyncMock, None]:
-        # This fixture is intended to be an async generator
-        # that yields an AsyncMock for the database session.
-        print(f"[override_app_dependencies] Overriding get_db_session, returning mock session: {mock_db_session}")
-        yield mock_db_session
+    # Mock admin service
+    async def mock_ensure_default_admin(self, db):
+        pass
 
-    # Store original overrides
-    original_overrides = app.dependency_overrides.copy()
+    with patch("luthien_control.main.initialize_app_dependencies", mock_initialize_dependencies):
+        with patch("luthien_control.admin.auth.AdminAuthService.ensure_default_admin", mock_ensure_default_admin):
+            with TestClient(app) as test_client:
+                yield test_client
 
-    # Apply overrides
-    print("\n[conftest] Applying dependency overrides for get_container and get_db_session.")
-    app.dependency_overrides[dependencies.get_dependencies] = override_get_container
-    app.dependency_overrides[dependencies.get_db_session] = override_get_db_session
 
-    yield  # Run the test
+@pytest.fixture
+def database_mocking():
+    """
+    Opt-in fixture to mock database connections for tests that need it.
+    Use this fixture when your test should not touch real databases.
+    """
+    # Mock database connections at multiple levels
+    with patch("luthien_control.db.database_async.create_db_engine") as mock_create_engine:
+        # Mock the database engine creation to prevent ANY database connections
+        mock_engine = AsyncMock()
+        mock_create_engine.return_value = mock_engine
 
-    # Restore original overrides after the test
-    print("[conftest] Restoring original dependency overrides.")
-    app.dependency_overrides = original_overrides
+        # Mock SQLAlchemy engine creation at all levels
+        with patch("sqlalchemy.ext.asyncio.create_async_engine") as mock_sa_engine:
+            mock_sa_engine.return_value = AsyncMock()
+
+            # Mock SQLModel table creation
+            with patch("sqlmodel.SQLModel.metadata.create_all") as mock_create_all:
+                mock_create_all.return_value = AsyncMock()
+
+                # Mock async session creation
+                with patch("sqlalchemy.ext.asyncio.async_sessionmaker") as mock_sessionmaker:
+                    mock_sessionmaker.return_value = AsyncMock()
+
+                    yield  # Run the test with database mocking
+
+
+@pytest.fixture
+def app_startup_mocking():
+    """
+    Opt-in fixture to mock app startup dependencies for tests that use TestClient
+    but don't want real dependency initialization.
+    """
+    with patch("luthien_control.main.initialize_app_dependencies") as mock_init_deps:
+        # Mock the app dependency initialization
+        mock_container = MagicMock()
+        mock_container.db_session_factory = AsyncMock()
+        mock_init_deps.return_value = mock_container
+
+        with patch("luthien_control.admin.auth.AdminAuthService.ensure_default_admin") as mock_admin:
+            # Mock admin service to prevent DB calls during startup
+            mock_admin.return_value = AsyncMock()
+
+            yield mock_container
+
+
+@pytest.fixture
+def full_app_mocking(database_mocking, app_startup_mocking):
+    """
+    Combines database mocking and app startup mocking for tests that need both.
+    Use this for tests that use TestClient but should not touch databases.
+    """
+    yield app_startup_mocking
 
 
 # --- Other Helper Fixtures ---

@@ -22,12 +22,15 @@ from luthien_control.settings import Settings
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+# Import the admin mock fixture
+
 # --- Pytest Fixtures ---
 
 
 @pytest.fixture
-def test_app() -> FastAPI:
+def test_app(mock_admin_service_for_startup) -> FastAPI:
     """Returns the FastAPI app instance for testing."""
+    # The mock_admin_service_for_startup fixture will ensure admin service doesn't hit the database
     # Ensure dependency overrides are cleared - IMPORTANT for clean test state
     # Although we aim not to use overrides, this is a safeguard.
     app.dependency_overrides = {}
@@ -97,8 +100,8 @@ def get_test_backend_url() -> str:
 # --- Test Cases ---
 
 
-def test_health_check(client: TestClient):
-    response = client.get("/health")
+def test_health_check(client_with_admin_mock: TestClient):
+    response = client_with_admin_mock.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
@@ -407,10 +410,10 @@ async def test_api_proxy_no_auth_policy_no_key_success(
 # TODO: write integration tests for the /api endpoint with a real policy
 
 
-def test_api_proxy_explicit_options_handler(client: TestClient):
+def test_api_proxy_explicit_options_handler(client_with_admin_mock: TestClient):
     """Test that the explicit OPTIONS handler for /api returns correct headers."""
     test_path = "some/api/path/options"
-    response = client.options(f"/api/{test_path}")
+    response = client_with_admin_mock.options(f"/api/{test_path}")
 
     assert response.status_code == 200
     assert response.text == ""  # OPTIONS handlers typically have no body

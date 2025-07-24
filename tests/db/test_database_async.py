@@ -81,7 +81,7 @@ def test_mask_password():
 
 
 @pytest.mark.asyncio
-async def test_create_db_engine():
+async def test_create_db_engine(database_mocking):
     """Test creating the database engine."""
     # Mock environment variables and URL function
     test_url = "postgresql+asyncpg://fake:fake@localhost/fake"
@@ -117,7 +117,7 @@ async def test_create_db_engine_reuse_existing():
 
 
 @pytest.mark.asyncio
-async def test_create_db_engine_exception():
+async def test_create_db_engine_exception(database_mocking):
     """Test error handling when creating the database engine fails."""
     # Mock environment variables and URL function
     test_url = "postgresql+asyncpg://fake:fake@localhost/fake"

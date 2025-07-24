@@ -15,8 +15,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Quality Validation Before Committing
 Run these commands after implementing significant changes to comply with codebase standards.
-1. `poetry run ruff check . --fix --unsafe-fixes` - Check linting, apply fixes
-2. `poetry run ruff format .` - Format code
+1. `poetry run ruff format .` - Format code
+2. `poetry run ruff check . --fix --unsafe-fixes` - Check linting, apply fixes
 3. `poetry run pyright` - Check types. Fix any errors.
 4. `poetry run pytest --cov=luthien_control` - Run tests with coverage. All new and altered code should be covered.
 

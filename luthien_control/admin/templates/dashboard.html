@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Luthien Control{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-stats {
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+        border: none;
+        transition: transform 0.2s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .admin-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+    
+    .admin-card {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 2rem;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .admin-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        text-decoration: none;
+    }
+    
+    .admin-card-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #007bff;
+    }
+    
+    .admin-card-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 1rem;
+    }
+    
+    .admin-card-description {
+        color: #666;
+        line-height: 1.5;
+        margin-bottom: 1.5rem;
+    }
+    
+    .admin-card-features {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .admin-card-features li {
+        color: #666;
+        margin-bottom: 0.5rem;
+        padding-left: 1.2rem;
+        position: relative;
+    }
+    
+    .admin-card-features li:before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #28a745;
+        font-weight: bold;
+    }
+    
+    .welcome-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 3rem 2rem;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    
+    .welcome-title {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+    
+    .welcome-subtitle {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        margin-bottom: 2rem;
+    }
+    
+    .quick-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .quick-action {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        padding: 0.8rem 1.5rem;
+        border-radius: 50px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border: 2px solid rgba(255,255,255,0.3);
+    }
+    
+    .quick-action:hover {
+        background: rgba(255,255,255,0.3);
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <div class="welcome-title">
+        <i class="fas fa-shield-alt"></i> Welcome to Luthien Control Admin
+    </div>
+    <div class="welcome-subtitle">
+        Manage your AI API control policies, monitor system activity, and configure security settings
+    </div>
+    <div class="quick-actions">
+        <a href="/admin/policies" class="quick-action">
+            <i class="fas fa-file-alt"></i> Manage Policies
+        </a>
+        <a href="/admin/logs" class="quick-action">
+            <i class="fas fa-list"></i> View Logs
+        </a>
+        <a href="/admin/policies/new" class="quick-action">
+            <i class="fas fa-plus"></i> Create Policy
+        </a>
+    </div>
+</div>
+
+<div class="dashboard-stats">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="stat-number">{{ total_policies }}</div>
+                <div class="stat-label">Total Policies</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="stat-number">{{ active_policies }}</div>
+                <div class="stat-label">Active Policies</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="admin-grid">
+    <a href="/admin/policies" class="admin-card text-decoration-none">
+        <div class="admin-card-icon">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="admin-card-title">Control Policies</div>
+        <div class="admin-card-description">
+            Manage AI API control policies that govern request routing, authentication, and processing behavior.
+        </div>
+        <ul class="admin-card-features">
+            <li>Create and edit JSON-based policies</li>
+            <li>Activate/deactivate policy rules</li>
+            <li>Syntax highlighting and validation</li>
+            <li>Policy templates and examples</li>
+        </ul>
+    </a>
+    
+    <a href="/admin/logs" class="admin-card text-decoration-none">
+        <div class="admin-card-icon">
+            <i class="fas fa-list"></i>
+        </div>
+        <div class="admin-card-title">System Logs</div>
+        <div class="admin-card-description">
+            Explore detailed logs of API requests, responses, and system events for monitoring and debugging.
+        </div>
+        <ul class="admin-card-features">
+            <li>Filter by transaction ID and type</li>
+            <li>Real-time log streaming</li>
+            <li>Detailed request/response data</li>
+            <li>Export and search capabilities</li>
+        </ul>
+    </a>
+    
+    <div class="admin-card" style="opacity: 0.6; cursor: not-allowed;">
+        <div class="admin-card-icon">
+            <i class="fas fa-key"></i>
+        </div>
+        <div class="admin-card-title">API Keys <span class="badge bg-secondary ms-2">Coming Soon</span></div>
+        <div class="admin-card-description">
+            Manage client API keys, permissions, and access controls for your Luthien Control instance.
+        </div>
+        <ul class="admin-card-features">
+            <li>Generate and revoke API keys</li>
+            <li>Set key permissions and limits</li>
+            <li>Monitor key usage statistics</li>
+            <li>Bulk key management tools</li>
+        </ul>
+    </div>
+    
+    <div class="admin-card" style="opacity: 0.6; cursor: not-allowed;">
+        <div class="admin-card-icon">
+            <i class="fas fa-chart-bar"></i>
+        </div>
+        <div class="admin-card-title">Analytics <span class="badge bg-secondary ms-2">Coming Soon</span></div>
+        <div class="admin-card-description">
+            View comprehensive analytics about API usage, performance metrics, and system health.
+        </div>
+        <ul class="admin-card-features">
+            <li>Request volume and trends</li>
+            <li>Response time analytics</li>
+            <li>Error rate monitoring</li>
+            <li>Custom dashboards and reports</li>
+        </ul>
+    </div>
+    
+    <div class="admin-card" style="opacity: 0.6; cursor: not-allowed;">
+        <div class="admin-card-icon">
+            <i class="fas fa-cog"></i>
+        </div>
+        <div class="admin-card-title">System Settings <span class="badge bg-secondary ms-2">Coming Soon</span></div>
+        <div class="admin-card-description">
+            Configure global system settings, security options, and operational parameters.
+        </div>
+        <ul class="admin-card-features">
+            <li>Security and authentication settings</li>
+            <li>Performance tuning options</li>
+            <li>Backup and maintenance tools</li>
+            <li>Integration configurations</li>
+        </ul>
+    </div>
+    
+    <div class="admin-card" style="opacity: 0.6; cursor: not-allowed;">
+        <div class="admin-card-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="admin-card-title">User Management <span class="badge bg-secondary ms-2">Coming Soon</span></div>
+        <div class="admin-card-description">
+            Manage admin users, roles, and permissions for the Luthien Control admin interface.
+        </div>
+        <ul class="admin-card-features">
+            <li>Create and manage admin accounts</li>
+            <li>Role-based access control</li>
+            <li>Activity audit logs</li>
+            <li>Password policies and 2FA</li>
+        </ul>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h5 class="card-title">
+                    <i class="fas fa-lightbulb text-warning"></i> Need Help?
+                </h5>
+                <p class="card-text">
+                    Check out the documentation or explore the available admin features above.
+                    New admin modules will be added over time to expand the platform's capabilities.
+                </p>
+                <div class="d-flex justify-content-center gap-2">
+                    <span class="badge bg-primary">Version 0.2.5</span>
+                    <span class="badge bg-success">Admin UI Active</span>
+                    <span class="badge bg-info">{{ current_admin.username }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

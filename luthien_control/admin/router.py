@@ -17,8 +17,7 @@ from luthien_control.db.control_policy_crud import (
     list_policies,
     save_policy_to_db,
 )
-from luthien_control.db.sqlmodel_models import ControlPolicy
-from luthien_control.models.admin_user import AdminUser
+from luthien_control.db.sqlmodel_models import AdminUser, ControlPolicy
 
 # Template directory setup
 templates_dir = os.path.join(os.path.dirname(__file__), "templates")

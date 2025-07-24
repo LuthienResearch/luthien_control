@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import pytest
-from luthien_control.models.admin_user import AdminSession, AdminUser
+from luthien_control.db.sqlmodel_models import AdminSession, AdminUser
 
 
 @pytest.mark.asyncio

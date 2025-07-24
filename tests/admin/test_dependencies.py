@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException, Request
 from luthien_control.admin.dependencies import get_current_admin
-from luthien_control.models.admin_user import AdminUser
+from luthien_control.db.sqlmodel_models import AdminUser
 
 
 @pytest.fixture

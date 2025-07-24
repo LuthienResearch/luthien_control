@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from luthien_control.admin.auth import AdminAuthService
-from luthien_control.models.admin_user import AdminSession, AdminUser
+from luthien_control.db.sqlmodel_models import AdminSession, AdminUser
 
 
 @pytest.fixture

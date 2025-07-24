@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.admin.auth import admin_auth_service
 from luthien_control.core.dependencies import get_db_session
-from luthien_control.models.admin_user import AdminUser
+from luthien_control.db.sqlmodel_models import AdminUser
 
 
 async def get_current_admin(

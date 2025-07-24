@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import bcrypt
 import pytest
 from luthien_control.admin.crud.admin_user import admin_session_crud, admin_user_crud
-from luthien_control.models.admin_user import AdminSession, AdminUser
+from luthien_control.db.sqlmodel_models import AdminSession, AdminUser
 
 
 @pytest.fixture

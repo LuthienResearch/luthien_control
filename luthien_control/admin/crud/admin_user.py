@@ -8,7 +8,7 @@ import bcrypt
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from luthien_control.models.admin_user import AdminSession, AdminUser
+from luthien_control.db.sqlmodel_models import AdminSession, AdminUser
 
 
 class AdminUserCRUD:

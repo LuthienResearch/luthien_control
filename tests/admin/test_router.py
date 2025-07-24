@@ -5,8 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from luthien_control.db.sqlmodel_models import ControlPolicy
-from luthien_control.models.admin_user import AdminUser
+from luthien_control.db.sqlmodel_models import AdminUser, ControlPolicy
 
 
 @pytest.fixture

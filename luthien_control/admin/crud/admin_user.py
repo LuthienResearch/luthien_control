@@ -59,35 +59,10 @@ class AdminUserCRUD:
 
         return None
 
-    async def update_password(self, db: AsyncSession, user_id: int, new_password: str) -> bool:
-        """Update user password."""
-        user = await self.get_by_id(db, user_id)
-        if not user:
-            return False
-
-        password_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt())
-        user.password_hash = password_hash.decode("utf-8")
-        user.updated_at = datetime.utcnow()
-
-        await db.commit()
-        return True
-
     async def list_all(self, db: AsyncSession) -> List[AdminUser]:
         """List all admin users."""
         result = await db.execute(select(AdminUser).order_by(AdminUser.created_at))  # type: ignore
         return list(result.scalars().all())
-
-    async def update_active_status(self, db: AsyncSession, user_id: int, is_active: bool) -> bool:
-        """Update user active status."""
-        user = await self.get_by_id(db, user_id)
-        if not user:
-            return False
-
-        user.is_active = is_active
-        user.updated_at = datetime.utcnow()
-
-        await db.commit()
-        return True
 
 
 class AdminSessionCRUD:
@@ -146,11 +121,6 @@ class AdminSessionCRUD:
             await db.commit()
 
         return count
-
-    async def get_user_sessions(self, db: AsyncSession, admin_user_id: int) -> List[AdminSession]:
-        """Get all sessions for a user."""
-        result = await db.execute(select(AdminSession).where(AdminSession.admin_user_id == admin_user_id))  # type: ignore
-        return list(result.scalars().all())
 
 
 admin_user_crud = AdminUserCRUD()

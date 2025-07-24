@@ -31,18 +31,6 @@ async def get_current_admin(
     return user
 
 
-async def get_current_superuser(
-    current_admin: Annotated[AdminUser, Depends(get_current_admin)],
-) -> AdminUser:
-    """Get current admin user and verify superuser status."""
-    if not current_admin.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Superuser access required",
-        )
-    return current_admin
-
-
 class CSRFProtection:
     """CSRF protection for forms."""
 
@@ -54,16 +42,6 @@ class CSRFProtection:
         import secrets
 
         return secrets.token_urlsafe(32)
-
-    async def validate_token(
-        self,
-        form_token: str,
-        cookie_token: Annotated[Optional[str], Cookie(alias="csrf_token")] = None,
-    ) -> bool:
-        """Validate CSRF token."""
-        if not cookie_token or not form_token:
-            return False
-        return cookie_token == form_token
 
 
 csrf_protection = CSRFProtection()

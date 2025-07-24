@@ -32,9 +32,9 @@ async def login_page(request: Request) -> HTMLResponse:
     """Display login page."""
     csrf_token = await csrf_protection.generate_token()
     response = templates.TemplateResponse(
+        request,
         "login.html",
         {
-            "request": request,
             "csrf_token": csrf_token,
             "error": None,
         },
@@ -63,9 +63,9 @@ async def login(
     cookie_csrf = request.cookies.get("csrf_token")
     if not cookie_csrf or cookie_csrf != csrf_token:
         return templates.TemplateResponse(
+            request,
             "login.html",
             {
-                "request": request,
                 "csrf_token": await csrf_protection.generate_token(),
                 "error": "Invalid request. Please try again.",
             },
@@ -77,9 +77,9 @@ async def login(
     if not user:
         new_csrf = await csrf_protection.generate_token()
         response = templates.TemplateResponse(
+            request,
             "login.html",
             {
-                "request": request,
                 "csrf_token": new_csrf,
                 "error": "Invalid username or password",
             },
@@ -138,9 +138,9 @@ async def admin_home(
     active_policies = [p for p in policies if p.is_active]
 
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "current_admin": current_admin,
             "total_policies": len(policies),
             "active_policies": len(active_policies),
@@ -158,9 +158,9 @@ async def policies_list(
     policies = await list_policies(db, active_only=False)
 
     return templates.TemplateResponse(
+        request,
         "policies.html",
         {
-            "request": request,
             "current_admin": current_admin,
             "policies": policies,
         },
@@ -181,9 +181,9 @@ async def edit_policy_page(
 
     csrf_token = await csrf_protection.generate_token()
     response = templates.TemplateResponse(
+        request,
         "policy_edit.html",
         {
-            "request": request,
             "current_admin": current_admin,
             "policy": policy,
             "csrf_token": csrf_token,
@@ -229,9 +229,9 @@ async def update_policy_handler(
     except json.JSONDecodeError as e:
         new_csrf = await csrf_protection.generate_token()
         response = templates.TemplateResponse(
+            request,
             "policy_edit.html",
             {
-                "request": request,
                 "current_admin": current_admin,
                 "policy": policy,
                 "csrf_token": new_csrf,
@@ -262,9 +262,9 @@ async def update_policy_handler(
     except Exception as e:
         new_csrf = await csrf_protection.generate_token()
         response = templates.TemplateResponse(
+            request,
             "policy_edit.html",
             {
-                "request": request,
                 "current_admin": current_admin,
                 "policy": policy,
                 "csrf_token": new_csrf,
@@ -295,9 +295,9 @@ async def new_policy_page(
     """Display new policy creation page."""
     csrf_token = await csrf_protection.generate_token()
     response = templates.TemplateResponse(
+        request,
         "policy_new.html",
         {
-            "request": request,
             "current_admin": current_admin,
             "csrf_token": csrf_token,
             "error": None,
@@ -337,9 +337,9 @@ async def create_policy_handler(
     except json.JSONDecodeError as e:
         new_csrf = await csrf_protection.generate_token()
         response = templates.TemplateResponse(
+            request,
             "policy_new.html",
             {
-                "request": request,
                 "current_admin": current_admin,
                 "csrf_token": new_csrf,
                 "error": f"Invalid JSON: {str(e)}",
@@ -375,9 +375,9 @@ async def create_policy_handler(
     except Exception as e:
         new_csrf = await csrf_protection.generate_token()
         response = templates.TemplateResponse(
+            request,
             "policy_new.html",
             {
-                "request": request,
                 "current_admin": current_admin,
                 "csrf_token": new_csrf,
                 "error": f"Creation failed: {str(e)}",

@@ -1,7 +1,7 @@
 """CRUD operations for admin users."""
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 import bcrypt
@@ -53,7 +53,7 @@ class AdminUserCRUD:
 
         if bcrypt.checkpw(password.encode("utf-8"), user.password_hash.encode("utf-8")):
             # Update last login
-            user.last_login = datetime.utcnow()
+            user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)
             await db.commit()
             return user
 
@@ -71,7 +71,7 @@ class AdminSessionCRUD:
     async def create_session(self, db: AsyncSession, admin_user_id: int, hours: int = 24) -> AdminSession:
         """Create a new admin session."""
         session_token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(hours=hours)
+        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=hours)
 
         session = AdminSession(
             session_token=session_token,
@@ -90,7 +90,7 @@ class AdminSessionCRUD:
             select(AdminSession).where(
                 and_(
                     AdminSession.session_token == session_token,  # type: ignore
-                    AdminSession.expires_at > datetime.utcnow(),  # type: ignore
+                    AdminSession.expires_at > datetime.now(timezone.utc).replace(tzinfo=None),  # type: ignore
                 )
             )
         )
@@ -110,7 +110,9 @@ class AdminSessionCRUD:
 
     async def cleanup_expired_sessions(self, db: AsyncSession) -> int:
         """Clean up expired sessions."""
-        result = await db.execute(select(AdminSession).where(AdminSession.expires_at <= datetime.utcnow()))  # type: ignore
+        result = await db.execute(
+            select(AdminSession).where(AdminSession.expires_at <= datetime.now(timezone.utc).replace(tzinfo=None))  # type: ignore
+        )
         expired_sessions = list(result.scalars().all())
 
         count = len(expired_sessions)

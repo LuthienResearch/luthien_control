@@ -1,6 +1,6 @@
 """Tests for admin auth service."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -33,7 +33,7 @@ def sample_admin_session():
         id=1,
         session_token="test-token",
         admin_user_id=1,
-        expires_at=datetime.utcnow() + timedelta(hours=24),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=24),
     )
 
 

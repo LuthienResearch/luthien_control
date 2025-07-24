@@ -113,10 +113,10 @@ class TestLoginEndpoints:
                 csrf_token = login_page.cookies["csrf_token"]
 
                 # Submit login
+                admin_test_client.cookies["csrf_token"] = csrf_token
                 response = admin_test_client.post(
                     "/admin/login",
                     data={"username": "admin", "password": "password", "csrf_token": csrf_token},
-                    cookies={"csrf_token": csrf_token},
                     follow_redirects=False,
                 )
 
@@ -126,10 +126,10 @@ class TestLoginEndpoints:
 
     def test_login_invalid_csrf(self, admin_test_client):
         """Test login rejects invalid CSRF token."""
+        admin_test_client.cookies["csrf_token"] = "different"
         response = admin_test_client.post(
             "/admin/login",
             data={"username": "admin", "password": "password", "csrf_token": "wrong"},
-            cookies={"csrf_token": "different"},
         )
 
         assert response.status_code == 400
@@ -142,10 +142,10 @@ class TestLoginEndpoints:
             csrf_token = login_page.cookies["csrf_token"]
 
             # Submit bad login
+            admin_test_client.cookies["csrf_token"] = csrf_token
             response = admin_test_client.post(
                 "/admin/login",
                 data={"username": "admin", "password": "wrong", "csrf_token": csrf_token},
-                cookies={"csrf_token": csrf_token},
             )
 
             assert response.status_code == 401
@@ -154,9 +154,9 @@ class TestLoginEndpoints:
     def test_logout_redirects(self, admin_test_client):
         """Test logout redirects to login page."""
         with patch("luthien_control.admin.router.admin_auth_service.logout", AsyncMock()):
+            admin_test_client.cookies["session_token"] = "test-token"
             response = admin_test_client.get(
                 "/admin/logout",
-                cookies={"session_token": "test-token"},
                 follow_redirects=False,
             )
 
@@ -211,6 +211,7 @@ class TestPolicyEdit:
             csrf_token = edit_page.cookies["csrf_token"]
 
             # Submit update
+            authenticated_admin_client.cookies["csrf_token"] = csrf_token
             response = authenticated_admin_client.post(
                 "/admin/policies/test_policy/edit",
                 data={
@@ -219,7 +220,6 @@ class TestPolicyEdit:
                     "is_active": "on",
                     "csrf_token": csrf_token,
                 },
-                cookies={"csrf_token": csrf_token},
                 follow_redirects=False,
             )
 
@@ -228,10 +228,10 @@ class TestPolicyEdit:
 
     def test_update_policy_invalid_csrf(self, authenticated_admin_client):
         """Test update rejects invalid CSRF."""
+        authenticated_admin_client.cookies["csrf_token"] = "different"
         response = authenticated_admin_client.post(
             "/admin/policies/test_policy/edit",
             data={"config": "{}", "csrf_token": "wrong"},
-            cookies={"csrf_token": "different"},
         )
 
         assert response.status_code == 400
@@ -240,10 +240,10 @@ class TestPolicyEdit:
     def test_update_policy_not_found(self, authenticated_admin_client):
         """Test update returns 404 for missing policy."""
         with patch("luthien_control.admin.router.get_policy_by_name", AsyncMock(return_value=None)):
+            authenticated_admin_client.cookies["csrf_token"] = "csrf-token"
             response = authenticated_admin_client.post(
                 "/admin/policies/nonexistent/edit",
                 data={"config": "{}", "csrf_token": "csrf-token"},
-                cookies={"csrf_token": "csrf-token"},
             )
 
             assert response.status_code == 404
@@ -257,10 +257,10 @@ class TestPolicyEdit:
             csrf_token = edit_page.cookies["csrf_token"]
 
             # Submit invalid JSON
+            authenticated_admin_client.cookies["csrf_token"] = csrf_token
             response = authenticated_admin_client.post(
                 "/admin/policies/test_policy/edit",
                 data={"config": "{invalid json}", "csrf_token": csrf_token},
-                cookies={"csrf_token": csrf_token},
             )
 
             assert response.status_code == 400
@@ -281,10 +281,10 @@ class TestPolicyEdit:
             csrf_token = edit_page.cookies["csrf_token"]
 
             # Submit update
+            authenticated_admin_client.cookies["csrf_token"] = csrf_token
             response = authenticated_admin_client.post(
                 "/admin/policies/test_policy/edit",
                 data={"config": "{}", "description": "Test", "csrf_token": csrf_token},
-                cookies={"csrf_token": csrf_token},
             )
 
             assert response.status_code == 400
@@ -309,6 +309,7 @@ class TestPolicyCreate:
             csrf_token = new_page.cookies["csrf_token"]
 
             # Submit new policy
+            authenticated_admin_client.cookies["csrf_token"] = csrf_token
             response = authenticated_admin_client.post(
                 "/admin/policies/new",
                 data={
@@ -319,7 +320,6 @@ class TestPolicyCreate:
                     "is_active": "on",
                     "csrf_token": csrf_token,
                 },
-                cookies={"csrf_token": csrf_token},
                 follow_redirects=False,
             )
 
@@ -328,6 +328,7 @@ class TestPolicyCreate:
 
     def test_create_policy_invalid_csrf(self, authenticated_admin_client):
         """Test create rejects invalid CSRF."""
+        authenticated_admin_client.cookies["csrf_token"] = "different"
         response = authenticated_admin_client.post(
             "/admin/policies/new",
             data={
@@ -336,7 +337,6 @@ class TestPolicyCreate:
                 "config": "{}",
                 "csrf_token": "wrong",
             },
-            cookies={"csrf_token": "different"},
         )
 
         assert response.status_code == 400
@@ -349,6 +349,7 @@ class TestPolicyCreate:
         csrf_token = new_page.cookies["csrf_token"]
 
         # Submit invalid JSON
+        authenticated_admin_client.cookies["csrf_token"] = csrf_token
         response = authenticated_admin_client.post(
             "/admin/policies/new",
             data={
@@ -357,7 +358,6 @@ class TestPolicyCreate:
                 "config": "{invalid json}",
                 "csrf_token": csrf_token,
             },
-            cookies={"csrf_token": csrf_token},
         )
 
         assert response.status_code == 400
@@ -371,6 +371,7 @@ class TestPolicyCreate:
             csrf_token = new_page.cookies["csrf_token"]
 
             # Submit new policy
+            authenticated_admin_client.cookies["csrf_token"] = csrf_token
             response = authenticated_admin_client.post(
                 "/admin/policies/new",
                 data={
@@ -380,7 +381,6 @@ class TestPolicyCreate:
                     "description": "Test",
                     "csrf_token": csrf_token,
                 },
-                cookies={"csrf_token": csrf_token},
             )
 
             assert response.status_code == 400

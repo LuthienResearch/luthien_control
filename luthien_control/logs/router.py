@@ -26,7 +26,7 @@ templates = Jinja2Templates(directory="luthien_control/logs/templates")
 @router.get("/admin/logs", response_class=HTMLResponse)
 async def logs_ui(request: Request):
     """Serve the logs exploration UI."""
-    return templates.TemplateResponse("logs.html", {"request": request})
+    return templates.TemplateResponse(request, "logs.html", {})
 
 
 @router.get("/admin/logs-api/logs")

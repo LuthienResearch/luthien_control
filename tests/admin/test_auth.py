@@ -1,6 +1,6 @@
 """Tests for admin authentication."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import pytest
@@ -38,7 +38,7 @@ async def test_password_hashing():
 @pytest.mark.asyncio
 async def test_admin_session_model():
     """Test creating an admin session model."""
-    expires_at = datetime.utcnow() + timedelta(hours=24)
+    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=24)
 
     session = AdminSession(
         session_token="test_token_123",

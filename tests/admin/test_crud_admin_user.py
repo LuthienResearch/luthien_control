@@ -1,6 +1,6 @@
 """Tests for admin user CRUD operations."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import bcrypt
@@ -28,7 +28,7 @@ def sample_admin_session():
         id=1,
         session_token="test-token",
         admin_user_id=1,
-        expires_at=datetime.utcnow() + timedelta(hours=24),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=24),
     )
 
 
@@ -162,7 +162,7 @@ class TestAdminSessionCrud:
 
         assert result.admin_user_id == 1
         assert len(result.session_token) == 43  # secrets.token_urlsafe(32) generates 43 chars
-        assert result.expires_at > datetime.utcnow()
+        assert result.expires_at > datetime.now(timezone.utc).replace(tzinfo=None)
         mock_db_session.add.assert_called_once()
         mock_db_session.commit.assert_called_once()
         mock_db_session.refresh.assert_called_once()
@@ -225,10 +225,16 @@ class TestAdminSessionCrud:
         """Test cleaning up expired sessions."""
         # Create some mock expired sessions
         expired_session1 = AdminSession(
-            id=1, session_token="token1", admin_user_id=1, expires_at=datetime.utcnow() - timedelta(hours=1)
+            id=1,
+            session_token="token1",
+            admin_user_id=1,
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1),
         )
         expired_session2 = AdminSession(
-            id=2, session_token="token2", admin_user_id=1, expires_at=datetime.utcnow() - timedelta(hours=2)
+            id=2,
+            session_token="token2",
+            admin_user_id=1,
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2),
         )
 
         mock_result = MagicMock()

@@ -27,7 +27,7 @@ def create_chat_request(
     messages: list[Message] | None = None,
     temperature: float = 0.7,
     max_tokens: int = 100,
-    api_endpoint: str = "https://api.openai.com/v1/chat/completions",
+    api_endpoint: str = "https://api.openai.com/chat/completions",
     api_key: str = "test_key",
 ) -> Request:
     """Create a chat completions request with sensible defaults."""
@@ -125,7 +125,7 @@ def test_container(mock_openai_client: AsyncMock) -> MagicMock:
 
     # Create settings with real values instead of mocked methods
     settings = MagicMock()
-    settings.get_backend_url.return_value = "https://api.test-backend.com/v1"
+    settings.get_backend_url.return_value = "https://api.test-backend.com"
     settings.get_openai_api_key.return_value = "test-backend-api-key"
 
     container.settings = settings
@@ -194,9 +194,7 @@ async def test_send_backend_request_policy_successful_request(
     assert result is sample_transaction
 
     # Verify OpenAI client was created with correct parameters from transaction.request
-    test_container.create_openai_client.assert_called_once_with(
-        "https://api.openai.com/v1/chat/completions", "test_key"
-    )
+    test_container.create_openai_client.assert_called_once_with("https://api.openai.com/chat/completions", "test_key")
 
     # Verify chat completion was called
     mock_openai_client.chat.completions.create.assert_called_once()
@@ -252,7 +250,7 @@ async def test_send_backend_request_policy_api_timeout_error(
     db_session = AsyncMock(spec=AsyncSession)
 
     # Configure client to raise timeout error
-    mock_request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    mock_request = httpx.Request("POST", "https://api.openai.com/chat/completions")
     timeout_error = openai.APITimeoutError(request=mock_request)
     mock_openai_client.chat.completions.create.side_effect = timeout_error
 
@@ -275,7 +273,7 @@ async def test_send_backend_request_policy_api_connection_error(
     db_session = AsyncMock(spec=AsyncSession)
 
     # Configure client to raise connection error
-    mock_request = httpx.Request("POST", "https://api.test-backend.com/v1/chat/completions")
+    mock_request = httpx.Request("POST", "https://api.test-backend.com/chat/completions")
     connection_error = openai.APIConnectionError(message="Connection failed", request=mock_request)
     mock_openai_client.chat.completions.create.side_effect = connection_error
 
@@ -298,7 +296,7 @@ async def test_send_backend_request_policy_api_error(
     db_session = AsyncMock(spec=AsyncSession)
 
     # Configure client to raise API error
-    mock_request = httpx.Request("POST", "https://api.test-backend.com/v1/chat/completions")
+    mock_request = httpx.Request("POST", "https://api.test-backend.com/chat/completions")
     api_error = openai.APIError("Invalid request", request=mock_request, body=None)
     mock_openai_client.chat.completions.create.side_effect = api_error
 
@@ -482,7 +480,7 @@ async def test_send_backend_request_policy_container_client_creation(
     await policy.apply(sample_transaction, container, db_session)
 
     # Verify that create_openai_client was called with the correct parameters from transaction.request
-    container.create_openai_client.assert_called_once_with("https://api.openai.com/v1/chat/completions", "test_key")
+    container.create_openai_client.assert_called_once_with("https://api.openai.com/chat/completions", "test_key")
 
     # Verify that the returned client was used
     test_client.chat.completions.create.assert_called_once()

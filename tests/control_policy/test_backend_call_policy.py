@@ -20,6 +20,8 @@ from luthien_control.core.transaction import Transaction
 from luthien_control.utils.backend_call_spec import BackendCallSpec
 from psygnal.containers import EventedList
 
+EXAMPLE_API_ENDPOINT = "https://api.example.com"
+
 
 @pytest.fixture
 def mock_openai_response():
@@ -43,7 +45,7 @@ def base_transaction():
     )
     request = Request(
         payload=payload,
-        api_endpoint="https://default.com/v1",
+        api_endpoint="https://default.com/",
         api_key="default-key",
     )
     return Transaction(request=request, response=Response())
@@ -67,7 +69,7 @@ async def apply_policy_and_verify_basics(
     container: MagicMock,
     mock_openai_client: AsyncMock,
     expected_api_key: str,
-    expected_endpoint: str = "https://api.example.com/v1",
+    expected_endpoint: str = EXAMPLE_API_ENDPOINT,
 ) -> Transaction:
     """Apply policy and verify basic API call setup."""
     session = AsyncMock()
@@ -89,7 +91,7 @@ def create_backend_call_spec(
     """Create a BackendCallSpec with common defaults."""
     return BackendCallSpec(
         model="gpt-4o",
-        api_endpoint="https://api.example.com/v1",
+        api_endpoint=EXAMPLE_API_ENDPOINT,
         api_key_env_var=api_key_env_var,
         request_args=request_args or {},
     )
@@ -144,7 +146,7 @@ async def test_backend_call_policy_basic(base_transaction, mock_container_and_cl
 
     # Verify response was set
     assert result.response.payload == mock_openai_response
-    assert result.response.api_endpoint == "https://api.example.com/v1"
+    assert result.response.api_endpoint == EXAMPLE_API_ENDPOINT
 
 
 @pytest.mark.asyncio
@@ -178,7 +180,7 @@ async def test_backend_call_policy_complex_nested_objects(mock_container_and_cli
         messages=EventedList([Message(role="user", content="What's the weather?")]),
     )
     transaction = Transaction(
-        request=Request(payload=payload, api_endpoint="https://default.com/v1", api_key="default-key"),
+        request=Request(payload=payload, api_endpoint="https://default.com", api_key="default-key"),
         response=Response(),
     )
 
@@ -358,7 +360,7 @@ def test_backend_call_policy_serialization():
     assert serialized["name"] == "test_policy"
     backend_call_spec = cast(Dict[str, Any], serialized["backend_call_spec"])
     assert backend_call_spec["model"] == "gpt-4o"
-    assert backend_call_spec["api_endpoint"] == "https://api.example.com/v1"
+    assert backend_call_spec["api_endpoint"] == EXAMPLE_API_ENDPOINT
     request_args = cast(Dict[str, Any], backend_call_spec["request_args"])
     assert request_args["temperature"] == 0.8
 
@@ -367,6 +369,6 @@ def test_backend_call_policy_serialization():
     assert isinstance(deserialized_policy, BackendCallPolicy)
     assert deserialized_policy.name == "test_policy"
     assert deserialized_policy.backend_call_spec.model == "gpt-4o"
-    assert deserialized_policy.backend_call_spec.api_endpoint == "https://api.example.com/v1"
+    assert deserialized_policy.backend_call_spec.api_endpoint == EXAMPLE_API_ENDPOINT
     assert deserialized_policy.backend_call_spec.request_args["temperature"] == 0.8
     assert deserialized_policy.backend_call_spec.request_args["max_tokens"] == 500

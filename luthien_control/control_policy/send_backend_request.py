@@ -139,6 +139,11 @@ class SendBackendRequestPolicy(ControlPolicy):
                 f"and usage: {response_payload.usage}. ({self.name})"
             )
 
+        except openai.NotFoundError as e:
+            self.logger.error(
+                f"OpenAI NotFoundError during backend request with base url {backend_url}: {e} ({self.name})"
+            )
+            raise
         except openai.APITimeoutError as e:
             self.logger.error(f"Timeout error during backend request: {e} ({self.name})")
             # Store debug information for potential dev mode access

@@ -9,7 +9,7 @@ class BackendCallSpec(BaseModel):
     """
 
     model: str = Field(default="gpt-4o-mini")
-    api_endpoint: str = Field(default="https://api.openai.com/v1")
+    api_endpoint: str = Field(default="https://api.openai.com/")
     api_key_env_var: str = Field(default="OPENAI_API_KEY")
     request_args: dict[str, Any] = Field(
         default_factory=dict,

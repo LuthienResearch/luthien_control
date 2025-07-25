@@ -38,7 +38,7 @@ class TestSetBackendPolicy:
     @pytest.mark.asyncio
     async def test_apply_with_backend_url(self):
         """Test apply method when backend_url is set."""
-        policy = SetBackendPolicy(backend_url="https://api.example.com/v1/")
+        policy = SetBackendPolicy(backend_url="https://api.example.com/")
 
         # Create mock objects
         transaction = Mock(spec=Transaction)
@@ -51,7 +51,7 @@ class TestSetBackendPolicy:
         result = await policy.apply(transaction, container, session)
 
         # Verify the backend URL was set (without combining with the original path)
-        assert transaction.request.api_endpoint == "https://api.example.com/v1/"
+        assert transaction.request.api_endpoint == "https://api.example.com/"
         assert result is transaction
 
     @pytest.mark.asyncio
@@ -78,8 +78,8 @@ class TestSetBackendPolicy:
         """Test URL joining with different base URL and path combinations."""
         test_cases = [
             # (base_url, original_path, expected_result)
-            ("https://api.example.com/v1/", "chat/completions", "https://api.example.com/v1/"),
-            ("https://api.example.com/v1", "chat/completions", "https://api.example.com/v1"),
+            ("https://api.example.com/", "chat/completions", "https://api.example.com/"),
+            ("https://api.example.com", "chat/completions", "https://api.example.com"),
             ("https://api.example.com/", "chat/completions", "https://api.example.com/"),
             ("https://api.example.com", "chat/completions", "https://api.example.com"),
         ]

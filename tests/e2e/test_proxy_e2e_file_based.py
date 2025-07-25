@@ -7,7 +7,7 @@ pytestmark = [pytest.mark.e2e, pytest.mark.asyncio]
 
 async def test_e2e_api_chat_completion_file_based(e2e_client_file_based: httpx.AsyncClient):
     """
-    Performs an end-to-end test of the /api/chat/completions endpoint using file-based policy.
+    Performs an end-to-end test of the /api/v1/chat/completions endpoint using file-based policy.
 
     Sends a request through the proxy (using the api endpoint with e2e_policy.json) to the actual
     OpenAI backend (or configured backend) and verifies the basic structure
@@ -25,7 +25,7 @@ async def test_e2e_api_chat_completion_file_based(e2e_client_file_based: httpx.A
     }
 
     try:
-        response = await e2e_client_file_based.post("/api/chat/completions", json=request_payload)
+        response = await e2e_client_file_based.post("/api/v1/chat/completions", json=request_payload)
         response.raise_for_status()  # Raise HTTPStatusError for 4xx/5xx responses
 
         response_data = response.json()

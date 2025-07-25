@@ -212,7 +212,7 @@ async def live_local_proxy_server_file_based(openai_api_key: str) -> AsyncGenera
 
     # Default to real OpenAI backend for E2E tests unless overridden by system env
     # Use the settings getter, which checks the env var
-    backend_url = settings.get_backend_url() or "https://api.openai.com/v1"
+    backend_url = settings.get_backend_url() or "https://api.openai.com"
     server_env["BACKEND_URL"] = backend_url
 
     # Tell the server process to load the specific policy file for E2E tests
@@ -329,7 +329,7 @@ async def live_local_proxy_server_db_based(openai_api_key: str) -> AsyncGenerato
 
     # Set required env vars for the E2E server
     server_env["OPENAI_API_KEY"] = openai_api_key
-    backend_url = settings.get_backend_url() or "https://api.openai.com/v1"
+    backend_url = settings.get_backend_url() or "https://api.openai.com"
     server_env["BACKEND_URL"] = backend_url
 
     # Tell the server process to load the specific DB policy for E2E tests

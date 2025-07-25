@@ -38,7 +38,7 @@ class TestBackendUrlRegression:
             ("https://api.openai.com/v1", "chat/completions"),
             ("https://api.openai.com/v1/", "chat/completions"),
             ("https://custom-api.example.com/v2", "embeddings"),
-            ("https://localhost:8080/api", "chat/completions"),
+            ("https://localhost:8080/api/v1", "chat/completions"),
         ]
 
         for backend_url, initial_path in test_cases:
@@ -71,27 +71,6 @@ class TestBackendUrlRegression:
             assert initial_path not in result.request.api_endpoint or backend_url.endswith(initial_path)
 
     @pytest.mark.asyncio
-    async def test_send_backend_request_uses_base_url_correctly(self):
-        """
-        Regression test: SendBackendRequest should use api_endpoint as base URL
-        and let the OpenAI client handle path construction.
-
-        Bug: Previously, if api_endpoint contained a full path, the OpenAI client
-        would append the path again, causing duplication like /v1/chat/completions/chat/completions
-        """
-        # This test verifies that SendBackendRequest correctly uses the api_endpoint
-        # as the base URL for the OpenAI client, without any path duplication.
-
-        # The key regression we're preventing:
-        # 1. SetBackendPolicy sets api_endpoint to base URL only
-        # 2. SendBackendRequest uses that base URL correctly
-        # 3. OpenAI client constructs the full path correctly
-
-        # For now, this test documents the expected behavior.
-        # The integration is tested in the end-to-end test.
-        assert True  # Placeholder - behavior is tested via integration
-
-    @pytest.mark.asyncio
     async def test_end_to_end_url_construction_no_duplication(self):
         """
         End-to-end regression test: Verify that the complete flow from
@@ -114,7 +93,7 @@ class TestBackendUrlRegression:
         )
 
         # Step 1: Apply SetBackendPolicy
-        backend_url = "https://api.openai.com/v1"
+        backend_url = "https://api.openai.com"
         set_backend_policy = SetBackendPolicy(backend_url=backend_url)
 
         container = Mock(spec=DependencyContainer)
@@ -128,7 +107,7 @@ class TestBackendUrlRegression:
         # This is the key regression test: SetBackendPolicy should NOT
         # join the path with the backend URL. It should only set the base URL.
         assert "chat/completions" not in transaction.request.api_endpoint
-        assert transaction.request.api_endpoint == "https://api.openai.com/v1"
+        assert transaction.request.api_endpoint == "https://api.openai.com"
 
     @pytest.mark.asyncio
     async def test_error_debug_info_includes_correct_backend_url(self):
@@ -142,8 +121,8 @@ class TestBackendUrlRegression:
         # the correct backend URL without path duplication.
 
         # The key regression we're preventing:
-        # Debug info should show "https://api.openai.com/v1" not
-        # "https://api.openai.com/v1/chat/completions/chat/completions"
+        # Debug info should show "https://api.openai.com" not
+        # "https://api.openai.com/chat/completions/chat/completions"
 
         # For now, this test documents the expected behavior.
         # The actual debug info creation is tested in the main test suite.
@@ -160,11 +139,11 @@ class TestBackendUrlRegression:
         """
         test_cases = [
             # (backend_url, expected_behavior)
-            ("https://api.openai.com/v1", "should work as base URL"),
-            ("https://api.openai.com/v1/", "should work as base URL with trailing slash"),
-            ("http://localhost:8080/api/v1", "should work with custom port"),
+            ("https://api.openai.com", "should work as base URL"),
+            ("https://api.openai.com/", "should work as base URL with trailing slash"),
+            ("http://localhost:8080/api", "should work with custom port"),
             ("https://custom-api.example.com/v2", "should work with custom domain"),
-            ("https://api.openai.com/v1//", "should handle double slashes gracefully"),
+            ("https://api.openai.com//", "should handle double slashes gracefully"),
         ]
 
         for backend_url, description in test_cases:

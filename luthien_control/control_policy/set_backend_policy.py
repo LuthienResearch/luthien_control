@@ -20,7 +20,7 @@ class SetBackendPolicy(ControlPolicy):
     ) -> Transaction:
         if self.backend_url is not None:
             # Set the base URL only - the OpenAI client will append the specific endpoint path
-            # The original api_endpoint (e.g., "chat/completions") will be used by the OpenAI client
+            # The original api_endpoint (e.g., "v1/chat/completions") will be used by the OpenAI client
             transaction.request.api_endpoint = self.backend_url
         return transaction
 

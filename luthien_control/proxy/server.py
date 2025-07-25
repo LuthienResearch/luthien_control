@@ -26,10 +26,10 @@ http_bearer_auth = HTTPBearer(auto_error=False)
 
 default_path: str = Path(
     ...,
-    description="The full path to the backend API endpoint (e.g., 'chat/completions')",
+    description="The full path to the backend API endpoint (e.g., 'v1/chat/completions')",
     openapi_examples={
-        "chat/completions": {
-            "value": "chat/completions",
+        "v1/chat/completions": {
+            "value": "v1/chat/completions",
         }
     },
 )

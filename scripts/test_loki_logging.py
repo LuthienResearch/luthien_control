@@ -32,7 +32,7 @@ async def test_proxy_request():
         try:
             # Make a simple request to the proxy
             response = await client.post(
-                "http://localhost:8000/api/chat/completions",
+                "http://localhost:8000/api/v1/chat/completions",
                 headers={
                     "Authorization": "Bearer test-key",
                     "Content-Type": "application/json",

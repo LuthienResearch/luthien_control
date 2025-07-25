@@ -25,7 +25,7 @@ async def make_chat_completion_request(client: httpx.AsyncClient) -> dict:
     request_payload = get_test_request_payload()
 
     try:
-        response = await client.post("/api/chat/completions", json=request_payload)
+        response = await client.post("/api/v1/chat/completions", json=request_payload)
         response.raise_for_status()
         return response.json()
     except httpx.HTTPStatusError as e:
@@ -44,7 +44,7 @@ async def make_chat_completion_request(client: httpx.AsyncClient) -> dict:
 
 async def test_e2e_api_chat_completion_comprehensive(e2e_client_db_based: httpx.AsyncClient):
     """
-    Comprehensive E2E test for the /api/chat/completions endpoint using database-based policy.
+    Comprehensive E2E test for the /api/v1/chat/completions endpoint using database-based policy.
 
     Tests the complete API response structure, types, and values in a single test
     to avoid multiple API calls while maintaining thorough validation.
@@ -53,7 +53,7 @@ async def test_e2e_api_chat_completion_comprehensive(e2e_client_db_based: httpx.
 
     # Make the API request
     request_payload = get_test_request_payload()
-    response = await e2e_client_db_based.post("/api/chat/completions", json=request_payload)
+    response = await e2e_client_db_based.post("/api/v1/chat/completions", json=request_payload)
 
     # Test 1: HTTP status code
     assert response.status_code == 200

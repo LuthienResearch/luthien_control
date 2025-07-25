@@ -35,7 +35,7 @@ def test_dependency_container_initialization():
     assert container.db_session_factory is mock_session_factory
 
     # Test the OpenAI client factory
-    mock_openai_client = container.create_openai_client("https://api.openai.com/v1", "test-key")
+    mock_openai_client = container.create_openai_client("https://api.openai.com/", "test-key")
     assert isinstance(mock_openai_client, openai.AsyncOpenAI)
 
 
@@ -58,11 +58,11 @@ def test_create_openai_client_with_invalid_url():
 
     # Test URL without protocol
     with pytest.raises(ValueError, match="Base URL must start with 'http://' or 'https://'"):
-        container.create_openai_client("api.openai.com/v1", "test-key")
+        container.create_openai_client("api.openai.com/", "test-key")
 
     # Test URL with invalid protocol
     with pytest.raises(ValueError, match="Base URL must start with 'http://' or 'https://'"):
-        container.create_openai_client("ftp://api.openai.com/v1", "test-key")
+        container.create_openai_client("ftp://api.openai.com/", "test-key")
 
 
 def test_create_openai_client_with_valid_urls():
@@ -79,7 +79,7 @@ def test_create_openai_client_with_valid_urls():
     )
 
     # Test with https URL
-    client = container.create_openai_client("https://api.openai.com/v1", "test-key")
+    client = container.create_openai_client("https://api.openai.com", "test-key")
     assert isinstance(client, openai.AsyncOpenAI)
 
     # Test with http URL

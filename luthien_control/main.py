@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from luthien_control.admin.auth import admin_auth_service
 from luthien_control.admin.router import router as admin_router
@@ -94,6 +95,14 @@ app = FastAPI(
     description="An intelligent proxy server for AI APIs.",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins including vscode-file://
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.add_middleware(DebugLoggingMiddleware)

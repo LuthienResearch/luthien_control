@@ -31,7 +31,8 @@ RUNQC: If the user requests RUNQC, run the above quality validation steps
 - Use async functions for I/O-bound tasks
 - Error handling: Specific exception types, HTTPException for API errors
 - Google-style docstrings for modules, classes, and functions
-- Never add comments about editing the code (e.g. "Added X")
+- Never add comments about editing the code (e.g. "Added X", "Y is now handled by Z"). That information belongs in chat channels with the current developer, not the actual codebase.
 
 ## Testing Principles
 - Unit tests should be as simple as possible; mock only when needed to avoid external dependencies, or when mocking significantly reduces the complexity of the test, otherwise prefer using Real Stuff
+- Test *critical* behavior. Generally avoid testing for specific strings or incidental properties of returned values or side effects unless there's a strong reason to do so.

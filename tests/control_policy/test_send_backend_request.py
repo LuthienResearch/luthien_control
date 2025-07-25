@@ -239,6 +239,32 @@ async def test_send_backend_request_policy_logging(
 
 
 @pytest.mark.asyncio
+async def test_send_backend_request_policy_not_found_error(
+    sample_transaction: Transaction,
+    test_container: MagicMock,
+    mock_openai_client: AsyncMock,
+    caplog,
+):
+    """Test handling of OpenAI NotFoundError (404)."""
+    policy = SendBackendRequestPolicy()
+    db_session = AsyncMock(spec=AsyncSession)
+
+    # Configure client to raise NotFoundError
+    mock_response = httpx.Response(404, request=httpx.Request("POST", "https://api.openai.com/chat/completions"))
+    not_found_error = openai.NotFoundError("Resource not found", response=mock_response, body=None)
+    mock_openai_client.chat.completions.create.side_effect = not_found_error
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(openai.NotFoundError):
+            await policy.apply(sample_transaction, test_container, db_session)
+
+    assert (
+        "OpenAI NotFoundError during backend request with base url https://api.openai.com/chat/completions"
+        in caplog.text
+    )
+
+
+@pytest.mark.asyncio
 async def test_send_backend_request_policy_api_timeout_error(
     sample_transaction: Transaction,
     test_container: MagicMock,

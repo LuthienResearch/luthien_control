@@ -418,6 +418,3 @@ def test_api_proxy_explicit_options_handler(client_with_admin_mock: TestClient):
     assert response.status_code == 200
     assert response.text == ""  # OPTIONS handlers typically have no body
     assert response.headers["allow"] == "GET, POST, OPTIONS"
-    assert response.headers["access-control-allow-origin"] == "*"
-    assert response.headers["access-control-allow-methods"] == "GET, POST, OPTIONS"
-    assert response.headers["access-control-allow-headers"] == "Authorization, Content-Type"

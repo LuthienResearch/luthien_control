@@ -178,8 +178,5 @@ async def api_proxy_options_handler(
     logger.info(f"Explicit OPTIONS request received for /api/{full_path}")
     headers = {
         "Allow": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Origin": "*",  # Allow any origin
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",  # Allowed methods
-        "Access-Control-Allow-Headers": "Authorization, Content-Type",  # Allowed headers
     }
     return Response(status_code=200, headers=headers)

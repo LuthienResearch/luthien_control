@@ -55,7 +55,7 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         Returns:
             The potentially modified transaction.
         """
-        if transaction.request is None:
+        if transaction.openai_request is None:
             raise NoRequestError("No request in transaction.")
 
         api_key = os.environ.get(self.api_key_env_var_name)
@@ -68,6 +68,6 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
             raise ApiKeyNotFoundError(f"{error_message} ({self.name})")
 
         self.logger.info(f"Setting API key from env var '{self.api_key_env_var_name}' ({self.name}).")
-        transaction.request.api_key = api_key
+        transaction.openai_request.api_key = api_key
 
         return transaction

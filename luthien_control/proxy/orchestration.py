@@ -27,7 +27,7 @@ def _initialize_transaction(body: bytes, url: str, api_key: str) -> Transaction:
     transaction_id = uuid.uuid4()
     openai_api_request = fastapi_request_to_openai_chat_completions_request(body)
     request = Request(payload=openai_api_request, api_endpoint=url, api_key=api_key)
-    return Transaction(transaction_id=transaction_id, request=request, response=Response())
+    return Transaction(transaction_id=transaction_id, openai_request=request, openai_response=Response())
 
 
 async def run_policy_flow(
@@ -89,7 +89,7 @@ async def run_policy_flow(
             main_policy.name or "unknown",
             "completed",
             duration=time.time() - policy_start_time if policy_start_time else None,
-            details={"has_response": transaction.response.payload is not None},
+            details={"has_response": transaction.openai_response.payload is not None},
         )
 
         logger.info(
@@ -100,8 +100,8 @@ async def run_policy_flow(
                 "duration_seconds": time.time() - policy_start_time if policy_start_time else None,
             },
         )
-        if transaction.response.payload is not None:
-            final_response = openai_chat_completions_response_to_fastapi_response(transaction.response.payload)
+        if transaction.openai_response.payload is not None:
+            final_response = openai_chat_completions_response_to_fastapi_response(transaction.openai_response.payload)
         else:
             final_response = JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

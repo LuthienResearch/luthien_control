@@ -98,8 +98,8 @@ class SendBackendRequestPolicy(ControlPolicy):
             Exception: For any other unexpected errors during request execution.
         """
         # Create OpenAI client for the backend request
-        backend_url = transaction.request.api_endpoint
-        api_key = transaction.request.api_key
+        backend_url = transaction.openai_request.api_endpoint
+        api_key = transaction.openai_request.api_key
 
         if not backend_url:
             raise ValueError("Backend URL is not configured")
@@ -110,7 +110,7 @@ class SendBackendRequestPolicy(ControlPolicy):
         openai_client = container.create_openai_client(backend_url, api_key)
 
         # Get the structured request payload
-        request_payload = transaction.request.payload
+        request_payload = transaction.openai_request.payload
 
         self.logger.info(
             f"Sending chat completions request to backend with model '{request_payload.model}' "
@@ -131,8 +131,8 @@ class SendBackendRequestPolicy(ControlPolicy):
             response_payload = OpenAIChatCompletionsResponse.model_validate(backend_response.model_dump())
 
             # Store the structured response in the transaction
-            transaction.response.payload = response_payload
-            transaction.response.api_endpoint = backend_url
+            transaction.openai_response.payload = response_payload
+            transaction.openai_response.api_endpoint = backend_url
 
             self.logger.info(
                 f"Received backend response with {len(response_payload.choices)} choices "

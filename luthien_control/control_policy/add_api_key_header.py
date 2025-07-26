@@ -46,12 +46,12 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
         Returns:
             The potentially modified transaction.
         """
-        if transaction.request is None:
+        if transaction.openai_request is None:
             raise NoRequestError("No request in transaction.")
         api_key = container.settings.get_openai_api_key()
         if not api_key:
             raise ApiKeyNotFoundError(f"OpenAI API key not configured ({self.name}).")
         self.logger.info(f"Setting API key from settings ({self.name}).")
-        transaction.request.api_key = api_key
+        transaction.openai_request.api_key = api_key
 
         return transaction

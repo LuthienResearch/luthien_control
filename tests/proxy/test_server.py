@@ -333,7 +333,7 @@ class MockSendBackendRequestPolicy(ControlPolicy):
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
     ) -> Transaction:
         # Simulate setting the response after a backend call
-        transaction.response.payload = self.mock_response
+        transaction.openai_response.payload = self.mock_response
         return transaction
 
     def serialize(self) -> SerializableDict:

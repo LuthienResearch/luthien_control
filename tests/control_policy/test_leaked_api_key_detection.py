@@ -62,7 +62,7 @@ def sample_transaction() -> Transaction:
         }
     )
 
-    return Transaction(request=request, response=response, data=transaction_data)
+    return Transaction(openai_request=request, openai_response=response, data=transaction_data)
 
 
 @pytest.fixture
@@ -101,7 +101,7 @@ def transaction_with_leaked_openai_key() -> Transaction:
         )
     )
 
-    return Transaction(request=request, response=response, data=EventedDict())
+    return Transaction(openai_request=request, openai_response=response, data=EventedDict())
 
 
 @pytest.fixture
@@ -140,7 +140,7 @@ def transaction_with_leaked_slack_token() -> Transaction:
         )
     )
 
-    return Transaction(request=request, response=response, data=EventedDict())
+    return Transaction(openai_request=request, openai_response=response, data=EventedDict())
 
 
 @pytest.fixture
@@ -217,7 +217,7 @@ async def test_leaked_api_key_detection_policy_no_request(
 
     # Create a mock transaction with request=None
     mock_transaction = MagicMock(spec=Transaction)
-    mock_transaction.request = None
+    mock_transaction.openai_request = None
 
     with pytest.raises(NoRequestError, match="No request in transaction"):
         await policy.apply(mock_transaction, mock_container, mock_db_session)
@@ -255,7 +255,7 @@ async def test_leaked_api_key_detection_policy_no_messages_attribute(
     mock_transaction = MagicMock(spec=Transaction)
     mock_request = MagicMock()
     mock_request.payload = MockPayload()
-    mock_transaction.request = mock_request
+    mock_transaction.openai_request = mock_request
 
     result = await policy.apply(mock_transaction, mock_container, mock_db_session)
 
@@ -297,7 +297,7 @@ async def test_leaked_api_key_detection_policy_custom_pattern(
 ):
     """Test detection with custom patterns."""
     # Modify the transaction to include a custom pattern
-    sample_transaction.request.payload.messages[1].content = "My custom key is custom-12345. Can you help me?"
+    sample_transaction.openai_request.payload.messages[1].content = "My custom key is custom-12345. Can you help me?"
 
     # Use a custom pattern that matches "custom-" followed by digits
     policy = LeakedApiKeyDetectionPolicy(patterns=["custom-[0-9]+"])
@@ -314,7 +314,7 @@ async def test_leaked_api_key_detection_policy_multiple_patterns(
 ):
     """Test detection with multiple custom patterns."""
     # Modify the transaction to include a pattern that matches the second custom pattern
-    sample_transaction.request.payload.messages[1].content = "My secret is secret-abcdefghij. Can you help me?"
+    sample_transaction.openai_request.payload.messages[1].content = "My secret is secret-abcdefghij. Can you help me?"
 
     # Use multiple custom patterns
     policy = LeakedApiKeyDetectionPolicy(patterns=["custom-[0-9]+", "secret-[a-zA-Z0-9]{10}"])
@@ -344,7 +344,7 @@ async def test_leaked_api_key_detection_policy_non_string_content(
     mock_transaction = MagicMock(spec=Transaction)
     mock_request = MagicMock()
     mock_request.payload = MockPayload()
-    mock_transaction.request = mock_request
+    mock_transaction.openai_request = mock_request
 
     result = await policy.apply(mock_transaction, mock_container, mock_db_session)
 
@@ -374,7 +374,7 @@ async def test_leaked_api_key_detection_policy_message_without_content(
     mock_transaction = MagicMock(spec=Transaction)
     mock_request = MagicMock()
     mock_request.payload = MockPayload()
-    mock_transaction.request = mock_request
+    mock_transaction.openai_request = mock_request
 
     result = await policy.apply(mock_transaction, mock_container, mock_db_session)
 

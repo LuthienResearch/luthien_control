@@ -70,13 +70,13 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
             NoRequestError: If the request is not found in the transaction.
             LeakedApiKeyError: If a potential API key is detected in message content.
         """
-        if transaction.request is None:
+        if transaction.openai_request is None:
             raise NoRequestError("No request in transaction.")
 
         self.logger.info(f"Checking for leaked API keys in message content ({self.name}).")
 
-        if hasattr(transaction.request.payload, "messages"):
-            messages = transaction.request.payload.messages
+        if hasattr(transaction.openai_request.payload, "messages"):
+            messages = transaction.openai_request.payload.messages
 
             # Inspect each message's content
             for message in messages:

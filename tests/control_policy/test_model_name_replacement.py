@@ -61,7 +61,7 @@ def sample_transaction() -> Transaction:
         }
     )
 
-    return Transaction(request=request, response=response, data=transaction_data)
+    return Transaction(openai_request=request, openai_response=response, data=transaction_data)
 
 
 @pytest.fixture
@@ -107,7 +107,7 @@ async def test_model_name_replacement_policy_no_request(
 
     # Create a mock transaction with request=None using MagicMock
     mock_transaction = MagicMock(spec=Transaction)
-    mock_transaction.request = None
+    mock_transaction.openai_request = None
 
     with pytest.raises(NoRequestError, match="No request in transaction"):
         await policy.apply(mock_transaction, mock_container, mock_db_session)
@@ -130,14 +130,14 @@ async def test_model_name_replacement_policy_no_model_attribute(
     mock_transaction = MagicMock(spec=Transaction)
     mock_request = MagicMock()
     mock_request.payload = MockPayload()
-    mock_transaction.request = mock_request
+    mock_transaction.openai_request = mock_request
 
     result = await policy.apply(mock_transaction, mock_container, mock_db_session)
 
     assert result is mock_transaction
     # Payload should be unchanged
-    assert hasattr(result.request.payload, "data")
-    assert result.request.payload.data == "some data"  # type: ignore[attr-defined]
+    assert hasattr(result.openai_request.payload, "data")
+    assert result.openai_request.payload.data == "some data"  # type: ignore[attr-defined]
 
 
 @pytest.mark.asyncio
@@ -150,12 +150,12 @@ async def test_model_name_replacement_policy_model_not_in_mapping(
     policy = ModelNameReplacementPolicy(model_mapping={"fakename": "realname"})
 
     # The sample transaction has model="gpt-4" which is not in the mapping
-    original_model = sample_transaction.request.payload.model
+    original_model = sample_transaction.openai_request.payload.model
 
     result = await policy.apply(sample_transaction, mock_container, mock_db_session)
 
     assert result is sample_transaction
-    assert result.request.payload.model == original_model  # Should be unchanged
+    assert result.openai_request.payload.model == original_model  # Should be unchanged
 
 
 @pytest.mark.asyncio
@@ -171,12 +171,12 @@ async def test_model_name_replacement_policy_model_in_mapping(
     # Test each mapping
     for fake_name, real_name in model_mapping.items():
         # Set the model to the fake name
-        sample_transaction.request.payload.model = fake_name
+        sample_transaction.openai_request.payload.model = fake_name
 
         result = await policy.apply(sample_transaction, mock_container, mock_db_session)
 
         assert result is sample_transaction
-        assert result.request.payload.model == real_name
+        assert result.openai_request.payload.model == real_name
 
 
 @pytest.mark.asyncio
@@ -190,7 +190,7 @@ async def test_model_name_replacement_policy_logging(
     policy = ModelNameReplacementPolicy(model_mapping={"gpt-4": "gpt-4-turbo"})
 
     # Set the model to match our mapping
-    sample_transaction.request.payload.model = "gpt-4"
+    sample_transaction.openai_request.payload.model = "gpt-4"
 
     with caplog.at_level(logging.INFO):
         await policy.apply(sample_transaction, mock_container, mock_db_session)
@@ -208,13 +208,13 @@ async def test_model_name_replacement_policy_multiple_applications(
     policy = ModelNameReplacementPolicy(model_mapping={"fake1": "real1", "real1": "real2"})
 
     # First application: fake1 -> real1
-    sample_transaction.request.payload.model = "fake1"
+    sample_transaction.openai_request.payload.model = "fake1"
     result1 = await policy.apply(sample_transaction, mock_container, mock_db_session)
-    assert result1.request.payload.model == "real1"
+    assert result1.openai_request.payload.model == "real1"
 
     # Second application: real1 -> real2
     result2 = await policy.apply(result1, mock_container, mock_db_session)
-    assert result2.request.payload.model == "real2"
+    assert result2.openai_request.payload.model == "real2"
 
 
 @pytest.mark.asyncio
@@ -226,12 +226,12 @@ async def test_model_name_replacement_policy_empty_mapping(
     """Test policy behavior with empty mapping."""
     policy = ModelNameReplacementPolicy(model_mapping={})
 
-    original_model = sample_transaction.request.payload.model
+    original_model = sample_transaction.openai_request.payload.model
 
     result = await policy.apply(sample_transaction, mock_container, mock_db_session)
 
     assert result is sample_transaction
-    assert result.request.payload.model == original_model  # Should be unchanged
+    assert result.openai_request.payload.model == original_model  # Should be unchanged
 
 
 def test_model_name_replacement_policy_serialize_default_name():

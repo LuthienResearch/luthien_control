@@ -13,6 +13,6 @@ class Transaction(DeepEventedModel):
     """A transaction between the Luthien Control API and the client."""
 
     transaction_id: UUID = Field(default_factory=uuid4)
-    request: Request = Field()
-    response: Response = Field()
+    openai_request: Request = Field()
+    openai_response: Response = Field()
     data: EventedDict[str, Any] = Field(default_factory=EventedDict)

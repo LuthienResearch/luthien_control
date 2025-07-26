@@ -47,7 +47,7 @@ def sample_transaction() -> Transaction:
         }
     )
 
-    return Transaction(request=request, response=response, data=transaction_data)
+    return Transaction(openai_request=request, openai_response=response, data=transaction_data)
 
 
 @pytest.fixture
@@ -94,7 +94,7 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
         result_transaction = await policy.apply(sample_transaction, mock_dependency_container, mock_async_session)
 
         assert result_transaction == sample_transaction
-        assert result_transaction.request.api_key == API_KEY_VALUE
+        assert result_transaction.openai_request.api_key == API_KEY_VALUE
 
     @pytest.mark.asyncio
     async def test_apply_no_request_in_transaction_raises_no_request_error(
@@ -102,7 +102,7 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
     ):
         # Create a mock transaction with request property that returns None
         mock_transaction = MagicMock(spec=Transaction)
-        mock_transaction.request = None
+        mock_transaction.openai_request = None
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
 
         with pytest.raises(NoRequestError, match="No request in transaction."):

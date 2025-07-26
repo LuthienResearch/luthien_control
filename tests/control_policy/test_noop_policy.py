@@ -46,7 +46,7 @@ def sample_transaction() -> Transaction:
         }
     )
 
-    return Transaction(request=request, response=response, data=transaction_data)
+    return Transaction(openai_request=request, openai_response=response, data=transaction_data)
 
 
 @pytest.fixture
@@ -83,8 +83,8 @@ async def test_noop_policy_apply_does_nothing(
     policy = NoopPolicy()
 
     # Store original transaction state for comparison
-    original_request = sample_transaction.request
-    original_response = sample_transaction.response
+    original_request = sample_transaction.openai_request
+    original_response = sample_transaction.openai_response
     assert sample_transaction.data is not None
     original_data = dict(sample_transaction.data)
 
@@ -92,8 +92,8 @@ async def test_noop_policy_apply_does_nothing(
 
     # Verify the transaction is returned unchanged
     assert result_transaction is sample_transaction
-    assert result_transaction.request is original_request
-    assert result_transaction.response is original_response
+    assert result_transaction.openai_request is original_request
+    assert result_transaction.openai_response is original_response
     assert result_transaction.data is not None
     assert dict(result_transaction.data) == original_data
 

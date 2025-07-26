@@ -52,10 +52,10 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
         Returns:
             The unmodified transaction if authentication is successful.
         """
-        if transaction.request is None:
+        if transaction.openai_request is None:
             raise NoRequestError("No request in transaction for API key auth.")
 
-        api_key_value = transaction.request.api_key
+        api_key_value = transaction.openai_request.api_key
 
         if not api_key_value:
             self.logger.warning("Missing API key in transaction request.")

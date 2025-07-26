@@ -192,7 +192,7 @@ def _create_minimal_transaction() -> Transaction:
         )
     )
 
-    return Transaction(request=request, response=response)
+    return Transaction(openai_request=request, openai_response=response)
 
 
 def test_get_transaction_value_short_path() -> None:

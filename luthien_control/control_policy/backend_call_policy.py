@@ -27,27 +27,31 @@ class BackendCallPolicy(ControlPolicy):
     ) -> Transaction:
         api_key = os.environ.get(self.backend_call_spec.api_key_env_var)
         if api_key:
-            transaction.request.api_key = api_key
-        transaction.request.api_endpoint = self.backend_call_spec.api_endpoint
+            transaction.openai_request.api_key = api_key
+        transaction.openai_request.api_endpoint = self.backend_call_spec.api_endpoint
 
         # Update the request payload with all arguments from backend_call_spec.request_args
         # Use model_validate to properly handle nested pydantic models and EventedList/EventedDict
         if self.backend_call_spec.request_args:
-            current_data = transaction.request.payload.model_dump()
+            current_data = transaction.openai_request.payload.model_dump()
             current_data.update(self.backend_call_spec.request_args)
-            transaction.request.payload = transaction.request.payload.__class__.model_validate(current_data)
+            transaction.openai_request.payload = transaction.openai_request.payload.__class__.model_validate(
+                current_data
+            )
 
         # Set the model if specified
         if self.backend_call_spec.model:
-            transaction.request.payload.model = self.backend_call_spec.model
+            transaction.openai_request.payload.model = self.backend_call_spec.model
 
         openai_client = container.create_openai_client(
-            transaction.request.api_endpoint, api_key or transaction.request.api_key
+            transaction.openai_request.api_endpoint, api_key or transaction.openai_request.api_key
         )
         try:
-            response_payload = await openai_client.chat.completions.create(**transaction.request.payload.model_dump())
-            transaction.response.payload = response_payload
-            transaction.response.api_endpoint = transaction.request.api_endpoint
+            response_payload = await openai_client.chat.completions.create(
+                **transaction.openai_request.payload.model_dump()
+            )
+            transaction.openai_response.payload = response_payload
+            transaction.openai_response.api_endpoint = transaction.openai_request.api_endpoint
         except openai.APITimeoutError as e:
             self.logger.error(f"Timeout error during backend request: {e} ({self.name})")
             raise

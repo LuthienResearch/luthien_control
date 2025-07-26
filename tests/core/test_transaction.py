@@ -49,17 +49,17 @@ def sample_response():
 
 def test_transaction_instantiation(sample_request, sample_response):
     """Test that a Transaction can be instantiated correctly."""
-    transaction = Transaction(request=sample_request, response=sample_response)
+    transaction = Transaction(openai_request=sample_request, openai_response=sample_response)
     assert isinstance(transaction, Transaction)
-    assert transaction.request == sample_request
-    assert transaction.response == sample_response
+    assert transaction.openai_request == sample_request
+    assert transaction.openai_response == sample_response
     assert isinstance(transaction.data, EventedDict)
     assert len(transaction.data) == 0
 
 
 def test_transaction_event_emission_on_attribute_change(sample_request, sample_response):
     """Test that the 'changed' signal is emitted on direct attribute changes."""
-    transaction = Transaction(request=sample_request, response=sample_response)
+    transaction = Transaction(openai_request=sample_request, openai_response=sample_response)
     mock_callback = Mock()
     transaction.changed.connect(mock_callback)
 
@@ -67,33 +67,33 @@ def test_transaction_event_emission_on_attribute_change(sample_request, sample_r
     new_response = Response(
         payload=OpenAIChatCompletionsResponse(id="new", created=1, model="gpt-4", object="chat.completion")
     )
-    transaction.response = new_response
+    transaction.openai_response = new_response
 
     mock_callback.assert_called_once()
-    assert transaction.response == new_response
+    assert transaction.openai_response == new_response
 
 
 def test_transaction_event_emission_on_nested_attribute_change(sample_request, sample_response):
     """Test that the 'changed' signal is emitted on nested attribute changes."""
-    transaction = Transaction(request=sample_request, response=sample_response)
+    transaction = Transaction(openai_request=sample_request, openai_response=sample_response)
     mock_callback = Mock()
     transaction.changed.connect(mock_callback)
 
     # Change a nested attribute
-    transaction.request.payload.model = "gpt-4-turbo"
+    transaction.openai_request.payload.model = "gpt-4-turbo"
 
     mock_callback.assert_called_once()
-    assert transaction.request.payload.model == "gpt-4-turbo"
+    assert transaction.openai_request.payload.model == "gpt-4-turbo"
 
     mock_callback.reset_mock()
 
     # Change an item in a nested list
-    transaction.request.payload.messages.append(Message(role="assistant", content="How can I help?"))
+    transaction.openai_request.payload.messages.append(Message(role="assistant", content="How can I help?"))
     mock_callback.assert_called()
-    assert len(transaction.request.payload.messages) == 2
+    assert len(transaction.openai_request.payload.messages) == 2
 
     mock_callback.reset_mock()
-    cast(OpenAIChatCompletionsResponse, transaction.response.payload).choices[0].message.content = "New content"
+    cast(OpenAIChatCompletionsResponse, transaction.openai_response.payload).choices[0].message.content = "New content"
     mock_callback.assert_called_once()
-    assert transaction.response.payload is not None
-    assert transaction.response.payload.choices[0].message.content == "New content"
+    assert transaction.openai_response.payload is not None
+    assert transaction.openai_response.payload.choices[0].message.content == "New content"

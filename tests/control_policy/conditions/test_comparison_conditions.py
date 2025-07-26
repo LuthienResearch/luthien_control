@@ -57,7 +57,7 @@ def sample_transaction_clean() -> Transaction:
     )
 
     # Create transaction with additional data
-    transaction = Transaction(request=request, response=response)
+    transaction = Transaction(openai_request=request, openai_response=response)
     transaction.data = EventedDict(
         {
             "preferred_model": "gpt-4o",
@@ -97,12 +97,12 @@ class TestValueResolvers:
 
     def test_transaction_path_resolver(self, sample_transaction_clean: Transaction):
         """Test TransactionPath resolver."""
-        resolver = TransactionPath(path="request.payload.model")
+        resolver = TransactionPath(path="openai_request.payload.model")
         assert resolver.resolve(sample_transaction_clean) == "gpt-4o"
 
     def test_path_convenience_function(self, sample_transaction_clean: Transaction):
         """Test the path() convenience function."""
-        resolver = path("request.payload.model")
+        resolver = path("openai_request.payload.model")
         assert isinstance(resolver, TransactionPath)
         assert resolver.resolve(sample_transaction_clean) == "gpt-4o"
 
@@ -122,9 +122,9 @@ class TestValueResolvers:
 
     def test_transaction_path_serialization(self, sample_transaction_clean: Transaction):
         """Test TransactionPath serialization."""
-        resolver = TransactionPath(path="request.payload.model")
+        resolver = TransactionPath(path="openai_request.payload.model")
         serialized = resolver.serialize()
-        assert serialized == {"type": "transaction_path", "path": "request.payload.model"}
+        assert serialized == {"type": "transaction_path", "path": "openai_request.payload.model"}
 
         deserialized = TransactionPath.from_serialized(serialized)
         assert deserialized.resolve(sample_transaction_clean) == "gpt-4o"
@@ -141,8 +141,8 @@ class TestValueResolvers:
 
     def test_transaction_path_equality(self):
         """Test TransactionPath equality."""
-        resolver1 = TransactionPath(path="request.payload.model")
-        resolver2 = TransactionPath(path="request.payload.model")
+        resolver1 = TransactionPath(path="openai_request.payload.model")
+        resolver2 = TransactionPath(path="openai_request.payload.model")
         resolver3 = TransactionPath(path="data.model")
 
         assert resolver1 == resolver2
@@ -153,22 +153,22 @@ class TestValueResolvers:
 class TestCleanEqualsCondition:
     def test_traditional_path_vs_static(self, sample_transaction_clean: Transaction):
         """Test traditional format: transaction path vs static value."""
-        condition = EqualsCondition(path("request.payload.model"), "gpt-4o")
+        condition = EqualsCondition(path("openai_request.payload.model"), "gpt-4o")
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_auto_resolution_path_vs_static(self, sample_transaction_clean: Transaction):
         """Test auto-resolution of static values."""
-        condition = EqualsCondition(path("request.payload.model"), "gpt-4o")
+        condition = EqualsCondition(path("openai_request.payload.model"), "gpt-4o")
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_path_vs_path(self, sample_transaction_clean: Transaction):
         """Test dynamic comparison: transaction path vs transaction path."""
-        condition = EqualsCondition(path("request.payload.model"), path("data.preferred_model"))
+        condition = EqualsCondition(path("openai_request.payload.model"), path("data.preferred_model"))
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_static_vs_path(self, sample_transaction_clean: Transaction):
         """Test static value vs transaction path."""
-        condition = EqualsCondition("gpt-4o", path("request.payload.model"))
+        condition = EqualsCondition("gpt-4o", path("openai_request.payload.model"))
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_static_vs_static(self, sample_transaction_clean: Transaction):
@@ -183,12 +183,12 @@ class TestCleanEqualsCondition:
 
     def test_numeric_comparison(self, sample_transaction_clean: Transaction):
         """Test comparing numeric values dynamically."""
-        condition = EqualsCondition(path("request.payload.temperature"), path("data.settings.default_temperature"))
+        condition = EqualsCondition(path("openai_request.payload.temperature"), path("data.settings.default_temperature"))
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_serialization_path_vs_static(self):
         """Test serialization of path vs static value."""
-        condition = EqualsCondition(path("request.payload.model"), "gpt-4o")
+        condition = EqualsCondition(path("openai_request.payload.model"), "gpt-4o")
         serialized = condition.serialize()
 
         assert serialized["type"] == "equals"
@@ -198,7 +198,7 @@ class TestCleanEqualsCondition:
 
     def test_serialization_path_vs_path(self):
         """Test serialization of path vs path."""
-        condition = EqualsCondition(path("request.payload.model"), path("data.preferred_model"))
+        condition = EqualsCondition(path("openai_request.payload.model"), path("data.preferred_model"))
         serialized = condition.serialize()
 
         assert serialized["type"] == "equals"
@@ -220,7 +220,7 @@ class TestCleanEqualsCondition:
         """Test deserialization of path vs static works correctly."""
         serialized = {
             "type": "equals",
-            "left": {"type": "transaction_path", "path": "request.payload.model"},
+            "left": {"type": "transaction_path", "path": "openai_request.payload.model"},
             "right": {"type": "static", "value": "gpt-4o"},
             "comparator": "equals",
         }
@@ -231,7 +231,7 @@ class TestCleanEqualsCondition:
         """Test deserialization of path vs path works correctly."""
         serialized = {
             "type": "equals",
-            "left": {"type": "transaction_path", "path": "request.payload.model"},
+            "left": {"type": "transaction_path", "path": "openai_request.payload.model"},
             "right": {"type": "transaction_path", "path": "data.preferred_model"},
             "comparator": "equals",
         }
@@ -240,19 +240,19 @@ class TestCleanEqualsCondition:
 
     def test_legacy_format_compatibility(self, sample_transaction_clean: Transaction):
         """Test compatibility with legacy format works correctly."""
-        condition = EqualsCondition.from_legacy_format(key="request.payload.model", value="gpt-4o")
+        condition = EqualsCondition.from_legacy_format(key="openai_request.payload.model", value="gpt-4o")
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_kwargs(self, sample_transaction_clean: Transaction):
         """Test kwargs."""
-        condition = EqualsCondition(left=path("request.payload.model"), right="gpt-4o")
+        condition = EqualsCondition(left=path("openai_request.payload.model"), right="gpt-4o")
         assert condition.evaluate(sample_transaction_clean) is True
 
 
 class TestOtherCleanConditions:
     def test_not_equals_condition(self, sample_transaction_clean: Transaction):
         """Test NotEqualsCondition."""
-        condition = NotEqualsCondition(path("request.payload.model"), path("data.alternative_model"))
+        condition = NotEqualsCondition(path("openai_request.payload.model"), path("data.alternative_model"))
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_contains_condition_static(self, sample_transaction_clean: Transaction):
@@ -262,44 +262,44 @@ class TestOtherCleanConditions:
 
     def test_contains_condition_dynamic(self, sample_transaction_clean: Transaction):
         """Test ContainsCondition with dynamic contains."""
-        condition = ContainsCondition(path("data.settings.allowed_models"), path("request.payload.model"))
+        condition = ContainsCondition(path("data.settings.allowed_models"), path("openai_request.payload.model"))
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_contains_condition_static_left(self, sample_transaction_clean: Transaction):
         """Test ContainsCondition with static left value."""
-        condition = ContainsCondition(["gpt-4o", "gpt-3.5-turbo"], path("request.payload.model"))
+        condition = ContainsCondition(["gpt-4o", "gpt-3.5-turbo"], path("openai_request.payload.model"))
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_less_than_condition_static(self, sample_transaction_clean: Transaction):
         """Test LessThanCondition with static value."""
-        condition = LessThanCondition(path("request.payload.max_tokens"), 1000)
+        condition = LessThanCondition(path("openai_request.payload.max_tokens"), 1000)
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_less_than_condition_dynamic(self, sample_transaction_clean: Transaction):
         """Test LessThanCondition with dynamic comparison."""
-        condition = LessThanCondition(path("request.payload.max_tokens"), path("data.settings.max_tokens_limit"))
+        condition = LessThanCondition(path("openai_request.payload.max_tokens"), path("data.settings.max_tokens_limit"))
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_less_than_condition_static_left(self, sample_transaction_clean: Transaction):
         """Test LessThanCondition with static left value."""
-        condition = LessThanCondition(50, path("response.payload.usage.total_tokens"))
+        condition = LessThanCondition(50, path("openai_response.payload.usage.total_tokens"))
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_greater_than_condition(self, sample_transaction_clean: Transaction):
         """Test GreaterThanCondition."""
         condition = GreaterThanCondition(
-            path("response.payload.usage.total_tokens"), path("response.payload.usage.prompt_tokens")
+            path("openai_response.payload.usage.total_tokens"), path("openai_response.payload.usage.prompt_tokens")
         )
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_regex_match_condition_static(self, sample_transaction_clean: Transaction):
         """Test RegexMatchCondition with static pattern."""
-        condition = RegexMatchCondition(path("request.payload.model"), "gpt-4.*")
+        condition = RegexMatchCondition(path("openai_request.payload.model"), "gpt-4.*")
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_regex_match_condition_dynamic(self, sample_transaction_clean: Transaction):
         """Test RegexMatchCondition with dynamic pattern."""
-        condition = RegexMatchCondition(path("request.payload.model"), path("data.patterns.model_pattern"))
+        condition = RegexMatchCondition(path("openai_request.payload.model"), path("data.patterns.model_pattern"))
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_regex_match_condition_static_left(self, sample_transaction_clean: Transaction):
@@ -317,7 +317,7 @@ class TestErrorHandling:
 
     def test_invalid_right_path(self, sample_transaction_clean: Transaction):
         """Test handling of invalid right path."""
-        condition = EqualsCondition(path("request.payload.model"), path("data.nonexistent.path"))
+        condition = EqualsCondition(path("openai_request.payload.model"), path("data.nonexistent.path"))
         # Should return False when comparing "gpt-4o" to None
         assert condition.evaluate(sample_transaction_clean) is False
 
@@ -329,7 +329,7 @@ class TestErrorHandling:
 
     def test_repr(self, sample_transaction_clean: Transaction):
         """Test string representation."""
-        condition = EqualsCondition(path("request.payload.model"), "gpt-4o")
+        condition = EqualsCondition(path("openai_request.payload.model"), "gpt-4o")
         repr_str = repr(condition)
         assert "EqualsCondition" in repr_str
         assert "TransactionPath" in repr_str
@@ -337,7 +337,7 @@ class TestErrorHandling:
 
     def test_round_trip_serialization(self, sample_transaction_clean: Transaction):
         """Test serialization and deserialization round trip."""
-        condition = EqualsCondition(path("request.payload.model"), "gpt-4o")
+        condition = EqualsCondition(path("openai_request.payload.model"), "gpt-4o")
         serialized = condition.serialize()
         deserialized = EqualsCondition.from_serialized(serialized)
         assert condition.evaluate(sample_transaction_clean) == deserialized.evaluate(sample_transaction_clean)
@@ -350,7 +350,7 @@ class TestValidatorCodePaths:
         # Use model_validate to trigger the field validators
         data = {
             "type": "equals",
-            "left": {"type": "transaction_path", "path": "request.payload.model"},  # This should trigger line 170
+            "left": {"type": "transaction_path", "path": "openai_request.payload.model"},  # This should trigger line 170
             "right": {"type": "static", "value": "gpt-4o"},  # This should also trigger line 170
             "comparator": "equals",
         }
@@ -366,7 +366,7 @@ class TestValidatorCodePaths:
         # Use model_validate with a StaticValue that has a dict value with "type"
         data = {
             "type": "equals",
-            "left": {"type": "transaction_path", "path": "request.payload.model"},
+            "left": {"type": "transaction_path", "path": "openai_request.payload.model"},
             "right": StaticValue(value=nested_resolver_dict),  # This should trigger line 176
             "comparator": "equals",
         }

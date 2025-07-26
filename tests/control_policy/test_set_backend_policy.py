@@ -42,8 +42,8 @@ class TestSetBackendPolicy:
 
         # Create mock objects
         transaction = Mock(spec=Transaction)
-        transaction.request = Mock()
-        transaction.request.api_endpoint = "chat/completions"  # Initial path
+        transaction.openai_request = Mock()
+        transaction.openai_request.api_endpoint = "chat/completions"  # Initial path
         container = Mock(spec=DependencyContainer)
         session = Mock(spec=AsyncSession)
 
@@ -51,7 +51,7 @@ class TestSetBackendPolicy:
         result = await policy.apply(transaction, container, session)
 
         # Verify the backend URL was set (without combining with the original path)
-        assert transaction.request.api_endpoint == "https://api.example.com/"
+        assert transaction.openai_request.api_endpoint == "https://api.example.com/"
         assert result is transaction
 
     @pytest.mark.asyncio
@@ -61,8 +61,8 @@ class TestSetBackendPolicy:
 
         # Create mock objects
         transaction = Mock(spec=Transaction)
-        transaction.request = Mock()
-        transaction.request.api_endpoint = "chat/completions"  # Initial path
+        transaction.openai_request = Mock()
+        transaction.openai_request.api_endpoint = "chat/completions"  # Initial path
         container = Mock(spec=DependencyContainer)
         session = Mock(spec=AsyncSession)
 
@@ -70,7 +70,7 @@ class TestSetBackendPolicy:
         result = await policy.apply(transaction, container, session)
 
         # Verify the backend URL was not modified
-        assert transaction.request.api_endpoint == "chat/completions"
+        assert transaction.openai_request.api_endpoint == "chat/completions"
         assert result is transaction
 
     @pytest.mark.asyncio
@@ -89,8 +89,8 @@ class TestSetBackendPolicy:
 
             # Create mock objects
             transaction = Mock(spec=Transaction)
-            transaction.request = Mock()
-            transaction.request.api_endpoint = original_path
+            transaction.openai_request = Mock()
+            transaction.openai_request.api_endpoint = original_path
             container = Mock(spec=DependencyContainer)
             session = Mock(spec=AsyncSession)
 
@@ -98,7 +98,7 @@ class TestSetBackendPolicy:
             result = await policy.apply(transaction, container, session)
 
             # Verify the URL was joined correctly
-            assert transaction.request.api_endpoint == expected_result, f"Failed for {base_url} + {original_path}"
+            assert transaction.openai_request.api_endpoint == expected_result, f"Failed for {base_url} + {original_path}"
             assert result is transaction
 
     def test_get_policy_specific_config(self):

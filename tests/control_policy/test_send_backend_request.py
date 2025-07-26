@@ -105,7 +105,7 @@ def sample_transaction() -> Transaction:
     request = create_chat_request()
     response = create_chat_response()
     transaction_data = EventedDict({"test_key": "test_value"})
-    return Transaction(request=request, response=response, data=transaction_data)
+    return Transaction(openai_request=request, openai_response=response, data=transaction_data)
 
 
 @pytest.fixture
@@ -154,8 +154,8 @@ async def test_send_backend_request_policy_no_backend_url(test_container: MagicM
     """Test that ValueError is raised when backend URL is not configured."""
     policy = SendBackendRequestPolicy()
     transaction = Transaction(
-        request=create_chat_request(api_endpoint=""),
-        response=create_chat_response(),
+        openai_request=create_chat_request(api_endpoint=""),
+        openai_response=create_chat_response(),
         data=EventedDict(),
     )
     db_session = AsyncMock(spec=AsyncSession)
@@ -169,8 +169,8 @@ async def test_send_backend_request_policy_no_api_key(test_container: MagicMock)
     """Test that ValueError is raised when API key is not configured."""
     policy = SendBackendRequestPolicy()
     transaction = Transaction(
-        request=create_chat_request(api_key=""),
-        response=create_chat_response(),
+        openai_request=create_chat_request(api_key=""),
+        openai_response=create_chat_response(),
         data=EventedDict(),
     )
     db_session = AsyncMock(spec=AsyncSession)
@@ -209,12 +209,12 @@ async def test_send_backend_request_policy_successful_request(
     assert "stream" not in call_kwargs  # This would be None and should be filtered
 
     # Verify response was stored in transaction
-    assert sample_transaction.response.payload is not None
-    assert sample_transaction.response.payload.id == "chatcmpl-backend-123"
-    assert sample_transaction.response.payload.model == "gpt-4"
-    assert len(sample_transaction.response.payload.choices) == 1
-    assert sample_transaction.response.payload.choices[0].message.content == "Hello! How can I help you today?"
-    assert sample_transaction.response.payload.usage.total_tokens == 25
+    assert sample_transaction.openai_response.payload is not None
+    assert sample_transaction.openai_response.payload.id == "chatcmpl-backend-123"
+    assert sample_transaction.openai_response.payload.model == "gpt-4"
+    assert len(sample_transaction.openai_response.payload.choices) == 1
+    assert sample_transaction.openai_response.payload.choices[0].message.content == "Hello! How can I help you today?"
+    assert sample_transaction.openai_response.payload.usage.total_tokens == 25
 
 
 @pytest.mark.asyncio
@@ -366,8 +366,8 @@ async def test_send_backend_request_policy_filters_none_values(
     db_session = AsyncMock(spec=AsyncSession)
 
     # Add some None values to the request payload
-    sample_transaction.request.payload.stream = None
-    sample_transaction.request.payload.stop = None
+    sample_transaction.openai_request.payload.stream = None
+    sample_transaction.openai_request.payload.stop = None
 
     await policy.apply(sample_transaction, test_container, db_session)
 
@@ -389,11 +389,11 @@ async def test_send_backend_request_policy_different_model(
     """Test with a different model in the request."""
     # Create transaction with different model
     transaction = Transaction(
-        request=create_chat_request(
+        openai_request=create_chat_request(
             model="gpt-3.5-turbo",
             messages=[Message(role="user", content="Test message")],
         ),
-        response=create_chat_response(model="gpt-3.5-turbo", prompt_tokens=5, completion_tokens=3),
+        openai_response=create_chat_response(model="gpt-3.5-turbo", prompt_tokens=5, completion_tokens=3),
         data=EventedDict(),
     )
     db_session = AsyncMock(spec=AsyncSession)

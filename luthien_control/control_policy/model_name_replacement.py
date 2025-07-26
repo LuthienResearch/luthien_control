@@ -41,15 +41,15 @@ class ModelNameReplacementPolicy(ControlPolicy):
         Raises:
             NoRequestError: If no request is found in the transaction.
         """
-        if transaction.request is None:
+        if transaction.openai_request is None:
             raise NoRequestError("No request in transaction.")
 
-        if hasattr(transaction.request.payload, "model"):
-            original_model = transaction.request.payload.model
+        if hasattr(transaction.openai_request.payload, "model"):
+            original_model = transaction.openai_request.payload.model
 
             if original_model in self.model_mapping:
                 new_model = self.model_mapping[original_model]
                 self.logger.info(f"Replacing model name: {original_model} -> {new_model}")
-                transaction.request.payload.model = new_model
+                transaction.openai_request.payload.model = new_model
 
         return transaction

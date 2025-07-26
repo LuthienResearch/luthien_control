@@ -74,7 +74,7 @@ class MockTestPolicy(ControlPolicy):
 
     async def apply(self, transaction, container, session):
         transaction.data["main_policy_called"] = True
-        transaction.response.payload = create_test_response()
+        transaction.openai_response.payload = create_test_response()
         return transaction
 
     def serialize(self) -> SerializableDict:
@@ -93,7 +93,7 @@ class MockTestPolicyNonePayload(ControlPolicy):
 
     async def apply(self, transaction, container, session):
         transaction.data["main_policy_called"] = True
-        transaction.response.payload = None
+        transaction.openai_response.payload = None
         return transaction
 
     def serialize(self) -> SerializableDict:
@@ -480,9 +480,9 @@ async def test_initialize_context_query_params():
     # _initialize_transaction now takes body, url, and api_key
     transaction = _initialize_transaction(body, url, api_key)
 
-    assert transaction.request is not None
-    assert transaction.request.api_endpoint == url
-    assert transaction.request.api_key == api_key
-    assert transaction.request.payload.model == "gpt-4"
-    assert len(transaction.request.payload.messages) == 1
-    assert transaction.request.payload.messages[0].content == "test"
+    assert transaction.openai_request is not None
+    assert transaction.openai_request.api_endpoint == url
+    assert transaction.openai_request.api_key == api_key
+    assert transaction.openai_request.payload.model == "gpt-4"
+    assert len(transaction.openai_request.payload.messages) == 1
+    assert transaction.openai_request.payload.messages[0].content == "test"

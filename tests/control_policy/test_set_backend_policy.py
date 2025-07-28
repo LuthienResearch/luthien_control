@@ -98,7 +98,9 @@ class TestSetBackendPolicy:
             result = await policy.apply(transaction, container, session)
 
             # Verify the URL was joined correctly
-            assert transaction.openai_request.api_endpoint == expected_result, f"Failed for {base_url} + {original_path}"
+            assert transaction.openai_request.api_endpoint == expected_result, (
+                f"Failed for {base_url} + {original_path}"
+            )
             assert result is transaction
 
     def test_get_policy_specific_config(self):

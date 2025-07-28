@@ -333,6 +333,10 @@ class MockSendBackendRequestPolicy(ControlPolicy):
         self, transaction: Transaction, container: DependencyContainer, session: AsyncSession
     ) -> Transaction:
         # Simulate setting the response after a backend call
+        if transaction.openai_response is None:
+            from luthien_control.core.response import Response
+
+            transaction.openai_response = Response()
         transaction.openai_response.payload = self.mock_response
         return transaction
 
@@ -359,7 +363,7 @@ async def test_api_proxy_no_auth_policy_no_key_success(
     (e.g., NoOpPolicy) does not require authentication.
     This uses dependency overrides and mocks the backend HTTP call via policy.
     """
-    test_path = "v1/models"
+    test_path = "v1/chat/completions"
     backend_response_content = {"detail": "Success from mocked backend via policy"}
     mock_backend_httpx_response = httpx.Response(200, json=backend_response_content, headers={"X-Backend-Mock": "true"})
 

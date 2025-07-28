@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Dict, Optional
 
+import httpx
 import openai
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from luthien_control.api.openai_chat_completions import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.raw_response import RawResponse
+from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
 
 logger = logging.getLogger(__name__)
@@ -15,8 +18,10 @@ logger = logging.getLogger(__name__)
 
 class SendBackendRequestPolicy(ControlPolicy):
     """
-    Policy responsible for sending the chat completions request to the OpenAI-compatible backend
-    using the OpenAI SDK and storing the structured response.
+    Policy responsible for sending requests to the backend.
+
+    For OpenAI chat completions requests, uses the OpenAI SDK.
+    For other paths, uses httpx to make direct HTTP calls.
 
     Attributes:
         name (str): The name of this policy instance, used for logging and
@@ -75,28 +80,35 @@ class SendBackendRequestPolicy(ControlPolicy):
         session: AsyncSession,
     ) -> Transaction:
         """
-        Sends the chat completions request to the OpenAI-compatible backend using the OpenAI SDK.
+        Sends requests to the backend using the appropriate method based on transaction type.
 
-        This policy uses the OpenAI SDK to send the structured chat completions request
-        from transaction.request.payload to the backend API endpoint. The response
-        is stored as a structured OpenAIChatCompletionsResponse in transaction.response.payload.
+        For OpenAI chat completions, uses the OpenAI SDK.
+        For raw HTTP requests, uses httpx for direct HTTP calls.
 
         Args:
-            transaction: The current transaction, containing the request payload to be sent.
+            transaction: The current transaction, containing the request to be sent.
             container: The application dependency container, providing settings and OpenAI client.
             session: An active SQLAlchemy AsyncSession. (Unused by this policy but required by the interface).
 
         Returns:
-            The Transaction, updated with transaction.response.payload containing the
-            OpenAIChatCompletionsResponse from the backend.
+            The Transaction, updated with the appropriate response.
 
         Raises:
             ValueError: If backend URL or API key is not configured.
-            openai.APIError: For API-related errors from the OpenAI backend.
-            openai.APITimeoutError: If the request to the backend times out.
-            openai.APIConnectionError: For network-related issues during the backend request.
-            Exception: For any other unexpected errors during request execution.
+            Various exceptions depending on the backend response.
         """
+        if transaction.openai_request is not None:
+            return await self._handle_openai_request(transaction, container)
+        elif transaction.raw_request is not None:
+            return await self._handle_raw_request(transaction, container)
+        else:
+            raise ValueError("Transaction has no request to process")
+
+    async def _handle_openai_request(self, transaction: Transaction, container: DependencyContainer) -> Transaction:
+        """Handle OpenAI chat completions request using the OpenAI SDK."""
+        if transaction.openai_request is None:
+            raise ValueError("OpenAI request is None")
+
         # Create OpenAI client for the backend request
         backend_url = transaction.openai_request.api_endpoint
         api_key = transaction.openai_request.api_key
@@ -131,6 +143,8 @@ class SendBackendRequestPolicy(ControlPolicy):
             response_payload = OpenAIChatCompletionsResponse.model_validate(backend_response.model_dump())
 
             # Store the structured response in the transaction
+            if transaction.openai_response is None:
+                transaction.openai_response = Response()
             transaction.openai_response.payload = response_payload
             transaction.openai_response.api_endpoint = backend_url
 
@@ -167,6 +181,52 @@ class SendBackendRequestPolicy(ControlPolicy):
             # Store debug information for potential dev mode access
             debug_info = self._create_debug_info(backend_url, request_payload, e, api_key)
             e.debug_info = debug_info  # type: ignore
+            raise
+
+        return transaction
+
+    async def _handle_raw_request(self, transaction: Transaction, container: DependencyContainer) -> Transaction:
+        """Handle raw HTTP request using httpx."""
+        if transaction.raw_request is None:
+            raise ValueError("Raw request is None")
+
+        raw_request = transaction.raw_request
+        backend_url = raw_request.backend_url or "http://localhost:8000"  # fallback
+
+        # Build the full URL
+        full_url = f"{backend_url.rstrip('/')}/{raw_request.path.lstrip('/')}"
+
+        self.logger.info(f"Sending {raw_request.method} request to {full_url} ({self.name})")
+
+        # Prepare headers
+        headers = raw_request.headers.copy()
+        if raw_request.api_key:
+            headers["Authorization"] = f"Bearer {raw_request.api_key}"
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.request(
+                    method=raw_request.method, url=full_url, headers=headers, content=raw_request.body
+                )
+
+            # Store the raw response
+            transaction.raw_response = RawResponse(
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                body=response.content,
+                content=response.text if response.text else None,
+            )
+
+            self.logger.info(f"Received raw response with status {response.status_code} ({self.name})")
+
+        except httpx.TimeoutException as e:
+            self.logger.error(f"Timeout error during raw request: {e} ({self.name})")
+            raise
+        except httpx.ConnectError as e:
+            self.logger.error(f"Connection error during raw request: {e} ({self.name})")
+            raise
+        except Exception as e:
+            self.logger.exception(f"Unexpected error during raw request: {e} ({self.name})")
             raise
 
         return transaction

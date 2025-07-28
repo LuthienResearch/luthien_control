@@ -109,17 +109,18 @@ async def test_add_api_key_no_request(
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
-    """Test that it raises an error if the request is not found in the transaction."""
+    """Test that it is a no-op when no OpenAI request is found in the transaction."""
     policy = AddApiKeyHeaderPolicy()
 
     # Create a mock transaction with request property that returns None
     mock_transaction = MagicMock(spec=Transaction)
     mock_transaction.openai_request = None
 
-    with pytest.raises(NoRequestError):
-        await policy.apply(mock_transaction, container=mock_container, session=mock_db_session)
+    # Should return the transaction unchanged (no-op for raw requests)
+    result = await policy.apply(mock_transaction, container=mock_container, session=mock_db_session)
+    assert result is mock_transaction
 
-    # Ensure get_openai_api_key was NOT called if no request
+    # Ensure get_openai_api_key was NOT called if no OpenAI request
     mock_container.settings.get_openai_api_key.assert_not_called()
 
 

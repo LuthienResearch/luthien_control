@@ -12,7 +12,7 @@ from pydantic import Field, field_validator, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
-from luthien_control.control_policy.exceptions import LeakedApiKeyError, NoRequestError
+from luthien_control.control_policy.exceptions import LeakedApiKeyError
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.transaction import Transaction
 
@@ -70,8 +70,10 @@ class LeakedApiKeyDetectionPolicy(ControlPolicy):
             NoRequestError: If the request is not found in the transaction.
             LeakedApiKeyError: If a potential API key is detected in message content.
         """
+        # This policy only applies to OpenAI requests
         if transaction.openai_request is None:
-            raise NoRequestError("No request in transaction.")
+            # No-op for raw requests
+            return transaction
 
         self.logger.info(f"Checking for leaked API keys in message content ({self.name}).")
 

@@ -166,15 +166,18 @@ async def test_client_api_key_auth_policy_no_request(
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
-    """Test that NoRequestError is raised when transaction has no request."""
+    """Test that policy returns transaction unchanged when there's no request (no-op behavior)."""
     policy = ClientApiKeyAuthPolicy()
 
-    # Create a mock transaction with request=None
+    # Create a mock transaction with both request types as None
     mock_transaction = MagicMock(spec=Transaction)
     mock_transaction.openai_request = None
+    mock_transaction.raw_request = None
 
-    with pytest.raises(NoRequestError, match="No request in transaction for API key auth"):
-        await policy.apply(mock_transaction, mock_container, mock_db_session)
+    result = await policy.apply(mock_transaction, mock_container, mock_db_session)
+    
+    # Policy should return the transaction unchanged when there's no request (no-op behavior)
+    assert result is mock_transaction
 
 
 @pytest.mark.asyncio

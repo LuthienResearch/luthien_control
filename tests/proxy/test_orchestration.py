@@ -9,7 +9,7 @@ from fastapi import Response
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.control_policy.serialization import SerializableDict
-from luthien_control.proxy.orchestration import _initialize_transaction, run_policy_flow
+from luthien_control.proxy.orchestration import _initialize_openai_transaction, run_policy_flow
 from luthien_control.settings import Settings
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,9 +23,9 @@ TEST_REQUEST_BODY = b'{"model": "gpt-4", "messages": [{"role": "user", "content"
 @pytest.fixture
 def mock_request() -> MagicMock:
     request = MagicMock(spec=fastapi.Request)
-    request.scope = {"type": "http", "method": "GET", "path": "/test/path"}
-    request.path_params = {"full_path": "/test/path"}
-    request.method = "GET"  # Explicitly set the method attribute
+    request.scope = {"type": "http", "method": "POST", "path": "/api/v1/chat/completions"}
+    request.path_params = {"full_path": "v1/chat/completions"}
+    request.method = "POST"  # Explicitly set the method attribute
     request.query_params = MagicMock(spec=fastapi.datastructures.QueryParams)  # Use MagicMock for query_params
     request.headers = MagicMock(spec=fastapi.datastructures.Headers)
     request.headers.get = MagicMock(return_value="")  # Return empty string for authorization header
@@ -74,6 +74,10 @@ class MockTestPolicy(ControlPolicy):
 
     async def apply(self, transaction, container, session):
         transaction.data["main_policy_called"] = True
+        if transaction.openai_response is None:
+            from luthien_control.core.response import Response
+
+            transaction.openai_response = Response()
         transaction.openai_response.payload = create_test_response()
         return transaction
 
@@ -93,6 +97,10 @@ class MockTestPolicyNonePayload(ControlPolicy):
 
     async def apply(self, transaction, container, session):
         transaction.data["main_policy_called"] = True
+        if transaction.openai_response is None:
+            from luthien_control.core.response import Response
+
+            transaction.openai_response = Response()
         transaction.openai_response.payload = None
         return transaction
 
@@ -408,7 +416,7 @@ async def test_run_policy_flow_unexpected_exception_during_build(
     assert response is expected_fallback_response
 
 
-@patch("luthien_control.proxy.orchestration._initialize_transaction")
+@patch("luthien_control.proxy.orchestration._initialize_openai_transaction")
 @patch("luthien_control.proxy.orchestration.logger")
 @patch("luthien_control.proxy.orchestration.JSONResponse")
 async def test_run_policy_flow_context_init_exception(
@@ -438,11 +446,11 @@ async def test_run_policy_flow_context_init_exception(
 
     # Assertions: Ensure things *didn't* happen past the point of failure
     mock_request.body.assert_awaited_once()  # Body read before transaction init attempt
-    # Check that _initialize_transaction was called with body, url, and api_key
+    # Check that _initialize_openai_transaction was called with body, url, and api_key
     mock_init_transaction.assert_called_once()
     call_args = mock_init_transaction.call_args
     assert call_args[0][0] == TEST_REQUEST_BODY  # body
-    assert call_args[0][1] == "/test/path"  # url from path_params
+    assert call_args[0][1] == "v1/chat/completions"  # url from path_params
     assert call_args[0][2] == ""  # api_key (empty from mock headers)
 
     mock_logger.exception.assert_not_called()  # Logger within run_policy_flow not called
@@ -468,17 +476,17 @@ async def test_run_policy_flow_none_payload(
 
     # Should return JSONResponse with 500 status and error message
     assert response.status_code == 500
-    assert "Internal Server Error: No response payload" in cast(bytes, response.body).decode()
+    assert "Internal Server Error: No OpenAI response payload" in cast(bytes, response.body).decode()
 
 
 async def test_initialize_context_query_params():
-    """_initialize_transaction should store the URL and API key."""
+    """_initialize_openai_transaction should store the URL and API key."""
     body = b'{"model": "gpt-4", "messages": [{"role": "user", "content": "test"}]}'
     url = "/chat/completions"
     api_key = "test-api-key"
 
-    # _initialize_transaction now takes body, url, and api_key
-    transaction = _initialize_transaction(body, url, api_key)
+    # _initialize_openai_transaction now takes body, url, and api_key
+    transaction = _initialize_openai_transaction(body, url, api_key)
 
     assert transaction.openai_request is not None
     assert transaction.openai_request.api_endpoint == url

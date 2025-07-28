@@ -25,6 +25,11 @@ class BackendCallPolicy(ControlPolicy):
         container: DependencyContainer,
         session: AsyncSession,
     ) -> Transaction:
+        # This policy only applies to OpenAI requests
+        if transaction.openai_request is None:
+            # No-op for raw requests
+            return transaction
+
         api_key = os.environ.get(self.backend_call_spec.api_key_env_var)
         if api_key:
             transaction.openai_request.api_key = api_key

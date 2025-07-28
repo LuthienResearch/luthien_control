@@ -183,7 +183,9 @@ class TestCleanEqualsCondition:
 
     def test_numeric_comparison(self, sample_transaction_clean: Transaction):
         """Test comparing numeric values dynamically."""
-        condition = EqualsCondition(path("openai_request.payload.temperature"), path("data.settings.default_temperature"))
+        condition = EqualsCondition(
+            path("openai_request.payload.temperature"), path("data.settings.default_temperature")
+        )
         assert condition.evaluate(sample_transaction_clean) is True
 
     def test_serialization_path_vs_static(self):
@@ -350,7 +352,10 @@ class TestValidatorCodePaths:
         # Use model_validate to trigger the field validators
         data = {
             "type": "equals",
-            "left": {"type": "transaction_path", "path": "openai_request.payload.model"},  # This should trigger line 170
+            "left": {
+                "type": "transaction_path",
+                "path": "openai_request.payload.model",
+            },  # This should trigger line 170
             "right": {"type": "static", "value": "gpt-4o"},  # This should also trigger line 170
             "comparator": "equals",
         }

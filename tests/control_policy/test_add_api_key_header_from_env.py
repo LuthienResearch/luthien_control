@@ -97,7 +97,7 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
         assert result_transaction.openai_request.api_key == API_KEY_VALUE
 
     @pytest.mark.asyncio
-    async def test_apply_no_request_in_transaction_raises_no_request_error(
+    async def test_apply_no_request_in_transaction_returns_unchanged(
         self, mock_dependency_container, mock_async_session
     ):
         # Create a mock transaction with request property that returns None
@@ -105,8 +105,10 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
         mock_transaction.openai_request = None
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
 
-        with pytest.raises(NoRequestError, match="No request in transaction."):
-            await policy.apply(mock_transaction, mock_dependency_container, mock_async_session)
+        result = await policy.apply(mock_transaction, mock_dependency_container, mock_async_session)
+        
+        # Policy should return the transaction unchanged when there's no request (no-op behavior)
+        assert result is mock_transaction
 
     @pytest.mark.asyncio
     async def test_apply_env_var_not_set_raises_api_key_not_found_error(

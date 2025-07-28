@@ -8,7 +8,7 @@ from luthien_control.api.openai_chat_completions.datatypes import Choice, Messag
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
-from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
+from luthien_control.control_policy.exceptions import ApiKeyNotFoundError
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
@@ -106,7 +106,7 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name=API_KEY_ENV_VAR_NAME)
 
         result = await policy.apply(mock_transaction, mock_dependency_container, mock_async_session)
-        
+
         # Policy should return the transaction unchanged when there's no request (no-op behavior)
         assert result is mock_transaction
 

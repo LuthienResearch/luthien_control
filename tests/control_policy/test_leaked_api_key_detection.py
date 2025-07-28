@@ -9,7 +9,7 @@ import pytest
 from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
-from luthien_control.control_policy.exceptions import LeakedApiKeyError, NoRequestError
+from luthien_control.control_policy.exceptions import LeakedApiKeyError
 from luthien_control.control_policy.leaked_api_key_detection import LeakedApiKeyDetectionPolicy
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.request import Request
@@ -220,7 +220,7 @@ async def test_leaked_api_key_detection_policy_no_request(
     mock_transaction.openai_request = None
 
     result = await policy.apply(mock_transaction, mock_container, mock_db_session)
-    
+
     # Policy should return the transaction unchanged when there's no request (no-op behavior)
     assert result is mock_transaction
 

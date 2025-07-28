@@ -12,7 +12,6 @@ from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthP
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
     ClientAuthenticationNotFoundError,
-    NoRequestError,
 )
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
@@ -175,7 +174,7 @@ async def test_client_api_key_auth_policy_no_request(
     mock_transaction.raw_request = None
 
     result = await policy.apply(mock_transaction, mock_container, mock_db_session)
-    
+
     # Policy should return the transaction unchanged when there's no request (no-op behavior)
     assert result is mock_transaction
 

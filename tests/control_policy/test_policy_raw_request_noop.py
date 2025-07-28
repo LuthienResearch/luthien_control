@@ -1,7 +1,6 @@
 """Tests that OpenAI-specific policies are no-ops for raw requests."""
 
 import pytest
-
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
 from luthien_control.control_policy.leaked_api_key_detection import LeakedApiKeyDetectionPolicy

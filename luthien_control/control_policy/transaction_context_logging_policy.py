@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from typing import Any, Dict, Optional, TypeVar, cast
@@ -177,9 +178,10 @@ class TransactionContextLoggingPolicy(ControlPolicy):
         try:
             context = self._serialize_transaction_context(transaction)
 
-            # Log at the specified level
+            # Log JSON version for easy copy-paste into JSON analysis tools
             log_level = getattr(logging, self.log_level.upper(), logging.INFO)
-            self.logger.log(log_level, f"Transaction Context: {context}")
+            context_json = json.dumps(context, indent=2, default=str)
+            self.logger.log(log_level, f"Transaction Context JSON:\n{context_json}")
 
         except Exception as e:
             # Don't let logging errors break the transaction flow

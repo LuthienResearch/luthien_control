@@ -238,9 +238,9 @@ class TestTransactionContextLoggingPolicy:
         # Should return the same transaction unchanged
         assert result is sample_transaction
 
-        # Should have logged the transaction context
+        # Should have logged the transaction context as JSON
         assert len(caplog.records) == 1
-        assert "Transaction Context:" in caplog.records[0].message
+        assert "Transaction Context JSON:" in caplog.records[0].message
         assert str(sample_transaction.transaction_id) in caplog.records[0].message
 
     @pytest.mark.asyncio

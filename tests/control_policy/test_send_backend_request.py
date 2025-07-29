@@ -787,6 +787,29 @@ async def test_send_backend_request_policy_creates_response_when_none():
 
 
 @pytest.mark.asyncio
+async def test_send_backend_request_policy_raw_request_no_backend_url():
+    """Test raw request with no backend URL set."""
+    policy = SendBackendRequestPolicy()
+
+    # Create a transaction with raw request but no backend URL
+    raw_request = RawRequest(
+        method="GET",
+        path="v1/models",
+        headers={"content-type": "application/json"},
+        body=b"",
+        api_key="test-api-key",
+        backend_url=None,  # No backend URL
+    )
+    transaction = Transaction(raw_request=raw_request)
+
+    container = MagicMock(spec=DependencyContainer)
+    db_session = AsyncMock(spec=AsyncSession)
+
+    with pytest.raises(ValueError, match="Raw request has no backend URL"):
+        await policy.apply(transaction, container, db_session)
+
+
+@pytest.mark.asyncio
 async def test_send_backend_request_policy_invalid_request_type():
     """Test handling of transactions with invalid request type (edge case)."""
     policy = SendBackendRequestPolicy()

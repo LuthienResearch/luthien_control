@@ -128,6 +128,19 @@ class TransactionContextLoggingPolicy(ControlPolicy):
         Returns:
             A dictionary representation of the object
         """
+        # Handle streaming response iterators specially
+        from luthien_control.core.streaming_response import StreamingResponseIterator
+
+        if isinstance(obj, StreamingResponseIterator):
+            # Don't try to serialize the actual iterator, just metadata
+            return {
+                "_is_streaming_iterator": True,
+                "_iterator_type": obj.__class__.__name__,
+                "_exhausted": getattr(obj, "exhausted", "unknown"),
+                "_position": getattr(obj, "position", "unknown"),
+                "_chunk_size": getattr(obj, "chunk_size", "unknown"),
+            }
+
         if hasattr(obj, "model_dump") and callable(getattr(obj, "model_dump")):
             try:
                 return obj.model_dump(mode="python")
@@ -146,6 +159,9 @@ class TransactionContextLoggingPolicy(ControlPolicy):
                             if hasattr(v, "__call__") and not hasattr(v, "__dict__"):
                                 # Skip callable objects that aren't classes
                                 result[k] = f"<callable: {type(v).__name__}>"
+                            elif isinstance(v, StreamingResponseIterator):
+                                # Handle nested streaming iterators
+                                result[k] = self._safe_model_dump(v)
                             else:
                                 result[k] = v
                         except Exception as e:
@@ -184,11 +200,26 @@ class TransactionContextLoggingPolicy(ControlPolicy):
         # Add OpenAI response data if present (typically not sensitive, but check anyway)
         if transaction.openai_response:
             response_data = self._safe_model_dump(transaction.openai_response)
+            # If the response has a streaming iterator, add it separately since it's excluded from model_dump
+            if (
+                hasattr(transaction.openai_response, "streaming_iterator")
+                and transaction.openai_response.streaming_iterator
+            ):
+                response_data["streaming_iterator"] = self._safe_model_dump(
+                    transaction.openai_response.streaming_iterator
+                )
+                response_data["is_streaming"] = True
             context["openai_response"] = self._redact_sensitive_data(response_data)
 
         # Add raw response data if present
         if transaction.raw_response:
             raw_response_data = self._safe_model_dump(transaction.raw_response)
+            # If the raw response has a streaming iterator, add it separately since it's excluded from model_dump
+            if hasattr(transaction.raw_response, "streaming_iterator") and transaction.raw_response.streaming_iterator:
+                raw_response_data["streaming_iterator"] = self._safe_model_dump(
+                    transaction.raw_response.streaming_iterator
+                )
+                raw_response_data["is_streaming"] = True
             context["raw_response"] = self._redact_sensitive_data(raw_response_data)
 
         # Add transaction data (custom fields)

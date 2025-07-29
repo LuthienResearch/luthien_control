@@ -13,6 +13,7 @@ from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.raw_request import RawRequest
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
+from luthien_control.core.streaming_response import ChunkedTextIterator
 from luthien_control.core.transaction import Transaction
 from psygnal.containers import EventedList
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -339,3 +340,48 @@ class TestTransactionContextLoggingPolicy:
         assert result["normal_attr"] == "normal_value"
         assert "_private_attr" not in result
         assert "callable" in result["callable_attr"]
+
+    def test_streaming_response_logging(self, policy):
+        """Test that streaming responses are logged correctly."""
+        # Create a transaction with streaming response
+        request = Request(
+            payload=OpenAIChatCompletionsRequest(
+                model="gpt-4",
+                messages=EventedList([Message(role="user", content="Hello, world!")]),
+                stream=True,
+            ),
+            api_endpoint="https://api.openai.com/v1/chat/completions",
+            api_key="sk-test123456789",
+        )
+
+        # Create streaming response
+        streaming_iterator = ChunkedTextIterator("Hello world", chunk_size=5)
+        response = Response(streaming_iterator=streaming_iterator)
+
+        transaction = Transaction(openai_request=request, openai_response=response)
+
+        # Serialize the transaction
+        context = policy._serialize_transaction_context(transaction)
+
+        # Check that streaming info is captured
+        assert "openai_response" in context
+        response_data = context["openai_response"]
+        assert response_data["is_streaming"] is True
+        assert "streaming_iterator" in response_data
+
+        # Check streaming iterator metadata
+        iterator_data = response_data["streaming_iterator"]
+        assert iterator_data["_is_streaming_iterator"] is True
+        assert iterator_data["_iterator_type"] == "ChunkedTextIterator"
+        assert iterator_data["_chunk_size"] == 5
+
+    def test_safe_model_dump_with_streaming_iterator(self, policy):
+        """Test _safe_model_dump handles StreamingResponseIterator objects."""
+        streaming_iterator = ChunkedTextIterator("test text", chunk_size=10)
+
+        result = policy._safe_model_dump(streaming_iterator)
+
+        assert result["_is_streaming_iterator"] is True
+        assert result["_iterator_type"] == "ChunkedTextIterator"
+        assert result["_chunk_size"] == 10
+        assert result["_position"] == 0

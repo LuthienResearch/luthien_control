@@ -604,3 +604,37 @@ async def test_client_api_key_auth_policy_short_api_key_logging(
 
     # Check that the truncation works with short keys too
     assert "Invalid API key provided (key starts with: abc...)" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_client_api_key_auth_policy_raw_request():
+    """Test client auth policy with raw request (lines 60-61)."""
+    from unittest.mock import patch
+
+    from luthien_control.core.raw_request import RawRequest
+
+    policy = ClientApiKeyAuthPolicy()
+
+    # Create transaction with raw request
+    raw_request = RawRequest(
+        method="POST",
+        path="v1/models",
+        headers={"authorization": "Bearer test-raw-api-key"},
+        body=b"{}",
+        api_key="test-raw-api-key",
+    )
+    transaction = Transaction(raw_request=raw_request)
+
+    mock_container = MagicMock()
+    mock_db_session = AsyncMock()
+    mock_active_api_key = MagicMock()
+    mock_active_api_key.is_active = True
+
+    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+        mock_get_api_key.return_value = mock_active_api_key
+
+        result = await policy.apply(transaction, mock_container, mock_db_session)
+
+        # Verify the transaction is returned unchanged and API key was validated
+        assert result is transaction
+        mock_get_api_key.assert_awaited_once_with(mock_db_session, "test-raw-api-key")

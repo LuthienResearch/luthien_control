@@ -494,3 +494,248 @@ async def test_initialize_context_query_params():
     assert transaction.openai_request.payload.model == "gpt-4"
     assert len(transaction.openai_request.payload.messages) == 1
     assert transaction.openai_request.payload.messages[0].content == "test"
+
+
+@patch("luthien_control.proxy.orchestration.uuid.uuid4")
+@patch("luthien_control.proxy.orchestration._build_raw_response")
+@patch("luthien_control.proxy.orchestration.logger")
+async def test_run_policy_flow_raw_request_successful(
+    mock_logger: MagicMock,
+    mock_build_raw_response: MagicMock,
+    mock_uuid4: MagicMock,
+    mock_container: MagicMock,
+    mock_session: AsyncMock,
+):
+    """Test successful flow for raw requests to non-chat-completions endpoints."""
+    # Create a request to /v1/models endpoint
+    mock_request = MagicMock(spec=fastapi.Request)
+    mock_request.path_params = {"full_path": "v1/models"}
+    mock_request.method = "GET"
+    mock_request.headers = MagicMock()
+    mock_request.headers.get = MagicMock(return_value="Bearer test-api-key")
+    mock_request.headers.items = MagicMock(return_value=[("content-type", "application/json")])
+    mock_request.body = AsyncMock(return_value=b"")
+
+    fixed_test_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
+    mock_uuid4.return_value = fixed_test_uuid
+
+    # Create a mock policy that sets raw_response
+    mock_policy = MagicMock(spec=ControlPolicy)
+    mock_policy.name = "RawTestPolicy"
+
+    async def mock_apply(transaction, container, session):
+        from luthien_control.core.raw_response import RawResponse
+
+        transaction.raw_response = RawResponse(
+            status_code=200,
+            headers={"content-type": "application/json"},
+            body=b'{"models": ["gpt-4", "gpt-3.5-turbo"]}',
+            content='{"models": ["gpt-4", "gpt-3.5-turbo"]}',
+        )
+        return transaction
+
+    mock_policy.apply = mock_apply
+
+    # Mock the raw response builder
+    expected_response = Response(content=b'{"models": ["gpt-4", "gpt-3.5-turbo"]}')
+    mock_build_raw_response.return_value = expected_response
+
+    # Call the orchestrator
+    response = await run_policy_flow(
+        request=mock_request,
+        main_policy=mock_policy,
+        dependencies=mock_container,
+        session=mock_session,
+    )
+
+    # Assertions
+    mock_request.body.assert_awaited_once()
+    mock_uuid4.assert_called_once()
+
+    # Raw response builder should be called
+    mock_build_raw_response.assert_called_once()
+    raw_response_arg = mock_build_raw_response.call_args[0][0]
+    assert raw_response_arg.status_code == 200
+    assert raw_response_arg.body == b'{"models": ["gpt-4", "gpt-3.5-turbo"]}'
+
+    # No warnings or exceptions should be logged
+    mock_logger.warning.assert_not_called()
+    mock_logger.exception.assert_not_called()
+
+    # Final response check
+    assert response is expected_response
+
+
+@patch("luthien_control.proxy.orchestration.uuid.uuid4")
+@patch("luthien_control.proxy.orchestration.JSONResponse")
+async def test_run_policy_flow_raw_request_no_response(
+    MockJSONResponse: MagicMock,
+    mock_uuid4: MagicMock,
+    mock_container: MagicMock,
+    mock_session: AsyncMock,
+):
+    """Test raw request when policy doesn't set raw_response."""
+    # Create a request to /v1/models endpoint
+    mock_request = MagicMock(spec=fastapi.Request)
+    mock_request.path_params = {"full_path": "v1/models"}
+    mock_request.method = "GET"
+    mock_request.headers = MagicMock()
+    mock_request.headers.get = MagicMock(return_value="")
+    mock_request.headers.items = MagicMock(return_value=[])
+    mock_request.body = AsyncMock(return_value=b"")
+
+    fixed_test_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
+    mock_uuid4.return_value = fixed_test_uuid
+
+    # Create a mock policy that doesn't set raw_response
+    mock_policy = MagicMock(spec=ControlPolicy)
+    mock_policy.name = "NoResponsePolicy"
+
+    async def mock_apply(transaction, container, session):
+        # Don't set raw_response
+        return transaction
+
+    mock_policy.apply = mock_apply
+
+    # Configure the mocked JSONResponse for error case
+    expected_error_response = Response(content=b"error response")
+    MockJSONResponse.return_value = expected_error_response
+
+    # Call the orchestrator
+    await run_policy_flow(
+        request=mock_request,
+        main_policy=mock_policy,
+        dependencies=mock_container,
+        session=mock_session,
+    )
+
+    # Should return JSONResponse with 500 status
+    MockJSONResponse.assert_called_once()
+    json_call_kwargs = MockJSONResponse.call_args.kwargs
+    assert json_call_kwargs.get("status_code") == 500
+    content = json_call_kwargs.get("content")
+    assert content is not None
+    assert "Internal Server Error: No raw response" in content["detail"]
+    assert content["transaction_id"] == str(fixed_test_uuid)
+
+
+@patch("luthien_control.proxy.orchestration.uuid.uuid4")
+@patch("luthien_control.proxy.orchestration.Settings")
+@patch("luthien_control.proxy.orchestration.JSONResponse")
+async def test_run_policy_flow_error_with_debug_info_dev_mode(
+    MockJSONResponse: MagicMock,
+    MockSettings: MagicMock,
+    mock_uuid4: MagicMock,
+    mock_container: MagicMock,
+    mock_session: AsyncMock,
+):
+    """Test error handling with debug info in dev mode (lines 199, 202)."""
+    # Mock settings to return dev_mode = True
+    mock_settings_instance = MagicMock()
+    mock_settings_instance.dev_mode.return_value = True
+    MockSettings.return_value = mock_settings_instance
+
+    # Create a request
+    mock_request = MagicMock(spec=fastapi.Request)
+    mock_request.path_params = {"full_path": "v1/chat/completions"}
+    mock_request.method = "POST"
+    mock_request.headers = MagicMock()
+    mock_request.headers.get = MagicMock(return_value="")
+    mock_request.body = AsyncMock(return_value=TEST_REQUEST_BODY)
+
+    fixed_test_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
+    mock_uuid4.return_value = fixed_test_uuid
+
+    # Create a policy that raises ControlPolicyError with debug_info
+    mock_policy = MagicMock(spec=ControlPolicy)
+    mock_policy.name = "DebugPolicy"
+
+    async def mock_apply(transaction, container, session):
+        error = ControlPolicyError("Auth failed", policy_name="DebugPolicy", status_code=401)
+        setattr(error, "debug_info", {"api_key": "test-key-123", "backend": "https://api.test.com"})
+        raise error
+
+    mock_policy.apply = mock_apply
+
+    expected_error_response = Response(content=b"error response")
+    MockJSONResponse.return_value = expected_error_response
+
+    # Call the orchestrator
+    await run_policy_flow(
+        request=mock_request,
+        main_policy=mock_policy,
+        dependencies=mock_container,
+        session=mock_session,
+    )
+
+    # Should create JSONResponse with debug info
+    MockJSONResponse.assert_called_once()
+    json_call_kwargs = MockJSONResponse.call_args.kwargs
+    assert json_call_kwargs.get("status_code") == 401
+
+    # Check that create_debug_response was called with debug info
+    content = json_call_kwargs.get("content")
+    assert content is not None
+    assert content["transaction_id"] == str(fixed_test_uuid)
+    assert "debug" in content  # Debug info should be included in dev mode
+
+
+@patch("luthien_control.proxy.orchestration.uuid.uuid4")
+@patch("luthien_control.proxy.orchestration.Settings")
+@patch("luthien_control.proxy.orchestration.JSONResponse")
+async def test_run_policy_flow_unexpected_error_with_debug_info(
+    MockJSONResponse: MagicMock,
+    MockSettings: MagicMock,
+    mock_uuid4: MagicMock,
+    mock_container: MagicMock,
+    mock_session: AsyncMock,
+):
+    """Test unexpected error handling with debug info in dev mode (line 250)."""
+    # Mock settings to return dev_mode = True
+    mock_settings_instance = MagicMock()
+    mock_settings_instance.dev_mode.return_value = True
+    MockSettings.return_value = mock_settings_instance
+
+    # Create a request
+    mock_request = MagicMock(spec=fastapi.Request)
+    mock_request.path_params = {"full_path": "v1/chat/completions"}
+    mock_request.method = "POST"
+    mock_request.headers = MagicMock()
+    mock_request.headers.get = MagicMock(return_value="")
+    mock_request.body = AsyncMock(return_value=TEST_REQUEST_BODY)
+
+    fixed_test_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
+    mock_uuid4.return_value = fixed_test_uuid
+
+    # Create a policy that raises unexpected exception with debug_info
+    mock_policy = MagicMock(spec=ControlPolicy)
+    mock_policy.name = "UnexpectedPolicy"
+
+    async def mock_apply(transaction, container, session):
+        error = RuntimeError("Unexpected error!")
+        setattr(error, "debug_info", {"state": "critical", "code": 500})
+        raise error
+
+    mock_policy.apply = mock_apply
+
+    expected_error_response = Response(content=b"error response")
+    MockJSONResponse.return_value = expected_error_response
+
+    # Call the orchestrator
+    await run_policy_flow(
+        request=mock_request,
+        main_policy=mock_policy,
+        dependencies=mock_container,
+        session=mock_session,
+    )
+
+    # Should create JSONResponse with debug info for unexpected errors
+    MockJSONResponse.assert_called_once()
+    json_call_kwargs = MockJSONResponse.call_args.kwargs
+    assert json_call_kwargs.get("status_code") == 500
+
+    content = json_call_kwargs.get("content")
+    assert content is not None
+    assert content["transaction_id"] == str(fixed_test_uuid)
+    assert "Internal Server Error" in content["detail"]
+    assert content["policy_name"] == "UnexpectedPolicy"

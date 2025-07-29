@@ -14,6 +14,7 @@ from luthien_control.api.openai_chat_completions.request import OpenAIChatComple
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.backend_call_policy import BackendCallPolicy
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.raw_request import RawRequest
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
@@ -385,3 +386,69 @@ def test_backend_call_policy_serialization():
     assert deserialized_policy.backend_call_spec.api_endpoint == EXAMPLE_API_ENDPOINT
     assert deserialized_policy.backend_call_spec.request_args["temperature"] == 0.8
     assert deserialized_policy.backend_call_spec.request_args["max_tokens"] == 500
+
+
+@pytest.mark.asyncio
+async def test_backend_call_policy_raw_request_noop():
+    """Test BackendCallPolicy does nothing for raw requests (line 33)."""
+    setup_api_key_env()
+
+    spec = create_backend_call_spec()
+    policy = BackendCallPolicy(backend_call_spec=spec, name="test_policy")
+
+    # Create transaction with raw request
+    raw_request = RawRequest(method="POST", path="v1/models", headers={}, body=b"{}", api_key="test-key")
+    transaction = Transaction(raw_request=raw_request)
+
+    container = MagicMock()
+    session = AsyncMock()
+
+    # Apply policy - should return transaction unchanged
+    result = await policy.apply(transaction, container, session)
+
+    # Verify transaction is unchanged
+    assert result is transaction
+    assert result.raw_request is raw_request
+    assert result.raw_request is not None
+    assert result.raw_request.api_key == "test-key"  # Should be unchanged
+
+
+@pytest.mark.asyncio
+async def test_backend_call_policy_creates_response_when_none():
+    """Test BackendCallPolicy creates response when None (line 38)."""
+    setup_api_key_env()
+
+    spec = create_backend_call_spec()
+    policy = BackendCallPolicy(backend_call_spec=spec, name="test_policy")
+
+    # Create transaction with no openai_response
+    payload = OpenAIChatCompletionsRequest(
+        model="gpt-3.5-turbo",
+        messages=EventedList([Message(role="user", content="Hello")]),
+    )
+    transaction = Transaction(
+        openai_request=Request(payload=payload, api_endpoint="https://default.com", api_key="default-key"),
+        openai_response=None,  # No response initially
+    )
+
+    container = MagicMock()
+    mock_openai_client = AsyncMock()
+    mock_response = MagicMock()
+    mock_response.model_dump.return_value = {
+        "id": "test-123",
+        "object": "chat.completion",
+        "created": 1677652288,
+        "model": "gpt-4o",
+        "choices": [],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+    }
+    mock_openai_client.chat.completions.create.return_value = mock_response
+    container.create_openai_client.return_value = mock_openai_client
+
+    session = AsyncMock()
+
+    result = await policy.apply(transaction, container, session)
+
+    # Verify response was created
+    assert result.openai_response is not None
+    assert result.openai_response.payload is not None

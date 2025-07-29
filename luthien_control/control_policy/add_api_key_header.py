@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ApiKeyNotFoundError
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.request_type import RequestType
 from luthien_control.core.transaction import Transaction
 
 
@@ -47,9 +48,10 @@ class AddApiKeyHeaderPolicy(ControlPolicy):
             The potentially modified transaction.
         """
         # This policy only applies to OpenAI requests
-        if transaction.openai_request is None:
+        if transaction.request_type != RequestType.OPENAI_CHAT:
             # No-op for raw requests
             return transaction
+        assert transaction.openai_request is not None
         api_key = container.settings.get_openai_api_key()
         if not api_key:
             raise ApiKeyNotFoundError(f"OpenAI API key not configured ({self.name}).")

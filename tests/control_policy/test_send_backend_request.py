@@ -209,6 +209,7 @@ async def test_send_backend_request_policy_successful_request(
     assert "stream" not in call_kwargs  # This would be None and should be filtered
 
     # Verify response was stored in transaction
+    assert sample_transaction.openai_response is not None
     assert sample_transaction.openai_response.payload is not None
     assert sample_transaction.openai_response.payload.id == "chatcmpl-backend-123"
     assert sample_transaction.openai_response.payload.model == "gpt-4"
@@ -366,6 +367,8 @@ async def test_send_backend_request_policy_filters_none_values(
     db_session = AsyncMock(spec=AsyncSession)
 
     # Add some None values to the request payload
+    assert sample_transaction.openai_request is not None
+    assert sample_transaction.openai_request.payload is not None
     sample_transaction.openai_request.payload.stream = None
     sample_transaction.openai_request.payload.stop = None
 

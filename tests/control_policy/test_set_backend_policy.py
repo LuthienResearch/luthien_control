@@ -4,6 +4,7 @@ import pytest
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.control_policy.set_backend_policy import SetBackendPolicy
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.request_type import RequestType
 from luthien_control.core.transaction import Transaction
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,6 +45,7 @@ class TestSetBackendPolicy:
         transaction = Mock(spec=Transaction)
         transaction.openai_request = Mock()
         transaction.openai_request.api_endpoint = "chat/completions"  # Initial path
+        transaction.request_type = RequestType.OPENAI_CHAT
         container = Mock(spec=DependencyContainer)
         session = Mock(spec=AsyncSession)
 
@@ -63,6 +65,7 @@ class TestSetBackendPolicy:
         transaction = Mock(spec=Transaction)
         transaction.openai_request = Mock()
         transaction.openai_request.api_endpoint = "chat/completions"  # Initial path
+        transaction.request_type = RequestType.OPENAI_CHAT
         container = Mock(spec=DependencyContainer)
         session = Mock(spec=AsyncSession)
 
@@ -91,6 +94,7 @@ class TestSetBackendPolicy:
             transaction = Mock(spec=Transaction)
             transaction.openai_request = Mock()
             transaction.openai_request.api_endpoint = original_path
+            transaction.request_type = RequestType.OPENAI_CHAT
             container = Mock(spec=DependencyContainer)
             session = Mock(spec=AsyncSession)
 

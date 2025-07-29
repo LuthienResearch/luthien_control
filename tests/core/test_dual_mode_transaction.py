@@ -1,11 +1,13 @@
 """Tests for dual-mode transaction functionality."""
 
 import pytest
+from luthien_control.api.openai_chat_completions.datatypes import Message
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.core.raw_request import RawRequest
 from luthien_control.core.request import Request
 from luthien_control.core.request_type import RequestType
 from luthien_control.core.transaction import Transaction
+from psygnal.containers import EventedList
 
 
 class TestDualModeTransaction:
@@ -14,7 +16,7 @@ class TestDualModeTransaction:
     def test_openai_transaction_creation(self):
         """Test creating a transaction with OpenAI request."""
         openai_request = OpenAIChatCompletionsRequest(
-            model="gpt-3.5-turbo", messages=[{"role": "user", "content": "Hello"}]
+            model="gpt-3.5-turbo", messages=EventedList([Message(role="user", content="Hello")])
         )
 
         request = Request(payload=openai_request, api_endpoint="https://api.openai.com", api_key="test-key")
@@ -50,7 +52,7 @@ class TestDualModeTransaction:
         """Test that creating a transaction with both request types raises an error."""
         openai_request = Request(
             payload=OpenAIChatCompletionsRequest(
-                model="gpt-3.5-turbo", messages=[{"role": "user", "content": "Hello"}]
+                model="gpt-3.5-turbo", messages=EventedList([Message(role="user", content="Hello")])
             ),
             api_endpoint="https://api.openai.com",
             api_key="test-key",
@@ -70,7 +72,7 @@ class TestDualModeTransaction:
         openai_transaction = Transaction(
             openai_request=Request(
                 payload=OpenAIChatCompletionsRequest(
-                    model="gpt-3.5-turbo", messages=[{"role": "user", "content": "Hello"}]
+                    model="gpt-3.5-turbo", messages=EventedList([Message(role="user", content="Hello")])
                 ),
                 api_endpoint="https://api.openai.com",
                 api_key="test-key",

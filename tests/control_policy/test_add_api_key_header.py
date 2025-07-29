@@ -132,6 +132,7 @@ async def test_add_api_key_overwrites_existing(
 ):
     """Test that an existing API key is overwritten."""
     # The fixture already sets "initial_key", verify it's there
+    assert sample_transaction.openai_request is not None
     assert sample_transaction.openai_request.api_key == "initial_key"
 
     policy = AddApiKeyHeaderPolicy()

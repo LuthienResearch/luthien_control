@@ -16,6 +16,7 @@ from luthien_control.control_policy.exceptions import (
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.request import Request
+from luthien_control.core.request_type import RequestType
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
 from luthien_control.db.exceptions import LuthienDBQueryError
@@ -107,6 +108,7 @@ def transaction_with_none_api_key() -> Transaction:
     mock_request = MagicMock()
     mock_request.api_key = None
     mock_transaction.openai_request = mock_request
+    mock_transaction.request_type = RequestType.OPENAI_CHAT
     return mock_transaction
 
 
@@ -226,6 +228,7 @@ async def test_client_api_key_auth_policy_invalid_api_key(
     policy = ClientApiKeyAuthPolicy()
 
     # Modify the transaction to use an invalid API key
+    assert sample_transaction.openai_request is not None
     sample_transaction.openai_request.api_key = "invalid-api-key"
 
     with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
@@ -254,6 +257,7 @@ async def test_client_api_key_auth_policy_inactive_api_key(
     policy = ClientApiKeyAuthPolicy()
 
     # Modify the transaction to use the inactive API key
+    assert sample_transaction.openai_request is not None
     sample_transaction.openai_request.api_key = "inactive-api-key-456"
 
     with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
@@ -558,6 +562,7 @@ async def test_client_api_key_auth_policy_api_key_logging_truncation(
 
     # Use a longer API key to test truncation
     long_api_key = "very-long-api-key-that-should-be-truncated-for-security-purposes"
+    assert sample_transaction.openai_request is not None
     sample_transaction.openai_request.api_key = long_api_key
 
     with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
@@ -587,6 +592,7 @@ async def test_client_api_key_auth_policy_short_api_key_logging(
 
     # Use a short API key
     short_api_key = "abc"
+    assert sample_transaction.openai_request is not None
     sample_transaction.openai_request.api_key = short_api_key
 
     with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:

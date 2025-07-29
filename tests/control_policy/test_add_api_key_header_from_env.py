@@ -94,6 +94,7 @@ class TestAddApiKeyHeaderFromEnvPolicyApply:
         result_transaction = await policy.apply(sample_transaction, mock_dependency_container, mock_async_session)
 
         assert result_transaction == sample_transaction
+        assert result_transaction.openai_request is not None
         assert result_transaction.openai_request.api_key == API_KEY_VALUE
 
     @pytest.mark.asyncio

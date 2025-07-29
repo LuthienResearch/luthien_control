@@ -10,6 +10,7 @@ from luthien_control.api.openai_chat_completions import OpenAIChatCompletionsRes
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.raw_response import RawResponse
+from luthien_control.core.request_type import RequestType
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
 
@@ -97,9 +98,9 @@ class SendBackendRequestPolicy(ControlPolicy):
             ValueError: If backend URL or API key is not configured.
             Various exceptions depending on the backend response.
         """
-        if transaction.openai_request is not None:
+        if transaction.request_type == RequestType.OPENAI_CHAT:
             return await self._handle_openai_request(transaction, container)
-        elif transaction.raw_request is not None:
+        elif transaction.request_type == RequestType.RAW_PASSTHROUGH:
             return await self._handle_raw_request(transaction, container)
         else:
             raise ValueError("Transaction has no request to process")

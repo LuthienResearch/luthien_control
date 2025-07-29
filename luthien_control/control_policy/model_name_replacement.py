@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.request_type import RequestType
 from luthien_control.core.transaction import Transaction
 
 
@@ -41,10 +42,11 @@ class ModelNameReplacementPolicy(ControlPolicy):
             NoRequestError: If no request is found in the transaction.
         """
         # This policy only applies to OpenAI requests
-        if transaction.openai_request is None:
+        if transaction.request_type != RequestType.OPENAI_CHAT:
             # No-op for raw requests
             return transaction
 
+        assert transaction.openai_request is not None
         if hasattr(transaction.openai_request.payload, "model"):
             original_model = transaction.openai_request.payload.model
 

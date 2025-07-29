@@ -137,7 +137,11 @@ async def test_model_name_replacement_policy_no_model_attribute(
 
     assert result is mock_transaction
     # Payload should be unchanged
+    assert result.openai_request is not None
+    assert result.openai_request.payload is not None
     assert hasattr(result.openai_request.payload, "data")
+    assert result.openai_request is not None
+    assert result.openai_request.payload is not None
     assert result.openai_request.payload.data == "some data"  # type: ignore[attr-defined]
 
 
@@ -151,11 +155,15 @@ async def test_model_name_replacement_policy_model_not_in_mapping(
     policy = ModelNameReplacementPolicy(model_mapping={"fakename": "realname"})
 
     # The sample transaction has model="gpt-4" which is not in the mapping
+    assert sample_transaction.openai_request is not None
+    assert sample_transaction.openai_request.payload is not None
     original_model = sample_transaction.openai_request.payload.model
 
     result = await policy.apply(sample_transaction, mock_container, mock_db_session)
 
     assert result is sample_transaction
+    assert result.openai_request is not None
+    assert result.openai_request.payload is not None
     assert result.openai_request.payload.model == original_model  # Should be unchanged
 
 
@@ -172,11 +180,15 @@ async def test_model_name_replacement_policy_model_in_mapping(
     # Test each mapping
     for fake_name, real_name in model_mapping.items():
         # Set the model to the fake name
+        assert sample_transaction.openai_request is not None
+        assert sample_transaction.openai_request.payload is not None
         sample_transaction.openai_request.payload.model = fake_name
 
         result = await policy.apply(sample_transaction, mock_container, mock_db_session)
 
         assert result is sample_transaction
+        assert result.openai_request is not None
+        assert result.openai_request.payload is not None
         assert result.openai_request.payload.model == real_name
 
 
@@ -191,6 +203,8 @@ async def test_model_name_replacement_policy_logging(
     policy = ModelNameReplacementPolicy(model_mapping={"gpt-4": "gpt-4-turbo"})
 
     # Set the model to match our mapping
+    assert sample_transaction.openai_request is not None
+    assert sample_transaction.openai_request.payload is not None
     sample_transaction.openai_request.payload.model = "gpt-4"
 
     with caplog.at_level(logging.INFO):
@@ -209,12 +223,18 @@ async def test_model_name_replacement_policy_multiple_applications(
     policy = ModelNameReplacementPolicy(model_mapping={"fake1": "real1", "real1": "real2"})
 
     # First application: fake1 -> real1
+    assert sample_transaction.openai_request is not None
+    assert sample_transaction.openai_request.payload is not None
     sample_transaction.openai_request.payload.model = "fake1"
     result1 = await policy.apply(sample_transaction, mock_container, mock_db_session)
+    assert result1.openai_request is not None
+    assert result1.openai_request.payload is not None
     assert result1.openai_request.payload.model == "real1"
 
     # Second application: real1 -> real2
     result2 = await policy.apply(result1, mock_container, mock_db_session)
+    assert result2.openai_request is not None
+    assert result2.openai_request.payload is not None
     assert result2.openai_request.payload.model == "real2"
 
 
@@ -227,11 +247,15 @@ async def test_model_name_replacement_policy_empty_mapping(
     """Test policy behavior with empty mapping."""
     policy = ModelNameReplacementPolicy(model_mapping={})
 
+    assert sample_transaction.openai_request is not None
+    assert sample_transaction.openai_request.payload is not None
     original_model = sample_transaction.openai_request.payload.model
 
     result = await policy.apply(sample_transaction, mock_container, mock_db_session)
 
     assert result is sample_transaction
+    assert result.openai_request is not None
+    assert result.openai_request.payload is not None
     assert result.openai_request.payload.model == original_model  # Should be unchanged
 
 

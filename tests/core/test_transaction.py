@@ -80,6 +80,7 @@ def test_transaction_event_emission_on_nested_attribute_change(sample_request, s
     transaction.changed.connect(mock_callback)
 
     # Change a nested attribute
+    assert transaction.openai_request is not None
     transaction.openai_request.payload.model = "gpt-4-turbo"
 
     mock_callback.assert_called_once()
@@ -88,11 +89,13 @@ def test_transaction_event_emission_on_nested_attribute_change(sample_request, s
     mock_callback.reset_mock()
 
     # Change an item in a nested list
+    assert transaction.openai_request is not None
     transaction.openai_request.payload.messages.append(Message(role="assistant", content="How can I help?"))
     mock_callback.assert_called()
     assert len(transaction.openai_request.payload.messages) == 2
 
     mock_callback.reset_mock()
+    assert transaction.openai_response is not None
     cast(OpenAIChatCompletionsResponse, transaction.openai_response.payload).choices[0].message.content = "New content"
     mock_callback.assert_called_once()
     assert transaction.openai_response.payload is not None

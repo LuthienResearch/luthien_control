@@ -299,6 +299,8 @@ async def test_leaked_api_key_detection_policy_custom_pattern(
 ):
     """Test detection with custom patterns."""
     # Modify the transaction to include a custom pattern
+    assert sample_transaction.openai_request is not None
+    assert sample_transaction.openai_request.payload is not None
     sample_transaction.openai_request.payload.messages[1].content = "My custom key is custom-12345. Can you help me?"
 
     # Use a custom pattern that matches "custom-" followed by digits
@@ -316,6 +318,8 @@ async def test_leaked_api_key_detection_policy_multiple_patterns(
 ):
     """Test detection with multiple custom patterns."""
     # Modify the transaction to include a pattern that matches the second custom pattern
+    assert sample_transaction.openai_request is not None
+    assert sample_transaction.openai_request.payload is not None
     sample_transaction.openai_request.payload.messages[1].content = "My secret is secret-abcdefghij. Can you help me?"
 
     # Use multiple custom patterns

@@ -76,6 +76,7 @@ async def apply_policy_and_verify_basics(
     result = await policy.apply(transaction, container, session)
 
     # Verify basic request configuration
+    assert result.openai_request is not None
     assert result.openai_request.api_endpoint == expected_endpoint
 
     # Verify OpenAI client creation and API call
@@ -138,13 +139,17 @@ async def test_backend_call_policy_basic(base_transaction, mock_container_and_cl
     )
 
     # Verify request arguments were applied
+    assert result.openai_request is not None
     assert result.openai_request.api_key == "test-key-123"
+    assert result.openai_request.payload is not None
     assert result.openai_request.payload.model == "gpt-4o"
     assert result.openai_request.payload.temperature == 0.7
     assert result.openai_request.payload.max_tokens == 1000
     assert result.openai_request.payload.top_p == 0.9
 
     # Verify response was set
+    assert result.openai_response is not None
+    assert result.openai_response is not None
     assert result.openai_response.payload == mock_openai_response
     assert result.openai_response.api_endpoint == EXAMPLE_API_ENDPOINT
 
@@ -163,9 +168,12 @@ async def test_backend_call_policy_nested_objects(base_transaction, mock_contain
     )
 
     # Verify nested object was properly converted
+    assert result.openai_request is not None
+    assert result.openai_request.payload is not None
     assert result.openai_request.payload.response_format is not None
     assert isinstance(result.openai_request.payload.response_format, ResponseFormat)
     assert result.openai_request.payload.response_format.type == "json_object"
+    assert result.openai_response is not None
     assert result.openai_response.payload == mock_openai_response
 
 
@@ -219,6 +227,8 @@ async def test_backend_call_policy_complex_nested_objects(mock_container_and_cli
     result = await apply_policy_and_verify_basics(policy, transaction, container, mock_openai_client, "test-key-123")
 
     # Verify deeply nested structures
+    assert result.openai_request is not None
+    assert result.openai_request.payload is not None
     payload = cast(OpenAIChatCompletionsRequest, result.openai_request.payload)
     assert payload.response_format is not None
     assert payload.response_format.type == "json_object"
@@ -242,6 +252,7 @@ async def test_backend_call_policy_complex_nested_objects(mock_container_and_cli
     assert payload.tools[0].function.name == "get_weather"
     assert payload.tools[0].function.description == "Get the current weather"
 
+    assert result.openai_response is not None
     assert result.openai_response.payload == mock_openai_response
 
 
@@ -263,7 +274,9 @@ async def test_backend_call_policy_no_api_key(base_transaction, mock_container_a
     )
 
     # API key should remain unchanged if env var is not set
+    assert result.openai_request is not None
     assert result.openai_request.api_key == "default-key"
+    assert result.openai_response is not None
     assert result.openai_response.payload == mock_openai_response
 
 

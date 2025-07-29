@@ -64,10 +64,12 @@ class TestBackendUrlRegression:
             result = await policy.apply(transaction, container, session)
 
             # Verify that the policy only sets the backend URL, not joined path
+            assert result.openai_request is not None
             assert result.openai_request.api_endpoint == backend_url
             assert result is transaction
 
             # Verify no path duplication occurred
+            assert result.openai_request is not None
             assert initial_path not in result.openai_request.api_endpoint or backend_url.endswith(initial_path)
 
     @pytest.mark.asyncio
@@ -102,10 +104,12 @@ class TestBackendUrlRegression:
         transaction = await set_backend_policy.apply(transaction, container, session)
 
         # Verify SetBackendPolicy only set the base URL
+        assert transaction.openai_request is not None
         assert transaction.openai_request.api_endpoint == backend_url
 
         # This is the key regression test: SetBackendPolicy should NOT
         # join the path with the backend URL. It should only set the base URL.
+        assert transaction.openai_request is not None
         assert "chat/completions" not in transaction.openai_request.api_endpoint
         assert transaction.openai_request.api_endpoint == "https://api.openai.com"
 
@@ -168,6 +172,7 @@ class TestBackendUrlRegression:
             result = await policy.apply(transaction, container, session)
 
             # Verify the backend URL was set correctly
+            assert result.openai_request is not None
             assert result.openai_request.api_endpoint == backend_url, f"Failed for {backend_url}: {description}"
 
             # Verify no path components were accidentally joined

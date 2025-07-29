@@ -1,5 +1,7 @@
 """Tests that OpenAI-specific policies are no-ops for raw requests."""
 
+from unittest.mock import MagicMock
+
 import pytest
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
 from luthien_control.control_policy.add_api_key_header_from_env import AddApiKeyHeaderFromEnvPolicy
@@ -21,7 +23,9 @@ class TestPolicyRawRequestNoop:
         original_request = transaction.raw_request
 
         policy = AddApiKeyHeaderPolicy()
-        result = await policy.apply(transaction, None, None)
+        mock_container = MagicMock()
+        mock_session = MagicMock()
+        result = await policy.apply(transaction, mock_container, mock_session)
 
         assert result is transaction
         assert result.raw_request is original_request
@@ -34,7 +38,9 @@ class TestPolicyRawRequestNoop:
         original_request = transaction.raw_request
 
         policy = AddApiKeyHeaderFromEnvPolicy(api_key_env_var_name="TEST_API_KEY")
-        result = await policy.apply(transaction, None, None)
+        mock_container = MagicMock()
+        mock_session = MagicMock()
+        result = await policy.apply(transaction, mock_container, mock_session)
 
         assert result is transaction
         assert result.raw_request is original_request
@@ -47,7 +53,9 @@ class TestPolicyRawRequestNoop:
         original_request = transaction.raw_request
 
         policy = LeakedApiKeyDetectionPolicy()
-        result = await policy.apply(transaction, None, None)
+        mock_container = MagicMock()
+        mock_session = MagicMock()
+        result = await policy.apply(transaction, mock_container, mock_session)
 
         assert result is transaction
         assert result.raw_request is original_request
@@ -60,7 +68,9 @@ class TestPolicyRawRequestNoop:
         original_request = transaction.raw_request
 
         policy = ModelNameReplacementPolicy(model_mapping={"fake-model": "real-model"})
-        result = await policy.apply(transaction, None, None)
+        mock_container = MagicMock()
+        mock_session = MagicMock()
+        result = await policy.apply(transaction, mock_container, mock_session)
 
         assert result is transaction
         assert result.raw_request is original_request

@@ -10,6 +10,7 @@ from luthien_control.control_policy.exceptions import (
     ClientAuthenticationNotFoundError,
 )
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.request_type import RequestType
 from luthien_control.core.transaction import Transaction
 from luthien_control.db.client_api_key_crud import get_api_key_by_value
 from luthien_control.db.exceptions import LuthienDBQueryError
@@ -52,9 +53,11 @@ class ClientApiKeyAuthPolicy(ControlPolicy):
             The unmodified transaction if authentication is successful.
         """
         # Get API key from either request type
-        if transaction.openai_request is not None:
+        if transaction.request_type == RequestType.OPENAI_CHAT:
+            assert transaction.openai_request is not None
             api_key_value = transaction.openai_request.api_key
-        elif transaction.raw_request is not None:
+        elif transaction.request_type == RequestType.RAW_PASSTHROUGH:
+            assert transaction.raw_request is not None
             api_key_value = transaction.raw_request.api_key
         else:
             # No-op for transactions without requests

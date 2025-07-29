@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.request_type import RequestType
+from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
 from luthien_control.utils.backend_call_spec import BackendCallSpec
 
@@ -26,9 +28,14 @@ class BackendCallPolicy(ControlPolicy):
         session: AsyncSession,
     ) -> Transaction:
         # This policy only applies to OpenAI requests
-        if transaction.openai_request is None:
+        if transaction.request_type != RequestType.OPENAI_CHAT:
             # No-op for raw requests
             return transaction
+
+        assert transaction.openai_request is not None
+
+        if transaction.openai_response is None:
+            transaction.openai_response = Response()
 
         api_key = os.environ.get(self.backend_call_spec.api_key_env_var)
         if api_key:

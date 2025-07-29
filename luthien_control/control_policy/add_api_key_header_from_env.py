@@ -16,6 +16,7 @@ from luthien_control.control_policy.exceptions import (
     ApiKeyNotFoundError,
 )
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.request_type import RequestType
 from luthien_control.core.transaction import Transaction
 
 
@@ -55,10 +56,11 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
             The potentially modified transaction.
         """
         # This policy only applies to OpenAI requests
-        if transaction.openai_request is None:
+        if transaction.request_type != RequestType.OPENAI_CHAT:
             # No-op for raw requests
             return transaction
 
+        assert transaction.openai_request is not None
         api_key = os.environ.get(self.api_key_env_var_name)
 
         if not api_key:

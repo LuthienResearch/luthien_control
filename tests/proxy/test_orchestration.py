@@ -172,6 +172,25 @@ async def test_raw_request_flow():
     assert b"gpt-3.5" in result.body
 
 
+async def test_no_raw_response_path():
+    """Test: raw request with policy that doesn't set raw_response returns 500 error."""
+    mock_request = MagicMock(spec=fastapi.Request)
+    mock_request.path_params = {"full_path": "v1/models"}
+    mock_request.method = "GET"
+    mock_request.headers = MagicMock()
+    mock_request.headers.get = MagicMock(return_value="Bearer test-key")
+    mock_request.headers.items = MagicMock(return_value=[])
+    mock_request.body = AsyncMock(return_value=b"")
+
+    # Policy that doesn't set raw_response for a raw request - should return 500
+    normal_policy = MockPolicy("success")
+
+    result = await run_policy_flow(mock_request, normal_policy, MagicMock(), AsyncMock())
+
+    # Should get 500 error when no raw response is set for raw request
+    assert result.status_code == 500
+
+
 # Transaction initialization test - this is a utility function worth testing
 
 

@@ -55,7 +55,7 @@ class Message(DeepEventedModel):
     annotations: EList[Annotation] = Field(default_factory=lambda: EList[Annotation]())
     audio: Optional[Audio] = Field(default=None)
     function_call: Optional[FunctionCall] = Field(default=None)
-    tool_calls: Optional[EList[ToolCall]] = Field(default_factory=lambda: EList[ToolCall]())
+    tool_calls: Optional[EList[ToolCall]] = Field(default_factory=lambda: None)
 
 
 class LogProbs(DeepEventedModel):

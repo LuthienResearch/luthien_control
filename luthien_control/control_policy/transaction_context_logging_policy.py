@@ -119,6 +119,31 @@ class TransactionContextLoggingPolicy(ControlPolicy):
 
         return value
 
+    def _safe_model_dump(self, obj: Any) -> Dict[str, Any]:
+        """Safely convert an object to a dictionary, handling objects without model_dump.
+
+        Args:
+            obj: The object to serialize
+
+        Returns:
+            A dictionary representation of the object
+        """
+        if hasattr(obj, "model_dump") and callable(getattr(obj, "model_dump")):
+            try:
+                return obj.model_dump(mode="python")
+            except Exception as e:
+                # Fall back to string representation if model_dump fails
+                return {"_serialization_error": f"model_dump failed: {e}", "_str_repr": str(obj)}
+        elif hasattr(obj, "__dict__"):
+            # For objects with __dict__, try to convert to dict
+            try:
+                return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
+            except Exception:
+                return {"_str_repr": str(obj)}
+        else:
+            # For other objects, just convert to string
+            return {"_str_repr": str(obj)}
+
     def _serialize_transaction_context(self, transaction: Transaction) -> Dict[str, Any]:
         """Serialize transaction to a loggable format with redaction.
 
@@ -135,22 +160,22 @@ class TransactionContextLoggingPolicy(ControlPolicy):
 
         # Add OpenAI request data if present
         if transaction.openai_request:
-            openai_data = transaction.openai_request.model_dump(mode="python")
+            openai_data = self._safe_model_dump(transaction.openai_request)
             context["openai_request"] = self._redact_sensitive_data(openai_data)
 
         # Add raw request data if present
         if transaction.raw_request:
-            raw_data = transaction.raw_request.model_dump(mode="python")
+            raw_data = self._safe_model_dump(transaction.raw_request)
             context["raw_request"] = self._redact_sensitive_data(raw_data)
 
         # Add OpenAI response data if present (typically not sensitive, but check anyway)
         if transaction.openai_response:
-            response_data = transaction.openai_response.model_dump(mode="python")
+            response_data = self._safe_model_dump(transaction.openai_response)
             context["openai_response"] = self._redact_sensitive_data(response_data)
 
         # Add raw response data if present
         if transaction.raw_response:
-            raw_response_data = transaction.raw_response.model_dump(mode="python")
+            raw_response_data = self._safe_model_dump(transaction.raw_response)
             context["raw_response"] = self._redact_sensitive_data(raw_response_data)
 
         # Add transaction data (custom fields)

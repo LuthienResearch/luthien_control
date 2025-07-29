@@ -346,3 +346,58 @@ class TestTransactionContextLoggingPolicy:
         # Very short strings
         assert policy._redact_value("password", "a") == "***"
         assert policy._redact_value("password", "ab") == "***"
+
+    def test_safe_model_dump_with_pydantic_object(self, sample_transaction):
+        """Test _safe_model_dump with a Pydantic object."""
+        policy = TransactionContextLoggingPolicy()
+
+        result = policy._safe_model_dump(sample_transaction.openai_request)
+        assert isinstance(result, dict)
+        assert "api_key" in result
+        assert "payload" in result
+
+    def test_safe_model_dump_with_object_without_model_dump(self):
+        """Test _safe_model_dump with an object that doesn't have model_dump."""
+        policy = TransactionContextLoggingPolicy()
+
+        class SimpleObject:
+            def __init__(self):
+                self.name = "test"
+                self.value = 42
+
+        obj = SimpleObject()
+        result = policy._safe_model_dump(obj)
+
+        assert isinstance(result, dict)
+        assert "name" in result
+        assert "value" in result
+        assert result["name"] == "test"
+        assert result["value"] == 42
+
+    def test_safe_model_dump_with_object_that_fails_model_dump(self):
+        """Test _safe_model_dump with an object where model_dump fails."""
+        policy = TransactionContextLoggingPolicy()
+
+        class ProblematicObject:
+            def model_dump(self, mode=None):
+                raise ValueError("Serialization failed")
+
+            def __str__(self):
+                return "ProblematicObject instance"
+
+        obj = ProblematicObject()
+        result = policy._safe_model_dump(obj)
+
+        assert isinstance(result, dict)
+        assert "_serialization_error" in result
+        assert "_str_repr" in result
+        assert "model_dump failed" in result["_serialization_error"]
+
+    def test_safe_model_dump_with_primitive_object(self):
+        """Test _safe_model_dump with a primitive object."""
+        policy = TransactionContextLoggingPolicy()
+
+        result = policy._safe_model_dump("simple string")
+        assert isinstance(result, dict)
+        assert "_str_repr" in result
+        assert result["_str_repr"] == "simple string"

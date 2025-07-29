@@ -1,5 +1,9 @@
 # Changelog
 
+## [IN PROGRESS]
+ - Selective passthrough of api requests for certain paths (e.g. url redirection for /v1/models while skipping other policies)
+ - Logging policy for state debugging
+
 ## [0.3.0] - 2025-07-24
  - Improved error handling
  - Tighten up typing

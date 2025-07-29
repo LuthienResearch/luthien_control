@@ -14,9 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import (
     ApiKeyNotFoundError,
-    NoRequestError,
 )
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.request_type import RequestType
 from luthien_control.core.transaction import Transaction
 
 
@@ -55,9 +55,12 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
         Returns:
             The potentially modified transaction.
         """
-        if transaction.request is None:
-            raise NoRequestError("No request in transaction.")
+        # This policy only applies to OpenAI requests
+        if transaction.request_type != RequestType.OPENAI_CHAT:
+            # No-op for raw requests
+            return transaction
 
+        assert transaction.openai_request is not None
         api_key = os.environ.get(self.api_key_env_var_name)
 
         if not api_key:
@@ -68,6 +71,6 @@ class AddApiKeyHeaderFromEnvPolicy(ControlPolicy):
             raise ApiKeyNotFoundError(f"{error_message} ({self.name})")
 
         self.logger.info(f"Setting API key from env var '{self.api_key_env_var_name}' ({self.name}).")
-        transaction.request.api_key = api_key
+        transaction.openai_request.api_key = api_key
 
         return transaction

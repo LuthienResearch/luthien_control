@@ -14,6 +14,7 @@ from luthien_control.api.openai_chat_completions.request import OpenAIChatComple
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.backend_call_policy import BackendCallPolicy
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.raw_request import RawRequest
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
@@ -48,7 +49,7 @@ def base_transaction():
         api_endpoint="https://default.com/",
         api_key="default-key",
     )
-    return Transaction(request=request, response=Response())
+    return Transaction(openai_request=request, openai_response=Response())
 
 
 @pytest.fixture
@@ -76,7 +77,8 @@ async def apply_policy_and_verify_basics(
     result = await policy.apply(transaction, container, session)
 
     # Verify basic request configuration
-    assert result.request.api_endpoint == expected_endpoint
+    assert result.openai_request is not None
+    assert result.openai_request.api_endpoint == expected_endpoint
 
     # Verify OpenAI client creation and API call
     container.create_openai_client.assert_called_once_with(expected_endpoint, expected_api_key)
@@ -138,15 +140,19 @@ async def test_backend_call_policy_basic(base_transaction, mock_container_and_cl
     )
 
     # Verify request arguments were applied
-    assert result.request.api_key == "test-key-123"
-    assert result.request.payload.model == "gpt-4o"
-    assert result.request.payload.temperature == 0.7
-    assert result.request.payload.max_tokens == 1000
-    assert result.request.payload.top_p == 0.9
+    assert result.openai_request is not None
+    assert result.openai_request.api_key == "test-key-123"
+    assert result.openai_request.payload is not None
+    assert result.openai_request.payload.model == "gpt-4o"
+    assert result.openai_request.payload.temperature == 0.7
+    assert result.openai_request.payload.max_tokens == 1000
+    assert result.openai_request.payload.top_p == 0.9
 
     # Verify response was set
-    assert result.response.payload == mock_openai_response
-    assert result.response.api_endpoint == EXAMPLE_API_ENDPOINT
+    assert result.openai_response is not None
+    assert result.openai_response is not None
+    assert result.openai_response.payload == mock_openai_response
+    assert result.openai_response.api_endpoint == EXAMPLE_API_ENDPOINT
 
 
 @pytest.mark.asyncio
@@ -163,10 +169,13 @@ async def test_backend_call_policy_nested_objects(base_transaction, mock_contain
     )
 
     # Verify nested object was properly converted
-    assert result.request.payload.response_format is not None
-    assert isinstance(result.request.payload.response_format, ResponseFormat)
-    assert result.request.payload.response_format.type == "json_object"
-    assert result.response.payload == mock_openai_response
+    assert result.openai_request is not None
+    assert result.openai_request.payload is not None
+    assert result.openai_request.payload.response_format is not None
+    assert isinstance(result.openai_request.payload.response_format, ResponseFormat)
+    assert result.openai_request.payload.response_format.type == "json_object"
+    assert result.openai_response is not None
+    assert result.openai_response.payload == mock_openai_response
 
 
 @pytest.mark.asyncio
@@ -180,8 +189,8 @@ async def test_backend_call_policy_complex_nested_objects(mock_container_and_cli
         messages=EventedList([Message(role="user", content="What's the weather?")]),
     )
     transaction = Transaction(
-        request=Request(payload=payload, api_endpoint="https://default.com", api_key="default-key"),
-        response=Response(),
+        openai_request=Request(payload=payload, api_endpoint="https://default.com", api_key="default-key"),
+        openai_response=Response(),
     )
 
     # Complex nested request args
@@ -219,7 +228,9 @@ async def test_backend_call_policy_complex_nested_objects(mock_container_and_cli
     result = await apply_policy_and_verify_basics(policy, transaction, container, mock_openai_client, "test-key-123")
 
     # Verify deeply nested structures
-    payload = cast(OpenAIChatCompletionsRequest, result.request.payload)
+    assert result.openai_request is not None
+    assert result.openai_request.payload is not None
+    payload = cast(OpenAIChatCompletionsRequest, result.openai_request.payload)
     assert payload.response_format is not None
     assert payload.response_format.type == "json_object"
 
@@ -242,7 +253,8 @@ async def test_backend_call_policy_complex_nested_objects(mock_container_and_cli
     assert payload.tools[0].function.name == "get_weather"
     assert payload.tools[0].function.description == "Get the current weather"
 
-    assert result.response.payload == mock_openai_response
+    assert result.openai_response is not None
+    assert result.openai_response.payload == mock_openai_response
 
 
 @pytest.mark.asyncio
@@ -263,8 +275,10 @@ async def test_backend_call_policy_no_api_key(base_transaction, mock_container_a
     )
 
     # API key should remain unchanged if env var is not set
-    assert result.request.api_key == "default-key"
-    assert result.response.payload == mock_openai_response
+    assert result.openai_request is not None
+    assert result.openai_request.api_key == "default-key"
+    assert result.openai_response is not None
+    assert result.openai_response.payload == mock_openai_response
 
 
 @pytest.mark.asyncio
@@ -372,3 +386,69 @@ def test_backend_call_policy_serialization():
     assert deserialized_policy.backend_call_spec.api_endpoint == EXAMPLE_API_ENDPOINT
     assert deserialized_policy.backend_call_spec.request_args["temperature"] == 0.8
     assert deserialized_policy.backend_call_spec.request_args["max_tokens"] == 500
+
+
+@pytest.mark.asyncio
+async def test_backend_call_policy_raw_request_noop():
+    """Test BackendCallPolicy does nothing for raw requests (line 33)."""
+    setup_api_key_env()
+
+    spec = create_backend_call_spec()
+    policy = BackendCallPolicy(backend_call_spec=spec, name="test_policy")
+
+    # Create transaction with raw request
+    raw_request = RawRequest(method="POST", path="v1/models", headers={}, body=b"{}", api_key="test-key")
+    transaction = Transaction(raw_request=raw_request)
+
+    container = MagicMock()
+    session = AsyncMock()
+
+    # Apply policy - should return transaction unchanged
+    result = await policy.apply(transaction, container, session)
+
+    # Verify transaction is unchanged
+    assert result is transaction
+    assert result.raw_request is raw_request
+    assert result.raw_request is not None
+    assert result.raw_request.api_key == "test-key"  # Should be unchanged
+
+
+@pytest.mark.asyncio
+async def test_backend_call_policy_creates_response_when_none():
+    """Test BackendCallPolicy creates response when None (line 38)."""
+    setup_api_key_env()
+
+    spec = create_backend_call_spec()
+    policy = BackendCallPolicy(backend_call_spec=spec, name="test_policy")
+
+    # Create transaction with no openai_response
+    payload = OpenAIChatCompletionsRequest(
+        model="gpt-3.5-turbo",
+        messages=EventedList([Message(role="user", content="Hello")]),
+    )
+    transaction = Transaction(
+        openai_request=Request(payload=payload, api_endpoint="https://default.com", api_key="default-key"),
+        openai_response=None,  # No response initially
+    )
+
+    container = MagicMock()
+    mock_openai_client = AsyncMock()
+    mock_response = MagicMock()
+    mock_response.model_dump.return_value = {
+        "id": "test-123",
+        "object": "chat.completion",
+        "created": 1677652288,
+        "model": "gpt-4o",
+        "choices": [],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+    }
+    mock_openai_client.chat.completions.create.return_value = mock_response
+    container.create_openai_client.return_value = mock_openai_client
+
+    session = AsyncMock()
+
+    result = await policy.apply(transaction, container, session)
+
+    # Verify response was created
+    assert result.openai_response is not None
+    assert result.openai_response.payload is not None

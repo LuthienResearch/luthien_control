@@ -12,11 +12,11 @@ from luthien_control.control_policy.client_api_key_auth import ClientApiKeyAuthP
 from luthien_control.control_policy.exceptions import (
     ClientAuthenticationError,
     ClientAuthenticationNotFoundError,
-    NoRequestError,
 )
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.request import Request
+from luthien_control.core.request_type import RequestType
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
 from luthien_control.db.exceptions import LuthienDBQueryError
@@ -69,7 +69,7 @@ def sample_transaction() -> Transaction:
         }
     )
 
-    return Transaction(request=request, response=response, data=transaction_data)
+    return Transaction(openai_request=request, openai_response=response, data=transaction_data)
 
 
 @pytest.fixture
@@ -97,7 +97,7 @@ def transaction_with_missing_api_key() -> Transaction:
         )
     )
 
-    return Transaction(request=request, response=response, data=EventedDict())
+    return Transaction(openai_request=request, openai_response=response, data=EventedDict())
 
 
 @pytest.fixture
@@ -107,7 +107,8 @@ def transaction_with_none_api_key() -> Transaction:
     mock_transaction = MagicMock(spec=Transaction)
     mock_request = MagicMock()
     mock_request.api_key = None
-    mock_transaction.request = mock_request
+    mock_transaction.openai_request = mock_request
+    mock_transaction.request_type = RequestType.OPENAI_CHAT
     return mock_transaction
 
 
@@ -166,15 +167,18 @@ async def test_client_api_key_auth_policy_no_request(
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
-    """Test that NoRequestError is raised when transaction has no request."""
+    """Test that policy returns transaction unchanged when there's no request (no-op behavior)."""
     policy = ClientApiKeyAuthPolicy()
 
-    # Create a mock transaction with request=None
+    # Create a mock transaction with both request types as None
     mock_transaction = MagicMock(spec=Transaction)
-    mock_transaction.request = None
+    mock_transaction.openai_request = None
+    mock_transaction.raw_request = None
 
-    with pytest.raises(NoRequestError, match="No request in transaction for API key auth"):
-        await policy.apply(mock_transaction, mock_container, mock_db_session)
+    result = await policy.apply(mock_transaction, mock_container, mock_db_session)
+
+    # Policy should return the transaction unchanged when there's no request (no-op behavior)
+    assert result is mock_transaction
 
 
 @pytest.mark.asyncio
@@ -224,7 +228,8 @@ async def test_client_api_key_auth_policy_invalid_api_key(
     policy = ClientApiKeyAuthPolicy()
 
     # Modify the transaction to use an invalid API key
-    sample_transaction.request.api_key = "invalid-api-key"
+    assert sample_transaction.openai_request is not None
+    sample_transaction.openai_request.api_key = "invalid-api-key"
 
     with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
         mock_get_api_key.side_effect = LuthienDBQueryError("API key not found")
@@ -252,7 +257,8 @@ async def test_client_api_key_auth_policy_inactive_api_key(
     policy = ClientApiKeyAuthPolicy()
 
     # Modify the transaction to use the inactive API key
-    sample_transaction.request.api_key = "inactive-api-key-456"
+    assert sample_transaction.openai_request is not None
+    sample_transaction.openai_request.api_key = "inactive-api-key-456"
 
     with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
         mock_get_api_key.return_value = mock_inactive_api_key
@@ -377,7 +383,7 @@ async def test_client_api_key_auth_policy_different_api_keys(
             )
         )
 
-        transaction = Transaction(request=request, response=response, data=EventedDict())
+        transaction = Transaction(openai_request=request, openai_response=response, data=EventedDict())
 
         with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
             mock_get_api_key.return_value = mock_active_api_key
@@ -529,8 +535,8 @@ async def test_client_api_key_auth_policy_preserves_request_and_response(
     policy = ClientApiKeyAuthPolicy()
 
     # Store references to original objects
-    original_request = sample_transaction.request
-    original_response = sample_transaction.response
+    original_request = sample_transaction.openai_request
+    original_response = sample_transaction.openai_response
 
     with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
         mock_get_api_key.return_value = mock_active_api_key
@@ -538,8 +544,8 @@ async def test_client_api_key_auth_policy_preserves_request_and_response(
         result = await policy.apply(sample_transaction, mock_container, mock_db_session)
 
     assert result is sample_transaction
-    assert result.request is original_request
-    assert result.response is original_response
+    assert result.openai_request is original_request
+    assert result.openai_response is original_response
 
 
 @pytest.mark.asyncio
@@ -556,7 +562,8 @@ async def test_client_api_key_auth_policy_api_key_logging_truncation(
 
     # Use a longer API key to test truncation
     long_api_key = "very-long-api-key-that-should-be-truncated-for-security-purposes"
-    sample_transaction.request.api_key = long_api_key
+    assert sample_transaction.openai_request is not None
+    sample_transaction.openai_request.api_key = long_api_key
 
     with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
         mock_get_api_key.side_effect = LuthienDBQueryError("API key not found")
@@ -585,7 +592,8 @@ async def test_client_api_key_auth_policy_short_api_key_logging(
 
     # Use a short API key
     short_api_key = "abc"
-    sample_transaction.request.api_key = short_api_key
+    assert sample_transaction.openai_request is not None
+    sample_transaction.openai_request.api_key = short_api_key
 
     with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
         mock_get_api_key.side_effect = LuthienDBQueryError("API key not found")
@@ -596,3 +604,37 @@ async def test_client_api_key_auth_policy_short_api_key_logging(
 
     # Check that the truncation works with short keys too
     assert "Invalid API key provided (key starts with: abc...)" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_client_api_key_auth_policy_raw_request():
+    """Test client auth policy with raw request (lines 60-61)."""
+    from unittest.mock import patch
+
+    from luthien_control.core.raw_request import RawRequest
+
+    policy = ClientApiKeyAuthPolicy()
+
+    # Create transaction with raw request
+    raw_request = RawRequest(
+        method="POST",
+        path="v1/models",
+        headers={"authorization": "Bearer test-raw-api-key"},
+        body=b"{}",
+        api_key="test-raw-api-key",
+    )
+    transaction = Transaction(raw_request=raw_request)
+
+    mock_container = MagicMock()
+    mock_db_session = AsyncMock()
+    mock_active_api_key = MagicMock()
+    mock_active_api_key.is_active = True
+
+    with patch("luthien_control.control_policy.client_api_key_auth.get_api_key_by_value") as mock_get_api_key:
+        mock_get_api_key.return_value = mock_active_api_key
+
+        result = await policy.apply(transaction, mock_container, mock_db_session)
+
+        # Verify the transaction is returned unchanged and API key was validated
+        assert result is transaction
+        mock_get_api_key.assert_awaited_once_with(mock_db_session, "test-raw-api-key")

@@ -14,8 +14,10 @@ from luthien_control.api.openai_chat_completions.response import openai_chat_com
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.raw_request import RawRequest
+from luthien_control.core.raw_response import RawResponse
 from luthien_control.core.request import Request
-from luthien_control.core.response import Response
+from luthien_control.core.request_type import RequestType
 from luthien_control.core.transaction import Transaction
 from luthien_control.proxy.debugging import create_debug_response, log_policy_execution, log_transaction_state
 from luthien_control.settings import Settings
@@ -23,11 +25,33 @@ from luthien_control.settings import Settings
 logger = logging.getLogger(__name__)
 
 
-def _initialize_transaction(body: bytes, url: str, api_key: str) -> Transaction:
+def _initialize_openai_transaction(body: bytes, url: str, api_key: str) -> Transaction:
     transaction_id = uuid.uuid4()
     openai_api_request = fastapi_request_to_openai_chat_completions_request(body)
     request = Request(payload=openai_api_request, api_endpoint=url, api_key=api_key)
-    return Transaction(transaction_id=transaction_id, request=request, response=Response())
+    return Transaction(transaction_id=transaction_id, openai_request=request)
+
+
+def _initialize_raw_transaction(fastapi_request: fastapi.Request, body: bytes, url: str, api_key: str) -> Transaction:
+    transaction_id = uuid.uuid4()
+    raw_request = RawRequest(
+        method=fastapi_request.method, path=url, headers=dict(fastapi_request.headers), body=body, api_key=api_key
+    )
+    return Transaction(transaction_id=transaction_id, raw_request=raw_request)
+
+
+def _should_use_openai_processing(url: str) -> bool:
+    """Determine if we should use OpenAI-specific processing or raw passthrough."""
+    return url == "v1/chat/completions"
+
+
+def _build_raw_response(raw_response: RawResponse) -> fastapi.Response:
+    """Convert a RawResponse to a FastAPI Response."""
+    return fastapi.Response(
+        content=raw_response.content or raw_response.body,
+        status_code=raw_response.status_code,
+        headers=raw_response.headers,
+    )
 
 
 async def run_policy_flow(
@@ -53,7 +77,12 @@ async def run_policy_flow(
     body = await request.body()
     url = request.path_params["full_path"]
     api_key = request.headers.get("authorization", "").replace("Bearer ", "")
-    transaction = _initialize_transaction(body, url, api_key)
+
+    # Determine transaction type and initialize accordingly
+    if _should_use_openai_processing(url):
+        transaction = _initialize_openai_transaction(body, url, api_key)
+    else:
+        transaction = _initialize_raw_transaction(request, body, url, api_key)
 
     # Log initial transaction state
     log_transaction_state(
@@ -84,12 +113,15 @@ async def run_policy_flow(
         transaction = await main_policy.apply(transaction=transaction, container=dependencies, session=session)
 
         # Log successful policy execution
+        has_response = (transaction.openai_response and transaction.openai_response.payload is not None) or (
+            transaction.raw_response and transaction.raw_response.status_code is not None
+        )
         log_policy_execution(
             str(transaction.transaction_id),
             main_policy.name or "unknown",
             "completed",
             duration=time.time() - policy_start_time if policy_start_time else None,
-            details={"has_response": transaction.response.payload is not None},
+            details={"has_response": has_response},
         )
 
         logger.info(
@@ -100,17 +132,33 @@ async def run_policy_flow(
                 "duration_seconds": time.time() - policy_start_time if policy_start_time else None,
             },
         )
-        if transaction.response.payload is not None:
-            final_response = openai_chat_completions_response_to_fastapi_response(transaction.response.payload)
-        else:
-            final_response = JSONResponse(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={
-                    "detail": "Internal Server Error: No response payload",
-                    "transaction_id": str(transaction.transaction_id),
-                    "policy_name": main_policy.name,
-                },
-            )
+        # Build response based on transaction type
+        if transaction.request_type == RequestType.OPENAI_CHAT:
+            if transaction.openai_response and transaction.openai_response.payload is not None:
+                final_response = openai_chat_completions_response_to_fastapi_response(
+                    transaction.openai_response.payload
+                )
+            else:
+                final_response = JSONResponse(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    content={
+                        "detail": "Internal Server Error: No OpenAI response payload",
+                        "transaction_id": str(transaction.transaction_id),
+                        "policy_name": main_policy.name,
+                    },
+                )
+        else:  # raw_passthrough
+            if transaction.raw_response and transaction.raw_response.status_code is not None:
+                final_response = _build_raw_response(transaction.raw_response)
+            else:
+                final_response = JSONResponse(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    content={
+                        "detail": "Internal Server Error: No raw response",
+                        "transaction_id": str(transaction.transaction_id),
+                        "policy_name": main_policy.name,
+                    },
+                )
 
     except ControlPolicyError as e:
         # Log policy error

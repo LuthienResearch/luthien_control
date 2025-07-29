@@ -56,9 +56,10 @@ markers = [
     "integration: marks tests as integration tests (excluded by default)",
     "unit: marks tests as unit tests (run by default)",
     "e2e: marks tests as end-to-end tests (excluded by default, requires network access)",
-    "envvars(vars): mark test to set specific environment variables"
+    "envvars(vars): mark test to set specific environment variables",
+    "scripts: marks tests as script tests (excluded by default)"
 ]
-addopts = "-m 'not integration and not e2e' --import-mode=importlib"
+addopts = "-m 'not integration and not e2e and not scripts' --import-mode=importlib"
 # Configure asyncio mode and loop scope
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

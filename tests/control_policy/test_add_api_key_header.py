@@ -7,7 +7,7 @@ from luthien_control.api.openai_chat_completions.datatypes import Choice, Messag
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
 from luthien_control.control_policy.add_api_key_header import AddApiKeyHeaderPolicy
-from luthien_control.control_policy.exceptions import ApiKeyNotFoundError, NoRequestError
+from luthien_control.control_policy.exceptions import ApiKeyNotFoundError
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
@@ -45,7 +45,7 @@ def sample_transaction() -> Transaction:
         }
     )
 
-    return Transaction(request=request, response=response, data=transaction_data)
+    return Transaction(openai_request=request, openai_response=response, data=transaction_data)
 
 
 @pytest.fixture
@@ -77,8 +77,8 @@ async def test_add_api_key_success(
     result_transaction = await policy.apply(sample_transaction, container=mock_container, session=mock_db_session)
 
     assert result_transaction is sample_transaction
-    assert result_transaction.request is not None
-    assert result_transaction.request.api_key == "test-openai-key-123"
+    assert result_transaction.openai_request is not None
+    assert result_transaction.openai_request.api_key == "test-openai-key-123"
 
     # Check the correct specific method was called
     mock_container.settings.get_openai_api_key.assert_called_once()
@@ -109,17 +109,18 @@ async def test_add_api_key_no_request(
     mock_container: MagicMock,
     mock_db_session: AsyncMock,
 ):
-    """Test that it raises an error if the request is not found in the transaction."""
+    """Test that it is a no-op when no OpenAI request is found in the transaction."""
     policy = AddApiKeyHeaderPolicy()
 
     # Create a mock transaction with request property that returns None
     mock_transaction = MagicMock(spec=Transaction)
-    mock_transaction.request = None
+    mock_transaction.openai_request = None
 
-    with pytest.raises(NoRequestError):
-        await policy.apply(mock_transaction, container=mock_container, session=mock_db_session)
+    # Should return the transaction unchanged (no-op for raw requests)
+    result = await policy.apply(mock_transaction, container=mock_container, session=mock_db_session)
+    assert result is mock_transaction
 
-    # Ensure get_openai_api_key was NOT called if no request
+    # Ensure get_openai_api_key was NOT called if no OpenAI request
     mock_container.settings.get_openai_api_key.assert_not_called()
 
 
@@ -131,7 +132,8 @@ async def test_add_api_key_overwrites_existing(
 ):
     """Test that an existing API key is overwritten."""
     # The fixture already sets "initial_key", verify it's there
-    assert sample_transaction.request.api_key == "initial_key"
+    assert sample_transaction.openai_request is not None
+    assert sample_transaction.openai_request.api_key == "initial_key"
 
     policy = AddApiKeyHeaderPolicy()
 
@@ -141,8 +143,8 @@ async def test_add_api_key_overwrites_existing(
     result_transaction = await policy.apply(sample_transaction, container=mock_container, session=mock_db_session)
 
     assert result_transaction is sample_transaction
-    assert result_transaction.request is not None
-    assert result_transaction.request.api_key == "new-openai-key-456"
+    assert result_transaction.openai_request is not None
+    assert result_transaction.openai_request.api_key == "new-openai-key-456"
 
     mock_container.settings.get_openai_api_key.assert_called_once()
 

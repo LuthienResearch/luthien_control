@@ -47,14 +47,14 @@ class TestBackendUrlRegression:
             # Create transaction with initial API path
             transaction = Transaction(
                 transaction_id=uuid.uuid4(),
-                request=Request(
+                openai_request=Request(
                     payload=OpenAIChatCompletionsRequest(
                         model="gpt-3.5-turbo", messages=EventedList([Message(role="user", content="test")])
                     ),
                     api_endpoint=initial_path,
                     api_key="test-key",
                 ),
-                response=Response(),
+                openai_response=Response(),
             )
 
             container = Mock(spec=DependencyContainer)
@@ -64,11 +64,13 @@ class TestBackendUrlRegression:
             result = await policy.apply(transaction, container, session)
 
             # Verify that the policy only sets the backend URL, not joined path
-            assert result.request.api_endpoint == backend_url
+            assert result.openai_request is not None
+            assert result.openai_request.api_endpoint == backend_url
             assert result is transaction
 
             # Verify no path duplication occurred
-            assert initial_path not in result.request.api_endpoint or backend_url.endswith(initial_path)
+            assert result.openai_request is not None
+            assert initial_path not in result.openai_request.api_endpoint or backend_url.endswith(initial_path)
 
     @pytest.mark.asyncio
     async def test_end_to_end_url_construction_no_duplication(self):
@@ -82,14 +84,14 @@ class TestBackendUrlRegression:
         initial_path = "chat/completions"
         transaction = Transaction(
             transaction_id=uuid.uuid4(),
-            request=Request(
+            openai_request=Request(
                 payload=OpenAIChatCompletionsRequest(
                     model="gpt-3.5-turbo", messages=EventedList([Message(role="user", content="test")])
                 ),
                 api_endpoint=initial_path,
                 api_key="sk-test-key",
             ),
-            response=Response(),
+            openai_response=Response(),
         )
 
         # Step 1: Apply SetBackendPolicy
@@ -102,12 +104,14 @@ class TestBackendUrlRegression:
         transaction = await set_backend_policy.apply(transaction, container, session)
 
         # Verify SetBackendPolicy only set the base URL
-        assert transaction.request.api_endpoint == backend_url
+        assert transaction.openai_request is not None
+        assert transaction.openai_request.api_endpoint == backend_url
 
         # This is the key regression test: SetBackendPolicy should NOT
         # join the path with the backend URL. It should only set the base URL.
-        assert "chat/completions" not in transaction.request.api_endpoint
-        assert transaction.request.api_endpoint == "https://api.openai.com"
+        assert transaction.openai_request is not None
+        assert "chat/completions" not in transaction.openai_request.api_endpoint
+        assert transaction.openai_request.api_endpoint == "https://api.openai.com"
 
     @pytest.mark.asyncio
     async def test_error_debug_info_includes_correct_backend_url(self):
@@ -151,14 +155,14 @@ class TestBackendUrlRegression:
 
             transaction = Transaction(
                 transaction_id=uuid.uuid4(),
-                request=Request(
+                openai_request=Request(
                     payload=OpenAIChatCompletionsRequest(
                         model="gpt-3.5-turbo", messages=EventedList([Message(role="user", content="test")])
                     ),
                     api_endpoint="chat/completions",
                     api_key="test-key",
                 ),
-                response=Response(),
+                openai_response=Response(),
             )
 
             container = Mock(spec=DependencyContainer)
@@ -168,10 +172,13 @@ class TestBackendUrlRegression:
             result = await policy.apply(transaction, container, session)
 
             # Verify the backend URL was set correctly
-            assert result.request.api_endpoint == backend_url, f"Failed for {backend_url}: {description}"
+            assert result.openai_request is not None
+            assert result.openai_request.api_endpoint == backend_url, f"Failed for {backend_url}: {description}"
 
             # Verify no path components were accidentally joined
-            assert "chat/completions" not in result.request.api_endpoint or backend_url.endswith("chat/completions")
+            assert "chat/completions" not in result.openai_request.api_endpoint or backend_url.endswith(
+                "chat/completions"
+            )
 
     @pytest.mark.asyncio
     async def test_api_key_identifier_extraction_safety(self):

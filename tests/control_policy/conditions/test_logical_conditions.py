@@ -74,8 +74,8 @@ def sample_transaction() -> Transaction:
     )
 
     transaction = Transaction(
-        request=request,
-        response=response,
+        openai_request=request,
+        openai_response=response,
         data=transaction_data,
     )
 

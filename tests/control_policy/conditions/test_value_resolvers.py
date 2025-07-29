@@ -52,7 +52,7 @@ def sample_transaction() -> Transaction:
         ),
     )
 
-    return Transaction(request=request, response=response)
+    return Transaction(openai_request=request, openai_response=response)
 
 
 class TestCreateValueResolver:
@@ -68,11 +68,11 @@ class TestCreateValueResolver:
 
     def test_create_transaction_path_resolver(self):
         """Test creating a TransactionPath resolver from serialized data."""
-        serialized: SerializableDict = {"type": "transaction_path", "path": "request.payload.model"}
+        serialized: SerializableDict = {"type": "transaction_path", "path": "openai_request.payload.model"}
         resolver = create_value_resolver(serialized)
 
         assert isinstance(resolver, TransactionPath)
-        assert resolver.path == "request.payload.model"
+        assert resolver.path == "openai_request.payload.model"
 
     def test_create_value_resolver_unknown_type(self):
         """Test that create_value_resolver raises ValueError for unknown types."""
@@ -122,10 +122,10 @@ class TestPathConvenienceFunction:
 
     def test_path_function(self, sample_transaction: Transaction):
         """Test that path() creates a TransactionPath with the correct path."""
-        resolver = path("request.payload.model")
+        resolver = path("openai_request.payload.model")
 
         assert isinstance(resolver, TransactionPath)
-        assert resolver.path == "request.payload.model"
+        assert resolver.path == "openai_request.payload.model"
         assert resolver.resolve(sample_transaction) == "gpt-4o"
 
 

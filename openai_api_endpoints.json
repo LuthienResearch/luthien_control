@@ -1,0 +1,212 @@
+[
+  {
+    "endpoint": "/v1/chat/completions",
+    "methods": ["POST"],
+    "description": "Create a chat completion using messages and return the model's response"
+  },
+  {
+    "endpoint": "/v1/completions",
+    "methods": ["POST"],
+    "description": "Create a text completion using a prompt and return the model's response"
+  },
+  {
+    "endpoint": "/v1/models",
+    "methods": ["GET"],
+    "description": "List available models or retrieve details about a specific model"
+  },
+  {
+    "endpoint": "/v1/models/{model}",
+    "methods": ["GET"],
+    "description": "Retrieve information about a specific model"
+  },
+  {
+    "endpoint": "/v1/embeddings",
+    "methods": ["POST"],
+    "description": "Create vector embeddings for input text"
+  },
+  {
+    "endpoint": "/v1/audio/speech",
+    "methods": ["POST"],
+    "description": "Generate audio from text using text-to-speech"
+  },
+  {
+    "endpoint": "/v1/audio/transcriptions",
+    "methods": ["POST"],
+    "description": "Transcribe audio files to text"
+  },
+  {
+    "endpoint": "/v1/audio/translations",
+    "methods": ["POST"],
+    "description": "Translate audio files to English text"
+  },
+  {
+    "endpoint": "/v1/files",
+    "methods": ["GET", "POST"],
+    "description": "List files or upload a file for use with other endpoints"
+  },
+  {
+    "endpoint": "/v1/files/{file_id}",
+    "methods": ["GET", "DELETE"],
+    "description": "Retrieve or delete a specific file"
+  },
+  {
+    "endpoint": "/v1/files/{file_id}/content",
+    "methods": ["GET"],
+    "description": "Retrieve the content of a specific file"
+  },
+  {
+    "endpoint": "/v1/fine_tuning/jobs",
+    "methods": ["GET", "POST"],
+    "description": "List fine-tuning jobs or create a new fine-tuning job"
+  },
+  {
+    "endpoint": "/v1/fine_tuning/jobs/{fine_tuning_job_id}",
+    "methods": ["GET"],
+    "description": "Retrieve details about a specific fine-tuning job"
+  },
+  {
+    "endpoint": "/v1/fine_tuning/jobs/{fine_tuning_job_id}/events",
+    "methods": ["GET"],
+    "description": "List events for a specific fine-tuning job"
+  },
+  {
+    "endpoint": "/v1/fine_tuning/jobs/{fine_tuning_job_id}/cancel",
+    "methods": ["POST"],
+    "description": "Cancel a fine-tuning job"
+  },
+  {
+    "endpoint": "/v1/batches",
+    "methods": ["GET", "POST"],
+    "description": "List batch processing jobs or create a new batch job"
+  },
+  {
+    "endpoint": "/v1/batches/{batch_id}",
+    "methods": ["GET"],
+    "description": "Retrieve details about a specific batch job"
+  },
+  {
+    "endpoint": "/v1/batches/{batch_id}/cancel",
+    "methods": ["POST"],
+    "description": "Cancel a batch processing job"
+  },
+  {
+    "endpoint": "/v1/assistants",
+    "methods": ["GET", "POST"],
+    "description": "List assistants or create a new assistant"
+  },
+  {
+    "endpoint": "/v1/assistants/{assistant_id}",
+    "methods": ["GET", "POST", "DELETE"],
+    "description": "Retrieve, modify, or delete a specific assistant"
+  },
+  {
+    "endpoint": "/v1/threads",
+    "methods": ["POST"],
+    "description": "Create a new conversation thread"
+  },
+  {
+    "endpoint": "/v1/threads/{thread_id}",
+    "methods": ["GET", "POST", "DELETE"],
+    "description": "Retrieve, modify, or delete a specific thread"
+  },
+  {
+    "endpoint": "/v1/threads/{thread_id}/messages",
+    "methods": ["GET", "POST"],
+    "description": "List messages in a thread or add a new message"
+  },
+  {
+    "endpoint": "/v1/threads/{thread_id}/messages/{message_id}",
+    "methods": ["GET", "POST"],
+    "description": "Retrieve or modify a specific message in a thread"
+  },
+  {
+    "endpoint": "/v1/threads/{thread_id}/runs",
+    "methods": ["GET", "POST"],
+    "description": "List runs in a thread or create a new run"
+  },
+  {
+    "endpoint": "/v1/threads/{thread_id}/runs/{run_id}",
+    "methods": ["GET", "POST"],
+    "description": "Retrieve or modify a specific run in a thread"
+  },
+  {
+    "endpoint": "/v1/threads/{thread_id}/runs/{run_id}/cancel",
+    "methods": ["POST"],
+    "description": "Cancel a run in progress"
+  },
+  {
+    "endpoint": "/v1/threads/{thread_id}/runs/{run_id}/steps",
+    "methods": ["GET"],
+    "description": "List steps for a specific run"
+  },
+  {
+    "endpoint": "/v1/threads/{thread_id}/runs/{run_id}/steps/{step_id}",
+    "methods": ["GET"],
+    "description": "Retrieve details about a specific run step"
+  },
+  {
+    "endpoint": "/v1/threads/runs",
+    "methods": ["POST"],
+    "description": "Create a thread and run it in one request"
+  },
+  {
+    "endpoint": "/v1/vector_stores",
+    "methods": ["GET", "POST"],
+    "description": "List vector stores or create a new vector store"
+  },
+  {
+    "endpoint": "/v1/vector_stores/{vector_store_id}",
+    "methods": ["GET", "POST", "DELETE"],
+    "description": "Retrieve, modify, or delete a specific vector store"
+  },
+  {
+    "endpoint": "/v1/vector_stores/{vector_store_id}/files",
+    "methods": ["GET", "POST"],
+    "description": "List files in a vector store or add a file to the vector store"
+  },
+  {
+    "endpoint": "/v1/vector_stores/{vector_store_id}/files/{file_id}",
+    "methods": ["GET", "DELETE"],
+    "description": "Retrieve or remove a specific file from a vector store"
+  },
+  {
+    "endpoint": "/v1/vector_stores/{vector_store_id}/file_batches",
+    "methods": ["POST"],
+    "description": "Create a batch of files to add to a vector store"
+  },
+  {
+    "endpoint": "/v1/vector_stores/{vector_store_id}/file_batches/{batch_id}",
+    "methods": ["GET"],
+    "description": "Retrieve details about a file batch in a vector store"
+  },
+  {
+    "endpoint": "/v1/vector_stores/{vector_store_id}/file_batches/{batch_id}/files",
+    "methods": ["GET"],
+    "description": "List files in a vector store file batch"
+  },
+  {
+    "endpoint": "/v1/vector_stores/{vector_store_id}/file_batches/{batch_id}/cancel",
+    "methods": ["POST"],
+    "description": "Cancel a vector store file batch"
+  },
+  {
+    "endpoint": "/v1/images/generations",
+    "methods": ["POST"],
+    "description": "Generate images from text prompts using DALL-E"
+  },
+  {
+    "endpoint": "/v1/images/edits",
+    "methods": ["POST"],
+    "description": "Edit images using a mask and prompt"
+  },
+  {
+    "endpoint": "/v1/images/variations",
+    "methods": ["POST"],
+    "description": "Create variations of an existing image"
+  },
+  {
+    "endpoint": "/v1/moderations",
+    "methods": ["POST"],
+    "description": "Check if text violates OpenAI's usage policies"
+  }
+]

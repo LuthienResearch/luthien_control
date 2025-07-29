@@ -4,6 +4,7 @@ import pytest
 from luthien_control.control_policy.serialization import SerializableDict
 from luthien_control.control_policy.set_backend_policy import SetBackendPolicy
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.request_type import RequestType
 from luthien_control.core.transaction import Transaction
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,8 +43,9 @@ class TestSetBackendPolicy:
 
         # Create mock objects
         transaction = Mock(spec=Transaction)
-        transaction.request = Mock()
-        transaction.request.api_endpoint = "chat/completions"  # Initial path
+        transaction.openai_request = Mock()
+        transaction.openai_request.api_endpoint = "chat/completions"  # Initial path
+        transaction.request_type = RequestType.OPENAI_CHAT
         container = Mock(spec=DependencyContainer)
         session = Mock(spec=AsyncSession)
 
@@ -51,7 +53,7 @@ class TestSetBackendPolicy:
         result = await policy.apply(transaction, container, session)
 
         # Verify the backend URL was set (without combining with the original path)
-        assert transaction.request.api_endpoint == "https://api.example.com/"
+        assert transaction.openai_request.api_endpoint == "https://api.example.com/"
         assert result is transaction
 
     @pytest.mark.asyncio
@@ -61,8 +63,9 @@ class TestSetBackendPolicy:
 
         # Create mock objects
         transaction = Mock(spec=Transaction)
-        transaction.request = Mock()
-        transaction.request.api_endpoint = "chat/completions"  # Initial path
+        transaction.openai_request = Mock()
+        transaction.openai_request.api_endpoint = "chat/completions"  # Initial path
+        transaction.request_type = RequestType.OPENAI_CHAT
         container = Mock(spec=DependencyContainer)
         session = Mock(spec=AsyncSession)
 
@@ -70,7 +73,7 @@ class TestSetBackendPolicy:
         result = await policy.apply(transaction, container, session)
 
         # Verify the backend URL was not modified
-        assert transaction.request.api_endpoint == "chat/completions"
+        assert transaction.openai_request.api_endpoint == "chat/completions"
         assert result is transaction
 
     @pytest.mark.asyncio
@@ -89,8 +92,9 @@ class TestSetBackendPolicy:
 
             # Create mock objects
             transaction = Mock(spec=Transaction)
-            transaction.request = Mock()
-            transaction.request.api_endpoint = original_path
+            transaction.openai_request = Mock()
+            transaction.openai_request.api_endpoint = original_path
+            transaction.request_type = RequestType.OPENAI_CHAT
             container = Mock(spec=DependencyContainer)
             session = Mock(spec=AsyncSession)
 
@@ -98,7 +102,9 @@ class TestSetBackendPolicy:
             result = await policy.apply(transaction, container, session)
 
             # Verify the URL was joined correctly
-            assert transaction.request.api_endpoint == expected_result, f"Failed for {base_url} + {original_path}"
+            assert transaction.openai_request.api_endpoint == expected_result, (
+                f"Failed for {base_url} + {original_path}"
+            )
             assert result is transaction
 
     def test_get_policy_specific_config(self):

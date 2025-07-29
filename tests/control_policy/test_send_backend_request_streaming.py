@@ -74,14 +74,20 @@ class TestSendBackendRequestPolicyStreaming:
 
         # Verify the transaction was updated correctly
         assert result is streaming_transaction
-        assert "backend_stream" in result.data
-        assert result.data["backend_stream"] is mock_streaming_response
-        assert result.data["is_streaming"] is True
 
-        # Verify response object was created but payload is None (indicating streaming)
+        # Verify response object was created with streaming iterator
         assert result.openai_response is not None
         assert result.openai_response.payload is None
         assert result.openai_response.api_endpoint is not None
+        assert result.openai_response.is_streaming is True
+        assert result.openai_response.streaming_iterator is not None
+
+        # Verify the streaming iterator wraps our mock
+        # Check that it's an OpenAIStreamingIterator and has the correct stream
+        from luthien_control.core.streaming_response import OpenAIStreamingIterator
+
+        assert isinstance(result.openai_response.streaming_iterator, OpenAIStreamingIterator)
+        assert result.openai_response.streaming_iterator.stream is mock_streaming_response
 
     @pytest.mark.asyncio
     async def test_handles_regular_response_with_model_dump(self, streaming_transaction, mock_container):
@@ -115,9 +121,9 @@ class TestSendBackendRequestPolicyStreaming:
         assert result.openai_response.payload is not None
         assert result.openai_response.payload.id == "test-id"
 
-        # Should not have streaming markers in transaction data
-        assert "backend_stream" not in result.data
-        assert "is_streaming" not in result.data
+        # Should not have streaming iterator for non-streaming response
+        assert result.openai_response.is_streaming is False
+        assert result.openai_response.streaming_iterator is None
 
     @pytest.mark.asyncio
     async def test_detection_works_for_objects_without_model_dump(self):

@@ -33,3 +33,12 @@ class Transaction(DeepEventedModel):
     @property
     def request_type(self) -> RequestType:
         return RequestType.OPENAI_CHAT if self.openai_request else RequestType.RAW_PASSTHROUGH
+
+    @property
+    def is_streaming(self) -> bool:
+        """Check if this transaction contains a streaming response."""
+        if self.openai_response and self.openai_response.is_streaming:
+            return True
+        if self.raw_response and self.raw_response.is_streaming:
+            return True
+        return False

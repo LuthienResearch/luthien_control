@@ -12,6 +12,7 @@ from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.raw_response import RawResponse
 from luthien_control.core.request_type import RequestType
 from luthien_control.core.response import Response
+from luthien_control.core.streaming_response import OpenAIStreamingIterator, RawStreamingIterator
 from luthien_control.core.transaction import Transaction
 
 logger = logging.getLogger(__name__)
@@ -156,19 +157,18 @@ class SendBackendRequestPolicy(ControlPolicy):
                     f"and usage: {response_payload.usage}. ({self.name})"
                 )
             else:
-                # Streaming response - store it in raw format for further processing
+                # Streaming response - wrap it in our streaming iterator
                 self.logger.info(f"Received streaming backend response. ({self.name})")
 
-                # For streaming responses, we can't easily convert to structured format
-                # Store the stream object in transaction data for other policies to handle
-                transaction.data["backend_stream"] = backend_response
-                transaction.data["is_streaming"] = True
+                # Create streaming iterator wrapper
+                streaming_iterator = OpenAIStreamingIterator(backend_response)
 
-                # Create a minimal response object indicating streaming
+                # Create response object with streaming iterator
                 if transaction.openai_response is None:
                     transaction.openai_response = Response()
                 transaction.openai_response.api_endpoint = backend_url
-                # Note: payload is left as None to indicate streaming response
+                transaction.openai_response.streaming_iterator = streaming_iterator
+                # Note: payload is left as None for streaming responses
 
         except openai.NotFoundError as e:
             self.logger.error(
@@ -224,19 +224,42 @@ class SendBackendRequestPolicy(ControlPolicy):
 
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.request(
-                    method=raw_request.method, url=full_url, headers=headers, content=raw_request.body
-                )
+                # Check if the request indicates streaming (e.g., Accept: text/event-stream)
+                is_streaming_request = headers.get("Accept") == "text/event-stream"
 
-            # Store the raw response
-            transaction.raw_response = RawResponse(
-                status_code=response.status_code,
-                headers=dict(response.headers),
-                body=response.content,
-                content=response.text if response.text else None,
-            )
+                if is_streaming_request:
+                    # Handle streaming response
+                    async with client.stream(
+                        method=raw_request.method, url=full_url, headers=headers, content=raw_request.body
+                    ) as response:
+                        # Create streaming iterator
+                        streaming_iterator = RawStreamingIterator(response)
 
-            self.logger.info(f"Received raw response with status {response.status_code} ({self.name})")
+                        # Store the streaming response
+                        transaction.raw_response = RawResponse(
+                            status_code=response.status_code,
+                            headers=dict(response.headers),
+                            streaming_iterator=streaming_iterator,
+                        )
+
+                        self.logger.info(
+                            f"Received streaming raw response with status {response.status_code} ({self.name})"
+                        )
+                else:
+                    # Handle regular response
+                    response = await client.request(
+                        method=raw_request.method, url=full_url, headers=headers, content=raw_request.body
+                    )
+
+                    # Store the raw response
+                    transaction.raw_response = RawResponse(
+                        status_code=response.status_code,
+                        headers=dict(response.headers),
+                        body=response.content,
+                        content=response.text if response.text else None,
+                    )
+
+                    self.logger.info(f"Received raw response with status {response.status_code} ({self.name})")
 
         except httpx.TimeoutException as e:
             self.logger.error(f"Timeout error during raw request: {e} ({self.name})")

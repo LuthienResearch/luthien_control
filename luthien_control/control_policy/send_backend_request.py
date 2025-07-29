@@ -140,19 +140,35 @@ class SendBackendRequestPolicy(ControlPolicy):
 
             backend_response = await openai_client.chat.completions.create(**request_dict)
 
-            # Convert OpenAI SDK response to our structured response model
-            response_payload = OpenAIChatCompletionsResponse.model_validate(backend_response.model_dump())
+            # Check if this is a streaming response
+            if hasattr(backend_response, "model_dump") and callable(getattr(backend_response, "model_dump")):
+                # Regular response - convert to our structured response model
+                response_payload = OpenAIChatCompletionsResponse.model_validate(backend_response.model_dump())
 
-            # Store the structured response in the transaction
-            if transaction.openai_response is None:
-                transaction.openai_response = Response()
-            transaction.openai_response.payload = response_payload
-            transaction.openai_response.api_endpoint = backend_url
+                # Store the structured response in the transaction
+                if transaction.openai_response is None:
+                    transaction.openai_response = Response()
+                transaction.openai_response.payload = response_payload
+                transaction.openai_response.api_endpoint = backend_url
 
-            self.logger.info(
-                f"Received backend response with {len(response_payload.choices)} choices "
-                f"and usage: {response_payload.usage}. ({self.name})"
-            )
+                self.logger.info(
+                    f"Received backend response with {len(response_payload.choices)} choices "
+                    f"and usage: {response_payload.usage}. ({self.name})"
+                )
+            else:
+                # Streaming response - store it in raw format for further processing
+                self.logger.info(f"Received streaming backend response. ({self.name})")
+
+                # For streaming responses, we can't easily convert to structured format
+                # Store the stream object in transaction data for other policies to handle
+                transaction.data["backend_stream"] = backend_response
+                transaction.data["is_streaming"] = True
+
+                # Create a minimal response object indicating streaming
+                if transaction.openai_response is None:
+                    transaction.openai_response = Response()
+                transaction.openai_response.api_endpoint = backend_url
+                # Note: payload is left as None to indicate streaming response
 
         except openai.NotFoundError as e:
             self.logger.error(

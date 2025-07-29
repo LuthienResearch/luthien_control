@@ -1,0 +1,19 @@
+{
+  "type": "SerialPolicy",
+  "name": "StreamingTestPolicy",
+  "policies": [
+    {
+      "type": "ClientApiKeyAuth",
+      "name": "AuthPolicy"
+    },
+    {
+      "type": "TransactionContextLoggingPolicy",
+      "name": "StreamingDebugLogger",
+      "log_level": "INFO"
+    },
+    {
+      "type": "SendBackendRequest",
+      "name": "BackendRequest"
+    }
+  ]
+}

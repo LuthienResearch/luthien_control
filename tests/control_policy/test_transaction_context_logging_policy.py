@@ -10,6 +10,7 @@ from luthien_control.control_policy.transaction_context_logging_policy import (
     TransactionContextLoggingPolicy,
 )
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.raw_request import RawRequest
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
 from luthien_control.core.transaction import Transaction
@@ -26,7 +27,7 @@ def sample_transaction() -> Transaction:
             messages=EventedList([Message(role="user", content="Hello, world!")]),
         ),
         api_endpoint="https://api.openai.com/v1/chat/completions",
-        api_key="test_key",
+        api_key="sk-test123456789",
     )
 
     response = Response(
@@ -52,110 +53,99 @@ def sample_transaction() -> Transaction:
     return Transaction(openai_request=request, openai_response=response)
 
 
+@pytest.fixture
+def mock_dependencies():
+    """Provides mock dependencies for testing."""
+    container = MagicMock(spec=DependencyContainer)
+    session = MagicMock(spec=AsyncSession)
+    return container, session
+
+
+@pytest.fixture
+def policy():
+    """Provides a policy instance for testing."""
+    return TransactionContextLoggingPolicy()
+
+
 class TestTransactionContextLoggingPolicy:
     """Test cases for TransactionContextLoggingPolicy."""
 
-    def test_init_with_defaults(self):
-        """Test policy initialization with default values."""
-        policy = TransactionContextLoggingPolicy()
-        assert policy.name == "TransactionContextLoggingPolicy"
-        assert policy.log_level == "INFO"
+    @pytest.mark.parametrize(
+        "name,log_level,expected_name,expected_level",
+        [
+            (None, None, "TransactionContextLoggingPolicy", "INFO"),
+            ("CustomLoggingPolicy", "DEBUG", "CustomLoggingPolicy", "DEBUG"),
+            (None, "WARNING", "TransactionContextLoggingPolicy", "WARNING"),
+        ],
+    )
+    def test_initialization(self, name, log_level, expected_name, expected_level):
+        """Test policy initialization with various parameters."""
+        kwargs = {}
+        if name is not None:
+            kwargs["name"] = name
+        if log_level is not None:
+            kwargs["log_level"] = log_level
+
+        policy = TransactionContextLoggingPolicy(**kwargs)
+        assert policy.name == expected_name
+        assert policy.log_level == expected_level
         assert policy.type == "TransactionContextLoggingPolicy"
 
-    def test_init_with_custom_values(self):
-        """Test policy initialization with custom values."""
-        policy = TransactionContextLoggingPolicy(name="CustomLoggingPolicy", log_level="DEBUG")
-        assert policy.name == "CustomLoggingPolicy"
-        assert policy.log_level == "DEBUG"
-        assert policy.type == "TransactionContextLoggingPolicy"
-
-    def test_init_with_invalid_values(self):
-        """Test policy initialization handles invalid input gracefully."""
-        # The policy should still initialize even with unusual log levels
-        # as validation happens at logging time
-        policy = TransactionContextLoggingPolicy(log_level="INVALID")
-        assert policy.log_level == "INVALID"
-
-    def test_redact_api_key_field(self):
-        """Test that API key fields are properly redacted."""
-        policy = TransactionContextLoggingPolicy()
-
-        test_cases = [
+    @pytest.mark.parametrize(
+        "field_name,value,expected",
+        [
+            # API key patterns
             ("api_key", "sk-1234567890abcdefghijklmnop", "sk-1***"),
             ("apikey", "abcd1234567890", "abcd***"),
             ("api-key", "short", "***"),
             ("API_KEY", "LONG_API_KEY_VALUE", "LONG***"),
-        ]
-
-        for key, value, expected in test_cases:
-            result = policy._redact_value(key, value)
-            assert result == expected
-
-    def test_redact_authorization_field(self):
-        """Test that authorization fields are properly redacted."""
-        policy = TransactionContextLoggingPolicy()
-
-        test_cases = [
+            # Authorization patterns
             ("authorization", "Bearer sk-1234567890abcdefghijklmnop", "Bearer ***"),
             ("Authorization", "Bearer token123", "Bearer ***"),
-            ("bearer", "sk-abcdefghijklmnop", "sk-a***"),  # 17 chars
-            ("token", "very_long_token_value", "very***"),  # 20 chars
-        ]
-
-        for key, value, expected in test_cases:
-            result = policy._redact_value(key, value)
-            assert result == expected
-
-    def test_redact_password_fields(self):
-        """Test that password fields are properly redacted."""
-        policy = TransactionContextLoggingPolicy()
-
-        test_cases = [
-            ("password", "secret123", "secr***"),  # 9 chars
-            ("passwd", "my_password", "my_p***"),  # 11 chars
-            ("pwd", "short", "***"),  # 5 chars
-            ("secret", "top_secret_value", "top_***"),  # 16 chars
-        ]
-
-        for key, value, expected in test_cases:
-            result = policy._redact_value(key, value)
-            assert result == expected
-
-    def test_redact_bearer_token_patterns(self):
-        """Test that Bearer token patterns in values are redacted."""
-        policy = TransactionContextLoggingPolicy()
-
-        test_cases = [
+            ("bearer", "sk-abcdefghijklmnop", "sk-a***"),
+            ("token", "very_long_token_value", "very***"),
+            # Password patterns
+            ("password", "secret123", "secr***"),
+            ("passwd", "my_password", "my_p***"),
+            ("pwd", "short", "***"),
+            ("secret", "top_secret_value", "top_***"),
+            # Bearer token in values
             ("header", "Bearer sk-1234567890abcdef", "Bearer ***"),
             ("auth_header", "bearer token123456", "bearer ***"),
             ("custom", "Authorization: Bearer sk-abcdef", "Authorization: Bearer ***"),
-        ]
+        ],
+    )
+    def test_sensitive_data_redaction(self, policy, field_name, value, expected):
+        """Test that sensitive data fields are properly redacted."""
+        result = policy._redact_value(field_name, value)
+        assert result == expected
 
-        for key, value, expected in test_cases:
-            result = policy._redact_value(key, value)
-            assert result == expected
+    @pytest.mark.parametrize(
+        "field_name,value",
+        [
+            ("user_id", "12345"),
+            ("name", "John Doe"),
+            ("model", "gpt-4"),
+            ("timestamp", "2023-01-01T00:00:00Z"),
+            ("count", 42),
+            ("enabled", True),
+            ("api_key", ""),  # Empty string
+            ("api_key", None),  # None value
+            ("password", "a"),  # Very short string
+        ],
+    )
+    def test_non_sensitive_data_preserved(self, policy, field_name, value):
+        """Test that non-sensitive data is preserved or handled safely."""
+        result = policy._redact_value(field_name, value)
+        if field_name in ["api_key", "password"] and isinstance(value, str) and value and len(value) <= 2:
+            assert result == "***"
+        elif value is None or (isinstance(value, str) and not value):
+            assert result == value
+        else:
+            assert result == value
 
-    def test_preserve_non_sensitive_data(self):
-        """Test that non-sensitive data is preserved."""
-        policy = TransactionContextLoggingPolicy()
-
-        test_cases = [
-            ("user_id", "12345", "12345"),
-            ("name", "John Doe", "John Doe"),
-            ("model", "gpt-4", "gpt-4"),
-            ("timestamp", "2023-01-01T00:00:00Z", "2023-01-01T00:00:00Z"),
-            ("count", 42, 42),
-            ("enabled", True, True),
-        ]
-
-        for key, value, expected in test_cases:
-            result = policy._redact_value(key, value)
-            assert result == expected
-
-    def test_redact_nested_structures(self):
+    def test_nested_structure_redaction(self, policy):
         """Test that nested data structures are properly redacted."""
-        policy = TransactionContextLoggingPolicy()
-
         data = {
             "user_info": {"name": "John Doe", "api_key": "sk-1234567890abcdef"},
             "headers": [
@@ -174,13 +164,8 @@ class TestTransactionContextLoggingPolicy:
         assert result["config"]["database"]["host"] == "localhost"
         assert result["config"]["database"]["password"] == "db_s***"
 
-    def test_serialize_transaction_context_with_openai_request(self, sample_transaction):
+    def test_transaction_serialization_with_openai(self, policy, sample_transaction):
         """Test serialization of transaction with OpenAI request."""
-        policy = TransactionContextLoggingPolicy()
-
-        # Add API key to the request
-        sample_transaction.openai_request.api_key = "sk-test123456789"
-
         context = policy._serialize_transaction_context(sample_transaction)
 
         assert "transaction_id" in context
@@ -188,12 +173,8 @@ class TestTransactionContextLoggingPolicy:
         assert "openai_request" in context
         assert context["openai_request"]["api_key"] == "sk-t***"
 
-    def test_serialize_transaction_context_with_raw_request(self):
+    def test_transaction_serialization_with_raw_request(self, policy):
         """Test serialization of transaction with raw request."""
-        from luthien_control.core.raw_request import RawRequest
-
-        policy = TransactionContextLoggingPolicy()
-
         raw_request = RawRequest(
             method="POST",
             path="/chat",
@@ -209,195 +190,152 @@ class TestTransactionContextLoggingPolicy:
         assert "raw_request" in context
         assert context["raw_request"]["headers"]["Authorization"] == "Bearer ***"
 
-    def test_serialize_transaction_context_with_transaction_data(self, sample_transaction):
+    def test_transaction_data_serialization(self, policy, sample_transaction):
         """Test serialization includes transaction data with redaction."""
-        policy = TransactionContextLoggingPolicy()
-
-        # Add some custom data to transaction
-        sample_transaction.data["user_id"] = "12345"
-        sample_transaction.data["secret_key"] = "very_secret_value"
-        sample_transaction.data["api_key"] = "sk-abcdefghijklmnop"
+        sample_transaction.data.update(
+            {"user_id": "12345", "secret_key": "very_secret_value", "api_key": "sk-abcdefghijklmnop"}
+        )
 
         context = policy._serialize_transaction_context(sample_transaction)
 
         assert "transaction_data" in context
-        assert context["transaction_data"]["user_id"] == "12345"
-        assert context["transaction_data"]["secret_key"] == "very***"
-        assert context["transaction_data"]["api_key"] == "sk-a***"
+        data = context["transaction_data"]
+        assert data["user_id"] == "12345"
+        assert data["secret_key"] == "very***"
+        assert data["api_key"] == "sk-a***"
 
     @pytest.mark.asyncio
-    async def test_apply_logs_transaction_context(self, sample_transaction, caplog):
-        """Test that apply method logs transaction context."""
-        policy = TransactionContextLoggingPolicy(log_level="INFO")
-        container = MagicMock(spec=DependencyContainer)
-        session = MagicMock(spec=AsyncSession)
+    @pytest.mark.parametrize(
+        "log_level,expected_level",
+        [
+            ("INFO", logging.INFO),
+            ("DEBUG", logging.DEBUG),
+            ("WARNING", logging.WARNING),
+        ],
+    )
+    async def test_apply_logs_transaction_context(
+        self, sample_transaction, mock_dependencies, caplog, log_level, expected_level
+    ):
+        """Test that apply method logs transaction context at specified level."""
+        policy = TransactionContextLoggingPolicy(log_level=log_level)
+        container, session = mock_dependencies
 
-        with caplog.at_level(logging.INFO):
+        with caplog.at_level(expected_level):
             result = await policy.apply(sample_transaction, container, session)
 
-        # Should return the same transaction unchanged
         assert result is sample_transaction
-
-        # Should have logged the transaction context as JSON
         assert len(caplog.records) == 1
         assert "Transaction Context JSON:" in caplog.records[0].message
-        assert str(sample_transaction.transaction_id) in caplog.records[0].message
+        assert caplog.records[0].levelno == expected_level
 
     @pytest.mark.asyncio
-    async def test_apply_with_debug_log_level(self, sample_transaction, caplog):
-        """Test apply method with DEBUG log level."""
-        policy = TransactionContextLoggingPolicy(log_level="DEBUG")
-        container = MagicMock(spec=DependencyContainer)
-        session = MagicMock(spec=AsyncSession)
-
-        with caplog.at_level(logging.DEBUG):
-            await policy.apply(sample_transaction, container, session)
-
-        assert len(caplog.records) == 1
-        assert caplog.records[0].levelno == logging.DEBUG
-
-    @pytest.mark.asyncio
-    async def test_apply_handles_serialization_errors(self, sample_transaction, caplog):
+    async def test_apply_handles_serialization_errors(self, sample_transaction, mock_dependencies, caplog):
         """Test that apply method handles serialization errors gracefully."""
         policy = TransactionContextLoggingPolicy()
-        container = MagicMock(spec=DependencyContainer)
-        session = MagicMock(spec=AsyncSession)
+        container, session = mock_dependencies
 
-        # Mock the serialization method to raise an exception
-        def mock_serialize_error(transaction):
-            raise ValueError("Serialization failed")
-
-        policy._serialize_transaction_context = mock_serialize_error
+        # Mock serialization to fail
+        policy._serialize_transaction_context = lambda transaction: (_ for _ in ()).throw(
+            ValueError("Serialization failed")
+        )
 
         with caplog.at_level(logging.ERROR):
             result = await policy.apply(sample_transaction, container, session)
 
-        # Should still return the transaction
         assert result is sample_transaction
-
-        # Should log the error
         assert len(caplog.records) == 1
         assert "Failed to log transaction context" in caplog.records[0].message
-        assert caplog.records[0].levelno == logging.ERROR
 
-    def test_serialization_and_deserialization(self):
-        """Test that policy can be serialized and deserialized."""
-        original_policy = TransactionContextLoggingPolicy(name="TestLoggingPolicy", log_level="WARNING")
+    def test_policy_serialization(self):
+        """Test policy serialization and deserialization."""
+        original = TransactionContextLoggingPolicy(name="TestLoggingPolicy", log_level="WARNING")
 
-        # Serialize
-        serialized = original_policy.serialize()
-        assert isinstance(serialized, dict)
+        serialized = original.serialize()
         assert serialized["type"] == "TransactionContextLoggingPolicy"
         assert serialized["name"] == "TestLoggingPolicy"
         assert serialized["log_level"] == "WARNING"
 
-        # Deserialize
-        deserialized_policy = TransactionContextLoggingPolicy.from_serialized(serialized)
-        assert deserialized_policy.name == original_policy.name
-        assert deserialized_policy.log_level == original_policy.log_level
-        assert deserialized_policy.type == original_policy.type
+        deserialized = TransactionContextLoggingPolicy.from_serialized(serialized)
+        assert deserialized.name == original.name
+        assert deserialized.log_level == original.log_level
 
-    def test_serialization_with_minimal_config(self):
-        """Test serialization with minimal configuration."""
+    def test_minimal_serialization_config(self):
+        """Test deserialization with minimal configuration."""
         config: SerializableDict = {"type": "TransactionContextLoggingPolicy"}
-
         policy = TransactionContextLoggingPolicy.from_serialized(config)
         assert policy.name == "TransactionContextLoggingPolicy"
-        assert policy.log_level == "INFO"
 
-    def test_get_policy_type_name(self):
-        """Test that get_policy_type_name returns correct type."""
-        assert TransactionContextLoggingPolicy.get_policy_type_name() == "TransactionContextLoggingPolicy"
-
-    def test_redact_common_api_key_patterns(self):
-        """Test redaction of common API key patterns."""
-        policy = TransactionContextLoggingPolicy()
-
-        # Test OpenAI style keys
+    def test_api_key_pattern_recognition(self, policy):
+        """Test recognition and redaction of API key patterns."""
+        # OpenAI-style key should be redacted by pattern
         openai_key = "sk-1234567890abcdefghijklmnopqrstuvwxyz"
         result = policy._redact_value("some_field", openai_key)
         assert result == "sk-1***"
 
-        # Test long generic keys
+        # Generic key should only be redacted when field name is sensitive
         generic_key = "abcdefghijklmnopqrstuvwxyz123456"
-        result = policy._redact_value("some_field", generic_key)
-        # Should not be redacted unless field name is sensitive
-        assert result == generic_key
+        assert policy._redact_value("some_field", generic_key) == generic_key
+        assert policy._redact_value("api_key", generic_key) == "abcd***"
 
-        # But should be redacted if field name is sensitive
-        result = policy._redact_value("api_key", generic_key)
-        assert result == "abcd***"
+    @pytest.mark.parametrize(
+        "test_obj,expected_keys",
+        [
+            # Pydantic object
+            ("pydantic", ["api_key", "payload"]),
+            # Simple object
+            ("simple", ["name", "value"]),
+            # Primitive
+            ("primitive", ["_str_repr"]),
+            # Failing model_dump
+            ("failing", ["_serialization_error", "_str_repr"]),
+        ],
+    )
+    def test_safe_model_dump_scenarios(self, policy, sample_transaction, test_obj, expected_keys):
+        """Test _safe_model_dump with various object types."""
+        if test_obj == "pydantic":
+            obj = sample_transaction.openai_request
+        elif test_obj == "simple":
 
-    def test_edge_cases_for_redaction(self):
-        """Test edge cases in redaction logic."""
-        policy = TransactionContextLoggingPolicy()
+            class SimpleObject:
+                def __init__(self):
+                    self.name = "test"
+                    self.value = 42
 
-        # Empty strings
-        assert policy._redact_value("api_key", "") == ""
+            obj = SimpleObject()
+        elif test_obj == "primitive":
+            obj = "simple string"
+        elif test_obj == "failing":
 
-        # None values
-        assert policy._redact_value("api_key", None) is None
+            class FailingObject:
+                def model_dump(self, mode=None):
+                    raise ValueError("Serialization failed")
 
-        # Non-string types
-        assert policy._redact_value("api_key", 12345) == 12345
-        assert policy._redact_value("api_key", True) is True
-        assert policy._redact_value("api_key", []) == []
+                def __str__(self):
+                    return "FailingObject instance"
 
-        # Very short strings
-        assert policy._redact_value("password", "a") == "***"
-        assert policy._redact_value("password", "ab") == "***"
+            obj = FailingObject()
+        else:
+            obj = None
 
-    def test_safe_model_dump_with_pydantic_object(self, sample_transaction):
-        """Test _safe_model_dump with a Pydantic object."""
-        policy = TransactionContextLoggingPolicy()
-
-        result = policy._safe_model_dump(sample_transaction.openai_request)
+        result = policy._safe_model_dump(obj)
         assert isinstance(result, dict)
-        assert "api_key" in result
-        assert "payload" in result
+        for key in expected_keys:
+            assert key in result
 
-    def test_safe_model_dump_with_object_without_model_dump(self):
-        """Test _safe_model_dump with an object that doesn't have model_dump."""
-        policy = TransactionContextLoggingPolicy()
+    def test_safe_model_dump_with_streaming_object(self, policy):
+        """Test _safe_model_dump handles streaming-like objects safely."""
 
-        class SimpleObject:
+        class StreamingObject:
             def __init__(self):
-                self.name = "test"
-                self.value = 42
+                self.normal_attr = "normal_value"
+                self._private_attr = "ignored"
+                import time
 
-        obj = SimpleObject()
+                self.callable_attr = time.time
+
+        obj = StreamingObject()
         result = policy._safe_model_dump(obj)
 
-        assert isinstance(result, dict)
-        assert "name" in result
-        assert "value" in result
-        assert result["name"] == "test"
-        assert result["value"] == 42
-
-    def test_safe_model_dump_with_object_that_fails_model_dump(self):
-        """Test _safe_model_dump with an object where model_dump fails."""
-        policy = TransactionContextLoggingPolicy()
-
-        class ProblematicObject:
-            def model_dump(self, mode=None):
-                raise ValueError("Serialization failed")
-
-            def __str__(self):
-                return "ProblematicObject instance"
-
-        obj = ProblematicObject()
-        result = policy._safe_model_dump(obj)
-
-        assert isinstance(result, dict)
-        assert "_serialization_error" in result
-        assert "_str_repr" in result
-        assert "model_dump failed" in result["_serialization_error"]
-
-    def test_safe_model_dump_with_primitive_object(self):
-        """Test _safe_model_dump with a primitive object."""
-        policy = TransactionContextLoggingPolicy()
-
-        result = policy._safe_model_dump("simple string")
-        assert isinstance(result, dict)
-        assert "_str_repr" in result
-        assert result["_str_repr"] == "simple string"
+        assert result["normal_attr"] == "normal_value"
+        assert "_private_attr" not in result
+        assert "callable" in result["callable_attr"]

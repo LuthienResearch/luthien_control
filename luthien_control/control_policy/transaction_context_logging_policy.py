@@ -137,7 +137,20 @@ class TransactionContextLoggingPolicy(ControlPolicy):
         elif hasattr(obj, "__dict__"):
             # For objects with __dict__, try to convert to dict
             try:
-                return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
+                result = {}
+                for k, v in obj.__dict__.items():
+                    if not k.startswith("_"):
+                        try:
+                            # Some attributes might be properties that raise exceptions when accessed
+                            # So we serialize the value safely too
+                            if hasattr(v, "__call__") and not hasattr(v, "__dict__"):
+                                # Skip callable objects that aren't classes
+                                result[k] = f"<callable: {type(v).__name__}>"
+                            else:
+                                result[k] = v
+                        except Exception as e:
+                            result[k] = f"<access_error: {e}>"
+                return result
             except Exception:
                 return {"_str_repr": str(obj)}
         else:

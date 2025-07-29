@@ -653,44 +653,6 @@ async def test_send_backend_request_policy_raw_request():
 
 
 @pytest.mark.asyncio
-async def test_send_backend_request_policy_raw_request_no_backend_url():
-    """Test raw request with fallback backend URL."""
-    policy = SendBackendRequestPolicy()
-
-    # Create a transaction with raw request but no backend_url
-    raw_request = RawRequest(
-        method="GET",
-        path="health",
-        headers={},
-        body=b"",
-        api_key="test-key",
-        # backend_url is None
-    )
-    transaction = Transaction(raw_request=raw_request)
-
-    container = MagicMock(spec=DependencyContainer)
-    db_session = AsyncMock(spec=AsyncSession)
-
-    with patch("httpx.AsyncClient") as mock_client_class:
-        mock_client = AsyncMock()
-        mock_client_class.return_value.__aenter__.return_value = mock_client
-
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.headers = {}
-        mock_response.content = b"OK"
-        mock_response.text = "OK"
-        mock_client.request.return_value = mock_response
-
-        await policy.apply(transaction, container, db_session)
-
-        # Should use fallback URL
-        mock_client.request.assert_called_once_with(
-            method="GET", url="http://localhost:8000/health", headers={"Authorization": "Bearer test-key"}, content=b""
-        )
-
-
-@pytest.mark.asyncio
 async def test_send_backend_request_policy_raw_request_no_api_key():
     """Test raw request without API key."""
     policy = SendBackendRequestPolicy()

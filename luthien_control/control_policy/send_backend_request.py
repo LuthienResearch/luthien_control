@@ -192,7 +192,9 @@ class SendBackendRequestPolicy(ControlPolicy):
             raise ValueError("Raw request is None")
 
         raw_request = transaction.raw_request
-        backend_url = raw_request.backend_url or "http://localhost:8000"  # fallback
+        if raw_request.backend_url is None:
+            raise ValueError("Raw request has no backend URL")
+        backend_url = raw_request.backend_url
 
         # Build the full URL
         full_url = f"{backend_url.rstrip('/')}/{raw_request.path.lstrip('/')}"

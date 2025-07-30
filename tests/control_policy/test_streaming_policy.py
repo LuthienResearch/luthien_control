@@ -46,6 +46,10 @@ class MockStreamingPolicy(StreamingControlPolicy):
         """Test implementation for non-streaming."""
         return transaction
 
+
+class MockStreamingPolicyWithProcessChunk(MockStreamingPolicy):
+    """Concrete implementation for testing with process_chunk."""
+
     async def process_chunk(
         self, chunk: str, transaction: Transaction, container: DependencyContainer, session: AsyncSession
     ) -> str:
@@ -123,7 +127,7 @@ class TestStreamingControlPolicy:
         self, streaming_transaction, mock_container, mock_session
     ):
         """Test that streaming transactions are routed to apply_streaming."""
-        policy = MockStreamingPolicy()
+        policy = MockStreamingPolicyWithProcessChunk()
 
         result = await policy.apply(streaming_transaction, mock_container, mock_session)
 
@@ -205,3 +209,11 @@ class TestStreamingControlPolicy:
     def test_passthrough_policy_type_name(self):
         """Test PassthroughStreamingPolicy type name."""
         assert PassthroughStreamingPolicy.get_policy_type_name() == "passthrough_streaming"
+
+    @pytest.mark.asyncio
+    async def test_process_chunk(self, streaming_transaction, mock_container, mock_session):
+        """Test base process_chunk method."""
+        policy = MockStreamingPolicy()
+        chunk = "test"
+        result = await policy.process_chunk(chunk, streaming_transaction, mock_container, mock_session)
+        assert result == chunk

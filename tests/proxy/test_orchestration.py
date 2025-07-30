@@ -233,3 +233,122 @@ async def test_debug_mode_includes_debug_info(mock_settings_class, mock_request)
     assert result.status_code == 401
     body_text = cast(bytes, result.body).decode()
     assert "debug" in body_text  # Debug info should be present
+
+
+async def test_openai_streaming_response_flow(mock_request):
+    """Test: OpenAI streaming response returns StreamingResponse."""
+    from luthien_control.core.response import Response
+    from luthien_control.core.streaming_response import ChunkedTextIterator
+
+    # Create a mock policy using MagicMock
+    streaming_policy = MagicMock(spec=ControlPolicy)
+    streaming_policy.name = "StreamingPolicy"
+
+    # Configure policy to return streaming response
+    async def streaming_apply(transaction, container, session):
+        transaction.data["main_policy_called"] = True
+        if transaction.openai_response is None:
+            transaction.openai_response = Response()
+        # Create streaming iterator
+        streaming_iterator = ChunkedTextIterator("Hello streaming world", chunk_size=5)
+        transaction.openai_response.streaming_iterator = streaming_iterator
+        return transaction
+
+    streaming_policy.apply = streaming_apply
+
+    with patch("luthien_control.proxy.orchestration.openai_streaming_response_to_fastapi_response") as mock_streaming:
+        mock_streaming_response = fastapi.Response(b"streaming content")
+        mock_streaming.return_value = mock_streaming_response
+
+        result = await run_policy_flow(mock_request, streaming_policy, MagicMock(), AsyncMock())
+
+        assert result is mock_streaming_response
+        mock_streaming.assert_called_once()
+
+
+async def test_raw_streaming_response_flow():
+    """Test: Raw streaming response returns FastAPI StreamingResponse."""
+    from luthien_control.core.streaming_response import ChunkedTextIterator
+
+    mock_request = MagicMock(spec=fastapi.Request)
+    mock_request.path_params = {"full_path": "v1/models"}
+    mock_request.method = "GET"
+    mock_request.headers = MagicMock()
+    mock_request.headers.get = MagicMock(return_value="Bearer test-key")
+    mock_request.headers.items = MagicMock(return_value=[])
+    mock_request.body = AsyncMock(return_value=b"")
+
+    # Configure policy to return streaming raw response
+    streaming_policy = MagicMock(spec=ControlPolicy)
+    streaming_policy.name = "StreamingPolicy"
+
+    async def streaming_apply(transaction, container, session):
+        streaming_iterator = ChunkedTextIterator("streaming data", chunk_size=5)
+        transaction.raw_response = RawResponse(
+            status_code=200, headers={"content-type": "text/event-stream"}, streaming_iterator=streaming_iterator
+        )
+        return transaction
+
+    streaming_policy.apply = streaming_apply
+
+    result = await run_policy_flow(mock_request, streaming_policy, MagicMock(), AsyncMock())
+
+    # Should get a StreamingResponse
+    from fastapi.responses import StreamingResponse
+
+    assert isinstance(result, StreamingResponse)
+    assert result.status_code == 200
+
+
+@patch("luthien_control.proxy.orchestration.Settings")
+async def test_unexpected_error_with_debug_info(mock_settings_class, mock_request):
+    """Test: unexpected error with debug info in dev mode."""
+    mock_settings = MagicMock()
+    mock_settings.dev_mode.return_value = True
+    mock_settings_class.return_value = mock_settings
+
+    # Policy that raises unexpected error with debug info
+    error_policy = MagicMock(spec=ControlPolicy)
+    error_policy.name = "ErrorPolicy"
+
+    async def error_apply(transaction, container, session):
+        error = ValueError("Unexpected failure")
+        setattr(error, "debug_info", {"error_details": "network_timeout"})
+        raise error
+
+    error_policy.apply = error_apply
+
+    result = await run_policy_flow(mock_request, error_policy, MagicMock(), AsyncMock())
+
+    assert result.status_code == 500
+    body_text = cast(bytes, result.body).decode()
+    assert "error_details" in body_text  # Debug info should be present
+
+
+@patch("luthien_control.proxy.orchestration.Settings")
+async def test_control_policy_error_with_cause_debug_info(mock_settings_class, mock_request):
+    """Test: ControlPolicyError with debug info in __cause__ exception."""
+    mock_settings = MagicMock()
+    mock_settings.dev_mode.return_value = True
+    mock_settings_class.return_value = mock_settings
+
+    error_policy = MagicMock(spec=ControlPolicy)
+    error_policy.name = "CauseErrorPolicy"
+
+    async def cause_error_apply(transaction, container, session):
+        # Create underlying exception with debug info
+        cause_error = RuntimeError("Underlying error")
+        setattr(cause_error, "debug_info", {"cause_details": "connection_failed"})
+
+        # Create ControlPolicyError with the cause
+        policy_error = ControlPolicyError("Policy failed", policy_name="CauseErrorPolicy", status_code=502)
+        policy_error.__cause__ = cause_error
+        raise policy_error
+
+    error_policy.apply = cause_error_apply
+
+    result = await run_policy_flow(mock_request, error_policy, MagicMock(), AsyncMock())
+
+    assert result.status_code == 502
+    body_text = cast(bytes, result.body).decode()
+    assert "cause_details" in body_text  # Debug info from __cause__ should be present

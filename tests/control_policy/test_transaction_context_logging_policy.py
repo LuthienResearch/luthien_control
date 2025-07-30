@@ -385,3 +385,66 @@ class TestTransactionContextLoggingPolicy:
         assert result["_iterator_type"] == "ChunkedTextIterator"
         assert result["_chunk_size"] == 10
         assert result["_position"] == 0
+
+    def test_safe_model_dump_with_object_property_access_error(self, policy):
+        """Test _safe_model_dump handles objects with properties that raise exceptions."""
+
+        class ProblematicObject:
+            def __init__(self):
+                self.normal_attr = "normal"
+                self._private = "private"
+
+            @property
+            def failing_property(self):
+                raise RuntimeError("Property access failed")
+
+        obj = ProblematicObject()
+        result = policy._safe_model_dump(obj)
+
+        assert result["normal_attr"] == "normal"
+        assert "_private" not in result
+        assert "access_error" in result["failing_property"]
+
+    def test_redact_value_with_nested_streaming_iterator(self, policy):
+        """Test _redact_value handles nested streaming iterators correctly."""
+        streaming_iterator = ChunkedTextIterator("test", chunk_size=5)
+
+        # Test with streaming iterator as value in nested structure
+        result = policy._redact_value("data", streaming_iterator)
+
+        assert result["_is_streaming_iterator"] is True
+        assert result["_iterator_type"] == "ChunkedTextIterator"
+
+    def test_transaction_serialization_with_raw_response_streaming(self, policy):
+        """Test serialization includes raw response streaming iterator."""
+        from luthien_control.core.raw_request import RawRequest
+        from luthien_control.core.raw_response import RawResponse
+
+        # Create raw request (required for Transaction)
+        raw_request = RawRequest(
+            method="GET",
+            path="v1/models",
+            headers={"Accept": "text/event-stream"},
+            body=b"",
+            api_key="test-key",
+            backend_url="https://api.example.com",
+        )
+
+        # Create raw response with streaming iterator
+        streaming_iterator = ChunkedTextIterator("raw response data", chunk_size=8)
+        raw_response = RawResponse(
+            status_code=200, headers={"content-type": "text/event-stream"}, streaming_iterator=streaming_iterator
+        )
+
+        transaction = Transaction(raw_request=raw_request, raw_response=raw_response)
+        context = policy._serialize_transaction_context(transaction)
+
+        assert "raw_response" in context
+        response_data = context["raw_response"]
+        assert response_data["is_streaming"] is True
+        assert "streaming_iterator" in response_data
+
+        # Check streaming iterator metadata
+        iterator_data = response_data["streaming_iterator"]
+        assert iterator_data["_is_streaming_iterator"] is True
+        assert iterator_data["_iterator_type"] == "ChunkedTextIterator"

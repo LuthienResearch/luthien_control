@@ -100,3 +100,11 @@ def test_transaction_event_emission_on_nested_attribute_change(sample_request, s
     mock_callback.assert_called_once()
     assert transaction.openai_response.payload is not None
     assert transaction.openai_response.payload.choices[0].message.content == "New content"
+
+
+def test_transaction_is_streaming_false_when_no_streaming_responses(sample_request, sample_response):
+    """Test that is_streaming returns False when there are no streaming responses."""
+    transaction = Transaction(openai_request=sample_request, openai_response=sample_response)
+
+    # Both responses are non-streaming, so should return False
+    assert transaction.is_streaming is False

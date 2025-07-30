@@ -58,6 +58,12 @@ class TransactionContextLoggingPolicy(ControlPolicy):
         Returns:
             The original value or a redacted version
         """
+        # Handle streaming response iterators specially
+        from luthien_control.core.streaming_response import StreamingResponseIterator
+
+        if isinstance(value, StreamingResponseIterator):
+            return self._safe_model_dump(value)
+
         if not isinstance(value, (str, dict, list)):
             return value
 
@@ -151,6 +157,7 @@ class TransactionContextLoggingPolicy(ControlPolicy):
             # For objects with __dict__, try to convert to dict
             try:
                 result = {}
+                # First handle regular attributes from __dict__
                 for k, v in obj.__dict__.items():
                     if not k.startswith("_"):
                         try:
@@ -166,6 +173,19 @@ class TransactionContextLoggingPolicy(ControlPolicy):
                                 result[k] = v
                         except Exception as e:
                             result[k] = f"<access_error: {e}>"
+
+                # Now handle properties from the class
+                for attr_name in dir(obj):
+                    if not attr_name.startswith("_") and attr_name not in result:
+                        try:
+                            # Check if it's a property
+                            attr_descriptor = getattr(type(obj), attr_name, None)
+                            if isinstance(attr_descriptor, property):
+                                # Try to access the property
+                                result[attr_name] = getattr(obj, attr_name)
+                        except Exception as e:
+                            result[attr_name] = {"access_error": str(e)}
+
                 return result
             except Exception:
                 return {"_str_repr": str(obj)}

@@ -89,6 +89,106 @@ class TestStreamingIterators:
         assert chunks == [b"chunk1", b"chunk2"]
         assert iterator.exhausted is True
 
+    @pytest.mark.asyncio
+    async def test_raw_streaming_iterator_fallback_read(self):
+        """Test RawStreamingIterator fallback for responses without aiter_bytes."""
+
+        # Create a mock response without aiter_bytes method
+        class MockResponseWithoutAiterBytes:
+            def __init__(self):
+                self.chunks = [b"chunk1", b"chunk2", b""]
+                self.index = 0
+
+            async def read(self, chunk_size):
+                if self.index < len(self.chunks):
+                    chunk = self.chunks[self.index]
+                    self.index += 1
+                    return chunk
+                return b""
+
+        mock_response = MockResponseWithoutAiterBytes()
+        iterator = RawStreamingIterator(mock_response, chunk_size=1024)
+
+        received_chunks = []
+        async for chunk in iterator:
+            received_chunks.append(chunk)
+
+        # Should receive the non-empty chunks
+        assert received_chunks == [b"chunk1", b"chunk2"]
+        assert iterator.exhausted is True
+
+        # Verify exhausted iterator raises StopAsyncIteration
+        with pytest.raises(StopAsyncIteration):
+            await iterator.__anext__()
+
+    @pytest.mark.asyncio
+    async def test_raw_streaming_iterator_exception_handling(self):
+        """Test RawStreamingIterator exception handling during iteration."""
+        mock_response = MagicMock()
+
+        class MockAsyncIterator:
+            def __init__(self, chunk_size):
+                self.count = 0
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                if self.count == 0:
+                    self.count += 1
+                    return b"chunk1"
+                raise StopAsyncIteration
+
+        mock_response.aiter_bytes = lambda chunk_size: MockAsyncIterator(chunk_size)
+
+        iterator = RawStreamingIterator(mock_response)
+
+        # Should get one chunk then stop
+        chunk = await iterator.__anext__()
+        assert chunk == b"chunk1"
+
+        # Next call should raise StopAsyncIteration and set exhausted
+        with pytest.raises(StopAsyncIteration):
+            await iterator.__anext__()
+
+        assert iterator.exhausted is True
+
+    @pytest.mark.asyncio
+    async def test_chunked_text_iterator_empty_text(self):
+        """Test ChunkedTextIterator with empty text."""
+        iterator = ChunkedTextIterator("", chunk_size=10)
+
+        chunks = []
+        async for chunk in iterator:
+            chunks.append(chunk)
+
+        assert chunks == []
+
+    @pytest.mark.asyncio
+    async def test_chunked_text_iterator_single_chunk(self):
+        """Test ChunkedTextIterator with text smaller than chunk size."""
+        text = "short"
+        iterator = ChunkedTextIterator(text, chunk_size=10)
+
+        chunks = []
+        async for chunk in iterator:
+            chunks.append(chunk)
+
+        assert chunks == ["short"]
+
+    @pytest.mark.asyncio
+    async def test_chunked_text_iterator_exact_chunk_size(self):
+        """Test ChunkedTextIterator with text exactly matching chunk size."""
+        text = "exactly10c"  # Exactly 10 characters
+        iterator = ChunkedTextIterator(text, chunk_size=10)
+
+        chunks = []
+        async for chunk in iterator:
+            chunks.append(chunk)
+
+        assert chunks == ["exactly10c"]
+        assert "".join(chunks) == text
+
 
 class TestStreamingResponseModels:
     """Test Response and RawResponse streaming support."""

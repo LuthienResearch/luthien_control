@@ -201,3 +201,7 @@ class TestStreamingControlPolicy:
 
         # Should pass through unchanged
         assert result is non_streaming_transaction
+
+    def test_passthrough_policy_type_name(self):
+        """Test PassthroughStreamingPolicy type name."""
+        assert PassthroughStreamingPolicy.get_policy_type_name() == "passthrough_streaming"

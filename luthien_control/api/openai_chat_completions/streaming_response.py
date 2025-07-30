@@ -3,7 +3,6 @@
 import logging
 from typing import AsyncIterator, Optional
 
-from fastapi import Response
 from fastapi.responses import StreamingResponse
 
 from luthien_control.core.streaming_response import StreamingResponseIterator
@@ -29,10 +28,10 @@ async def openai_streaming_iterator_to_sse(
             # Format the chunk as SSE
             yield await format_openai_streaming_chunk(chunk)
 
-    except Exception:
+    except Exception as e:
         logger.error("Error during streaming", exc_info=True)
         # Send generic error in SSE format
-        yield await format_streaming_error("An internal error has occurred.", transaction_id)
+        yield await format_streaming_error(e, transaction_id)
 
     finally:
         # Send final SSE termination
@@ -41,7 +40,7 @@ async def openai_streaming_iterator_to_sse(
 
 def openai_streaming_response_to_fastapi_response(
     streaming_iterator: StreamingResponseIterator, transaction_id: Optional[str] = None
-) -> Response:
+) -> StreamingResponse:
     """Convert an OpenAI streaming iterator to a FastAPI StreamingResponse.
 
     Args:

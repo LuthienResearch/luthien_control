@@ -134,64 +134,98 @@ class TransactionContextLoggingPolicy(ControlPolicy):
         Returns:
             A dictionary representation of the object
         """
-        # Handle streaming response iterators specially
+        result = self._safe_dump_recursive(obj)
+        return result if isinstance(result, dict) else {"_str_repr": str(obj)}
+
+    def _safe_dump_recursive(self, obj: Any) -> Any:
+        """Recursively dump any object safely.
+
+        Args:
+            obj: The object to serialize
+
+        Returns:
+            A safe representation of the object
+        """
+        # Handle None and primitives
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return obj
+
+        # Handle containers recursively
+        if isinstance(obj, dict):
+            return {k: self._safe_dump_recursive(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [self._safe_dump_recursive(item) for item in obj]
+
+        # Handle streaming iterators specially
         from luthien_control.core.streaming_response import StreamingResponseIterator
 
         if isinstance(obj, StreamingResponseIterator):
-            # Don't try to serialize the actual iterator, just metadata
-            return {
-                "_is_streaming_iterator": True,
-                "_iterator_type": obj.__class__.__name__,
-                "_exhausted": getattr(obj, "exhausted", "unknown"),
-                "_position": getattr(obj, "position", "unknown"),
-                "_chunk_size": getattr(obj, "chunk_size", "unknown"),
-            }
+            return self._dump_streaming_iterator(obj)
 
+        # Handle pydantic objects
         if hasattr(obj, "model_dump") and callable(getattr(obj, "model_dump")):
-            try:
-                return obj.model_dump(mode="python")
-            except Exception as e:
-                # Fall back to string representation if model_dump fails
-                return {"_serialization_error": f"model_dump failed: {e}", "_str_repr": str(obj)}
-        elif hasattr(obj, "__dict__"):
-            # For objects with __dict__, try to convert to dict
-            try:
-                result = {}
-                # First handle regular attributes from __dict__
-                for k, v in obj.__dict__.items():
-                    if not k.startswith("_"):
-                        try:
-                            # Some attributes might be properties that raise exceptions when accessed
-                            # So we serialize the value safely too
-                            if hasattr(v, "__call__") and not hasattr(v, "__dict__"):
-                                # Skip callable objects that aren't classes
-                                result[k] = f"<callable: {type(v).__name__}>"
-                            elif isinstance(v, StreamingResponseIterator):
-                                # Handle nested streaming iterators
-                                result[k] = self._safe_model_dump(v)
-                            else:
-                                result[k] = v
-                        except Exception as e:
-                            result[k] = f"<access_error: {e}>"
+            return self._dump_pydantic_object(obj)
 
-                # Now handle properties from the class
-                for attr_name in dir(obj):
-                    if not attr_name.startswith("_") and attr_name not in result:
-                        try:
-                            # Check if it's a property
-                            attr_descriptor = getattr(type(obj), attr_name, None)
-                            if isinstance(attr_descriptor, property):
-                                # Try to access the property
-                                result[attr_name] = getattr(obj, attr_name)
-                        except Exception as e:
-                            result[attr_name] = {"access_error": str(e)}
+        # Handle regular objects
+        return self._dump_regular_object(obj)
 
-                return result
-            except Exception:
-                return {"_str_repr": str(obj)}
-        else:
-            # For other objects, just convert to string
+    def _dump_streaming_iterator(self, obj: Any) -> Dict[str, Any]:
+        """Dump streaming iterator metadata safely."""
+        return {
+            "_is_streaming_iterator": True,
+            "_iterator_type": obj.__class__.__name__,
+            "_exhausted": getattr(obj, "exhausted", "unknown"),
+            "_position": getattr(obj, "position", "unknown"),
+            "_chunk_size": getattr(obj, "chunk_size", "unknown"),
+        }
+
+    def _dump_pydantic_object(self, obj: Any) -> Dict[str, Any]:
+        """Dump pydantic object using model_dump with fallback."""
+        try:
+            result = obj.model_dump(mode="python")
+            return {k: self._safe_dump_recursive(v) for k, v in result.items()}
+        except Exception as e:
+            return {"_serialization_error": f"model_dump failed: {e}", "_str_repr": str(obj)}
+
+    def _dump_regular_object(self, obj: Any) -> Dict[str, Any]:
+        """Dump regular object by examining its attributes."""
+        if not hasattr(obj, "__dict__"):
             return {"_str_repr": str(obj)}
+
+        try:
+            result = {}
+            # Handle attributes from __dict__
+            for k, v in obj.__dict__.items():
+                if not k.startswith("_"):
+                    result[k] = self._safe_dump_attribute(k, v)
+
+            # Handle properties from class
+            for attr_name in dir(obj):
+                if not attr_name.startswith("_") and attr_name not in result:
+                    attr_descriptor = getattr(type(obj), attr_name, None)
+                    if isinstance(attr_descriptor, property):
+                        result[attr_name] = self._safe_dump_property(obj, attr_name)
+
+            return result
+        except Exception:
+            return {"_str_repr": str(obj)}
+
+    def _safe_dump_attribute(self, key: str, value: Any) -> Any:
+        """Safely dump a single attribute value."""
+        try:
+            if hasattr(value, "__call__") and not hasattr(value, "__dict__"):
+                return f"<callable: {type(value).__name__}>"
+            return self._safe_dump_recursive(value)
+        except Exception as e:
+            return f"<access_error: {e}>"
+
+    def _safe_dump_property(self, obj: Any, attr_name: str) -> Any:
+        """Safely dump a property value."""
+        try:
+            value = getattr(obj, attr_name)
+            return self._safe_dump_recursive(value)
+        except Exception as e:
+            return {"access_error": str(e)}
 
     def _serialize_transaction_context(self, transaction: Transaction) -> Dict[str, Any]:
         """Serialize transaction to a loggable format with redaction.

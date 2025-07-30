@@ -136,8 +136,9 @@ async def run_policy_flow(
         # Build response based on transaction type and streaming status
         if transaction.request_type == RequestType.OPENAI_CHAT:
             if transaction.openai_response:
-                if transaction.openai_response.is_streaming and transaction.openai_response.streaming_iterator:
+                if transaction.openai_response.is_streaming:
                     # Handle streaming response
+                    assert transaction.openai_response.streaming_iterator is not None, "Streaming iterator is None"
                     final_response = openai_streaming_response_to_fastapi_response(
                         transaction.openai_response.streaming_iterator, str(transaction.transaction_id)
                     )
@@ -166,10 +167,11 @@ async def run_policy_flow(
                 )
         else:  # raw_passthrough
             if transaction.raw_response and transaction.raw_response.status_code is not None:
-                if transaction.raw_response.is_streaming and transaction.raw_response.streaming_iterator:
+                if transaction.raw_response.is_streaming:
                     # Handle streaming raw response
                     from fastapi.responses import StreamingResponse
 
+                    assert transaction.raw_response.streaming_iterator is not None, "Streaming iterator is None"
                     final_response = StreamingResponse(
                         transaction.raw_response.streaming_iterator,
                         status_code=transaction.raw_response.status_code,

@@ -29,7 +29,7 @@ async def openai_streaming_iterator_to_sse(
             # Format the chunk as SSE
             yield await format_openai_streaming_chunk(chunk)
 
-    except Exception as e:
+    except Exception:
         logger.error("Error during streaming", exc_info=True)
         # Send generic error in SSE format
         yield await format_streaming_error("An internal error has occurred.", transaction_id)

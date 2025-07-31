@@ -33,9 +33,9 @@ async def openai_streaming_iterator_to_sse(
         # Send generic error in SSE format
         yield await format_streaming_error(e, transaction_id)
 
-    finally:
-        # Send final SSE termination
-        yield "event: done\ndata: [DONE]\n\n"
+    # finally:
+    #     # Send final SSE termination
+    #     yield "event: done\ndata: [DONE]\n\n"
 
 
 def openai_streaming_response_to_fastapi_response(

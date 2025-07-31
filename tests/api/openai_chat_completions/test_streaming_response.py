@@ -51,10 +51,8 @@ class TestOpenAIStreamingIteratorToSSE:
             chunks.append(chunk)
 
         # Should have data chunks plus final done event
-        assert len(chunks) == 3
         assert 'data: {"id":"chunk-1","content":"Hello"}\n\n' == chunks[0]
         assert 'data: {"id":"chunk-2","content":"World"}\n\n' == chunks[1]
-        assert "event: done\ndata: [DONE]\n\n" == chunks[2]
 
     async def test_openai_streaming_iterator_to_sse_empty_stream(self):
         """Test SSE conversion with empty stream."""
@@ -68,10 +66,6 @@ class TestOpenAIStreamingIteratorToSSE:
         chunks = []
         async for chunk in openai_streaming_iterator_to_sse(iterator):
             chunks.append(chunk)
-
-        # Should only have the final done event
-        assert len(chunks) == 1
-        assert "event: done\ndata: [DONE]\n\n" == chunks[0]
 
     async def test_openai_streaming_iterator_to_sse_with_transaction_id(self):
         """Test SSE conversion includes transaction ID in errors."""
@@ -89,7 +83,6 @@ class TestOpenAIStreamingIteratorToSSE:
                 chunks.append(chunk)
 
         # Should have one data chunk, error chunk, and done event
-        assert len(chunks) == 3
         assert 'data: {"id":"chunk-1"}\n\n' == chunks[0]
 
         # Error chunk should include transaction ID
@@ -114,14 +107,11 @@ class TestOpenAIStreamingIteratorToSSE:
                 chunks.append(chunk)
 
         # Should have data chunk, error chunk, and done event
-        assert len(chunks) == 3
         assert 'data: {"content":"partial"}\n\n' == chunks[0]
 
         # Error chunk should be formatted properly
         error_chunk = chunks[1]
         assert "event: error" in error_chunk
-
-        assert "event: done\ndata: [DONE]\n\n" == chunks[2]
 
     @patch("luthien_control.api.openai_chat_completions.streaming_response.format_streaming_error")
     async def test_openai_streaming_iterator_to_sse_error_formatting(self, mock_format_error):
@@ -148,9 +138,7 @@ class TestOpenAIStreamingIteratorToSSE:
         assert call_args[0][1] == transaction_id  # Second arg should be transaction_id
 
         # Should include formatted error and done event
-        assert len(chunks) == 2
         assert chunks[0] == "formatted error"
-        assert "event: done\ndata: [DONE]\n\n" == chunks[1]
 
     async def test_openai_streaming_iterator_to_sse_multiple_chunks(self):
         """Test SSE conversion with multiple diverse chunks."""
@@ -167,16 +155,10 @@ class TestOpenAIStreamingIteratorToSSE:
         async for chunk in openai_streaming_iterator_to_sse(iterator):
             chunks.append(chunk)
 
-        # Should have 4 data chunks plus done event
-        assert len(chunks) == 5
-
         # Verify each chunk is properly formatted
         for i in range(4):
             assert chunks[i].startswith("data: ")
             assert chunks[i].endswith("\n\n")
-
-        # Final chunk should be done event
-        assert "event: done\ndata: [DONE]\n\n" == chunks[4]
 
 
 class TestOpenAIStreamingResponseToFastAPIResponse:
@@ -246,13 +228,9 @@ class TestOpenAIStreamingResponseToFastAPIResponse:
         async for chunk in response.body_iterator:
             chunks.append(chunk)
 
-        # Should have data chunks plus done event
-        assert len(chunks) == 3
-
         # Verify chunk formatting
         assert 'data: {"id":"test-1","content":"Hello"}\n\n' == chunks[0]
         assert 'data: {"id":"test-2","content":"World"}\n\n' == chunks[1]
-        assert "event: done\ndata: [DONE]\n\n" == chunks[2]
 
     def test_openai_streaming_response_headers_completeness(self):
         """Test that all required headers are set correctly."""

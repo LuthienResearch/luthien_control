@@ -53,6 +53,22 @@ async def format_openai_streaming_chunk(chunk: Any) -> str:
         # Try to convert to dict representation
         chunk_data = {"content": str(chunk)}
 
+    # Debug log chunk processing
+    logger.debug(
+        "Processing streaming chunk for SSE format",
+        extra={
+            "chunk_type": type(chunk).__name__,
+            "processing_method": "model_dump"
+            if hasattr(chunk, "model_dump")
+            else "to_dict"
+            if hasattr(chunk, "to_dict")
+            else "dict"
+            if isinstance(chunk, dict)
+            else "string_conversion",
+            "chunk_data_keys": list(chunk_data.keys()) if isinstance(chunk_data, dict) else None,
+        },
+    )
+
     return await format_sse_chunk(chunk_data)
 
 

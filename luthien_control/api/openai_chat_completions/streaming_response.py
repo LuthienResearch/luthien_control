@@ -25,8 +25,32 @@ async def openai_streaming_iterator_to_sse(
     """
     try:
         async for chunk in iterator:
+            # Debug log each chunk
+            logger.debug(
+                "Streaming chunk received",
+                extra={
+                    "transaction_id": transaction_id,
+                    "chunk_type": type(chunk).__name__,
+                    "chunk_content": str(chunk)[:200] + "..." if len(str(chunk)) > 200 else str(chunk),
+                },
+            )
+
             # Format the chunk as SSE
-            yield await format_openai_streaming_chunk(chunk)
+            formatted_chunk = await format_openai_streaming_chunk(chunk)
+
+            # Debug log the formatted chunk
+            logger.debug(
+                "Formatted streaming chunk",
+                extra={
+                    "transaction_id": transaction_id,
+                    "formatted_length": len(formatted_chunk),
+                    "formatted_preview": formatted_chunk[:100] + "..."
+                    if len(formatted_chunk) > 100
+                    else formatted_chunk,
+                },
+            )
+
+            yield formatted_chunk
 
     except Exception as e:
         logger.error("Error during streaming", exc_info=True)

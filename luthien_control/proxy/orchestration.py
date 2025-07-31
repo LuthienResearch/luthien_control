@@ -139,6 +139,14 @@ async def run_policy_flow(
                 if transaction.openai_response.is_streaming:
                     # Handle streaming response
                     assert transaction.openai_response.streaming_iterator is not None, "Streaming iterator is None"
+                    logger.info(
+                        "Creating streaming response for user",
+                        extra={
+                            "transaction_id": str(transaction.transaction_id),
+                            "iterator_type": type(transaction.openai_response.streaming_iterator).__name__,
+                            "response_type": "openai_streaming",
+                        },
+                    )
                     final_response = openai_streaming_response_to_fastapi_response(
                         transaction.openai_response.streaming_iterator, str(transaction.transaction_id)
                     )
@@ -172,6 +180,15 @@ async def run_policy_flow(
                     from fastapi.responses import StreamingResponse
 
                     assert transaction.raw_response.streaming_iterator is not None, "Streaming iterator is None"
+                    logger.info(
+                        "Creating raw streaming response for user",
+                        extra={
+                            "transaction_id": str(transaction.transaction_id),
+                            "iterator_type": type(transaction.raw_response.streaming_iterator).__name__,
+                            "response_type": "raw_streaming",
+                            "status_code": transaction.raw_response.status_code,
+                        },
+                    )
                     final_response = StreamingResponse(
                         transaction.raw_response.streaming_iterator,
                         status_code=transaction.raw_response.status_code,

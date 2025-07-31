@@ -134,11 +134,40 @@ class PolicyWrappedIterator(StreamingResponseIterator):
         return self
 
     async def __anext__(self) -> Any:
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         # Get next chunk from wrapped iterator
         chunk = await self.iterator.__anext__()
 
+        # Debug log chunk before policy processing
+        logger.debug(
+            "Chunk before policy processing",
+            extra={
+                "transaction_id": str(self.transaction.transaction_id),
+                "policy_name": getattr(self.policy, "name", self.policy.__class__.__name__),
+                "chunk_type": type(chunk).__name__,
+                "chunk_preview": str(chunk)[:100] + "..." if len(str(chunk)) > 100 else str(chunk),
+            },
+        )
+
         # Apply policy processing
         processed_chunk = await self.policy.process_chunk(chunk, self.transaction, self.container, self.session)
+
+        # Debug log chunk after policy processing
+        logger.debug(
+            "Chunk after policy processing",
+            extra={
+                "transaction_id": str(self.transaction.transaction_id),
+                "policy_name": getattr(self.policy, "name", self.policy.__class__.__name__),
+                "chunk_modified": processed_chunk != chunk,
+                "processed_chunk_type": type(processed_chunk).__name__,
+                "processed_chunk_preview": str(processed_chunk)[:100] + "..."
+                if len(str(processed_chunk)) > 100
+                else str(processed_chunk),
+            },
+        )
 
         return processed_chunk
 

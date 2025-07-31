@@ -8,7 +8,6 @@ import httpx
 import pytest
 from dotenv import load_dotenv
 from luthien_control.core.dependency_container import DependencyContainer
-from luthien_control.core.transaction_context import TransactionContext
 
 # Import centralized type alias
 from luthien_control.main import app
@@ -177,16 +176,6 @@ def mock_api_key_data() -> Dict[str, Any]:
         "is_active": True,
         "description": "A key for testing",
     }
-
-
-@pytest.fixture
-def mock_transaction_context() -> MagicMock:
-    """Provides a basic mock TransactionContext."""
-    context = MagicMock(spec=TransactionContext)
-    context.transaction_id = uuid.uuid4()
-    context.request = None
-    context.response = None
-    return context
 
 
 # --- Fixtures for Overriding Dependencies ---

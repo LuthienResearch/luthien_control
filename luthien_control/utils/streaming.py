@@ -1,7 +1,10 @@
 """Utilities for handling streaming responses."""
 
 import json
+import logging
 from typing import Any, AsyncIterator, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 
 async def format_sse_chunk(data: Dict[str, Any], event: Optional[str] = None) -> str:
@@ -67,8 +70,9 @@ async def format_streaming_error(error: Exception, transaction_id: Optional[str]
 
     if transaction_id:
         error_data["transaction_id"] = transaction_id
+    logger.error(f"Streaming error: {error_data}")
 
-    return await format_sse_chunk(error_data, event="error")
+    return await format_sse_chunk({"error": error.__class__.__name__}, event="error")
 
 
 async def buffer_streaming_response(iterator: AsyncIterator[Any], max_chunks: Optional[int] = None) -> list[Any]:

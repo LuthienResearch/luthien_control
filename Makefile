@@ -27,4 +27,4 @@ typecheck:
 
 # Run tests with coverage
 test:
-	poetry run pytest --cov=luthien_control
+	poetry run pytest --cov

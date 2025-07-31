@@ -5,8 +5,11 @@ import pytest
 from luthien_control.api.openai_chat_completions.datatypes import Choice, Message, Usage
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
 from luthien_control.api.openai_chat_completions.response import OpenAIChatCompletionsResponse
+from luthien_control.core.raw_request import RawRequest
+from luthien_control.core.raw_response import RawResponse
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
+from luthien_control.core.streaming_response import StreamingResponseIterator
 from luthien_control.core.transaction import Transaction
 from psygnal.containers import EventedDict, EventedList
 
@@ -100,3 +103,32 @@ def test_transaction_event_emission_on_nested_attribute_change(sample_request, s
     mock_callback.assert_called_once()
     assert transaction.openai_response.payload is not None
     assert transaction.openai_response.payload.choices[0].message.content == "New content"
+
+
+def test_transaction_is_streaming_false_when_no_streaming_responses(sample_request, sample_response):
+    """Test that is_streaming returns False when there are no streaming responses."""
+    transaction = Transaction(openai_request=sample_request, openai_response=sample_response)
+
+    # Both responses are non-streaming, so should return False
+    assert transaction.is_streaming is False
+
+
+def test_transaction_is_streaming_true_with_raw_streaming_response():
+    """Test that is_streaming returns True when raw_response has streaming_iterator (line 42)."""
+    # Create a raw request
+    raw_request = RawRequest(
+        method="POST", path="/v1/chat/completions", headers={"Content-Type": "application/json"}, api_key="test_key"
+    )
+
+    # Create a mock streaming iterator
+    mock_streaming_iterator = Mock(spec=StreamingResponseIterator)
+
+    # Create a raw response with streaming iterator
+    raw_response = RawResponse(
+        status_code=200, headers={"Content-Type": "text/event-stream"}, streaming_iterator=mock_streaming_iterator
+    )
+
+    # Create transaction with raw request and streaming response
+    transaction = Transaction(raw_request=raw_request, raw_response=raw_response)
+
+    assert transaction.is_streaming is True

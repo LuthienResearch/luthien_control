@@ -3,6 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build/Test Commands
+- This project uses `poetry` for environment and package management. Most commands should start with `poetry`
 - Run all tests: `poetry run pytest`
 - Run specific test: `poetry run pytest tests/path/to/test_file.py::test_function_name`
 - Run with coverage: `poetry run pytest --cov=luthien_control`

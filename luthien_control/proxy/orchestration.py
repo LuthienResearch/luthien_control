@@ -11,6 +11,7 @@ from luthien_control.api.openai_chat_completions.request import (
     fastapi_request_to_openai_chat_completions_request,
 )
 from luthien_control.api.openai_chat_completions.response import openai_chat_completions_response_to_fastapi_response
+from luthien_control.api.openai_chat_completions.streaming_response import openai_streaming_response_to_fastapi_response
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.core.dependency_container import DependencyContainer
@@ -132,24 +133,53 @@ async def run_policy_flow(
                 "duration_seconds": time.time() - policy_start_time if policy_start_time else None,
             },
         )
-        # Build response based on transaction type
+        # Build response based on transaction type and streaming status
         if transaction.request_type == RequestType.OPENAI_CHAT:
-            if transaction.openai_response and transaction.openai_response.payload is not None:
-                final_response = openai_chat_completions_response_to_fastapi_response(
-                    transaction.openai_response.payload
-                )
+            if transaction.openai_response:
+                if transaction.openai_response.is_streaming:
+                    # Handle streaming response
+                    assert transaction.openai_response.streaming_iterator is not None, "Streaming iterator is None"
+                    final_response = openai_streaming_response_to_fastapi_response(
+                        transaction.openai_response.streaming_iterator, str(transaction.transaction_id)
+                    )
+                elif transaction.openai_response.payload is not None:
+                    # Handle regular response
+                    final_response = openai_chat_completions_response_to_fastapi_response(
+                        transaction.openai_response.payload
+                    )
+                else:
+                    final_response = JSONResponse(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        content={
+                            "detail": "Internal Server Error: No OpenAI response payload",
+                            "transaction_id": str(transaction.transaction_id),
+                            "policy_name": main_policy.name,
+                        },
+                    )
             else:
                 final_response = JSONResponse(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     content={
-                        "detail": "Internal Server Error: No OpenAI response payload",
+                        "detail": "Internal Server Error: No OpenAI response",
                         "transaction_id": str(transaction.transaction_id),
                         "policy_name": main_policy.name,
                     },
                 )
         else:  # raw_passthrough
             if transaction.raw_response and transaction.raw_response.status_code is not None:
-                final_response = _build_raw_response(transaction.raw_response)
+                if transaction.raw_response.is_streaming:
+                    # Handle streaming raw response
+                    from fastapi.responses import StreamingResponse
+
+                    assert transaction.raw_response.streaming_iterator is not None, "Streaming iterator is None"
+                    final_response = StreamingResponse(
+                        transaction.raw_response.streaming_iterator,
+                        status_code=transaction.raw_response.status_code,
+                        headers=transaction.raw_response.headers,
+                    )
+                else:
+                    # Handle regular raw response
+                    final_response = _build_raw_response(transaction.raw_response)
             else:
                 final_response = JSONResponse(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

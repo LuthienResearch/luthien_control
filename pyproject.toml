@@ -63,6 +63,8 @@ addopts = "-m 'not integration and not e2e and not scripts' --import-mode=import
 # Configure asyncio mode and loop scope
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+# Exclude scripts directory from test discovery
+testpaths = ["tests"]
 
 [tool.ruff]
 # Enable black-compatible formatting.

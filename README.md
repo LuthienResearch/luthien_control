@@ -17,7 +17,7 @@
 
 ## What is Luthien Control?
 
-Luthien Control is a powerful middleware proxy that sits between your applications and AI services (like OpenAI), giving you fine-grained control over AI interactions. Think of it as a smart gateway that can:
+Luthien Control is a powerful middleware proxy that sits between your applications and AI services (like OpenAI), giving you fine-grained control over AI interactions.
 
 - 🛡️ **Monitor & Log** - Track all requests and responses for compliance and debugging
 - 🔒 **Authenticate & Authorize** - Control who can access your AI services  
@@ -225,7 +225,7 @@ Policies control how requests and responses are processed. Create custom policie
 
 1. Implementing the `ControlPolicy` interface
 2. Registering your policy class
-3. Configuring it via JSON or database
+3. Configuring it via JSON or database (by e.g. adding it to a SerialPolicy with a config)
 
 See [Policy Documentation](./docs/examples/sample_policy.json) for examples.
 

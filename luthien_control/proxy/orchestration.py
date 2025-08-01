@@ -15,12 +15,12 @@ from luthien_control.api.openai_chat_completions.streaming_response import opena
 from luthien_control.control_policy.control_policy import ControlPolicy
 from luthien_control.control_policy.exceptions import ControlPolicyError
 from luthien_control.core.dependency_container import DependencyContainer
+from luthien_control.core.logging import create_debug_response, log_policy_execution, log_transaction_state
 from luthien_control.core.raw_request import RawRequest
 from luthien_control.core.raw_response import RawResponse
 from luthien_control.core.request import Request
 from luthien_control.core.request_type import RequestType
 from luthien_control.core.transaction import Transaction
-from luthien_control.proxy.debugging import create_debug_response, log_policy_execution, log_transaction_state
 from luthien_control.settings import Settings
 
 logger = logging.getLogger(__name__)

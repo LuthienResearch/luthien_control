@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from unittest.mock import patch
 
-from luthien_control.proxy.debugging import create_debug_response
+from luthien_control.core.logging import create_debug_response
 
 
 class TestCreateDebugResponse:
@@ -21,7 +21,7 @@ class TestCreateDebugResponse:
         """Test response creation with debug info and details (lines 143-146)."""
         test_details = {"key": "value", "number": 42}
 
-        with patch("luthien_control.proxy.debugging.datetime") as mock_datetime:
+        with patch("luthien_control.core.logging.datetime") as mock_datetime:
             mock_now = datetime(2023, 1, 1, 0, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
             mock_datetime.UTC = UTC
@@ -79,7 +79,7 @@ class TestCreateDebugResponse:
         """Test response creation with default parameters."""
         test_details = {"context": "test context"}
 
-        with patch("luthien_control.proxy.debugging.datetime") as mock_datetime:
+        with patch("luthien_control.core.logging.datetime") as mock_datetime:
             mock_now = datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC)
             mock_datetime.now.return_value = mock_now
             mock_datetime.UTC = UTC

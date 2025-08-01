@@ -3,6 +3,8 @@
 import logging
 import os
 import sys
+from datetime import UTC, datetime
+from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 from luthien_control.settings import Settings
@@ -106,3 +108,65 @@ def setup_logging():
 
     # Log that configuration is complete (useful for debugging setup issues)
     logging.getLogger(__name__).info(f"Logging configured with level {log_level_name}.")
+
+
+# Transaction and Policy Logging Utilities
+
+
+def log_transaction_state(transaction_id: str, stage: str, details: Dict[str, Any]) -> None:
+    """Log transaction state at various stages of processing."""
+    logger = logging.getLogger("luthien_control.proxy.transaction")
+    logger.debug(
+        f"[{transaction_id}] Transaction state at {stage}",
+        extra={"stage": stage, "timestamp": datetime.now(UTC).isoformat(), **details},
+    )
+
+
+def log_policy_execution(
+    transaction_id: str,
+    policy_name: str,
+    status: str,
+    duration: Optional[float] = None,
+    error: Optional[str] = None,
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Log policy execution details."""
+    logger = logging.getLogger("luthien_control.proxy.policy")
+    log_data = {
+        "transaction_id": transaction_id,
+        "policy_name": policy_name,
+        "status": status,
+    }
+
+    if duration is not None:
+        log_data["duration_seconds"] = str(duration)
+
+    if error:
+        log_data["error"] = error
+
+    if details:
+        log_data.update(details)
+
+    if status == "error":
+        logger.error(f"[{transaction_id}] Policy {policy_name} failed", extra=log_data)
+    else:
+        logger.info(f"[{transaction_id}] Policy {policy_name} {status}", extra=log_data)
+
+
+def create_debug_response(
+    status_code: int,
+    message: str,
+    transaction_id: str,
+    details: Optional[Dict[str, Any]] = None,
+    include_debug_info: bool = True,
+) -> Dict[str, Any]:
+    """Create a detailed error response for debugging."""
+    response = {
+        "detail": message,
+        "transaction_id": transaction_id,
+    }
+
+    if include_debug_info and details:
+        response["debug"] = str({"timestamp": datetime.now(UTC).isoformat(), **details})
+
+    return response

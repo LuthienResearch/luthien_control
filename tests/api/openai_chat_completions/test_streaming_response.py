@@ -132,7 +132,7 @@ class TestOpenAIStreamingIteratorToSSE:
                     chunks.append(chunk)
         finally:
             # Ensure the coroutine is properly closed to avoid warning
-            if hasattr(failing_coro, 'close'):
+            if hasattr(failing_coro, "close"):
                 failing_coro.close()
 
         # Should call format_streaming_error with correct parameters

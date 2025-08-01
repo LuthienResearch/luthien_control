@@ -17,6 +17,9 @@ from luthien_control.core.transaction import Transaction
 from psygnal.containers import EventedList
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# Mark all tests in this module as 'integration'
+pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
+
 
 class MockAsyncStream:
     """Mock OpenAI async stream for testing."""

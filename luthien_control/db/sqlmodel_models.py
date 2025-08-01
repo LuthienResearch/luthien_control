@@ -148,11 +148,11 @@ class AdminUser(SQLModel, table=True):
     is_superuser: bool = Field(default=False)
     last_login: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), server_default=func.now()),
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
     )
 
@@ -175,7 +175,7 @@ class AdminSession(SQLModel, table=True):
     )
     expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), server_default=func.now()),
     )
 

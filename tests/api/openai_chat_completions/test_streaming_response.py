@@ -121,13 +121,19 @@ class TestOpenAIStreamingIteratorToSSE:
         async def failing_iterator():
             raise ValueError("Test error")
 
-        iterator = MockStreamingIterator(failing_iterator())
+        failing_coro = failing_iterator()
+        iterator = MockStreamingIterator(failing_coro)
         transaction_id = "txn-456"
 
         chunks = []
-        with patch("luthien_control.api.openai_chat_completions.streaming_response.logger"):
-            async for chunk in openai_streaming_iterator_to_sse(iterator, transaction_id):
-                chunks.append(chunk)
+        try:
+            with patch("luthien_control.api.openai_chat_completions.streaming_response.logger"):
+                async for chunk in openai_streaming_iterator_to_sse(iterator, transaction_id):
+                    chunks.append(chunk)
+        finally:
+            # Ensure the coroutine is properly closed to avoid warning
+            if hasattr(failing_coro, 'close'):
+                failing_coro.close()
 
         # Should call format_streaming_error with correct parameters
         mock_format_error.assert_called_once()

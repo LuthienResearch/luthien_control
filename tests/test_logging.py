@@ -44,11 +44,8 @@ def test_setup_logging_default_level(MockSettings):
         lib_logger = logging.getLogger(lib_name)
         assert lib_logger.level == logging.WARNING
 
-    # Test that handler is configured correctly
-    handler = root_logger.handlers[0]
-    assert isinstance(handler, logging.StreamHandler)
-    # In test environment, stream might be wrapped by pytest
-    # Just verify it's a StreamHandler pointing to some stream
+    # Verify handler is configured correctly
+    assert isinstance(root_logger.handlers[0], logging.StreamHandler)
 
 
 @patch("luthien_control.core.logging.Settings")
@@ -70,11 +67,8 @@ def test_setup_logging_specific_level(MockSettings):
     root_logger = logging.getLogger()
     assert root_logger.level == logging.DEBUG
 
-    # Test that handler is configured correctly
-    handler = root_logger.handlers[0]
-    assert isinstance(handler, logging.StreamHandler)
-    # In test environment, stream might be wrapped by pytest
-    # Just verify it's a StreamHandler pointing to some stream
+    # Verify handler is configured correctly
+    assert isinstance(root_logger.handlers[0], logging.StreamHandler)
 
 
 @patch("luthien_control.core.logging.Settings")
@@ -100,11 +94,8 @@ def test_setup_logging_invalid_level(MockSettings, capsys):
     root_logger = logging.getLogger()
     assert root_logger.level == logging.INFO
 
-    # Test that handler is configured correctly
-    handler = root_logger.handlers[0]
-    assert isinstance(handler, logging.StreamHandler)
-    # In test environment, stream might be wrapped by pytest
-    # Just verify it's a StreamHandler pointing to some stream
+    # Verify handler is configured correctly
+    assert isinstance(root_logger.handlers[0], logging.StreamHandler)
 
 
 class TestCreateDebugResponse:
@@ -141,13 +132,11 @@ class TestCreateDebugResponse:
                 include_debug_info=True,
             )
 
-        # The debug field should contain a string representation of the debug dict
+        # Verify debug response structure
         assert response["detail"] == "Internal error"
         assert response["transaction_id"] == "test-456"
         assert "debug" in response
-        assert "timestamp" in response["debug"]
-        assert "key" in response["debug"]
-        assert "number" in response["debug"]
+        assert all(key in response["debug"] for key in ["timestamp", "key", "number"])
 
     def test_create_debug_response_with_debug_info_no_details(self):
         """Test response creation with debug info enabled but no details."""
@@ -209,9 +198,8 @@ class TestCreateDebugResponse:
                 # include_debug_info defaults to True
             )
 
-        # The debug field should contain a string representation of the debug dict
+        # Verify debug response structure
         assert response["detail"] == "Success"
         assert response["transaction_id"] == "test-default"
         assert "debug" in response
-        assert "timestamp" in response["debug"]
-        assert "context" in response["debug"]
+        assert all(key in response["debug"] for key in ["timestamp", "context"])

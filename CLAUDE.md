@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build/Test Commands
-- This project uses `poetry` for environment and package management. Most commands should start with `poetry`
+- This project uses `poetry` for environment and package management. Most commands should start with `poetry`. ***DO NOT TRY TO RUN RAW `python`; ALWAYS USE `poetry run python...`***
 - Run all tests: `poetry run pytest`
 - Run specific test: `poetry run pytest tests/path/to/test_file.py::test_function_name`
 - Run with coverage: `poetry run pytest --cov=luthien_control`
@@ -15,13 +15,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Use poetry run to run commands in the development environment
 
 ## Quality Validation Before Committing
-Run these commands after implementing significant changes to comply with codebase standards.
-1. `poetry run ruff format .` - Format code
-2. `poetry run ruff check . --fix --unsafe-fixes` - Check linting, apply fixes
-3. `poetry run pyright` - Check types. Fix any errors.
-4. `poetry run pytest --cov=luthien_control` - Run tests with coverage. All new and altered code should be covered.
+Code qc tools are defined in the Makefile: `make (format|lint|typecheck|test)`. `make qc` runs all of the tools.
 
-RUNQC: If the user requests RUNQC, run the above quality validation steps
 
 ## Code Style
 - Mandatory TDD workflow (skeleton → tests → implementation)

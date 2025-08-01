@@ -43,10 +43,9 @@ async def main():
                     print(f"\nAPI Key {i + 1}:")
                     print(f"  ID: {key.id}")
                     print(f"  Name: {key.name}")
-                    print(f"  Key Value: {key.key_value[:4]}...{key.key_value[-4:]}")
+                    print(f"  Key Value: {key.key_value}")
                     print(f"  Is Active: {key.is_active}")
                     print(f"  Created At: {key.created_at}")
-                    print(f"  Updated At: {key.updated_at}")
                     if key.metadata_:
                         print(f"  Metadata: {key.metadata_}")
             else:

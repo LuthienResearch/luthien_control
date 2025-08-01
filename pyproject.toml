@@ -1,9 +1,10 @@
 [tool.poetry]
-name = "luthien-control"
+name = "luthien_control"
 version = "0.2.5"
 description = "Autonomously monitor, investigate, modify, block, and act on traffic going to and from any OpenAI-API-compatible endpoint"
 authors = ["Jai Dhyani <jai@luthienresearch.org>"]
 readme = "README.md"
+packages = [{include = "luthien_control"}]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"

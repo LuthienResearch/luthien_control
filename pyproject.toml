@@ -5,6 +5,9 @@ description = "Autonomously monitor, investigate, modify, block, and act on traf
 authors = ["Jai Dhyani <jai@luthienresearch.org>"]
 readme = "README.md"
 
+[tool.poetry.packages]
+luthien_control = "luthien_control"
+
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
 fastapi = ">=0.115.12,<0.116.0"

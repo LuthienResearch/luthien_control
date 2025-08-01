@@ -44,7 +44,6 @@ def test_setup_logging_default_level(MockSettings):
         lib_logger = logging.getLogger(lib_name)
         assert lib_logger.level == logging.WARNING
 
-    # Verify handler is configured correctly
     assert isinstance(root_logger.handlers[0], logging.StreamHandler)
 
 
@@ -67,7 +66,6 @@ def test_setup_logging_specific_level(MockSettings):
     root_logger = logging.getLogger()
     assert root_logger.level == logging.DEBUG
 
-    # Verify handler is configured correctly
     assert isinstance(root_logger.handlers[0], logging.StreamHandler)
 
 
@@ -94,7 +92,6 @@ def test_setup_logging_invalid_level(MockSettings, capsys):
     root_logger = logging.getLogger()
     assert root_logger.level == logging.INFO
 
-    # Verify handler is configured correctly
     assert isinstance(root_logger.handlers[0], logging.StreamHandler)
 
 
@@ -132,7 +129,6 @@ class TestCreateDebugResponse:
                 include_debug_info=True,
             )
 
-        # Verify debug response structure
         assert response["detail"] == "Internal error"
         assert response["transaction_id"] == "test-456"
         assert "debug" in response
@@ -198,7 +194,6 @@ class TestCreateDebugResponse:
                 # include_debug_info defaults to True
             )
 
-        # Verify debug response structure
         assert response["detail"] == "Success"
         assert response["transaction_id"] == "test-default"
         assert "debug" in response

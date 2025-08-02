@@ -8,6 +8,7 @@ from .backend_call_policy import BackendCallPolicy
 from .branching_policy import BranchingPolicy
 from .client_api_key_auth import ClientApiKeyAuthPolicy
 from .control_policy import ControlPolicy
+from .increment_integers_policy import IncrementIntegersPolicy
 from .leaked_api_key_detection import LeakedApiKeyDetectionPolicy
 from .model_name_replacement import ModelNameReplacementPolicy
 from .noop_policy import NoopPolicy
@@ -25,6 +26,7 @@ POLICY_NAME_TO_CLASS: Dict[str, Type["ControlPolicy"]] = {
     "SendBackendRequest": SendBackendRequestPolicy,
     "SerialPolicy": SerialPolicy,
     "AddApiKeyHeaderFromEnv": AddApiKeyHeaderFromEnvPolicy,
+    "IncrementIntegers": IncrementIntegersPolicy,
     "LeakedApiKeyDetection": LeakedApiKeyDetectionPolicy,
     "ModelNameReplacement": ModelNameReplacementPolicy,
     "SetBackendPolicy": SetBackendPolicy,

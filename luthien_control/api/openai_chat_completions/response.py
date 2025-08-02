@@ -21,7 +21,7 @@ class OpenAIChatCompletionsResponse(DeepEventedModel):
     object: str = Field(default="chat.completion")
     service_tier: Optional[str] = Field(default=None)
     system_fingerprint: Optional[str] = Field(default=None)
-    usage: Usage = Field(default_factory=Usage)
+    usage: Optional[Usage] = Field(default=None)
 
 
 def openai_chat_completions_response_to_fastapi_response(response: OpenAIChatCompletionsResponse) -> fastapi.Response:

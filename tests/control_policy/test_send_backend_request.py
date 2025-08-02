@@ -216,6 +216,7 @@ async def test_send_backend_request_policy_successful_request(
     assert sample_transaction.openai_response.payload.model == "gpt-4"
     assert len(sample_transaction.openai_response.payload.choices) == 1
     assert sample_transaction.openai_response.payload.choices[0].message.content == "Hello! How can I help you today?"
+    assert sample_transaction.openai_response.payload.usage is not None
     assert sample_transaction.openai_response.payload.usage.total_tokens == 25
 
 

@@ -13,6 +13,44 @@ Based on
 https://platform.openai.com/docs/api-reference/chat/object and
 https://platform.openai.com/docs/api-reference/chat/create
 (2025-06-16)
+
+Example OpenAI streaming response:
+{
+  "id": "chatcmpl-B9MHDbslfkBeAs8l4bebGdFOJ6PeG",
+  "object": "chat.completion",
+  "created": 1741570283,
+  "model": "gpt-4o-2024-08-06",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "The image shows a wooden boardwalk.",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1117,
+    "completion_tokens": 6,
+    "total_tokens": 1123,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_fc9f1d7035"
+}
 """
 
 
@@ -36,22 +74,36 @@ class Audio(DeepEventedModel):
 
 
 class FunctionCall(DeepEventedModel):
-    arguments: str = Field()
-    name: str = Field()
+    """Function call details.
+
+    For streaming responses, name may be provided in the first chunk and arguments
+    may be built up incrementally across multiple chunks.
+    """
+
+    arguments: str = Field(default="")
+    name: Optional[str] = Field(default=None)
 
 
 class ToolCall(DeepEventedModel):
-    id: str = Field()
+    """Tool/function call made by the model.
+
+    For streaming responses, the index field indicates the position in the tool_calls array,
+    allowing reconstruction of the complete array from multiple chunks where each chunk
+    may contain only a subset of the tool calls.
+    """
+
+    id: Optional[str] = Field(default=None)
     function: FunctionCall = Field()
-    type: str = Field(default="function")
+    type: Optional[str] = Field(default="function")
+    index: Optional[int] = Field(default=None, description="Index in tool_calls array (used in streaming responses)")
 
 
 class Message(DeepEventedModel):
     """A message in a chat completion."""
 
-    content: Optional[str] = Field(default=None)
+    role: str = Field()
+    content: str = Field()
     refusal: Optional[str] = Field(default=None)
-    role: str = Field(default_factory=str)
     annotations: EList[Annotation] = Field(default_factory=lambda: EList[Annotation]())
     audio: Optional[Audio] = Field(default=None)
     function_call: Optional[FunctionCall] = Field(default=None)
@@ -69,7 +121,7 @@ class Choice(DeepEventedModel):
     """A single choice in a chat completion response."""
 
     index: int = Field(default=0)
-    message: Message = Field(default_factory=Message)
+    message: Message = Field()
     finish_reason: Optional[str] = Field(default=None)
     logprobs: Optional[LogProbs] = Field(default=None)
 
@@ -93,11 +145,11 @@ class CompletionTokensDetails(DeepEventedModel):
 class Usage(DeepEventedModel):
     """Token usage statistics for the chat completion request."""
 
-    prompt_tokens: int = Field(default=0)
-    completion_tokens: int = Field(default=0)
-    total_tokens: int = Field(default=0)
-    prompt_tokens_details: Optional[PromptTokensDetails] = Field(default_factory=PromptTokensDetails)
-    completion_tokens_details: Optional[CompletionTokensDetails] = Field(default_factory=CompletionTokensDetails)
+    prompt_tokens: int = Field()
+    completion_tokens: int = Field()
+    total_tokens: int = Field()
+    prompt_tokens_details: PromptTokensDetails = Field(default_factory=PromptTokensDetails)
+    completion_tokens_details: CompletionTokensDetails = Field(default_factory=CompletionTokensDetails)
 
 
 # ------------------ Request Objects ------------------

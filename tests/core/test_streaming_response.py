@@ -35,21 +35,36 @@ class TestStreamingIterators:
     @pytest.mark.asyncio
     async def test_openai_streaming_iterator(self):
         """Test OpenAIStreamingIterator wrapping."""
+
+        # Mock pydantic chunks
+        class MockPydanticChunk:
+            def __init__(self, data: str):
+                self.data = data
+
+            def model_dump_json(self) -> str:
+                return f'{{"content": "{self.data}"}}'
+
         # Mock an OpenAI stream
         mock_stream = AsyncMock()
         mock_stream.__anext__ = AsyncMock()
 
-        # Set up mock to return chunks then stop
-        chunks = ["chunk1", "chunk2", "chunk3"]
+        # Set up mock to return pydantic chunks then stop
+        chunks = [MockPydanticChunk("chunk1"), MockPydanticChunk("chunk2"), MockPydanticChunk("chunk3")]
         mock_stream.__anext__.side_effect = chunks + [StopAsyncIteration]
 
         iterator = OpenAIStreamingIterator(mock_stream)
 
-        received_chunks = []
-        async for chunk in iterator:
-            received_chunks.append(chunk)
+        received_events = []
+        async for event in iterator:
+            received_events.append(event)
 
-        assert received_chunks == chunks
+        # Should receive 3 OpenAIStreamEvent objects
+        assert len(received_events) == 3
+        assert all(hasattr(event, "raw_data") for event in received_events)
+        # Events should contain JSON data from mock pydantic chunks
+        assert received_events[0].raw_data == '{"content": "chunk1"}'
+        assert received_events[1].raw_data == '{"content": "chunk2"}'
+        assert received_events[2].raw_data == '{"content": "chunk3"}'
         assert iterator.exhausted is True
 
         # Verify exhausted iterator raises StopAsyncIteration

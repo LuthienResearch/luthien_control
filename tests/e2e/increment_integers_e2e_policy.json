@@ -1,0 +1,46 @@
+{
+    "type": "SerialPolicy",
+    "config": {
+        "name": "IncrementIntegers E2E Test Policy", 
+        "policies": [
+            {
+                "type": "ClientApiKeyAuth",
+                "config": {
+                    "name": "E2E_ClientAPIKeyCheck"
+                }
+            },
+            {
+                "type": "LeakedApiKeyDetection",
+                "config": {
+                    "name": "E2E_LeakedKeyCheck"
+                }
+            },
+            {
+                "type": "AddApiKeyHeaderFromEnv",
+                "config": {
+                    "name": "E2E_AddBackendKey",
+                    "api_key_env_var_name": "OPENAI_API_KEY"
+                }
+            },
+            {
+                "type": "SetBackendPolicy",
+                "config": {
+                    "name": "E2E_SetBackend",
+                    "backend_url": "https://api.openai.com/v1/"
+                }
+            },
+            {
+                "type": "IncrementIntegers",
+                "config": {
+                    "name": "E2E_IncrementIntegers"
+                }
+            },
+            {
+                "type": "SendBackendRequest",
+                "config": {
+                    "name": "E2E_ForwardRequest"
+                }
+            }
+        ]
+    }
+}

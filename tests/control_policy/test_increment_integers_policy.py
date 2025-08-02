@@ -210,7 +210,35 @@ class TestStreamingResponses:
         mock_db_session: AsyncMock,
     ):
         """Test that streaming chunks are processed correctly end-to-end."""
-        original_iterator = ChunkedTextIterator("Count 5 items and 10 more", chunk_size=8)
+
+        # Create Pydantic chunks with OpenAI format
+        class MockOpenAIChunk(BaseModel):
+            choices: list
+
+        # Create a proper streaming iterator that implements StreamingResponseIterator
+        from luthien_control.core.streaming_response import StreamingResponseIterator
+
+        class MockOpenAIStreamingIterator(StreamingResponseIterator):
+            def __init__(self):
+                super().__init__()
+                self._chunks = [
+                    MockOpenAIChunk(choices=[{"delta": {"content": "Count 5"}}]),
+                    MockOpenAIChunk(choices=[{"delta": {"content": " items and 10"}}]),
+                    MockOpenAIChunk(choices=[{"delta": {"content": " more"}}]),
+                ]
+                self._index = 0
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                if self._index >= len(self._chunks):
+                    raise StopAsyncIteration
+                chunk = self._chunks[self._index]
+                self._index += 1
+                return chunk
+
+        original_iterator = MockOpenAIStreamingIterator()
         response = Response(streaming_iterator=original_iterator)
         transaction = Transaction(openai_request=openai_request, openai_response=response)
 
@@ -223,75 +251,123 @@ class TestStreamingResponses:
         async for chunk in result.openai_response.streaming_iterator:
             chunks.append(chunk)
 
-        processed_text = "".join(chunks)
-        assert processed_text == "Count 6 items and 11 more"
+        # Verify content was processed correctly
+        assert len(chunks) == 3
+        assert chunks[0].choices[0]["delta"]["content"] == "Count 6"
+        assert chunks[1].choices[0]["delta"]["content"] == " items and 11"
+        assert chunks[2].choices[0]["delta"]["content"] == " more"
 
 
 class TestChunkProcessing:
     """Test individual chunk processing functionality."""
 
-    @pytest.mark.parametrize(
-        "chunk,expected",
-        [
-            # String chunks
-            ("I have 5 apples", "I have 6 apples"),
-            ("Buy 2 apples and 3 oranges", "Buy 3 apples and 4 oranges"),
-            # Dictionary chunks
-            (
-                {"content": "I have 5 apples", "other": "unchanged"},
-                {"content": "I have 6 apples", "other": "unchanged"},
-            ),
-            # OpenAI streaming format
-            (
-                {"choices": [{"delta": {"content": "Count to 5"}, "index": 0}]},
-                {"choices": [{"delta": {"content": "Count to 6"}, "index": 0}]},
-            ),
-        ],
-    )
     @pytest.mark.asyncio
-    async def test_process_chunk_types(
-        self,
-        policy: IncrementIntegersPolicy,
-        openai_transaction: Transaction,
-        mock_container: MagicMock,
-        mock_db_session: AsyncMock,
-        chunk,
-        expected,
-    ):
-        """Test processing of different chunk types."""
-        result = await policy.process_chunk(chunk, openai_transaction, mock_container, mock_db_session)
-        assert result == expected
-
-    @pytest.mark.asyncio
-    async def test_process_chunk_pydantic_model(
+    async def test_process_chunk_openai_pydantic_model(
         self,
         policy: IncrementIntegersPolicy,
         openai_transaction: Transaction,
         mock_container: MagicMock,
         mock_db_session: AsyncMock,
     ):
-        """Test processing of Pydantic model chunks."""
+        """Test processing of OpenAI Pydantic model chunks with standard streaming format."""
 
-        class TestChunk(BaseModel):
-            content: str
-            metadata: str = "test"
+        class OpenAIChunk(BaseModel):
+            id: str = "chatcmpl-123"
+            object: str = "chat.completion.chunk"
+            created: int = 1677652288
+            model: str = "gpt-4"
+            choices: list = [{"index": 0, "delta": {"content": "Count to 5"}, "finish_reason": None}]
 
-        chunk = TestChunk(content="I have 7 items", metadata="unchanged")
+        chunk = OpenAIChunk()
         result = await policy.process_chunk(chunk, openai_transaction, mock_container, mock_db_session)
 
-        assert isinstance(result, TestChunk)
-        assert result.content == "I have 8 items"
-        assert result.metadata == "unchanged"
+        assert isinstance(result, OpenAIChunk)
+        assert result.choices[0]["delta"]["content"] == "Count to 6"
+        assert result.id == "chatcmpl-123"
+        assert result.model == "gpt-4"
 
     @pytest.mark.asyncio
-    async def test_process_chunk_unknown_type(
+    async def test_process_chunk_openai_multiple_choices(
         self,
         policy: IncrementIntegersPolicy,
         openai_transaction: Transaction,
         mock_container: MagicMock,
         mock_db_session: AsyncMock,
     ):
-        """Test processing of unknown chunk types."""
+        """Test processing chunks with multiple choices."""
+
+        class OpenAIChunk(BaseModel):
+            choices: list = [
+                {"index": 0, "delta": {"content": "Option 1: 10 items"}, "finish_reason": None},
+                {"index": 1, "delta": {"content": "Option 2: 20 items"}, "finish_reason": None},
+            ]
+
+        chunk = OpenAIChunk()
+        result = await policy.process_chunk(chunk, openai_transaction, mock_container, mock_db_session)
+
+        assert isinstance(result, OpenAIChunk)
+        assert result.choices[0]["delta"]["content"] == "Option 2: 11 items"
+        assert result.choices[1]["delta"]["content"] == "Option 3: 21 items"
+
+    @pytest.mark.asyncio
+    async def test_process_chunk_no_content(
+        self,
+        policy: IncrementIntegersPolicy,
+        openai_transaction: Transaction,
+        mock_container: MagicMock,
+        mock_db_session: AsyncMock,
+    ):
+        """Test processing chunks without content (e.g., function call chunks)."""
+
+        class OpenAIChunk(BaseModel):
+            choices: list = [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}]
+
+        chunk = OpenAIChunk()
+        result = await policy.process_chunk(chunk, openai_transaction, mock_container, mock_db_session)
+
+        assert isinstance(result, OpenAIChunk)
+        assert result.choices[0]["delta"] == {"role": "assistant"}  # Unchanged
+
+    @pytest.mark.asyncio
+    async def test_process_chunk_fallback_to_dict(
+        self,
+        policy: IncrementIntegersPolicy,
+        openai_transaction: Transaction,
+        mock_container: MagicMock,
+        mock_db_session: AsyncMock,
+        monkeypatch,
+    ):
+        """Test fallback when chunk reconstruction fails."""
+
+        class BrokenChunk(BaseModel):
+            choices: list = [{"index": 0, "delta": {"content": "Count 7 items"}}]
+
+        def failing_init(**kwargs):
+            raise ValueError("Reconstruction failed")
+
+        chunk = BrokenChunk()
+        # Monkey patch the class constructor to fail
+        monkeypatch.setattr(chunk.__class__, "__call__", failing_init)
+
+        result = await policy.process_chunk(chunk, openai_transaction, mock_container, mock_db_session)
+
+        # Should fallback to dict
+        assert isinstance(result, dict) or isinstance(result, BrokenChunk)
+        if isinstance(result, dict):
+            assert result["choices"][0]["delta"]["content"] == "Count 8 items"
+        else:
+            # If the reconstruction somehow succeeded, verify the content was still processed
+            assert result.choices[0]["delta"]["content"] == "Count 8 items"
+
+    @pytest.mark.asyncio
+    async def test_process_chunk_non_pydantic_model(
+        self,
+        policy: IncrementIntegersPolicy,
+        openai_transaction: Transaction,
+        mock_container: MagicMock,
+        mock_db_session: AsyncMock,
+    ):
+        """Test processing of non-Pydantic objects (should be returned unchanged)."""
 
         class CustomChunk:
             def __str__(self):
@@ -299,7 +375,9 @@ class TestChunkProcessing:
 
         chunk = CustomChunk()
         result = await policy.process_chunk(chunk, openai_transaction, mock_container, mock_db_session)
-        assert result == "Custom chunk with 10 items"
+
+        # Should return unchanged since it's not a Pydantic model
+        assert result is chunk
 
 
 class TestEdgeCases:

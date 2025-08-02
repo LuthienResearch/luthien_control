@@ -5,7 +5,11 @@ from unittest.mock import MagicMock
 import pytest
 from luthien_control.api.openai_chat_completions.datatypes import Message
 from luthien_control.api.openai_chat_completions.request import OpenAIChatCompletionsRequest
-from luthien_control.control_policy.streaming_policy import PassthroughStreamingPolicy, StreamingControlPolicy
+from luthien_control.control_policy.streaming_policy import (
+    OpenAIStreamingChunk,
+    PassthroughStreamingPolicy,
+    StreamingControlPolicy,
+)
 from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.request import Request
 from luthien_control.core.response import Response
@@ -51,8 +55,12 @@ class MockStreamingPolicyWithProcessChunk(MockStreamingPolicy):
     """Concrete implementation for testing with process_chunk."""
 
     async def process_chunk(
-        self, chunk: str, transaction: Transaction, container: DependencyContainer, session: AsyncSession
-    ) -> str:
+        self,
+        chunk: OpenAIStreamingChunk,
+        transaction: Transaction,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> OpenAIStreamingChunk:
         """Test chunk processing that logs chunks and adds a prefix."""
         self.chunks_processed.append(chunk)
         return f"[PROCESSED] {chunk}"

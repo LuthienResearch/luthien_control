@@ -77,8 +77,11 @@ class IncrementIntegersPolicy(StreamingControlPolicy):
     ) -> Any:
         """Process a single streaming chunk to increment integers.
 
+        Uses the StreamingControlPolicy helper method to safely process OpenAI chunk content.
+        This demonstrates the recommended pattern for processing streaming chunks.
+
         Args:
-            chunk: The streaming chunk (could be string, dict, or OpenAI chunk object)
+            chunk: The OpenAI streaming chunk (Pydantic model)
             transaction: The current transaction
             container: Dependency container
             session: Database session
@@ -86,39 +89,11 @@ class IncrementIntegersPolicy(StreamingControlPolicy):
         Returns:
             The processed chunk with integers incremented
         """
-        # Handle different chunk types that might contain text content
-        if isinstance(chunk, str):
-            # Simple string chunk - process directly
-            return self._increment_integers_in_string(chunk)
-        elif isinstance(chunk, dict):
-            # Dictionary chunk - look for content fields and process them
-            processed_chunk = chunk.copy()
-            if "content" in processed_chunk and isinstance(processed_chunk["content"], str):
-                processed_chunk["content"] = self._increment_integers_in_string(processed_chunk["content"])
-            # Also check for OpenAI streaming format
-            if "choices" in processed_chunk and isinstance(processed_chunk["choices"], list):
-                for choice in processed_chunk["choices"]:
-                    if isinstance(choice, dict) and "delta" in choice:
-                        delta = choice["delta"]
-                        if isinstance(delta, dict) and "content" in delta and isinstance(delta["content"], str):
-                            delta["content"] = self._increment_integers_in_string(delta["content"])
-            return processed_chunk
-        elif hasattr(chunk, "model_dump"):
-            # Pydantic model - convert to dict, process, and return modified version
-            chunk_dict = chunk.model_dump()
-            processed_dict = await self.process_chunk(chunk_dict, transaction, container, session)
-            # Try to reconstruct the original object type with processed data
-            try:
-                return chunk.__class__(**processed_dict)
-            except Exception:
-                # If reconstruction fails, return the processed dict
-                return processed_dict
-        else:
-            # Unknown chunk type - try to convert to string and process
-            chunk_str = str(chunk)
-            processed_str = self._increment_integers_in_string(chunk_str)
-            # If processing changed the string, log it and return the processed version
-            if processed_str != chunk_str:
-                self.logger.debug(f"Processed unknown chunk type {type(chunk).__name__}: {chunk_str[:50]}...")
-                return processed_str
-            return chunk
+
+        # Use the helper method to process OpenAI chunk content
+        # Create a wrapper that handles the Optional[str] -> Optional[str] signature
+        def increment_wrapper(text: str) -> str:
+            result = self._increment_integers_in_string(text)
+            return result if result is not None else text
+
+        return self.process_openai_chunk_content(chunk, increment_wrapper)

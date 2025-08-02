@@ -1,9 +1,33 @@
-"""Base classes for streaming-aware control policies."""
+"""Base classes for streaming-aware control policies.
+
+OpenAI Streaming Format:
+    Streaming chunks from OpenAI are Pydantic models that can be converted to dict via model_dump().
+    The typical structure follows the OpenAI chat completion streaming format:
+
+    {
+        "id": "chatcmpl-123",
+        "object": "chat.completion.chunk",
+        "created": 1677652288,
+        "model": "gpt-4",
+        "choices": [
+            {
+                "index": 0,
+                "delta": {
+                    "content": "text chunk here"
+                },
+                "finish_reason": null
+            }
+        ]
+    }
+
+    Policies should expect Pydantic models with model_dump() capability rather than
+    raw strings or plain dictionaries.
+"""
 
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Callable, Union
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from luthien_control.control_policy.control_policy import ControlPolicy
@@ -11,6 +35,9 @@ from luthien_control.core.dependency_container import DependencyContainer
 from luthien_control.core.streaming_response import StreamingResponseIterator
 from luthien_control.core.transaction import Transaction
 from luthien_control.utils.streaming import StreamingBuffer
+
+# Type alias for OpenAI streaming chunks
+OpenAIStreamingChunk = Union[BaseModel, Any]  # Pydantic models with model_dump() method
 
 
 class StreamingControlPolicy(ControlPolicy, ABC):
@@ -20,6 +47,13 @@ class StreamingControlPolicy(ControlPolicy, ABC):
     - Process streaming chunks as they arrive
     - Buffer streaming data for analysis
     - Modify or filter streaming responses
+
+    Implementation Notes:
+        - Streaming chunks are OpenAI Pydantic models with a 'choices' attribute
+        - Use hasattr(chunk, "choices") to identify proper chunks
+        - Content is typically found in chunk.choices[0]["delta"]["content"]
+        - Policies can modify Pydantic objects in-place without serialization/deserialization
+        - Use the process_openai_chunk_content() helper for safe content processing
     """
 
     async def apply(
@@ -71,15 +105,36 @@ class StreamingControlPolicy(ControlPolicy, ABC):
         return PolicyWrappedIterator(iterator, self, transaction, container, session)
 
     async def process_chunk(
-        self, chunk: Any, transaction: Transaction, container: DependencyContainer, session: AsyncSession
-    ) -> Any:
+        self,
+        chunk: OpenAIStreamingChunk,
+        transaction: Transaction,
+        container: DependencyContainer,
+        session: AsyncSession,
+    ) -> OpenAIStreamingChunk:
         """Process a single streaming chunk.
 
         Override this method to implement chunk-level processing logic.
         By default, chunks are passed through unchanged.
 
+        OpenAI Chunk Format:
+            Chunks are expected to be Pydantic models with model_dump() capability.
+            When converted to dict, they typically have this structure:
+
+            {
+                "choices": [
+                    {
+                        "delta": {
+                            "content": "actual text content to process"
+                        }
+                    }
+                ]
+            }
+
+            Policies should check for hasattr(chunk, "model_dump") to identify
+            proper OpenAI chunks vs. unexpected types.
+
         Args:
-            chunk: The streaming chunk to process
+            chunk: The streaming chunk (typically a Pydantic model from OpenAI)
             transaction: The current transaction
             container: Dependency container
             session: Database session
@@ -99,6 +154,45 @@ class StreamingControlPolicy(ControlPolicy, ABC):
             A StreamingBuffer instance
         """
         return StreamingBuffer(iterator)
+
+    def process_openai_chunk_content(
+        self, chunk: OpenAIStreamingChunk, content_processor: Callable[[str], str]
+    ) -> OpenAIStreamingChunk:
+        """Helper method to safely process OpenAI chunk content in-place.
+
+        This method handles the common pattern of processing content in OpenAI streaming chunks
+        by directly modifying the Pydantic object without serialization/deserialization.
+
+        Args:
+            chunk: The OpenAI streaming chunk (Pydantic model)
+            content_processor: Function that takes a string and returns processed string
+
+        Returns:
+            The same chunk object with modified content (modified in-place)
+
+        Example:
+            def my_processor(text: str) -> str:
+                return text.upper()
+
+            processed_chunk = self.process_openai_chunk_content(chunk, my_processor)
+        """
+        # Check if this is a Pydantic model with choices attribute
+        if not hasattr(chunk, "choices"):
+            self.logger.warning(
+                f"Unexpected chunk type {type(chunk).__name__}, expected chunk with 'choices' attribute"
+            )
+            return chunk
+
+        # Process OpenAI streaming format: chunk.choices = [{"delta": {"content": "text"}}]
+        choices = getattr(chunk, "choices", None)
+        if choices is not None and isinstance(choices, list):
+            for choice in choices:
+                if isinstance(choice, dict) and "delta" in choice:
+                    delta = choice["delta"]
+                    if isinstance(delta, dict) and "content" in delta and isinstance(delta["content"], str):
+                        delta["content"] = content_processor(delta["content"])
+
+        return chunk
 
 
 class PolicyWrappedIterator(StreamingResponseIterator):

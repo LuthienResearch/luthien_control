@@ -19,7 +19,7 @@ class IncrementIntegersPolicy(StreamingControlPolicy):
 
     name: Optional[str] = Field(default="IncrementIntegersPolicy")
 
-    def _increment_integers_in_string(self, text: Optional[str]) -> Optional[str]:
+    def _increment_integers_in_string(self, text: str) -> str:
         """Replace all integers in a string with their value + 1."""
         if not text:
             return text

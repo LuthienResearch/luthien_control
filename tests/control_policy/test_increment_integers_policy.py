@@ -111,10 +111,6 @@ class TestStringProcessing:
         """Test string processing with various inputs."""
         assert policy._increment_integers_in_string(input_text) == expected
 
-    def test_increment_integers_in_string_none(self, policy: IncrementIntegersPolicy):
-        """Test None input."""
-        assert policy._increment_integers_in_string(None) is None
-
 
 class TestNonStreamingResponses:
     """Test policy application with non-streaming responses."""

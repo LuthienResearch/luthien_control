@@ -30,10 +30,7 @@ def test_response_default_factories():
     response = OpenAIChatCompletionsResponse(id="id", object="obj", created=1, model="mod")
     assert isinstance(response.choices, EventedList)
     assert len(response.choices) == 0
-    assert isinstance(response.usage, Usage)
-    assert response.usage.prompt_tokens == 0
-    assert response.usage.completion_tokens == 0
-    assert response.usage.total_tokens == 0
+    assert response.usage is None
 
 
 def test_response_evented_list_modification(minimal_response):
@@ -51,6 +48,10 @@ def test_response_evented_list_modification(minimal_response):
 
 def test_response_nested_model_modification(minimal_response):
     """Test that modifying the 'usage' model emits a 'changed' signal."""
+    # First set usage since it's now optional
+    usage = Usage(prompt_tokens=10, completion_tokens=20, total_tokens=30)
+    minimal_response.usage = usage
+
     mock_callback = Mock()
     minimal_response.changed.connect(mock_callback)
 

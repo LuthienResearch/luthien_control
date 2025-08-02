@@ -36,14 +36,29 @@ class Audio(DeepEventedModel):
 
 
 class FunctionCall(DeepEventedModel):
-    arguments: str = Field()
-    name: str = Field()
+    """Function call details.
+
+    For streaming responses, name may be provided in the first chunk and arguments
+    may be built up incrementally across multiple chunks.
+    """
+
+    arguments: str = Field(default="")
+    name: Optional[str] = Field(default=None)
 
 
 class ToolCall(DeepEventedModel):
-    id: str = Field()
+    """Tool/function call made by the model.
+
+    For streaming responses, the index field indicates the position in the tool_calls array,
+    allowing reconstruction of the complete array from multiple chunks where each chunk
+    may contain only a subset of the tool calls. In follow-up chunks, id and type may be
+    omitted while function details are provided incrementally.
+    """
+
+    id: Optional[str] = Field(default=None)
     function: FunctionCall = Field()
-    type: str = Field(default="function")
+    type: Optional[str] = Field(default="function")
+    index: Optional[int] = Field(default=None, description="Index in tool_calls array (used in streaming responses)")
 
 
 class Message(DeepEventedModel):

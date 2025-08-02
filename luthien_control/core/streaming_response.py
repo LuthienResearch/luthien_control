@@ -5,6 +5,8 @@ from typing import Any, AsyncIterator, TypeVar
 
 from pydantic import BaseModel, Field
 
+from luthien_control.api.openai_chat_completions.streaming_response_models import OpenAIStreamEvent
+
 T = TypeVar("T")
 
 
@@ -33,31 +35,59 @@ class OpenAIStreamingIterator(StreamingResponseIterator):
 
     This class wraps the OpenAI SDK's AsyncStream objects to provide
     a consistent interface for processing streaming chat completions.
+    It parses raw chunks into structured OpenAIStreamEvent objects.
     """
 
     stream: Any = Field(description="The OpenAI AsyncStream object")
     exhausted: bool = Field(default=False, exclude=True)
 
     def __init__(self, stream: Any, **kwargs):
-        """Initialize with an OpenAI AsyncStream object."""
+        """Initialize with an OpenAI AsyncStream object.
+
+        Args:
+            stream: The OpenAI AsyncStream object
+        """
         kwargs["stream"] = stream
         super().__init__(**kwargs)
 
-    def __aiter__(self) -> AsyncIterator[Any]:
+    def __aiter__(self) -> AsyncIterator[OpenAIStreamEvent]:
         """Return self as the async iterator."""
         return self
 
-    async def __anext__(self) -> Any:
-        """Get the next chunk from the OpenAI stream."""
+    async def __anext__(self) -> OpenAIStreamEvent:
+        """Get the next chunk from the OpenAI stream.
+
+        Returns:
+            OpenAIStreamEvent with structured chunk data
+        """
         if self.exhausted:
             raise StopAsyncIteration
 
         try:
-            # The OpenAI AsyncStream should handle its own iteration
-            return await self.stream.__anext__()
+            # Get the raw chunk from the OpenAI AsyncStream
+            chunk = await self.stream.__anext__()
+
+            # Parse the chunk into a structured event
+            return self._parse_chunk(chunk)
+
         except StopAsyncIteration:
             self.exhausted = True
             raise
+
+    def _parse_chunk(self, chunk: Any) -> OpenAIStreamEvent:
+        """Parse a pydantic chunk into an OpenAIStreamEvent.
+
+        Args:
+            chunk: Pydantic model chunk from OpenAI SDK
+
+        Returns:
+            Parsed OpenAIStreamEvent
+
+        Raises:
+            AttributeError: If chunk doesn't have model_dump_json method
+        """
+        json_str = chunk.model_dump_json()
+        return OpenAIStreamEvent.from_sse_data(json_str)
 
 
 class RawStreamingIterator(StreamingResponseIterator):

@@ -74,8 +74,10 @@ def test_log_probs_instantiation():
 
 def test_choice_instantiation():
     """Test that Choice can be instantiated."""
-    instance = Choice()
+    message = Message(role="assistant", content="Hello")
+    instance = Choice(message=message)
     assert isinstance(instance, Choice)
+    assert instance.message.role == "assistant"
 
 
 def test_prompt_tokens_details_instantiation():
@@ -92,8 +94,11 @@ def test_completion_tokens_details_instantiation():
 
 def test_usage_instantiation():
     """Test that Usage can be instantiated."""
-    instance = Usage()
+    instance = Usage(prompt_tokens=10, completion_tokens=20, total_tokens=30)
     assert isinstance(instance, Usage)
+    assert instance.prompt_tokens == 10
+    assert instance.completion_tokens == 20
+    assert instance.total_tokens == 30
 
 
 def test_image_url_instantiation():

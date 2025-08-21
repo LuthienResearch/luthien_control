@@ -8,14 +8,15 @@ packages = [{include = "luthien_control"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-fastapi = "^0.109.0"
-uvicorn = "^0.27.0"
-httpx = "^0.26.0"
+fastapi = ">=0.115.5"
+uvicorn = ">=0.29.0,<0.30.0"
+httpx = ">=0.27.0"
 pydantic = "^2.6.0"
 python-dotenv = "^1.0.0"
 requests = "^2.32.3"
 brotli = "^1.1.0"
 openai = "^1.68.2"
+litellm = {extras = ["proxy"], version = "^1.75.9"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

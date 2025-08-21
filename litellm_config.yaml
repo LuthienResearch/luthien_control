@@ -1,0 +1,32 @@
+model_list:
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: openai/gpt-3.5-turbo
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: gpt-4
+    litellm_params:
+      model: openai/gpt-4
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+# General settings
+general_settings:
+  completion_model: gpt-3.5-turbo
+  fallbacks: [{"gpt-4": ["gpt-3.5-turbo"]}]
+  master_key: os.environ/LITELLM_MASTER_KEY
+  
+# Router settings for load balancing and fallbacks
+router_settings:
+  routing_strategy: simple-shuffle
+  allowed_fails: 3
+  cooldown_time: 30
+  retry_after: 20
+  
+# Server settings
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+  json_logs: true

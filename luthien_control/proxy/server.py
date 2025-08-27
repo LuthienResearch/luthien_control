@@ -16,6 +16,9 @@ from fastapi.datastructures import Headers
 
 from ..logging.api_logger import APILogger
 from ..policies.manager import PolicyManager
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 env_path = Path(__file__).parent.parent.parent / '.env'
@@ -66,6 +69,86 @@ def get_headers(request: Request) -> Headers:
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+@app.post("/v1/litellm-proxy/chat/completions")
+async def litellm_proxy_chat_completions(request: Request):
+    """
+    Handle chat completion requests using LiteLLM proxy server (Option A).
+    """
+    from ..integrations.litellm_manager import get_litellm_manager
+    
+    litellm_manager = get_litellm_manager()
+    
+    # Ensure LiteLLM proxy is running
+    if not litellm_manager.is_running():
+        logger.info("Starting LiteLLM proxy server...")
+        started = await litellm_manager.start()
+        if not started:
+            raise HTTPException(status_code=503, detail="Failed to start LiteLLM proxy server")
+    
+    try:
+        # Parse request body
+        request_body = await request.body()
+        
+        # Log request details
+        api_logger.log_request(
+            method=request.method,
+            url=str(request.url),
+            headers=dict(request.headers),
+            body=request_body,
+            query_params=dict(request.query_params)
+        )
+        
+        # Apply request policies
+        processed_request = await policy_manager.apply_request_policies(
+            request, 
+            str(request.url), 
+            dict(request.headers), 
+            request_body
+        )
+        
+        # Forward to LiteLLM proxy server
+        litellm_url = litellm_manager.get_endpoint_url("v1/chat/completions")
+        
+        # Prepare headers for LiteLLM proxy
+        headers = dict(request.headers)
+        headers.pop("host", None)
+        headers.pop("content-length", None)
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                litellm_url,
+                headers=headers,
+                content=processed_request['body'],
+                timeout=300  # 5 minute timeout for LLM requests
+            )
+            
+            # Read response content
+            content = await response.aread()
+            
+            # Log response details
+            api_logger.log_response(
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                body=content
+            )
+            
+            # Apply response policies
+            processed_response = await policy_manager.apply_response_policies(
+                request,
+                response,
+                content
+            )
+            
+            return Response(
+                content=processed_response['content'],
+                status_code=processed_response['status_code'],
+                headers=processed_response['headers']
+            )
+            
+    except Exception as e:
+        logger.error(f"Error in LiteLLM proxy completion: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"LiteLLM proxy error: {str(e)}")
 
 @app.api_route("/v1/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy_request(request: Request, path: str):
